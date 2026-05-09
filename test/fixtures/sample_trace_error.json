@@ -1,0 +1,56 @@
+{
+  "resourceSpans": [
+    {
+      "resource": {
+        "attributes": [
+          {"key": "service.name", "value": {"stringValue": "order-svc"}}
+        ]
+      },
+      "scopeSpans": [
+        {
+          "scope": {"name": "http"},
+          "spans": [
+            {
+              "traceId": "eeee000011112222eeee000011112222",
+              "spanId": "e000000000000001",
+              "parentSpanId": "",
+              "name": "POST /orders",
+              "kind": 1,
+              "startTimeUnixNano": "1700000000000000000",
+              "endTimeUnixNano": "1700000000100000000",
+              "status": {"code": 2},
+              "attributes": [
+                {"key": "http.method", "value": {"stringValue": "POST"}},
+                {"key": "http.status_code", "value": {"intValue": "500"}}
+              ]
+            },
+            {
+              "traceId": "eeee000011112222eeee000011112222",
+              "spanId": "e000000000000002",
+              "parentSpanId": "e000000000000001",
+              "name": "db.insert",
+              "kind": 2,
+              "startTimeUnixNano": "1700000000010000000",
+              "endTimeUnixNano": "1700000000090000000",
+              "status": {"code": 2},
+              "attributes": [
+                {"key": "db.system", "value": {"stringValue": "postgresql"}},
+                {"key": "exception.message", "value": {"stringValue": "connection refused"}}
+              ],
+              "events": [
+                {
+                  "name": "exception",
+                  "timeUnixNano": "1700000000090000000",
+                  "attributes": [
+                    {"key": "exception.type", "value": {"stringValue": "ConnectionError"}},
+                    {"key": "exception.message", "value": {"stringValue": "connection refused"}}
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
