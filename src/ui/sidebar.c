@@ -13,7 +13,7 @@ static void on_traces_clicked(GtkButton *btn, gpointer user_data) {
 
 GtkWidget *otelux_sidebar_create(OteluxApp *app) {
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 4);
-    gtk_widget_set_size_request(box, 180, -1);
+    gtk_widget_set_size_request(box, 140, -1);
 
     /* App title */
     GtkWidget *title = gtk_label_new("OTelux");

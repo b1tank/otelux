@@ -50,14 +50,15 @@ static gboolean on_render(GtkGLArea *area, GdkGLContext *ctx, gpointer user_data
             FILE *f = fopen(fonts[i], "r");
             if (f) { fclose(f); font = fonts[i]; break; }
         }
-        text_renderer_init(&state->text, font, 14);
+        text_renderer_init(&state->text, font, 18);
         state->gl_initialized = 1;
-        state->row_height = 28;
+        state->row_height = 36;
     }
 
     int width = gtk_widget_get_width(GTK_WIDGET(area));
     int height = gtk_widget_get_height(GTK_WIDGET(area));
-    gl_core_set_viewport(width, height);
+    int scale = gtk_widget_get_scale_factor(GTK_WIDGET(area));
+    gl_core_set_viewport(width * scale, height * scale);
 
     float projection[16];
     gl_core_get_ortho(projection, (float)width, (float)height);
@@ -67,19 +68,28 @@ static gboolean on_render(GtkGLArea *area, GdkGLContext *ctx, gpointer user_data
     glClear(GL_COLOR_BUFFER_BIT);
 
     /* Header */
-    quad_render(&state->quad, 0, 0, (float)width, (float)state->row_height,
+    float rh = (float)state->row_height;
+    quad_render(&state->quad, 0, 0, (float)width, rh,
                 COLOR_BG_ALT.r, COLOR_BG_ALT.g, COLOR_BG_ALT.b, 1.0f, projection);
 
-    float col_time = 10, col_name = 120, col_service = 450, col_dur = 650, col_status = 850;
-    text_render(&state->text, "Timestamp", col_time, 6, 1.0f,
+    /* Proportional columns based on window width */
+    float w = (float)width;
+    float col_time    = 12;
+    float col_name    = w * 0.18f;
+    float col_service = w * 0.42f;
+    float col_dur     = w * 0.58f;
+    float col_status  = w * 0.82f;
+    float text_baseline = (rh - (float)state->text.font_size) * 0.5f;
+
+    text_render(&state->text, "Timestamp", col_time, text_baseline, 1.0f,
                 COLOR_FG_DIM.r, COLOR_FG_DIM.g, COLOR_FG_DIM.b, projection);
-    text_render(&state->text, "Name", col_name, 6, 1.0f,
+    text_render(&state->text, "Name", col_name, text_baseline, 1.0f,
                 COLOR_FG_DIM.r, COLOR_FG_DIM.g, COLOR_FG_DIM.b, projection);
-    text_render(&state->text, "Service", col_service, 6, 1.0f,
+    text_render(&state->text, "Service", col_service, text_baseline, 1.0f,
                 COLOR_FG_DIM.r, COLOR_FG_DIM.g, COLOR_FG_DIM.b, projection);
-    text_render(&state->text, "Duration", col_dur, 6, 1.0f,
+    text_render(&state->text, "Duration", col_dur, text_baseline, 1.0f,
                 COLOR_FG_DIM.r, COLOR_FG_DIM.g, COLOR_FG_DIM.b, projection);
-    text_render(&state->text, "Status", col_status, 6, 1.0f,
+    text_render(&state->text, "Status", col_status, text_baseline, 1.0f,
                 COLOR_FG_DIM.r, COLOR_FG_DIM.g, COLOR_FG_DIM.b, projection);
 
     /* Query traces */
@@ -109,20 +119,20 @@ static gboolean on_render(GtkGLArea *area, GdkGLContext *ctx, gpointer user_data
 
         /* Alternating row background */
         if (i % 2 == 0) {
-            quad_render(&state->quad, 0, y, (float)width, (float)state->row_height,
+            quad_render(&state->quad, 0, y, w, rh,
                         COLOR_BG_ALT.r, COLOR_BG_ALT.g, COLOR_BG_ALT.b, 0.3f, projection);
         }
 
         /* Error indicator — left border */
         if (t->has_error) {
-            quad_render(&state->quad, 0, y, 3, (float)state->row_height,
+            quad_render(&state->quad, 0, y, 4, rh,
                         COLOR_ERROR.r, COLOR_ERROR.g, COLOR_ERROR.b, 1.0f, projection);
         } else {
-            quad_render(&state->quad, 0, y, 3, (float)state->row_height,
+            quad_render(&state->quad, 0, y, 4, rh,
                         COLOR_SUCCESS.r, COLOR_SUCCESS.g, COLOR_SUCCESS.b, 1.0f, projection);
         }
 
-        float text_y = y + 6;
+        float text_y = y + text_baseline;
 
         /* Timestamp */
         char time_buf[32];
@@ -140,15 +150,17 @@ static gboolean on_render(GtkGLArea *area, GdkGLContext *ctx, gpointer user_data
                     svc_color.r, svc_color.g, svc_color.b, projection);
 
         /* Duration bar */
-        float bar_max_w = 150.0f;
+        float bar_max_w = w * 0.15f;
         float bar_w = bar_max_w * ((float)t->duration / (float)max_dur);
-        if (bar_w < 2) bar_w = 2;
-        quad_render(&state->quad, col_dur, y + 8, bar_w, (float)state->row_height - 16,
+        if (bar_w < 3) bar_w = 3;
+        float bar_h = rh * 0.4f;
+        float bar_y = y + (rh - bar_h) * 0.5f;
+        quad_render(&state->quad, col_dur, bar_y, bar_w, bar_h,
                     COLOR_ACCENT.r, COLOR_ACCENT.g, COLOR_ACCENT.b, 0.7f, projection);
 
         char dur_buf[32];
         time_fmt_duration(t->duration, dur_buf, sizeof(dur_buf));
-        text_render(&state->text, dur_buf, col_dur + bar_w + 4, text_y, 1.0f,
+        text_render(&state->text, dur_buf, col_dur + bar_w + 6, text_y, 1.0f,
                     COLOR_FG_DIM.r, COLOR_FG_DIM.g, COLOR_FG_DIM.b, projection);
 
         /* Status */

@@ -75,7 +75,8 @@ static gboolean on_render(GtkGLArea *area, GdkGLContext *ctx, gpointer user_data
 
     int width = gtk_widget_get_width(GTK_WIDGET(area));
     int height = gtk_widget_get_height(GTK_WIDGET(area));
-    gl_core_set_viewport(width, height);
+    int scale = gtk_widget_get_scale_factor(GTK_WIDGET(area));
+    gl_core_set_viewport(width * scale, height * scale);
 
     float projection[16];
     gl_core_get_ortho(projection, (float)width, (float)height);

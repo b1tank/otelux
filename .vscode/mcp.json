@@ -1,0 +1,8 @@
+{
+  "servers": {
+    "deskpal": {
+      "command": "node",
+      "args": ["/home/b1tank/deskpal/dist/index.js"]
+    }
+  }
+}
