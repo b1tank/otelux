@@ -644,6 +644,61 @@ After every code change, the agent MUST run this sequence:
 
 If any step fails, fix before proceeding. Never skip tests to move forward.
 
+### Autonomous UI Verification Loop (deskpal)
+
+**`~/deskpal`** is a co-developed MCP server (TypeScript, `@modelcontextprotocol/sdk`)
+that provides desktop automation tools: `screenshot`, `click`, `type_text`,
+`key_press`, `list_windows`, `find_window`, `get_window_geometry`, etc. It runs
+as an MCP server configured in `.vscode/mcp.json`.
+
+The agent uses deskpal to **self-verify every visual change** without human
+intervention:
+
+```
+1. ninja -C build && ./build/otelux --port 24318 &   # rebuild + launch
+2. curl POST fixtures to /v1/traces                    # ingest test data
+3. deskpal: list_windows → find OTelux window ID
+4. deskpal: click (sidebar / trace row / span bar)     # navigate UI
+5. deskpal: screenshot → visually verify render output
+6. If wrong: fix code → goto 1
+7. If correct: commit
+```
+
+**deskpal is co-owned** — when the verification loop needs new capabilities
+(e.g., drag, pixel-color sampling, OCR, multi-monitor), update `~/deskpal`
+alongside OTelux changes. Commit and push both repos to keep them in sync.
+
+Key deskpal quirks to remember:
+- HiDPI: window geometry reports physical pixels (2560×1600 at 2× = 1280×800 logical).
+  Click coordinates are physical-pixel relative to window origin.
+- `find_window("OTelux")` may match a hidden 2×2 window. Use full title
+  `"OTelux — OpenTelemetry Viewer"` or `list_windows` to get the correct ID.
+- GTK gesture handlers receive coordinates in logical (CSS) pixels, not physical.
+
+### UI/UX Reference: Aspire Dashboard (`~/aspire`)
+
+The Aspire Dashboard (`~/aspire/src/Aspire.Dashboard/`) is the primary UI/UX
+reference for OTelux. Cross-reference it for:
+
+| OTelux View | Aspire Reference |
+|-------------|-----------------|
+| Trace list | `Components/Pages/Traces.razor` — columns, sorting, filtering patterns |
+| Waterfall | `Components/Pages/TraceDetail.razor` — span tree layout, depth indent, time ruler |
+| Span detail | `Components/Dialogs/SpanDetailsDialog.razor` — attribute display, key-value layout |
+| Metrics | `Components/Pages/Metrics.razor` — meter tree, chart types, time range |
+| Events | `Components/Pages/StructuredLogs.razor` — severity colors, filtering, detail expand |
+| Toolbar | `Components/Layout/MainLayout.razor` — filter bar, search, resource selector |
+
+Also reference **Jaeger UI** (`~/jaeger-ui/packages/jaeger-ui/src/components/`)
+for trace visualization patterns (especially `TracePage/TraceTimelineViewer/`)
+and **SigNoz** (`~/signoz/frontend/src/`) for dashboard layout patterns.
+
+When implementing a new view or refining an existing one:
+1. Read the corresponding Aspire/Jaeger/SigNoz component to understand UX decisions
+2. Adapt for native rendering (GTK chrome + OpenGL content)
+3. Verify with deskpal screenshot loop
+4. Commit both OTelux code and any deskpal enhancements needed
+
 ### Test Fixture Convention
 
 All test fixtures live in `test/fixtures/`. Named by signal type + scenario:
