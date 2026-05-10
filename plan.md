@@ -503,9 +503,11 @@ No external test framework dep. Each `test_*.c` has its own `main()`.
 
 **Run**: `ninja -C build test` (runs all L1+L2 via Meson's test runner)
 
-**Convention**: Every new function in `src/` gets a corresponding test in
-`test/unit/`. Agent must run `ninja -C build test` after every code change and
-see 0 failures before proceeding.
+**Convention**: Only write tests for **critical paths** — data integrity (parsing,
+storage, queries), layout math, and system boundaries (HTTP, CORS, malformed input).
+Do NOT write trivial getter/setter tests, color constant tests, or tests for pure
+wrappers. See `spec.md` §Critical Test Matrix for the full list. Agent must run
+`ninja -C build test` after every code change and see 0 failures before proceeding.
 
 ### L2 — Integration Tests
 
@@ -722,9 +724,11 @@ to stdout.
 
 ## Phased Plan
 
-### Phase 1: Traces (MVP)
+> **Priority order**: Traces (M1) ≫ Events (M2) > Metrics (M3) > Hardening (M4).
+> Detailed specifications for each milestone are in `spec.md`.
+> Traces must be feature-complete before starting Events or Metrics.
 
-**Goal**: Receive OTLP trace data and display in a waterfall view.
+### Phase 1: Traces — Feature-Complete (M1)
 
 | # | Task | Scope | Success Criteria | Test Verification |
 |---|------|-------|-----------------|-------------------|
@@ -740,30 +744,30 @@ to stdout.
 | 1.10 | **Filtering & search** | Service dropdown, text search, span type | Filter narrows displayed traces | L2: `test_store_query` filter paths; L4: `send_traces.sh` |
 | 1.11 | **Leak & perf baseline** | Valgrind clean, frame time measured | Zero leaks, waterfall < 4ms | L5: `valgrind_check.sh`, `perf_render.sh` |
 
-### Phase 2: Metrics
+### Phase 2: Structured Events (M2)
 
 | # | Task | Test Verification |
 |---|------|-------------------|
-| 2.1 | Metric point storage + OTLP metrics ingest | L1: `test_metrics_store`; L2: `test_ingest_metrics`; L4: `send_metrics.sh` |
-| 2.2 | Meter/instrument tree sidebar (GTK TreeView) | L4: `smoke.sh` |
-| 2.3 | Line chart renderer (OpenGL line strip + fill) | L3: `test_gl_chart` |
-| 2.4 | Time axis with auto-scaling + pan/zoom | L1: `test_axis_ticks` (tick computation math) |
-| 2.5 | Histogram percentile lines (P50/P90/P99) | L1: `test_percentile_calc`; L3: render verify |
-| 2.6 | Table view toggle (GTK or GL-rendered table) | L4: `smoke.sh` |
-| 2.7 | Dimension filters | L2: `test_store_query` filter by attributes |
-| 2.8 | Exemplar → trace linking | L2: verify exemplar trace_id resolves to span |
+| 2.1 | Event storage + OTLP log ingest | L1: `test_events_store`; L2: `test_ingest_events`; L4: `send_events.sh` |
+| 2.2 | Event list view with severity coloring | L3: render verify severity colors |
+| 2.3 | Event detail panel with attributes | L4: `smoke.sh` |
+| 2.4 | Trace correlation (click TraceId → waterfall) | L2: verify event.trace_id → trace lookup |
+| 2.5 | Log level filtering + full-text search | L2: `test_store_query` event filters |
 
-### Phase 3: Structured Events
+### Phase 3: Metrics (M3)
 
 | # | Task | Test Verification |
 |---|------|-------------------|
-| 3.1 | Event storage + OTLP log ingest | L1: `test_events_store`; L2: `test_ingest_events`; L4: `send_events.sh` |
-| 3.2 | Event list view with severity coloring | L3: render verify severity colors |
-| 3.3 | Event detail panel with attributes | L4: `smoke.sh` |
-| 3.4 | Trace correlation (click TraceId → waterfall) | L2: verify event.trace_id → trace lookup |
-| 3.5 | Log level filtering + full-text search | L2: `test_store_query` event filters |
+| 3.1 | Metric point storage + OTLP metrics ingest | L1: `test_metrics_store`; L2: `test_ingest_metrics`; L4: `send_metrics.sh` |
+| 3.2 | Meter/instrument tree sidebar (GTK TreeView) | L4: `smoke.sh` |
+| 3.3 | Line chart renderer (OpenGL line strip + fill) | L3: `test_gl_chart` |
+| 3.4 | Time axis with auto-scaling + pan/zoom | L1: `test_axis_ticks` (tick computation math) |
+| 3.5 | Histogram percentile lines (P50/P90/P99) | L1: `test_percentile_calc`; L3: render verify |
+| 3.6 | Table view toggle (GTK or GL-rendered table) | L4: `smoke.sh` |
+| 3.7 | Dimension filters | L2: `test_store_query` filter by attributes |
+| 3.8 | Exemplar → trace linking | L2: verify exemplar trace_id resolves to span |
 
-### Phase 4: Production Hardening
+### Phase 4: Production Hardening (M4)
 
 | # | Task | Test Verification |
 |---|------|-------------------|
@@ -823,7 +827,9 @@ xvfb-run ninja -C build test-render    # L3 (headless GL)
 
 ## Next Action
 
-Start with **Phase 1.1 + 1.2** together: Create the Meson build file, `main.c`
-with GTK 4 boilerplate, `testlib.h`, the test fixture JSONs, and `smoke.sh`.
-The very first commit should produce a window AND a passing `ninja -C build test`
-and `smoke.sh`.
+**Current**: M1 trace feature-complete. Immediate priorities:
+1. Fix HiDPI text blurriness (rasterize glyphs at physical pixel size) — see `spec.md` §M1.1
+2. Add scroll + keyboard navigation (M1.5)
+3. Polish trace list (sort, filters, error styling) (M1.2)
+4. Polish waterfall (time ruler, expand/collapse, back-nav) (M1.3)
+5. Add critical tests along the way: `test_store_filters`, `test_waterfall_layout`

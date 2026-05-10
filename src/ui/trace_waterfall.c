@@ -70,7 +70,8 @@ static gboolean on_render(GtkGLArea *area, GdkGLContext *ctx, gpointer user_data
             FILE *f = fopen(fonts[i], "r");
             if (f) { fclose(f); font = fonts[i]; break; }
         }
-        text_renderer_init(&state->text, font, 16);
+        text_renderer_init(&state->text, font, 16,
+                           gtk_widget_get_scale_factor(GTK_WIDGET(area)));
         state->gl_initialized = 1;
         state->row_height = 34;
     }

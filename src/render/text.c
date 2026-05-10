@@ -30,8 +30,9 @@ static const char *TEXT_FRAG =
     "    FragColor = vec4(color.rgb, color.a * alpha);\n"
     "}\n";
 
-int text_renderer_init(TextRenderer *tr, const char *font_path, int font_size) {
+int text_renderer_init(TextRenderer *tr, const char *font_path, int font_size, int scale_factor) {
     tr->font_size = font_size;
+    tr->scale_factor = scale_factor > 0 ? scale_factor : 1;
 
     tr->shader = gl_shader_load(TEXT_VERT, TEXT_FRAG);
     if (!tr->shader.program) return -1;
@@ -49,7 +50,8 @@ int text_renderer_init(TextRenderer *tr, const char *font_path, int font_size) {
         return -1;
     }
 
-    FT_Set_Pixel_Sizes(face, 0, (FT_UInt)font_size);
+    /* Rasterize at physical pixel size for sharp HiDPI text */
+    FT_Set_Pixel_Sizes(face, 0, (FT_UInt)(font_size * tr->scale_factor));
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
     for (unsigned char c = 0; c < 128; c++) {
@@ -119,10 +121,11 @@ void text_render(TextRenderer *tr, const char *text,
         if (c >= 128) continue;
 
         GlyphInfo *g_info = &tr->glyphs[c];
-        float xpos = x + (float)g_info->bearing_x * scale;
-        float ypos = y + (float)(tr->font_size - g_info->bearing_y) * scale;
-        float w = (float)g_info->width * scale;
-        float h = (float)g_info->height * scale;
+        float sf = (float)tr->scale_factor;
+        float xpos = x + ((float)g_info->bearing_x / sf) * scale;
+        float ypos = y + ((float)(tr->font_size * tr->scale_factor - g_info->bearing_y) / sf) * scale;
+        float w = ((float)g_info->width / sf) * scale;
+        float h = ((float)g_info->height / sf) * scale;
 
         float vertices[6][4] = {
             { xpos,     ypos,     0.0f, 0.0f },
@@ -139,7 +142,7 @@ void text_render(TextRenderer *tr, const char *text,
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
-        x += (float)g_info->advance * scale;
+        x += ((float)g_info->advance / sf) * scale;
     }
 
     glBindVertexArray(0);
@@ -148,9 +151,10 @@ void text_render(TextRenderer *tr, const char *text,
 
 float text_width(TextRenderer *tr, const char *text, float scale) {
     float w = 0;
+    float sf = (float)tr->scale_factor;
     for (const char *p = text; *p; p++) {
         unsigned char c = (unsigned char)*p;
-        if (c < 128) w += (float)tr->glyphs[c].advance * scale;
+        if (c < 128) w += ((float)tr->glyphs[c].advance / sf) * scale;
     }
     return w;
 }

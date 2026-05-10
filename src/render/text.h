@@ -22,10 +22,11 @@ typedef struct {
     GLuint       vao;
     GLuint       vbo;
     GlyphInfo    glyphs[128];
-    int          font_size;
+    int          font_size;      /* logical font size (CSS pixels) */
+    int          scale_factor;   /* HiDPI scale (1 or 2) */
 } TextRenderer;
 
-int  text_renderer_init(TextRenderer *tr, const char *font_path, int font_size);
+int  text_renderer_init(TextRenderer *tr, const char *font_path, int font_size, int scale_factor);
 void text_renderer_destroy(TextRenderer *tr);
 void text_render(TextRenderer *tr, const char *text,
                  float x, float y, float scale,
