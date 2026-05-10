@@ -16,7 +16,7 @@ int store_trace_upsert(sqlite3 *db, const OteluxTrace *t) {
         "VALUES (?, ?, ?, ?, ?, ?, ?) "
         "ON CONFLICT(trace_id) DO UPDATE SET "
         "root_name = CASE WHEN excluded.root_name != '' THEN excluded.root_name ELSE traces.root_name END, "
-        "service_name = excluded.service_name, "
+        "service_name = CASE WHEN excluded.root_name != '' THEN excluded.service_name ELSE traces.service_name END, "
         "start_time = MIN(traces.start_time, excluded.start_time), "
         "duration = MAX(traces.duration, excluded.duration), "
         "span_count = traces.span_count + 1, "

@@ -5,6 +5,7 @@
  */
 #include "otlp_http.h"
 #include "otlp_json.h"
+#include "otlp_proto.h"
 #include <microhttpd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -59,9 +60,18 @@ static enum MHD_Result handle_request(
 
     if (strcmp(method, "POST") == 0 && strcmp(url, "/v1/traces") == 0) {
         if (pd->data && pd->size > 0) {
-            pd->data = realloc(pd->data, pd->size + 1);
-            pd->data[pd->size] = '\0';
-            int n = otlp_json_parse_traces(app->db, pd->data, (int)pd->size);
+            /* Detect content type: protobuf or JSON */
+            const char *ct = MHD_lookup_connection_value(
+                connection, MHD_HEADER_KIND, "Content-Type");
+            int n;
+            if (ct && strstr(ct, "application/x-protobuf")) {
+                n = otlp_proto_parse_traces(app->db,
+                        (const unsigned char *)pd->data, (int)pd->size);
+            } else {
+                pd->data = realloc(pd->data, pd->size + 1);
+                pd->data[pd->size] = '\0';
+                n = otlp_json_parse_traces(app->db, pd->data, (int)pd->size);
+            }
             if (n < 0) {
                 resp_body = "{\"error\":\"parse failed\"}";
                 status_code = MHD_HTTP_BAD_REQUEST;

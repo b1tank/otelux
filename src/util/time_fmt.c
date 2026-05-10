@@ -22,7 +22,7 @@ void time_fmt_duration(int64_t nanos, char *buf, int buf_len) {
     if (nanos < 1000LL) {
         snprintf(buf, (size_t)buf_len, "%lldns", (long long)nanos);
     } else if (nanos < 1000000LL) {
-        snprintf(buf, (size_t)buf_len, "%.1f\xC2\xB5s", (double)nanos / 1000.0);
+        snprintf(buf, (size_t)buf_len, "%.1fus", (double)nanos / 1000.0);
     } else if (nanos < 1000000000LL) {
         snprintf(buf, (size_t)buf_len, "%.2fms", (double)nanos / 1000000.0);
     } else {

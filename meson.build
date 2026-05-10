@@ -40,6 +40,7 @@ core_sources = files(
   'src/store/traces.c',
   'src/ingest/otlp_http.c',
   'src/ingest/otlp_json.c',
+  'src/ingest/otlp_proto.c',
   'src/render/gl_core.c',
   'src/render/quad.c',
   'src/render/text.c',
