@@ -10,6 +10,15 @@
 #include <sqlite3.h>
 #include <microhttpd.h>
 
+/* Sort columns for trace list (matches GNOME System Monitor pattern) */
+typedef enum {
+    SORT_COL_TIMESTAMP = 0,
+    SORT_COL_NAME      = 1,
+    SORT_COL_SERVICE   = 2,
+    SORT_COL_DURATION  = 3,
+    SORT_COL_STATUS    = 4,
+} SortColumn;
+
 typedef struct {
     GtkApplication *gtk_app;
     GtkWindow      *main_window;
@@ -32,6 +41,10 @@ typedef struct {
     char filter_service[256];
     char filter_search[256];
     int  filter_span_kind;  /* -1 = all */
+
+    /* Sort state (like GNOME System Monitor column headers) */
+    SortColumn sort_column;     /* which column is sorted */
+    int        sort_ascending;  /* 0 = descending (default), 1 = ascending */
 } OteluxApp;
 
 /* Lifecycle */

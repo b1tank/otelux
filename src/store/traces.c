@@ -124,6 +124,75 @@ OteluxTraceList *store_traces_list(sqlite3 *db, const char *service_filter,
     return list;
 }
 
+OteluxTraceList *store_traces_list_sorted(sqlite3 *db, const char *service_filter,
+                                          const char *search, int span_kind,
+                                          int sort_column, int sort_ascending,
+                                          int limit, int offset) {
+    OteluxTraceList *list = calloc(1, sizeof(OteluxTraceList));
+    if (!list) return NULL;
+
+    char sql[1024];
+    int pos = snprintf(sql, sizeof(sql),
+        "SELECT trace_id, root_name, service_name, start_time, duration, "
+        "span_count, has_error FROM traces WHERE 1=1");
+
+    if (service_filter && service_filter[0]) {
+        pos += snprintf(sql + pos, sizeof(sql) - (size_t)pos,
+            " AND service_name = '%s'", service_filter);
+    }
+    if (search && search[0]) {
+        pos += snprintf(sql + pos, sizeof(sql) - (size_t)pos,
+            " AND root_name LIKE '%%%s%%'", search);
+    }
+    if (span_kind >= 0) {
+        pos += snprintf(sql + pos, sizeof(sql) - (size_t)pos,
+            " AND trace_id IN (SELECT DISTINCT trace_id FROM spans WHERE kind = %d)",
+            span_kind);
+    }
+
+    /* Sort column (like GNOME System Monitor clickable headers) */
+    const char *order_col;
+    switch (sort_column) {
+        case 1:  order_col = "root_name"; break;
+        case 2:  order_col = "service_name"; break;
+        case 3:  order_col = "duration"; break;
+        case 4:  order_col = "has_error"; break;
+        default: order_col = "start_time"; break;
+    }
+    const char *order_dir = sort_ascending ? "ASC" : "DESC";
+    snprintf(sql + pos, sizeof(sql) - (size_t)pos,
+        " ORDER BY %s %s LIMIT %d OFFSET %d", order_col, order_dir, limit, offset);
+
+    sqlite3_stmt *stmt;
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        free(list);
+        return NULL;
+    }
+
+    list->capacity = limit > 0 ? limit : 100;
+    list->items = calloc((size_t)list->capacity, sizeof(OteluxTrace));
+
+    while (sqlite3_step(stmt) == SQLITE_ROW && list->count < list->capacity) {
+        OteluxTrace *t = &list->items[list->count];
+        const char *val;
+
+        val = (const char *)sqlite3_column_text(stmt, 0);
+        if (val) snprintf(t->trace_id, sizeof(t->trace_id), "%s", val);
+        val = (const char *)sqlite3_column_text(stmt, 1);
+        if (val) snprintf(t->root_name, sizeof(t->root_name), "%s", val);
+        val = (const char *)sqlite3_column_text(stmt, 2);
+        if (val) snprintf(t->service_name, sizeof(t->service_name), "%s", val);
+        t->start_time  = sqlite3_column_int64(stmt, 3);
+        t->duration    = sqlite3_column_int64(stmt, 4);
+        t->span_count  = sqlite3_column_int(stmt, 5);
+        t->has_error   = sqlite3_column_int(stmt, 6);
+        list->count++;
+    }
+
+    sqlite3_finalize(stmt);
+    return list;
+}
+
 OteluxSpanList *store_spans_by_trace(sqlite3 *db, const char *trace_id) {
     OteluxSpanList *list = calloc(1, sizeof(OteluxSpanList));
     if (!list) return NULL;

@@ -21,6 +21,7 @@ typedef struct {
     int           gl_initialized;
     int           scroll_offset;
     int           row_height;
+    int           total_traces;  /* for scrollbar */
 } TraceListState;
 
 static const char *SYSTEM_FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf";
@@ -82,26 +83,44 @@ static gboolean on_render(GtkGLArea *area, GdkGLContext *ctx, gpointer user_data
     float col_status  = w * 0.82f;
     float text_baseline = (rh - (float)state->text.font_size) * 0.5f;
 
-    text_render(&state->text, "Timestamp", col_time, text_baseline, 1.0f,
-                COLOR_FG_DIM.r, COLOR_FG_DIM.g, COLOR_FG_DIM.b, projection);
-    text_render(&state->text, "Name", col_name, text_baseline, 1.0f,
-                COLOR_FG_DIM.r, COLOR_FG_DIM.g, COLOR_FG_DIM.b, projection);
-    text_render(&state->text, "Service", col_service, text_baseline, 1.0f,
-                COLOR_FG_DIM.r, COLOR_FG_DIM.g, COLOR_FG_DIM.b, projection);
-    text_render(&state->text, "Duration", col_dur, text_baseline, 1.0f,
-                COLOR_FG_DIM.r, COLOR_FG_DIM.g, COLOR_FG_DIM.b, projection);
-    text_render(&state->text, "Status", col_status, text_baseline, 1.0f,
-                COLOR_FG_DIM.r, COLOR_FG_DIM.g, COLOR_FG_DIM.b, projection);
+    /* Column headers with sort indicators (GNOME System Monitor pattern) */
+    struct { const char *label; float x; SortColumn col; } headers[] = {
+        { "Timestamp", col_time,    SORT_COL_TIMESTAMP },
+        { "Name",      col_name,    SORT_COL_NAME },
+        { "Service",   col_service, SORT_COL_SERVICE },
+        { "Duration",  col_dur,     SORT_COL_DURATION },
+        { "Status",    col_status,  SORT_COL_STATUS },
+    };
+    for (int i = 0; i < 5; i++) {
+        /* Highlight active sort column */
+        int is_active = (state->app->sort_column == headers[i].col);
+        float cr = is_active ? COLOR_FG.r : COLOR_FG_DIM.r;
+        float cg = is_active ? COLOR_FG.g : COLOR_FG_DIM.g;
+        float cb = is_active ? COLOR_FG.b : COLOR_FG_DIM.b;
 
-    /* Query traces */
+        /* Render label + sort arrow */
+        char hdr_buf[64];
+        if (is_active) {
+            const char *arrow = state->app->sort_ascending ? " ^" : " v";
+            snprintf(hdr_buf, sizeof(hdr_buf), "%s%s", headers[i].label, arrow);
+        } else {
+            snprintf(hdr_buf, sizeof(hdr_buf), "%s", headers[i].label);
+        }
+        text_render(&state->text, hdr_buf, headers[i].x, text_baseline, 1.0f,
+                    cr, cg, cb, projection);
+    }
+
+    /* Query traces with current sort */
     if (!state->app->db) return FALSE;
 
+    state->total_traces = store_traces_count(state->app->db);
     int visible_rows = height / state->row_height;
-    OteluxTraceList *traces = store_traces_list(
+    OteluxTraceList *traces = store_traces_list_sorted(
         state->app->db,
         state->app->filter_service[0] ? state->app->filter_service : NULL,
         state->app->filter_search[0] ? state->app->filter_search : NULL,
         state->app->filter_span_kind,
+        (int)state->app->sort_column, state->app->sort_ascending,
         visible_rows + 1, state->scroll_offset);
 
     if (!traces) return FALSE;
@@ -171,6 +190,31 @@ static gboolean on_render(GtkGLArea *area, GdkGLContext *ctx, gpointer user_data
                     sc.r, sc.g, sc.b, projection);
     }
 
+    /* Scrollbar (right edge, like GNOME System Monitor) */
+    if (state->total_traces > visible_rows) {
+        float sb_w = 6.0f;
+        float sb_x = w - sb_w - 2.0f;
+        float content_h = (float)height - rh; /* below header */
+
+        /* Track */
+        quad_render(&state->quad, sb_x, rh, sb_w, content_h,
+                    COLOR_FG_DIM.r, COLOR_FG_DIM.g, COLOR_FG_DIM.b, 0.15f, projection);
+
+        /* Thumb */
+        float visible_frac = (float)visible_rows / (float)state->total_traces;
+        if (visible_frac > 1.0f) visible_frac = 1.0f;
+        float thumb_h = content_h * visible_frac;
+        if (thumb_h < 20.0f) thumb_h = 20.0f;
+
+        float scroll_frac = (float)state->scroll_offset /
+                            (float)(state->total_traces - visible_rows);
+        if (scroll_frac > 1.0f) scroll_frac = 1.0f;
+        float thumb_y = rh + (content_h - thumb_h) * scroll_frac;
+
+        quad_render(&state->quad, sb_x, thumb_y, sb_w, thumb_h,
+                    COLOR_ACCENT.r, COLOR_ACCENT.g, COLOR_ACCENT.b, 0.6f, projection);
+    }
+
     store_trace_list_free(traces);
     return FALSE;
 }
@@ -188,18 +232,51 @@ static gboolean on_scroll(GtkEventControllerScroll *ctrl,
 
 static void on_click(GtkGestureClick *gesture, int n_press,
                      double x, double y, gpointer user_data) {
-    (void)gesture; (void)n_press; (void)x;
+    (void)gesture; (void)n_press;
     TraceListState *state = (TraceListState *)user_data;
+
+    GtkWidget *widget = gtk_event_controller_get_widget(
+        GTK_EVENT_CONTROLLER(gesture));
+    float w = (float)gtk_widget_get_width(widget);
+
+    /* Click on header row → toggle sort column */
+    if (y < state->row_height) {
+        /* Determine which column was clicked */
+        float col_bounds[] = { 0, w * 0.18f, w * 0.42f, w * 0.58f, w * 0.82f, w };
+        SortColumn cols[] = {
+            SORT_COL_TIMESTAMP, SORT_COL_NAME, SORT_COL_SERVICE,
+            SORT_COL_DURATION, SORT_COL_STATUS
+        };
+        for (int i = 0; i < 5; i++) {
+            if (x >= col_bounds[i] && x < col_bounds[i + 1]) {
+                if (state->app->sort_column == cols[i]) {
+                    /* Same column → toggle direction */
+                    state->app->sort_ascending = !state->app->sort_ascending;
+                } else {
+                    /* New column → set default direction */
+                    state->app->sort_column = cols[i];
+                    state->app->sort_ascending =
+                        (cols[i] == SORT_COL_TIMESTAMP || cols[i] == SORT_COL_DURATION)
+                        ? 0 : 1; /* numeric cols default desc, text cols asc */
+                }
+                state->scroll_offset = 0; /* reset scroll on sort change */
+                gtk_widget_queue_draw(widget);
+                return;
+            }
+        }
+        return;
+    }
 
     int row = (int)(y / state->row_height) - 1 + state->scroll_offset;
     if (row < 0) return;
 
     /* Query the trace at this row */
-    OteluxTraceList *traces = store_traces_list(
+    OteluxTraceList *traces = store_traces_list_sorted(
         state->app->db,
         state->app->filter_service[0] ? state->app->filter_service : NULL,
         state->app->filter_search[0] ? state->app->filter_search : NULL,
         state->app->filter_span_kind,
+        (int)state->app->sort_column, state->app->sort_ascending,
         row + 1, 0);
 
     if (traces && row < traces->count) {
