@@ -1,0 +1,155 @@
+{
+  "resourceSpans": [
+    {
+      "resource": {
+        "attributes": [
+          {"key": "service.name", "value": {"stringValue": "api-gateway"}}
+        ]
+      },
+      "scopeSpans": [
+        {
+          "scope": {"name": "gateway.http"},
+          "spans": [
+            {
+              "traceId": "dd00dd00dd00dd00dd00dd00dd00dd00",
+              "spanId": "aa00000000000001",
+              "parentSpanId": "",
+              "name": "POST /orders",
+              "kind": 2,
+              "startTimeUnixNano": "1700000000000000000",
+              "endTimeUnixNano": "1700000000100000000",
+              "status": {"code": 1},
+              "attributes": [
+                {"key": "http.method", "value": {"stringValue": "POST"}},
+                {"key": "http.url", "value": {"stringValue": "/orders"}},
+                {"key": "http.status_code", "value": {"intValue": "201"}}
+              ]
+            },
+            {
+              "traceId": "dd00dd00dd00dd00dd00dd00dd00dd00",
+              "spanId": "aa00000000000002",
+              "parentSpanId": "aa00000000000001",
+              "name": "call order-service",
+              "kind": 3,
+              "startTimeUnixNano": "1700000000005000000",
+              "endTimeUnixNano": "1700000000095000000",
+              "status": {"code": 1},
+              "attributes": [
+                {"key": "rpc.system", "value": {"stringValue": "http"}},
+                {"key": "rpc.service", "value": {"stringValue": "order-service"}}
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "resource": {
+        "attributes": [
+          {"key": "service.name", "value": {"stringValue": "order-service"}}
+        ]
+      },
+      "scopeSpans": [
+        {
+          "scope": {"name": "order.api"},
+          "spans": [
+            {
+              "traceId": "dd00dd00dd00dd00dd00dd00dd00dd00",
+              "spanId": "bb00000000000001",
+              "parentSpanId": "aa00000000000002",
+              "name": "POST /orders",
+              "kind": 2,
+              "startTimeUnixNano": "1700000000010000000",
+              "endTimeUnixNano": "1700000000090000000",
+              "status": {"code": 1},
+              "attributes": [
+                {"key": "http.method", "value": {"stringValue": "POST"}}
+              ]
+            },
+            {
+              "traceId": "dd00dd00dd00dd00dd00dd00dd00dd00",
+              "spanId": "bb00000000000002",
+              "parentSpanId": "bb00000000000001",
+              "name": "db.insert orders",
+              "kind": 3,
+              "startTimeUnixNano": "1700000000020000000",
+              "endTimeUnixNano": "1700000000070000000",
+              "status": {"code": 1},
+              "attributes": [
+                {"key": "db.system", "value": {"stringValue": "sqlite"}},
+                {"key": "db.statement", "value": {"stringValue": "INSERT INTO orders ..."}}
+              ]
+            },
+            {
+              "traceId": "dd00dd00dd00dd00dd00dd00dd00dd00",
+              "spanId": "bb00000000000003",
+              "parentSpanId": "bb00000000000001",
+              "name": "call user-service",
+              "kind": 3,
+              "startTimeUnixNano": "1700000000015000000",
+              "endTimeUnixNano": "1700000000050000000",
+              "status": {"code": 1},
+              "attributes": [
+                {"key": "rpc.service", "value": {"stringValue": "user-service"}}
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "resource": {
+        "attributes": [
+          {"key": "service.name", "value": {"stringValue": "user-service"}}
+        ]
+      },
+      "scopeSpans": [
+        {
+          "scope": {"name": "user.api"},
+          "spans": [
+            {
+              "traceId": "dd00dd00dd00dd00dd00dd00dd00dd00",
+              "spanId": "cc00000000000001",
+              "parentSpanId": "bb00000000000003",
+              "name": "GET /users/42",
+              "kind": 2,
+              "startTimeUnixNano": "1700000000020000000",
+              "endTimeUnixNano": "1700000000045000000",
+              "status": {"code": 1},
+              "attributes": [
+                {"key": "user.id", "value": {"intValue": "42"}}
+              ]
+            },
+            {
+              "traceId": "dd00dd00dd00dd00dd00dd00dd00dd00",
+              "spanId": "cc00000000000002",
+              "parentSpanId": "cc00000000000001",
+              "name": "cache.lookup",
+              "kind": 0,
+              "startTimeUnixNano": "1700000000021000000",
+              "endTimeUnixNano": "1700000000022000000",
+              "status": {"code": 1},
+              "attributes": [
+                {"key": "cache.hit", "value": {"stringValue": "false"}}
+              ]
+            },
+            {
+              "traceId": "dd00dd00dd00dd00dd00dd00dd00dd00",
+              "spanId": "cc00000000000003",
+              "parentSpanId": "cc00000000000001",
+              "name": "db.query users",
+              "kind": 3,
+              "startTimeUnixNano": "1700000000023000000",
+              "endTimeUnixNano": "1700000000040000000",
+              "status": {"code": 1},
+              "attributes": [
+                {"key": "db.system", "value": {"stringValue": "sqlite"}},
+                {"key": "db.statement", "value": {"stringValue": "SELECT * FROM users WHERE id=?"}}
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
