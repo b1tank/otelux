@@ -634,17 +634,17 @@ ninja -C build test-render             # L3 (needs GL context)
 
 ### Agent Verification Protocol
 
-After every code change, the agent MUST run this sequence:
+After every code change, the agent MUST run all three test layers:
 
 ```
 1. ninja -C build                      # compile — must succeed, 0 warnings
-2. ninja -C build test                 # L1+L2 — must be 0 failures
-3. (if render/ or shaders/ changed)
-   xvfb-run ninja -C build test-render # L3 — must be 0 failures
-4. ./test/scripts/smoke.sh             # L4 — must exit 0
+2. ninja -C build test                 # L1+L2 — must be 0 failures (9 suites)
+3. E2E: run_all.py + load_gen.py       # L3 — must be 12/12 passed, 0 errors
 ```
 
-If any step fails, fix before proceeding. Never skip tests to move forward.
+If any layer fails, fix before proceeding. Never skip a layer to move forward.
+When adding new features, add tests at all three layers simultaneously.
+See `test/README.md` for detailed test architecture documentation.
 
 ### Autonomous UI Verification Loop (deskpal)
 
