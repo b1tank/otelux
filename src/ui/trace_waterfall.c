@@ -12,6 +12,8 @@
 #include "../util/color.h"
 #include "../util/time_fmt.h"
 
+#include "trace_detail.h"
+
 #include <stdio.h>
 #include <string.h>
 
@@ -68,9 +70,9 @@ static gboolean on_render(GtkGLArea *area, GdkGLContext *ctx, gpointer user_data
             FILE *f = fopen(fonts[i], "r");
             if (f) { fclose(f); font = fonts[i]; break; }
         }
-        text_renderer_init(&state->text, font, 13);
+        text_renderer_init(&state->text, font, 16);
         state->gl_initialized = 1;
-        state->row_height = 30;
+        state->row_height = 34;
     }
 
     int width = gtk_widget_get_width(GTK_WIDGET(area));
@@ -112,10 +114,10 @@ static gboolean on_render(GtkGLArea *area, GdkGLContext *ctx, gpointer user_data
     if (trace_dur <= 0) trace_dur = 1;
 
     /* Layout constants */
-    float label_width = 200.0f;
+    float label_width = 250.0f;
     float bar_area_x = label_width + 10;
     float bar_area_w = (float)width - bar_area_x - 20;
-    float header_h = 30.0f;
+    float header_h = 34.0f;
 
     /* Header: trace title + duration */
     char header_buf[128];
@@ -139,10 +141,11 @@ static gboolean on_render(GtkGLArea *area, GdkGLContext *ctx, gpointer user_data
         float y = header_h + 5 + (float)(i * state->row_height);
 
         /* Span name (indented by depth) */
-        float indent = (float)(depth * 12);
+        float indent = (float)(depth * 20);
         char name_buf[64];
-        snprintf(name_buf, sizeof(name_buf), "%.20s", s->name);
-        text_render(&state->text, name_buf, 10 + indent, y + 6, 1.0f,
+        snprintf(name_buf, sizeof(name_buf), "%.24s", s->name);
+        float text_y = y + ((float)state->row_height - (float)state->text.font_size) * 0.5f;
+        text_render(&state->text, name_buf, 10 + indent, text_y, 1.0f,
                     COLOR_FG.r, COLOR_FG.g, COLOR_FG.b, projection);
 
         /* Span bar */
@@ -151,19 +154,26 @@ static gboolean on_render(GtkGLArea *area, GdkGLContext *ctx, gpointer user_data
         float bar_w = bar_area_w * ((float)s->duration / (float)trace_dur);
         if (bar_w < 2) bar_w = 2;
 
-        OteluxColor c = color_for_service(s->service_name);
-        quad_render(&state->quad, bar_start, y + 2, bar_w, (float)state->row_height - 4,
-                    c.r, c.g, c.b, 0.8f, projection);
+        OteluxColor c = color_for_span_kind(s->kind);
+        quad_render(&state->quad, bar_start, y + 4, bar_w, (float)state->row_height - 8,
+                    c.r, c.g, c.b, 0.85f, projection);
 
-        /* Duration label on bar */
+        /* Duration label — inside bar if it extends past right edge, otherwise after bar */
         time_fmt_duration(s->duration, dur_buf, sizeof(dur_buf));
-        text_render(&state->text, dur_buf, bar_start + bar_w + 4, y + 6, 0.9f,
-                    COLOR_FG_DIM.r, COLOR_FG_DIM.g, COLOR_FG_DIM.b, projection);
+        float label_w = text_width(&state->text, dur_buf, 0.9f);
+        if (bar_start + bar_w + 6 + label_w > (float)width - 10) {
+            /* Place inside bar, right-aligned */
+            text_render(&state->text, dur_buf, bar_start + bar_w - label_w - 6, text_y, 0.9f,
+                        COLOR_FG.r, COLOR_FG.g, COLOR_FG.b, projection);
+        } else {
+            text_render(&state->text, dur_buf, bar_start + bar_w + 6, text_y, 0.9f,
+                        COLOR_FG_DIM.r, COLOR_FG_DIM.g, COLOR_FG_DIM.b, projection);
+        }
 
         /* Error indicator */
         if (s->status == 2) {
-            quad_render(&state->quad, bar_start, y + 2, bar_w, (float)state->row_height - 4,
-                        COLOR_ERROR.r, COLOR_ERROR.g, COLOR_ERROR.b, 0.3f, projection);
+            quad_render(&state->quad, bar_start, y + 4, bar_w, (float)state->row_height - 8,
+                        COLOR_ERROR.r, COLOR_ERROR.g, COLOR_ERROR.b, 0.35f, projection);
         }
 
         /* Selected span highlight */
@@ -195,7 +205,7 @@ static void on_click(GtkGestureClick *gesture, int n_press,
             gtk_event_controller_get_widget(GTK_EVENT_CONTROLLER(gesture)));
         /* Refresh detail panel */
         if (state->app->detail_panel) {
-            gtk_widget_queue_draw(state->app->detail_panel);
+            otelux_trace_detail_refresh(state->app->detail_panel);
         }
     }
     store_span_list_free(spans);

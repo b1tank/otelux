@@ -9,5 +9,6 @@
 #include "../app.h"
 
 GtkWidget *otelux_trace_detail_create(OteluxApp *app);
+void otelux_trace_detail_refresh(GtkWidget *panel);
 
 #endif

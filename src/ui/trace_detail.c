@@ -123,6 +123,13 @@ static gboolean on_draw(GtkWidget *widget, gpointer user_data) {
     return FALSE;
 }
 
+/* Public refresh function called from waterfall click */
+void otelux_trace_detail_refresh(GtkWidget *panel) {
+    if (!panel) return;
+    /* Emit a map signal to trigger refresh */
+    g_signal_emit_by_name(panel, "map");
+}
+
 GtkWidget *otelux_trace_detail_create(OteluxApp *app) {
     DetailState *state = g_new0(DetailState, 1);
     state->app = app;
