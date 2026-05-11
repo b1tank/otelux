@@ -22,6 +22,7 @@ typedef struct {
     int           scroll_offset;
     int           row_height;
     int           total_traces;  /* for scrollbar */
+    int           selected_row;  /* keyboard selection, -1 = none */
 } TraceListState;
 
 static const char *SYSTEM_FONT = "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf";
@@ -120,6 +121,7 @@ static gboolean on_render(GtkGLArea *area, GdkGLContext *ctx, gpointer user_data
         state->app->filter_service[0] ? state->app->filter_service : NULL,
         state->app->filter_search[0] ? state->app->filter_search : NULL,
         state->app->filter_span_kind,
+        state->app->filter_status,
         (int)state->app->sort_column, state->app->sort_ascending,
         visible_rows + 1, state->scroll_offset);
 
@@ -150,6 +152,12 @@ static gboolean on_render(GtkGLArea *area, GdkGLContext *ctx, gpointer user_data
         } else {
             quad_render(&state->quad, 0, y, 4, rh,
                         COLOR_SUCCESS.r, COLOR_SUCCESS.g, COLOR_SUCCESS.b, 1.0f, projection);
+        }
+
+        /* Keyboard selection highlight */
+        if (i + state->scroll_offset == state->selected_row) {
+            quad_render(&state->quad, 0, y, w, rh,
+                        COLOR_ACCENT.r, COLOR_ACCENT.g, COLOR_ACCENT.b, 0.18f, projection);
         }
 
         float text_y = y + text_baseline;
@@ -276,6 +284,7 @@ static void on_click(GtkGestureClick *gesture, int n_press,
         state->app->filter_service[0] ? state->app->filter_service : NULL,
         state->app->filter_search[0] ? state->app->filter_search : NULL,
         state->app->filter_span_kind,
+        state->app->filter_status,
         (int)state->app->sort_column, state->app->sort_ascending,
         row + 1, 0);
 
@@ -293,6 +302,85 @@ static void on_click(GtkGestureClick *gesture, int n_press,
     }
 
     store_trace_list_free(traces);
+}
+
+static void open_selected_trace(TraceListState *state) {
+    if (state->selected_row < 0 || !state->app->db) return;
+
+    OteluxTraceList *traces = store_traces_list_sorted(
+        state->app->db,
+        state->app->filter_service[0] ? state->app->filter_service : NULL,
+        state->app->filter_search[0] ? state->app->filter_search : NULL,
+        state->app->filter_span_kind,
+        state->app->filter_status,
+        (int)state->app->sort_column, state->app->sort_ascending,
+        state->selected_row + 1, 0);
+
+    if (traces && state->selected_row < traces->count) {
+        snprintf(state->app->selected_trace_id,
+                 sizeof(state->app->selected_trace_id),
+                 "%s", traces->items[state->selected_row].trace_id);
+        gtk_stack_set_visible_child_name(
+            GTK_STACK(state->app->content_stack), "trace-detail");
+        if (state->app->waterfall_gl) {
+            gtk_widget_queue_draw(state->app->waterfall_gl);
+        }
+    }
+    store_trace_list_free(traces);
+}
+
+static gboolean on_key_pressed(GtkEventControllerKey *ctrl,
+                                guint keyval, guint keycode,
+                                GdkModifierType mods, gpointer user_data) {
+    (void)ctrl; (void)keycode; (void)mods;
+    TraceListState *state = (TraceListState *)user_data;
+    GtkWidget *widget = gtk_event_controller_get_widget(GTK_EVENT_CONTROLLER(ctrl));
+    int height = gtk_widget_get_height(widget);
+    int visible_rows = height / state->row_height - 1; /* minus header */
+    int max_row = state->total_traces - 1;
+
+    switch (keyval) {
+        case GDK_KEY_Down:
+        case GDK_KEY_j:
+            if (state->selected_row < max_row) state->selected_row++;
+            break;
+        case GDK_KEY_Up:
+        case GDK_KEY_k:
+            if (state->selected_row > 0) state->selected_row--;
+            else state->selected_row = 0;
+            break;
+        case GDK_KEY_Page_Down:
+            state->selected_row += visible_rows;
+            if (state->selected_row > max_row) state->selected_row = max_row;
+            break;
+        case GDK_KEY_Page_Up:
+            state->selected_row -= visible_rows;
+            if (state->selected_row < 0) state->selected_row = 0;
+            break;
+        case GDK_KEY_Home:
+            state->selected_row = 0;
+            break;
+        case GDK_KEY_End:
+            state->selected_row = max_row;
+            break;
+        case GDK_KEY_Return:
+        case GDK_KEY_KP_Enter:
+            open_selected_trace(state);
+            return TRUE;
+        default:
+            return FALSE;
+    }
+
+    /* Keep selection visible by adjusting scroll */
+    if (state->selected_row < state->scroll_offset) {
+        state->scroll_offset = state->selected_row;
+    } else if (state->selected_row >= state->scroll_offset + visible_rows) {
+        state->scroll_offset = state->selected_row - visible_rows + 1;
+    }
+    if (state->scroll_offset < 0) state->scroll_offset = 0;
+
+    gtk_widget_queue_draw(widget);
+    return TRUE;
 }
 
 GtkWidget *otelux_trace_list_create(OteluxApp *app) {
@@ -317,6 +405,13 @@ GtkWidget *otelux_trace_list_create(OteluxApp *app) {
     GtkGesture *click = gtk_gesture_click_new();
     g_signal_connect(click, "pressed", G_CALLBACK(on_click), state);
     gtk_widget_add_controller(gl_area, GTK_EVENT_CONTROLLER(click));
+
+    /* Keyboard */
+    GtkEventController *key_ctrl = gtk_event_controller_key_new();
+    g_signal_connect(key_ctrl, "key-pressed", G_CALLBACK(on_key_pressed), state);
+    gtk_widget_add_controller(gl_area, key_ctrl);
+
+    gtk_widget_set_focusable(gl_area, TRUE);
 
     app->trace_list_gl = gl_area;
     return gl_area;

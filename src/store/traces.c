@@ -126,6 +126,7 @@ OteluxTraceList *store_traces_list(sqlite3 *db, const char *service_filter,
 
 OteluxTraceList *store_traces_list_sorted(sqlite3 *db, const char *service_filter,
                                           const char *search, int span_kind,
+                                          int status_filter,
                                           int sort_column, int sort_ascending,
                                           int limit, int offset) {
     OteluxTraceList *list = calloc(1, sizeof(OteluxTraceList));
@@ -148,6 +149,13 @@ OteluxTraceList *store_traces_list_sorted(sqlite3 *db, const char *service_filte
         pos += snprintf(sql + pos, sizeof(sql) - (size_t)pos,
             " AND trace_id IN (SELECT DISTINCT trace_id FROM spans WHERE kind = %d)",
             span_kind);
+    }
+    if (status_filter == 1) {
+        pos += snprintf(sql + pos, sizeof(sql) - (size_t)pos,
+            " AND has_error = 0");
+    } else if (status_filter == 2) {
+        pos += snprintf(sql + pos, sizeof(sql) - (size_t)pos,
+            " AND has_error = 1");
     }
 
     /* Sort column (like GNOME System Monitor clickable headers) */

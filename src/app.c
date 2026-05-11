@@ -18,8 +18,10 @@ OteluxApp *otelux_app_new(void) {
 
     app->http_port = 4318;
     app->filter_span_kind = -1;
+    app->filter_status = -1;
     app->sort_column = SORT_COL_TIMESTAMP;
     app->sort_ascending = 0; /* newest first */
+    app->auto_refresh = 1;   /* auto-refresh on by default */
     snprintf(app->db_path, sizeof(app->db_path), "/tmp/otelux.db");
 
     return app;
@@ -27,6 +29,10 @@ OteluxApp *otelux_app_new(void) {
 
 void otelux_app_free(OteluxApp *app) {
     if (!app) return;
+    if (app->refresh_timer_id) {
+        g_source_remove(app->refresh_timer_id);
+        app->refresh_timer_id = 0;
+    }
     if (app->httpd) {
         otlp_http_stop(app);
     }

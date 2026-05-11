@@ -24,6 +24,8 @@ typedef struct {
     LineRenderer  line;
     int           gl_initialized;
     int           row_height;
+    int           scroll_offset;
+    int           total_spans;  /* cached for keyboard nav */
 } WaterfallState;
 
 /* Compute depth of each span via parent lookup */
@@ -136,10 +138,17 @@ static gboolean on_render(GtkGLArea *area, GdkGLContext *ctx, gpointer user_data
                 1.0f, projection);
 
     /* Render each span as a bar */
-    for (int i = 0; i < spans->count; i++) {
+    state->total_spans = spans->count;
+    int visible_rows = (height - (int)header_h - 5) / state->row_height;
+    int first = state->scroll_offset;
+    if (first < 0) first = 0;
+    int last = first + visible_rows + 1;
+    if (last > spans->count) last = spans->count;
+
+    for (int i = first; i < last; i++) {
         OteluxSpan *s = &spans->items[i];
         int depth = compute_depth(spans, i);
-        float y = header_h + 5 + (float)(i * state->row_height);
+        float y = header_h + 5 + (float)((i - state->scroll_offset) * state->row_height);
 
         /* Span name (indented by depth) */
         float indent = (float)(depth * 20);
@@ -193,7 +202,7 @@ static void on_click(GtkGestureClick *gesture, int n_press,
     (void)gesture; (void)n_press; (void)x;
     WaterfallState *state = (WaterfallState *)user_data;
 
-    int row = (int)((y - 35) / state->row_height);
+    int row = (int)((y - 35) / state->row_height) + state->scroll_offset;
     if (row < 0) return;
 
     OteluxSpanList *spans = store_spans_by_trace(state->app->db,
@@ -212,6 +221,112 @@ static void on_click(GtkGestureClick *gesture, int n_press,
     store_span_list_free(spans);
 }
 
+static gboolean on_wf_scroll(GtkEventControllerScroll *ctrl,
+                              double dx, double dy, gpointer user_data) {
+    (void)ctrl; (void)dx;
+    WaterfallState *state = (WaterfallState *)user_data;
+    state->scroll_offset += (int)(dy * 3);
+    if (state->scroll_offset < 0) state->scroll_offset = 0;
+    int max_off = state->total_spans - 5;
+    if (max_off < 0) max_off = 0;
+    if (state->scroll_offset > max_off) state->scroll_offset = max_off;
+    gtk_widget_queue_draw(
+        gtk_event_controller_get_widget(GTK_EVENT_CONTROLLER(ctrl)));
+    return TRUE;
+}
+
+static int find_span_index(OteluxSpanList *spans, const char *span_id) {
+    for (int i = 0; i < spans->count; i++) {
+        if (strcmp(spans->items[i].span_id, span_id) == 0) return i;
+    }
+    return -1;
+}
+
+static gboolean on_wf_key(GtkEventControllerKey *ctrl,
+                           guint keyval, guint keycode,
+                           GdkModifierType mods, gpointer user_data) {
+    (void)ctrl; (void)keycode; (void)mods;
+    WaterfallState *state = (WaterfallState *)user_data;
+    GtkWidget *widget = gtk_event_controller_get_widget(GTK_EVENT_CONTROLLER(ctrl));
+
+    if (!state->app->db || !state->app->selected_trace_id[0]) return FALSE;
+
+    OteluxSpanList *spans = store_spans_by_trace(state->app->db,
+                                                  state->app->selected_trace_id);
+    if (!spans || spans->count == 0) {
+        store_span_list_free(spans);
+        return FALSE;
+    }
+
+    int cur = find_span_index(spans, state->app->selected_span_id);
+    int height = gtk_widget_get_height(widget);
+    int visible_rows = (height - 40) / state->row_height;
+    int max_idx = spans->count - 1;
+    gboolean handled = TRUE;
+
+    switch (keyval) {
+        case GDK_KEY_Down:
+        case GDK_KEY_j:
+            if (cur < max_idx) cur++;
+            else if (cur < 0) cur = 0;
+            break;
+        case GDK_KEY_Up:
+        case GDK_KEY_k:
+            if (cur > 0) cur--;
+            else cur = 0;
+            break;
+        case GDK_KEY_Page_Down:
+            cur += visible_rows;
+            if (cur > max_idx) cur = max_idx;
+            break;
+        case GDK_KEY_Page_Up:
+            cur -= visible_rows;
+            if (cur < 0) cur = 0;
+            break;
+        case GDK_KEY_Home:
+            cur = 0;
+            break;
+        case GDK_KEY_End:
+            cur = max_idx;
+            break;
+        case GDK_KEY_Escape:
+            /* Back to trace list */
+            state->app->selected_span_id[0] = '\0';
+            state->scroll_offset = 0;
+            gtk_stack_set_visible_child_name(
+                GTK_STACK(state->app->content_stack), "trace-list");
+            if (state->app->trace_list_gl) {
+                gtk_widget_queue_draw(state->app->trace_list_gl);
+            }
+            store_span_list_free(spans);
+            return TRUE;
+        default:
+            handled = FALSE;
+            break;
+    }
+
+    if (handled && cur >= 0 && cur < spans->count) {
+        snprintf(state->app->selected_span_id,
+                 sizeof(state->app->selected_span_id),
+                 "%s", spans->items[cur].span_id);
+
+        /* Keep selection visible */
+        if (cur < state->scroll_offset) {
+            state->scroll_offset = cur;
+        } else if (cur >= state->scroll_offset + visible_rows) {
+            state->scroll_offset = cur - visible_rows + 1;
+        }
+
+        gtk_widget_queue_draw(widget);
+        if (state->app->detail_panel) {
+            otelux_trace_detail_refresh(state->app->detail_panel);
+        }
+    }
+
+    store_span_list_free(spans);
+    return handled;
+}
+
 GtkWidget *otelux_trace_waterfall_create(OteluxApp *app) {
     WaterfallState *state = g_new0(WaterfallState, 1);
     state->app = app;
@@ -227,6 +342,19 @@ GtkWidget *otelux_trace_waterfall_create(OteluxApp *app) {
     GtkGesture *click = gtk_gesture_click_new();
     g_signal_connect(click, "pressed", G_CALLBACK(on_click), state);
     gtk_widget_add_controller(gl_area, GTK_EVENT_CONTROLLER(click));
+
+    /* Scroll */
+    GtkEventController *scroll_ctrl = gtk_event_controller_scroll_new(
+        GTK_EVENT_CONTROLLER_SCROLL_VERTICAL);
+    g_signal_connect(scroll_ctrl, "scroll", G_CALLBACK(on_wf_scroll), state);
+    gtk_widget_add_controller(gl_area, scroll_ctrl);
+
+    /* Keyboard */
+    GtkEventController *key_ctrl = gtk_event_controller_key_new();
+    g_signal_connect(key_ctrl, "key-pressed", G_CALLBACK(on_wf_key), state);
+    gtk_widget_add_controller(gl_area, key_ctrl);
+
+    gtk_widget_set_focusable(gl_area, TRUE);
 
     app->waterfall_gl = gl_area;
     return gl_area;

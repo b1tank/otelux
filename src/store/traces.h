@@ -55,6 +55,7 @@ OteluxTraceList *store_traces_list(sqlite3 *db, const char *service_filter,
                                    int limit, int offset);
 OteluxTraceList *store_traces_list_sorted(sqlite3 *db, const char *service_filter,
                                           const char *search, int span_kind,
+                                          int status_filter,
                                           int sort_column, int sort_ascending,
                                           int limit, int offset);
 OteluxSpanList  *store_spans_by_trace(sqlite3 *db, const char *trace_id);

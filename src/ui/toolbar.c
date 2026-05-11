@@ -15,12 +15,43 @@ static void on_search_changed(GtkEditable *editable, gpointer user_data) {
     }
 }
 
-static void on_refresh_clicked(GtkButton *btn, gpointer user_data) {
-    (void)btn;
-    OteluxApp *app = (OteluxApp *)user_data;
+static void do_refresh(OteluxApp *app) {
     if (app->trace_list_gl) {
         gtk_widget_queue_draw(app->trace_list_gl);
     }
+    if (app->waterfall_gl) {
+        gtk_widget_queue_draw(app->waterfall_gl);
+    }
+}
+
+static gboolean on_auto_refresh_tick(gpointer user_data) {
+    OteluxApp *app = (OteluxApp *)user_data;
+    if (app->auto_refresh) {
+        do_refresh(app);
+    }
+    return G_SOURCE_CONTINUE;
+}
+
+static void on_refresh_clicked(GtkButton *btn, gpointer user_data) {
+    (void)btn;
+    do_refresh((OteluxApp *)user_data);
+}
+
+static void on_pause_toggled(GtkToggleButton *btn, gpointer user_data) {
+    OteluxApp *app = (OteluxApp *)user_data;
+    app->auto_refresh = !gtk_toggle_button_get_active(btn);
+    gtk_button_set_label(GTK_BUTTON(btn),
+                         app->auto_refresh ? "Pause" : "Resume");
+}
+
+static void on_status_changed(GtkDropDown *dropdown, GParamSpec *pspec,
+                               gpointer user_data) {
+    (void)pspec;
+    OteluxApp *app = (OteluxApp *)user_data;
+    guint sel = gtk_drop_down_get_selected(dropdown);
+    /* 0=All, 1=OK, 2=Error */
+    app->filter_status = (sel == 0) ? -1 : (int)sel;
+    do_refresh(app);
 }
 
 static void on_clear_clicked(GtkButton *btn, gpointer user_data) {
@@ -30,9 +61,7 @@ static void on_clear_clicked(GtkButton *btn, gpointer user_data) {
         sqlite3_exec(app->db, "DELETE FROM spans; DELETE FROM traces;",
                      NULL, NULL, NULL);
     }
-    if (app->trace_list_gl) {
-        gtk_widget_queue_draw(app->trace_list_gl);
-    }
+    do_refresh(app);
 }
 
 GtkWidget *otelux_toolbar_create(OteluxApp *app) {
@@ -48,10 +77,27 @@ GtkWidget *otelux_toolbar_create(OteluxApp *app) {
     g_signal_connect(search, "changed", G_CALLBACK(on_search_changed), app);
     gtk_box_append(GTK_BOX(box), search);
 
+    /* Status filter dropdown */
+    const char *status_items[] = { "All", "OK", "Error", NULL };
+    GtkStringList *status_model = gtk_string_list_new(status_items);
+    GtkWidget *status_dd = gtk_drop_down_new(G_LIST_MODEL(status_model), NULL);
+    gtk_drop_down_set_selected(GTK_DROP_DOWN(status_dd), 0);
+    g_signal_connect(status_dd, "notify::selected",
+                     G_CALLBACK(on_status_changed), app);
+    gtk_box_append(GTK_BOX(box), status_dd);
+
     /* Refresh button */
     GtkWidget *refresh = gtk_button_new_with_label("Refresh");
     g_signal_connect(refresh, "clicked", G_CALLBACK(on_refresh_clicked), app);
     gtk_box_append(GTK_BOX(box), refresh);
+
+    /* Pause/Resume toggle */
+    GtkWidget *pause_btn = gtk_toggle_button_new_with_label("Pause");
+    g_signal_connect(pause_btn, "toggled", G_CALLBACK(on_pause_toggled), app);
+    gtk_box_append(GTK_BOX(box), pause_btn);
+
+    /* Start auto-refresh timer (2s) */
+    app->refresh_timer_id = g_timeout_add(2000, on_auto_refresh_tick, app);
 
     /* Hamburger menu button (GNOME System Monitor pattern) */
     GtkWidget *menu_btn = gtk_menu_button_new();

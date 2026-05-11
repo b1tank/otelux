@@ -45,6 +45,13 @@ typedef struct {
     /* Sort state (like GNOME System Monitor column headers) */
     SortColumn sort_column;     /* which column is sorted */
     int        sort_ascending;  /* 0 = descending (default), 1 = ascending */
+
+    /* Auto-refresh */
+    guint      refresh_timer_id; /* g_timeout source id, 0 = none */
+    int        auto_refresh;     /* 1 = running, 0 = paused */
+
+    /* Status filter */
+    int        filter_status;    /* -1 = all, 0 = unset, 1 = ok, 2 = error */
 } OteluxApp;
 
 /* Lifecycle */
