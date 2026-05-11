@@ -202,6 +202,9 @@ static void on_click(GtkGestureClick *gesture, int n_press,
     (void)gesture; (void)n_press; (void)x;
     WaterfallState *state = (WaterfallState *)user_data;
 
+    GtkWidget *widget = gtk_event_controller_get_widget(GTK_EVENT_CONTROLLER(gesture));
+    gtk_widget_grab_focus(widget);
+
     int row = (int)((y - 35) / state->row_height) + state->scroll_offset;
     if (row < 0) return;
 
@@ -297,6 +300,7 @@ static gboolean on_wf_key(GtkEventControllerKey *ctrl,
                 GTK_STACK(state->app->content_stack), "trace-list");
             if (state->app->trace_list_gl) {
                 gtk_widget_queue_draw(state->app->trace_list_gl);
+                gtk_widget_grab_focus(state->app->trace_list_gl);
             }
             store_span_list_free(spans);
             return TRUE;

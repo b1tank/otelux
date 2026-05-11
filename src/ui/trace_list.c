@@ -245,6 +245,7 @@ static void on_click(GtkGestureClick *gesture, int n_press,
 
     GtkWidget *widget = gtk_event_controller_get_widget(
         GTK_EVENT_CONTROLLER(gesture));
+    gtk_widget_grab_focus(widget);
     float w = (float)gtk_widget_get_width(widget);
 
     /* Click on header row → toggle sort column */
@@ -298,6 +299,7 @@ static void on_click(GtkGestureClick *gesture, int n_press,
             GTK_STACK(state->app->content_stack), "trace-detail");
         if (state->app->waterfall_gl) {
             gtk_widget_queue_draw(state->app->waterfall_gl);
+            gtk_widget_grab_focus(state->app->waterfall_gl);
         }
     }
 
@@ -324,6 +326,7 @@ static void open_selected_trace(TraceListState *state) {
             GTK_STACK(state->app->content_stack), "trace-detail");
         if (state->app->waterfall_gl) {
             gtk_widget_queue_draw(state->app->waterfall_gl);
+            gtk_widget_grab_focus(state->app->waterfall_gl);
         }
     }
     store_trace_list_free(traces);
