@@ -39,6 +39,10 @@ static void add_label(GtkWidget *box, const char *text, gboolean bold) {
     gtk_box_append(GTK_BOX(box), label);
 }
 
+/* Truncate very long values to avoid Pango layout hangs.
+ * Copilot agent traces can have multi-KB attribute values (e.g. hook_input). */
+#define MAX_DISPLAY_VALUE_LEN 500
+
 static void add_kv(GtkWidget *box, const char *key, const char *value) {
     GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
     gtk_widget_set_margin_top(hbox, 2);
@@ -49,9 +53,22 @@ static void add_kv(GtkWidget *box, const char *key, const char *value) {
     gtk_widget_set_size_request(k, 100, -1);
     gtk_box_append(GTK_BOX(hbox), k);
 
-    GtkWidget *v = gtk_label_new(value);
+    /* Truncate huge values to prevent GTK label word-wrap from freezing */
+    char truncated[MAX_DISPLAY_VALUE_LEN + 4];
+    const char *display = value;
+    if (value && strlen(value) > MAX_DISPLAY_VALUE_LEN) {
+        memcpy(truncated, value, MAX_DISPLAY_VALUE_LEN);
+        truncated[MAX_DISPLAY_VALUE_LEN] = '.';
+        truncated[MAX_DISPLAY_VALUE_LEN + 1] = '.';
+        truncated[MAX_DISPLAY_VALUE_LEN + 2] = '.';
+        truncated[MAX_DISPLAY_VALUE_LEN + 3] = '\0';
+        display = truncated;
+    }
+
+    GtkWidget *v = gtk_label_new(display);
     gtk_label_set_xalign(GTK_LABEL(v), 0.0f);
     gtk_label_set_wrap(GTK_LABEL(v), TRUE);
+    gtk_label_set_wrap_mode(GTK_LABEL(v), PANGO_WRAP_CHAR);
     gtk_label_set_selectable(GTK_LABEL(v), TRUE);
     gtk_widget_set_hexpand(v, TRUE);
     gtk_box_append(GTK_BOX(hbox), v);
@@ -224,18 +241,14 @@ static void refresh_detail(DetailState *state) {
     store_span_free(span);
 }
 
-static gboolean on_draw(GtkWidget *widget, gpointer user_data) {
-    (void)widget;
-    DetailState *state = (DetailState *)user_data;
-    refresh_detail(state);
-    return FALSE;
-}
-
-/* Public refresh function called from waterfall click */
+/* Public refresh function called from waterfall click.
+ * Direct call instead of emitting "map" signal — avoids re-entrant layout. */
 void otelux_trace_detail_refresh(GtkWidget *panel) {
     if (!panel) return;
-    /* Emit a map signal to trigger refresh */
-    g_signal_emit_by_name(panel, "map");
+    DetailState *state = g_object_get_data(G_OBJECT(panel), "detail-state");
+    if (state) {
+        refresh_detail(state);
+    }
 }
 
 GtkWidget *otelux_trace_detail_create(OteluxApp *app) {
@@ -255,8 +268,8 @@ GtkWidget *otelux_trace_detail_create(OteluxApp *app) {
 
     add_label(state->content_box, "Click a span to see details", FALSE);
 
-    /* Use map signal to refresh content when panel becomes visible */
-    g_signal_connect(scroll, "map", G_CALLBACK(on_draw), state);
+    /* Store state pointer on widget for direct refresh calls */
+    g_object_set_data(G_OBJECT(scroll), "detail-state", state);
 
     app->detail_panel = scroll;
     return scroll;

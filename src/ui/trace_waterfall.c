@@ -26,6 +26,11 @@ typedef struct {
     int           row_height;
     int           scroll_offset;
     int           total_spans;  /* cached for keyboard nav */
+
+    /* Cached span data — avoid DB query per frame */
+    OteluxSpanList *cached_spans;
+    int            *cached_depths;
+    char            cached_trace_id[33];
 } WaterfallState;
 
 /* Compute depth of each span via parent lookup */
@@ -45,6 +50,47 @@ static int compute_depth(const OteluxSpanList *spans, int idx) {
         if (!found) break;
     }
     return depth;
+}
+
+static void waterfall_invalidate_cache(WaterfallState *state) {
+    if (state->cached_spans) {
+        store_span_list_free(state->cached_spans);
+        state->cached_spans = NULL;
+    }
+    free(state->cached_depths);
+    state->cached_depths = NULL;
+    state->cached_trace_id[0] = '\0';
+    state->total_spans = 0;
+}
+
+/* Ensure cached span list matches current trace_id; reload if stale */
+static OteluxSpanList *waterfall_get_spans(WaterfallState *state) {
+    const char *tid = state->app->selected_trace_id;
+    if (!state->app->db || !tid[0]) {
+        waterfall_invalidate_cache(state);
+        return NULL;
+    }
+    /* Cache hit */
+    if (state->cached_spans && strcmp(state->cached_trace_id, tid) == 0) {
+        return state->cached_spans;
+    }
+    /* Cache miss — reload */
+    waterfall_invalidate_cache(state);
+    state->cached_spans = store_spans_by_trace(state->app->db, tid);
+    if (!state->cached_spans || state->cached_spans->count == 0) {
+        waterfall_invalidate_cache(state);
+        return NULL;
+    }
+    snprintf(state->cached_trace_id, sizeof(state->cached_trace_id), "%s", tid);
+    state->total_spans = state->cached_spans->count;
+
+    /* Precompute depths once instead of O(n²) per frame */
+    int n = state->cached_spans->count;
+    state->cached_depths = calloc((size_t)n, sizeof(int));
+    for (int i = 0; i < n; i++) {
+        state->cached_depths[i] = compute_depth(state->cached_spans, i);
+    }
+    return state->cached_spans;
 }
 
 static void on_realize(GtkGLArea *area, gpointer user_data) {
@@ -95,12 +141,10 @@ static gboolean on_render(GtkGLArea *area, GdkGLContext *ctx, gpointer user_data
         return FALSE;
     }
 
-    OteluxSpanList *spans = store_spans_by_trace(state->app->db,
-                                                  state->app->selected_trace_id);
+    OteluxSpanList *spans = waterfall_get_spans(state);
     if (!spans || spans->count == 0) {
         text_render(&state->text, "No spans found", 20, 30, 1.0f,
                     COLOR_FG_DIM.r, COLOR_FG_DIM.g, COLOR_FG_DIM.b, projection);
-        store_span_list_free(spans);
         return FALSE;
     }
 
@@ -147,7 +191,7 @@ static gboolean on_render(GtkGLArea *area, GdkGLContext *ctx, gpointer user_data
 
     for (int i = first; i < last; i++) {
         OteluxSpan *s = &spans->items[i];
-        int depth = compute_depth(spans, i);
+        int depth = state->cached_depths[i];
         float y = header_h + 5 + (float)((i - state->scroll_offset) * state->row_height);
 
         /* Span name (indented by depth) */
@@ -193,7 +237,7 @@ static gboolean on_render(GtkGLArea *area, GdkGLContext *ctx, gpointer user_data
         }
     }
 
-    store_span_list_free(spans);
+    /* spans owned by cache — do not free here */
     return FALSE;
 }
 
@@ -208,8 +252,7 @@ static void on_click(GtkGestureClick *gesture, int n_press,
     int row = (int)((y - 35) / state->row_height) + state->scroll_offset;
     if (row < 0) return;
 
-    OteluxSpanList *spans = store_spans_by_trace(state->app->db,
-                                                  state->app->selected_trace_id);
+    OteluxSpanList *spans = waterfall_get_spans(state);
     if (spans && row < spans->count) {
         snprintf(state->app->selected_span_id,
                  sizeof(state->app->selected_span_id),
@@ -221,7 +264,7 @@ static void on_click(GtkGestureClick *gesture, int n_press,
             otelux_trace_detail_refresh(state->app->detail_panel);
         }
     }
-    store_span_list_free(spans);
+    /* spans owned by cache — do not free */
 }
 
 static gboolean on_wf_scroll(GtkEventControllerScroll *ctrl,
@@ -254,10 +297,8 @@ static gboolean on_wf_key(GtkEventControllerKey *ctrl,
 
     if (!state->app->db || !state->app->selected_trace_id[0]) return FALSE;
 
-    OteluxSpanList *spans = store_spans_by_trace(state->app->db,
-                                                  state->app->selected_trace_id);
+    OteluxSpanList *spans = waterfall_get_spans(state);
     if (!spans || spans->count == 0) {
-        store_span_list_free(spans);
         return FALSE;
     }
 
@@ -296,13 +337,13 @@ static gboolean on_wf_key(GtkEventControllerKey *ctrl,
             /* Back to trace list */
             state->app->selected_span_id[0] = '\0';
             state->scroll_offset = 0;
+            waterfall_invalidate_cache(state);
             gtk_stack_set_visible_child_name(
                 GTK_STACK(state->app->content_stack), "trace-list");
             if (state->app->trace_list_gl) {
                 gtk_widget_queue_draw(state->app->trace_list_gl);
                 gtk_widget_grab_focus(state->app->trace_list_gl);
             }
-            store_span_list_free(spans);
             return TRUE;
         default:
             handled = FALSE;
@@ -327,7 +368,7 @@ static gboolean on_wf_key(GtkEventControllerKey *ctrl,
         }
     }
 
-    store_span_list_free(spans);
+    /* spans owned by cache — do not free */
     return handled;
 }
 
