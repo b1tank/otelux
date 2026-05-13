@@ -1,0 +1,418 @@
+/**
+ * Default OTelux workbench styles. CSS variables are themed by
+ * `data-theme="dark" | "light"` on the workbench root.
+ *
+ * Hosts can override or replace any rule by loading their own
+ * stylesheet after this one — the entire surface is namespaced under
+ * `.otelux-*`.
+ */
+
+:root {
+	--otelux-bg: #1a1b26;
+	--otelux-bg-panel: #16161e;
+	--otelux-bg-elevated: #1f202d;
+	--otelux-border: #292e42;
+	--otelux-fg: #c0caf5;
+	--otelux-fg-muted: #9aa5ce;
+	--otelux-accent: #7aa2f7;
+	--otelux-error: #f7768e;
+	--otelux-ok: #9ece6a;
+}
+
+.otelux-workbench[data-theme="light"] {
+	--otelux-bg: #f7f7fb;
+	--otelux-bg-panel: #ffffff;
+	--otelux-bg-elevated: #eef0f7;
+	--otelux-border: #d8dbe7;
+	--otelux-fg: #1a1b26;
+	--otelux-fg-muted: #6b6f8a;
+	--otelux-accent: #2d63a8;
+	--otelux-error: #c2435e;
+	--otelux-ok: #4f8a3a;
+}
+
+.otelux-workbench {
+	display: grid;
+	grid-template-columns: 320px 1fr 360px;
+	grid-template-rows: 1fr;
+	gap: 1px;
+	height: 100%;
+	background: var(--otelux-border);
+	color: var(--otelux-fg);
+	font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	font-size: 13px;
+	overflow: hidden;
+}
+
+.otelux-workbench__sidebar,
+.otelux-workbench__main,
+.otelux-workbench__inspector {
+	background: var(--otelux-bg-panel);
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+
+.otelux-workbench__main {
+	overflow-x: hidden;
+}
+
+.otelux-workbench__placeholder {
+	padding: 24px;
+	color: var(--otelux-fg-muted);
+	font-size: 13px;
+}
+
+/* Trace list. */
+
+.otelux-trace-list {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+.otelux-trace-list__header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 12px 16px;
+	border-bottom: 1px solid var(--otelux-border);
+}
+
+.otelux-trace-list__title {
+	font-weight: 600;
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--otelux-fg-muted);
+}
+
+.otelux-trace-list__count {
+	color: var(--otelux-fg-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.otelux-trace-list__body {
+	flex: 1;
+	overflow-y: auto;
+}
+
+.otelux-trace-list__empty {
+	padding: 24px;
+	color: var(--otelux-fg-muted);
+	line-height: 1.5;
+}
+
+.otelux-trace-list__empty code {
+	font-family: ui-monospace, SFMono-Regular, monospace;
+	background: var(--otelux-bg-elevated);
+	padding: 2px 6px;
+	border-radius: 4px;
+}
+
+.otelux-trace-list__rows {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.otelux-trace-row {
+	border-bottom: 1px solid var(--otelux-border);
+}
+
+.otelux-trace-row__button {
+	all: unset;
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
+	padding: 10px 16px;
+	cursor: pointer;
+	color: inherit;
+	transition: background-color 80ms ease;
+}
+
+.otelux-trace-row__button:hover {
+	background: var(--otelux-bg-elevated);
+}
+
+.otelux-trace-row--selected .otelux-trace-row__button {
+	background: var(--otelux-bg-elevated);
+	box-shadow: inset 2px 0 0 var(--otelux-accent);
+}
+
+.otelux-trace-row__top {
+	display: flex;
+	justify-content: space-between;
+	font-size: 11px;
+	color: var(--otelux-fg-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.otelux-trace-row__name {
+	margin-top: 4px;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--otelux-fg);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.otelux-trace-row__meta {
+	margin-top: 6px;
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	font-size: 11px;
+	color: var(--otelux-fg-muted);
+}
+
+.otelux-service-chips {
+	display: inline-flex;
+	gap: 4px;
+}
+
+.otelux-service-chip {
+	display: inline-block;
+	padding: 1px 6px;
+	border-radius: 8px;
+	font-size: 10px;
+	color: #16161e;
+	font-weight: 600;
+	max-width: 110px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.otelux-service-chip--more {
+	background: var(--otelux-bg-elevated);
+	color: var(--otelux-fg-muted);
+}
+
+.otelux-trace-row__errors {
+	color: var(--otelux-error);
+	font-weight: 600;
+}
+
+/* Waterfall. */
+
+.otelux-waterfall {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+.otelux-waterfall__header {
+	display: flex;
+	gap: 16px;
+	align-items: baseline;
+	padding: 14px 20px;
+	border-bottom: 1px solid var(--otelux-border);
+}
+
+.otelux-waterfall__name {
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.otelux-waterfall__duration {
+	color: var(--otelux-accent);
+	font-variant-numeric: tabular-nums;
+	font-weight: 500;
+}
+
+.otelux-waterfall__count {
+	margin-left: auto;
+	color: var(--otelux-fg-muted);
+	font-size: 12px;
+}
+
+.otelux-waterfall__scroll {
+	flex: 1;
+	overflow: auto;
+	padding: 12px 0;
+}
+
+.otelux-waterfall__svg {
+	display: block;
+	min-width: 100%;
+}
+
+.otelux-waterfall__row {
+	transition: opacity 80ms ease;
+}
+
+.otelux-waterfall__row:hover .otelux-waterfall__row-bg,
+.otelux-waterfall__row--selected .otelux-waterfall__row-bg {
+	fill: rgba(122, 162, 247, 0.12);
+}
+
+.otelux-waterfall__label {
+	font-size: 12px;
+	fill: var(--otelux-fg);
+	font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.otelux-waterfall__duration-label {
+	font-size: 11px;
+	fill: var(--otelux-fg-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.otelux-waterfall__empty {
+	padding: 24px;
+	color: var(--otelux-fg-muted);
+}
+
+/* Span detail. */
+
+.otelux-span-detail {
+	padding: 16px;
+	overflow-y: auto;
+	height: 100%;
+	box-sizing: border-box;
+}
+
+.otelux-span-detail__header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 12px;
+}
+
+.otelux-span-detail__name {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.otelux-span-detail__status {
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-size: 11px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.otelux-span-detail__status--ok {
+	background: rgba(158, 206, 106, 0.15);
+	color: var(--otelux-ok);
+}
+
+.otelux-span-detail__status--error {
+	background: rgba(247, 118, 142, 0.15);
+	color: var(--otelux-error);
+}
+
+.otelux-span-detail__status--unset {
+	background: var(--otelux-bg-elevated);
+	color: var(--otelux-fg-muted);
+}
+
+.otelux-span-detail__facts {
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	gap: 4px 12px;
+	margin: 0 0 16px;
+	font-size: 12px;
+}
+
+.otelux-fact {
+	display: contents;
+}
+
+.otelux-fact__label {
+	color: var(--otelux-fg-muted);
+}
+
+.otelux-fact__value {
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+.otelux-fact__value--mono {
+	font-family: ui-monospace, SFMono-Regular, monospace;
+	font-size: 11px;
+}
+
+.otelux-section {
+	margin-top: 20px;
+}
+
+.otelux-section__title {
+	margin: 0 0 8px;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--otelux-fg-muted);
+}
+
+.otelux-attr-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 12px;
+}
+
+.otelux-attr-table th {
+	text-align: left;
+	font-weight: 500;
+	color: var(--otelux-fg-muted);
+	padding: 4px 8px 4px 0;
+	vertical-align: top;
+	white-space: nowrap;
+}
+
+.otelux-attr-table td {
+	padding: 4px 0;
+	font-family: ui-monospace, SFMono-Regular, monospace;
+	font-size: 11px;
+	overflow-wrap: anywhere;
+}
+
+.otelux-attr-table__empty {
+	font-size: 12px;
+	color: var(--otelux-fg-muted);
+	font-style: italic;
+}
+
+.otelux-span-detail__events {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.otelux-span-detail__event {
+	border-top: 1px solid var(--otelux-border);
+	padding: 8px 0;
+}
+
+.otelux-span-detail__event:first-child {
+	border-top: none;
+}
+
+.otelux-span-detail__event-head {
+	display: flex;
+	justify-content: space-between;
+	margin-bottom: 4px;
+}
+
+.otelux-span-detail__event-name {
+	font-weight: 500;
+}
+
+.otelux-span-detail__event-time {
+	font-family: ui-monospace, SFMono-Regular, monospace;
+	font-size: 11px;
+	color: var(--otelux-fg-muted);
+}
+
+.otelux-span-detail__scope-version {
+	margin-left: 8px;
+	color: var(--otelux-fg-muted);
+}

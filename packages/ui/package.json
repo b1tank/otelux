@@ -13,7 +13,8 @@
 			"types": "./dist/index.d.ts",
 			"import": "./dist/index.js",
 			"require": "./dist/index.cjs"
-		}
+		},
+		"./workbench.css": "./dist/workbench.css"
 	},
 	"files": ["dist", "README.md"],
 	"sideEffects": ["**/*.css"],
@@ -29,6 +30,7 @@
 		"react-dom": "^18.0.0"
 	},
 	"dependencies": {
+		"@otelux/engine": "*",
 		"@otelux/protocol": "*",
 		"@otelux/types": "*"
 	},
