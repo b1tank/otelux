@@ -16,7 +16,7 @@ Pivot OTelux to a native-per-platform observability desktop architecture and car
 
 ## Hiccups & Notes
 
-- None yet.
+- The local Meson version cannot select `cpp_std=c++23`; it supports `c++20`, so the active build uses C++20 while keeping the architecture C++23-friendly.
 
 ## Final Status
 

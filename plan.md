@@ -26,7 +26,7 @@ engine underneath.
 
 | Layer | Choice | Rationale |
 |---|---|---|
-| Language | C++23 | Native performance, mature systems ecosystem, strong platform integration, and excellent C ABI interop. |
+| Language | C++20 baseline, C++23-friendly | Native performance, mature systems ecosystem, strong platform integration, and excellent C ABI interop. |
 | Public ABI | C handles and plain structs | Keeps platform shells decoupled from C++ templates, STL layout, exceptions, and compiler ABI details. |
 | Build | Meson + Ninja | Fast native builds with first-class C++ support and simple test orchestration. |
 | Storage | SQLite | Embedded, reliable, queryable, and well suited to local telemetry stores. |
@@ -112,7 +112,7 @@ The current milestone is the native core foundation for traces.
 
 | Area | Target |
 |---|---|
-| Build | C++23 Meson project with a reusable `otelux_core` library. |
+| Build | C++20 Meson project with a reusable `otelux_core` library. |
 | Storage | SQLite schema for traces, spans, span attributes, span events, and resources. |
 | Ingest | Minimal OTLP trace ingestion path suitable for fixtures and local smoke tests. |
 | Query | Trace list filtering, sorting, pagination, and span retrieval. |

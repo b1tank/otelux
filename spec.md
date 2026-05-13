@@ -23,7 +23,7 @@ waterfalls using deterministic layout data.
 
 | Requirement | Detail |
 |---|---|
-| Language | C++23. |
+| Language | C++20 baseline, written to stay C++23-friendly as the toolchain moves forward. |
 | Build | Meson builds `otelux_core` and a small smoke executable. |
 | Public boundary | C ABI with opaque engine and result handles. |
 | Ownership | Every returned object has an explicit destroy function. |
