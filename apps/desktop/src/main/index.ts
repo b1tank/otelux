@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { app, BrowserWindow, shell } from 'electron';
+import { BrowserWindow, app, shell } from 'electron';
 
 const isDev = !app.isPackaged;
 
@@ -29,8 +29,8 @@ function createWindow(): void {
 		return { action: 'deny' };
 	});
 
-	if (isDev && process.env['ELECTRON_RENDERER_URL']) {
-		void win.loadURL(process.env['ELECTRON_RENDERER_URL']);
+	if (isDev && process.env.ELECTRON_RENDERER_URL) {
+		void win.loadURL(process.env.ELECTRON_RENDERER_URL);
 	} else {
 		void win.loadFile(join(__dirname, '../renderer/index.html'));
 	}

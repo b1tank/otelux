@@ -1,9 +1,9 @@
+import type { DataSource } from '@otelux/protocol';
+import { render } from '@testing-library/react';
 /**
  * @vitest-environment jsdom
  */
 import { describe, expect, it } from 'vitest';
-import { render } from '@testing-library/react';
-import type { DataSource } from '@otelux/protocol';
 import { OTELUX_UI_VERSION, OTeluxWorkbench } from './index.js';
 
 const mockDataSource: DataSource = { kind: 'otelux/datasource' };

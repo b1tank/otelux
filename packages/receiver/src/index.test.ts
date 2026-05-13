@@ -1,6 +1,6 @@
+import { type Storage, createEngine } from '@otelux/engine';
 import { describe, expect, it } from 'vitest';
-import { createEngine, type Storage } from '@otelux/engine';
-import { createReceiver, OTELUX_RECEIVER_VERSION } from './index.js';
+import { OTELUX_RECEIVER_VERSION, createReceiver } from './index.js';
 
 function memoryStorage(): Storage {
 	return { kind: 'otelux/storage', close() {} };

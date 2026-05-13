@@ -1,5 +1,5 @@
-import type { JSX } from 'react';
 import { OTeluxWorkbench } from '@otelux/ui';
+import type { JSX } from 'react';
 
 // Phase 0 stub. The real DataSource (bridged from the main-process engine
 // over IPC) plugs in here in Phase 1.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createEngine, OTELUX_ENGINE_VERSION, type Storage } from './index.js';
+import { OTELUX_ENGINE_VERSION, type Storage, createEngine } from './index.js';
 
 function memoryStorage(): Storage {
 	return { kind: 'otelux/storage', close() {} };

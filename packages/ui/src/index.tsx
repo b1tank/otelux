@@ -7,8 +7,8 @@
  * Toolbar, Settings, theme tokens) land in Phase 1.
  */
 
-import type { JSX } from 'react';
 import type { DataSource } from '@otelux/protocol';
+import type { JSX } from 'react';
 
 export interface OTeluxWorkbenchProps {
 	dataSource: DataSource;

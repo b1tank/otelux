@@ -15,7 +15,7 @@ body,
 	height: 100%;
 	background: var(--otelux-bg);
 	color: var(--otelux-fg);
-	font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+	font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 	font-size: 13px;
 }
 

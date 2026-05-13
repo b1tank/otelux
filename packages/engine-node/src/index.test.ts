@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createNodeSqliteStorage, OTELUX_ENGINE_NODE_VERSION } from './index.js';
+import { OTELUX_ENGINE_NODE_VERSION, createNodeSqliteStorage } from './index.js';
 
 describe('@otelux/engine-node', () => {
 	it('creates an in-memory storage stub', () => {

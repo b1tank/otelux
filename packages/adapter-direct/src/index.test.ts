@@ -1,6 +1,6 @@
+import { type Storage, createEngine } from '@otelux/engine';
 import { describe, expect, it } from 'vitest';
-import { createEngine, type Storage } from '@otelux/engine';
-import { createDirectDataSource, OTELUX_ADAPTER_DIRECT_VERSION } from './index.js';
+import { OTELUX_ADAPTER_DIRECT_VERSION, createDirectDataSource } from './index.js';
 
 function memoryStorage(): Storage {
 	return { kind: 'otelux/storage', close() {} };
