@@ -1,320 +1,170 @@
 # OTelux — Milestone Specification
 
-Version: 1.0 | Updated: 2026-05-09
+Version: 2.0 | Updated: 2026-05-12
 
 ## Milestone Overview
 
 | # | Milestone | Priority | Goal |
-|---|-----------|----------|------|
-| **M1** | Trace Feature-Complete | **Critical** | Feature-parity with Aspire Dashboard trace views |
-| **M2** | Structured Events (Logs) | Medium | Receive, store, and view OTLP log records |
-| **M3** | Metrics | Low | Receive, store, and chart OTLP metrics |
-| **M4** | Production Hardening | Low | gRPC, retention, packaging, a11y |
+|---|---|---|---|
+| M1 | Native Trace Core | Critical | Build the shared C++ engine for trace ingest, storage, query, and waterfall layout. |
+| M2 | Linux Trace Workbench | Critical | Ship the first native Linux trace UI on top of the shared core. |
+| M3 | Structured Logs | Medium | Receive, store, query, and inspect OTLP log records with trace correlation. |
+| M4 | Metrics | Medium | Receive, store, aggregate, and chart OTLP metrics. |
+| M5 | Profiles | Medium | Add profile ingestion and native flame graph exploration. |
+| M6 | Production Hardening | Low | Retention, packaging, accessibility, import/export, and performance validation. |
 
----
+## M1 — Native Trace Core
 
-## M1 — Trace Feature-Complete
+**Goal:** provide a reusable, platform-neutral engine that native shells can embed
+to receive trace data, store it locally, query it efficiently, and render trace
+waterfalls using deterministic layout data.
 
-**Goal**: Emit OTLP traces from any app → receive them in OTelux → view them with
-full context. Feature-parity with Aspire Dashboard trace views (minus AI features
-and Fluent UI-specific widgets).
+### M1.1 — C++ Core Library
 
-### M1.1 — Sharp HiDPI Text Rendering
+| Requirement | Detail |
+|---|---|
+| Language | C++23. |
+| Build | Meson builds `otelux_core` and a small smoke executable. |
+| Public boundary | C ABI with opaque engine and result handles. |
+| Ownership | Every returned object has an explicit destroy function. |
+| Errors | ABI calls return integer status codes or nullable result handles. |
+| Tests | Core tests link against the library without launching a UI. |
 
-**Problem**: FreeType rasterizes glyphs at logical pixel size (e.g. 16px). On a 2×
-HiDPI display the glyph texture is stretched to 32 physical pixels via bilinear
-interpolation → blurry text.
+### M1.2 — Trace Storage
 
-**Fix**: Rasterize glyphs at `font_size × scale_factor` physical pixels. Render
-quad geometry at logical coordinates (unchanged projection). This gives pixel-perfect
-text at any DPI.
+| Requirement | Detail |
+|---|---|
+| Database | SQLite, selected by database path at engine creation. |
+| Trace table | Trace ID, name, root service, start time, duration, span count, error flag. |
+| Span table | Span ID, trace ID, parent span ID, service, name, kind, status, start time, duration. |
+| Attributes | Store span/resource/event attributes as queryable text columns first, with room for normalized indexes later. |
+| Indexes | Trace time, span trace ID, service, status, and name search indexes. |
+| Retention-ready | Schema boundaries must allow age/count purging later. |
 
-| Item | Detail |
-|------|--------|
-| Rasterize at physical px | `FT_Set_Pixel_Sizes(face, 0, font_size * scale)` |
-| Store physical glyph metrics | width/height/bearing in physical px |
-| Render at logical size | Divide glyph metrics by scale for quad vertices |
-| Scale-change handling | Re-init font atlas when scale factor changes |
+### M1.3 — Trace Ingest
 
-**Test**: `test_text_hidpi` — render "Hello" at scale 1 and 2, verify glyph texture
-dimensions differ by 2×.
+| Requirement | Detail |
+|---|---|
+| Fixture ingest | Accept trace fixture JSON through the core API for tests and smoke runs. |
+| OTLP direction | Keep parser boundaries compatible with OTLP traces. |
+| Idempotency | Re-ingesting the same trace updates trace summary data without duplicating spans. |
+| Error propagation | Any span with error status marks the trace as errored. |
+| Validation | Malformed payloads return an error and leave the store unchanged. |
 
-### M1.2 — Trace List Polish
+### M1.4 — Trace Query
 
-Feature-parity with Aspire `Traces.razor`:
+| Requirement | Detail |
+|---|---|
+| Filters | Service, status, and substring name search. |
+| Sorting | Start time descending by default; duration and name available for UI shells. |
+| Pagination | Offset and limit for virtualized trace lists. |
+| Counts | Return total matching count separately from visible rows. |
+| Detail lookup | Fetch spans for a trace in deterministic order. |
 
-| Feature | Aspire Behavior | OTelux Implementation |
-|---------|-----------------|----------------------|
-| **Columns** | Timestamp, Name, Spans (per-service), Duration, Status | Same 5 columns |
-| **Duration bar** | Circular progress indicator + text | Horizontal bar + text (GPU) |
-| **Error row styling** | Left red border + row tint | Red left bar (4px) + row tint overlay |
-| **Service color coding** | Per-resource color from ColorGenerator | Per-service consistent hashing to palette |
-| **Span count per service** | Color-coded tags per resource | Colored text badges per service |
-| **Truncation** | Ellipsis on overflow | Truncate name to fit column width |
-| **Virtualized scroll** | Virtual scrolling (46px row, 100 overscan) | GPU-rendered visible rows + scroll offset |
-| **Row click → detail** | Navigate to TraceDetail page | GtkStack switch to waterfall view |
-| **Sort by column** | Click column header to sort | Click header to toggle sort (time desc default) |
-| **Total count footer** | "Showing X traces" | Bottom bar with count |
+### M1.5 — Waterfall Layout
 
-**Toolbar filters** (GTK widgets above the GtkGLArea):
+| Requirement | Detail |
+|---|---|
+| Tree building | Compute parent/child depth from span IDs and parent span IDs. |
+| Row order | Parent before descendants; stable fallback ordering by start time and name. |
+| Geometry | Return row index, depth, relative start, relative width, duration, service, kind, and status. |
+| Collapse model | Layout API accepts collapsed span IDs and omits hidden descendants. |
+| UI independence | No platform drawing objects appear in layout results. |
 
-| Filter | Type | Behavior |
-|--------|------|----------|
-| Service selector | GtkDropDown | Filter traces by service name |
-| Name search | GtkSearchEntry | Filter by trace name substring |
-| Span kind filter | GtkDropDown | All / Server / Client / Internal / Producer / Consumer |
-| Status filter | GtkDropDown | All / OK / Error |
-| Refresh button | GtkButton | Re-query DB and redraw |
-| Clear button | GtkButton | Purge all traces from DB |
+### M1.6 — Smoke CLI
 
-**Tests**:
-- `test_store_filters` — verify service/kind/status SQL filters return correct subsets
-- `test_store_sort` — verify sort by time, duration, name
-- `test_store_pagination` — offset/limit returns correct page
+| Requirement | Detail |
+|---|---|
+| Command | `otelux-smoke <db-path> <trace-fixture.json>`. |
+| Behavior | Creates an engine, ingests the fixture, queries traces, and prints a compact summary. |
+| Purpose | Gives CI and local development a non-UI verification path. |
 
-### M1.3 — Trace Waterfall Polish
-
-Feature-parity with Aspire `TraceDetail.razor`:
-
-| Feature | Aspire Behavior | OTelux Implementation |
-|---------|-----------------|----------------------|
-| **Header** | Resource name + trace ID + start time + duration + resource count + depth + span count | Title bar: trace ID, duration, span count, max depth |
-| **Time ruler** | 4-column grid: 0%, 25%, 50%, 75%, 100% tick marks | OpenGL tick marks + time labels at 5 evenly-spaced positions |
-| **Span bars** | Colored by resource, positioned by start/duration relative to trace | Colored by span kind, proportional bar in bar area |
-| **Span kind icons** | Server/Consumer get icon; others get colored left border | Colored bar + kind initial letter badge (S/C/I/P) |
-| **Depth indent** | `(depth-1) * 15px` left margin | `depth * 20px` indent in label area |
-| **Expand/collapse** | Chevron button; children hidden when collapsed | Chevron toggle; skip rendering collapsed children |
-| **Error indicator** | Red error circle icon on span | Red semi-transparent overlay on bar + error icon |
-| **Span events on bar** | Colored circular buttons at event time positions | Small diamond markers at event positions on bar |
-| **Duration label** | Positioned left or right of bar based on space | Same: inside bar if overflow, else right of bar |
-| **Selected span** | Highlighted row with different text color | Accent-tinted row highlight |
-| **Click → detail** | Opens side panel with span details | Updates right-side detail panel |
-| **Search filter** | Text input to filter span names | GTK search entry above GtkGLArea |
-| **Expand/Collapse All** | Menu actions to toggle all | Toolbar buttons |
-| **Back navigation** | Browser back / breadcrumb | "← Back" button + sidebar "Traces" click |
-| **Scroll** | Virtual scrolling with overscan | Mouse wheel scrolling (scroll_offset) |
-| **Resource column** | Shows resource name per span | Show service name right-aligned in label area |
-| **Uninstrumented peers** | Sub-text for db/messaging/http peers | Sub-text with peer.service attribute |
-
-**Tests**:
-- `test_waterfall_layout` — given N spans with parent/child, verify computed
-  depth, y-position, bar x/width calculations (pure math, no GL)
-- `test_waterfall_collapse` — verify collapsed spans skip children in layout
-
-### M1.4 — Span Detail Panel
-
-Feature-parity with Aspire `SpanDetails.razor`:
-
-| Section | Content |
-|---------|---------|
-| **Header** | Span name, resource/service name, duration, start offset from trace root |
-| **Properties** | All span attributes as key=value list, searchable |
-| **Context** | Source (instrumentation library), version, trace ID, span ID, parent ID |
-| **Resource** | Resource attributes (service.name, service.version, etc.) |
-| **Events** | Time-ordered span events with expandable attributes |
-| **Links** | Cross-trace span links (trace_id + span_id → clickable) |
-
-Implementation: GTK widget panel (not GL) to the right of the waterfall, scrollable.
-Each section is a collapsible GtkExpander with a badge showing item count.
-
-**Not implementing** (too complex / Aspire-specific):
-- AI explain/GenAI features
-- Backlinks (reverse link index)
-- Fluent UI grid column manager
-- Mobile responsive breakpoints
-
-**Tests**:
-- `test_span_attributes_parse` — verify JSON attributes parsed to key-value pairs
-- `test_span_events_store` — verify span events stored and retrieved with attributes
-
-### M1.5 — Scroll & Keyboard Navigation
-
-| Feature | Detail |
-|---------|--------|
-| Mouse wheel scroll | Trace list and waterfall respond to scroll events |
-| Page Up/Down | Scroll by visible-rows count |
-| Arrow keys | Move selection up/down in trace list and waterfall |
-| Enter | Trace list: open selected trace; Waterfall: open selected span detail |
-| Escape | Waterfall: back to trace list |
-| Home/End | Jump to first/last item |
-
-**Test**: `test_scroll_bounds` — verify scroll_offset clamped to [0, total_rows - visible_rows]
-
-### M1.6 — Live Streaming & Refresh
-
-| Feature | Detail |
-|---------|--------|
-| Auto-refresh | Timer-based re-query (every 2s when not paused) |
-| Pause/Resume | Toggle button to stop auto-refresh |
-| Manual refresh | Button to force re-query |
-| New trace indicator | Brief highlight on newly-arrived rows |
-
-**Test**: `test_ingest_live` — POST trace, wait 3s, verify trace appears in store
-(integration test with HTTP server running)
-
-### M1.7 — Error Trace Styling
-
-| Feature | Detail |
-|---------|--------|
-| Trace list | Red left border (4px) on error rows; row background tint |
-| Waterfall | Red semi-transparent overlay on error span bars |
-| Status column | ✓ (green) or ✗ (red) icon |
-| Status filter | Toolbar dropdown: All / OK / Error |
-
-**Test**: `test_error_trace_ingest` — ingest trace with status=ERROR spans, query
-with status filter, verify correct filtering
-
----
-
-## M2 — Structured Events (Logs)
-
-**Goal**: Receive OTLP log records, store them, display in a filterable table
-with severity coloring and trace correlation.
-
-### M2.1 — Log Ingest & Storage
-
-| Item | Detail |
-|------|--------|
-| Endpoint | POST `/v1/logs` (OTLP/HTTP JSON) |
-| Schema | `events` table: id, timestamp, severity, body, scope, trace_id, span_id, attributes (JSON) |
-| Parsing | cJSON parse of LogRecord: timeUnixNano, severityNumber, body.stringValue, attributes |
-
-**Tests**:
-- `test_events_store` — insert/query events by severity, time range, trace_id
-- `test_otlp_logs_parse` — parse sample_events.json fixture, verify field extraction
-
-### M2.2 — Event List View
-
-| Feature | Detail |
-|---------|--------|
-| Columns | Severity icon, Timestamp, Message (body), Scope, Service |
-| Severity colors | Red (ERROR), Yellow (WARN), Blue (INFO), Gray (DEBUG/TRACE) |
-| Row background | Tinted by severity level |
-| Click to expand | Show attributes, exception info below row |
-| Trace correlation | Click TraceId link → navigate to waterfall |
-| Filters | Severity dropdown, Service dropdown, Search text |
-| Scroll | Virtualized like trace list |
-
-### M2.3 — Event Detail Panel
-
-| Section | Content |
-|---------|---------|
-| Header | Severity + timestamp + body |
-| Attributes | Key-value list |
-| Exception | If exception.type/message/stacktrace attributes present, show formatted |
-| Trace link | Clickable trace_id → opens waterfall for that trace |
-
----
-
-## M3 — Metrics
-
-**Goal**: Receive OTLP metrics, store time-series data, display line/bar charts.
-
-### M3.1 — Metrics Ingest & Storage
-
-| Item | Detail |
-|------|--------|
-| Endpoint | POST `/v1/metrics` (OTLP/HTTP JSON) |
-| Schema | `metric_points` table: name, type, value, timestamp, attributes, exemplar_trace_id |
-| Types | Gauge, Sum (counter), Histogram (bucket counts + sum + count) |
-
-### M3.2 — Meter Browser (left panel)
-
-| Feature | Detail |
-|---------|--------|
-| Tree view | GTK TreeView: Meter → Instrument hierarchy |
-| Click to chart | Select instrument → render chart on right |
-| Instrument metadata | Name, description, unit shown on hover |
-
-### M3.3 — Chart Rendering
-
-| Feature | Detail |
-|---------|--------|
-| Line chart | OpenGL line renderer for gauge/counter time series |
-| Histogram | Bar chart for histogram buckets |
-| Time axis | Auto-scaling tick marks with formatted labels |
-| Value axis | Auto-range with grid lines |
-| Hover tooltip | Show exact value + timestamp at cursor position |
-| Exemplar links | Click exemplar marker → navigate to trace waterfall |
-
----
-
-## M4 — Production Hardening
-
-| Feature | Detail |
-|---------|--------|
-| OTLP/gRPC | HTTP/2 + protobuf binary ingest |
-| Data retention | Auto-purge by age or count (configurable) |
-| Perf: 100k spans | Smooth scroll at 60fps |
-| Dark/light theme | Follow system preference via GtkSettings |
-| Keyboard a11y | Full keyboard navigation for all views |
-| Packaging | .desktop file, icon, Flatpak manifest |
-| CLI flags | --port, --db, --help, --version |
-
----
-
-## Critical Test Matrix
-
-Tests are organized by what they protect. Only critical paths — no trivial
-getter/setter tests.
-
-### Data Integrity (must never break)
+### M1 Acceptance Tests
 
 | Test | What It Protects |
-|------|-----------------|
-| `test_otlp_json` | OTLP JSON parsing: spans, attributes, status, timestamps |
-| `test_store` | SQLite CRUD: insert/query traces and spans, FK constraints |
-| `test_ingest_store` | End-to-end: HTTP POST → parse → store → query back |
-| `test_store_filters` | SQL filter correctness: service, kind, status, search |
-| `test_store_sort` | Sort by time/duration/name returns correct order |
-| `test_store_pagination` | Offset/limit pagination returns correct pages |
-| `test_error_trace_ingest` | Error status propagates through ingest → store → query |
-| `test_span_events_store` | Span events with attributes stored and retrieved |
+|---|---|
+| `test_engine_lifecycle` | Engine create/destroy and database setup. |
+| `test_trace_ingest_fixture` | JSON fixture ingest populates trace and span data. |
+| `test_trace_query_filters` | Service, status, search, sort, and pagination behavior. |
+| `test_trace_reingest_idempotent` | Re-ingesting a trace does not duplicate spans. |
+| `test_waterfall_layout` | Span tree depth and bar geometry are deterministic. |
+| `test_waterfall_collapse` | Collapsed spans hide descendants. |
+| `test_smoke_cli` | CLI can ingest and summarize a fixture. |
 
-### Layout Correctness (visual bugs)
+## M2 — Linux Trace Workbench
 
-| Test | What It Protects |
-|------|-----------------|
-| `test_waterfall_layout` | Span tree → depth/position/bar-width math (no GL) |
-| `test_waterfall_collapse` | Collapsed spans correctly skip children |
-| `test_scroll_bounds` | Scroll offset clamped to valid range |
-| `test_text_hidpi` | Glyph textures rasterized at physical pixel size |
+**Goal:** ship the first native shell for trace exploration.
 
-### Integration (system boundaries)
+| Area | Target |
+|---|---|
+| Shell | Linux desktop shell using the selected native UI toolkit. |
+| Trace list | Timestamp, name, services, span count, duration, and status. |
+| Filters | Service selector, search field, span kind, status, pause/resume, refresh, clear. |
+| Waterfall | Native custom timeline with depth indentation, ruler, spans, events, error marks, and selection. |
+| Details | Native inspector for span properties, context, resource attributes, events, and links. |
+| Navigation | Back/forward semantics, keyboard selection, enter/escape, home/end, page up/down. |
+| Live refresh | New traces appear while the receiver is running, with pause support. |
 
-| Test | What It Protects |
-|------|-----------------|
-| `test_otlp_http_health` | HTTP server starts, /health returns 200 |
-| `test_otlp_http_cors` | CORS headers present on OPTIONS and POST |
-| `test_ingest_malformed` | Malformed JSON returns 400, doesn't crash |
-| `test_ingest_live` | Trace ingested via HTTP appears in store within timeout |
+## M3 — Structured Logs
 
-### NOT testing (intentionally omitted)
+**Goal:** receive, store, and inspect logs with trace correlation.
 
-- Individual getter/setter functions
-- Color constant values
-- Arena allocator internals (only test alloc+reset cycle)
-- Shader compilation (tested implicitly by render tests)
-- GTK widget creation (tested by app launch)
+| Area | Target |
+|---|---|
+| Ingest | OTLP log records through the core. |
+| Storage | Timestamp, severity, body, scope, service, trace ID, span ID, and attributes. |
+| Query | Severity, service, time range, search, and trace ID filters. |
+| UI | Native log table, severity styling, expandable details, and trace navigation. |
 
----
+## M4 — Metrics
+
+**Goal:** receive, store, and chart metric data.
+
+| Area | Target |
+|---|---|
+| Ingest | Gauge, sum, and histogram points. |
+| Storage | Metric identity, type, timestamp, value/buckets, attributes, and exemplar trace IDs. |
+| Query | Time range, service, instrument, and attribute filters. |
+| Layout | Platform-neutral chart series, axes, labels, and exemplar markers. |
+| UI | Meter browser, charts, table view, and exemplar-to-trace navigation. |
+
+## M5 — Profiles
+
+**Goal:** add profile exploration as a first-class signal.
+
+| Area | Target |
+|---|---|
+| Ingest | Profile payloads and metadata. |
+| Storage | Samples, stack frames, labels, timestamps, and correlation IDs. |
+| Layout | Flame graph and table layout data. |
+| UI | Native flame graph, search, stack table, and trace/profile correlation. |
+
+## M6 — Production Hardening
+
+| Area | Target |
+|---|---|
+| Retention | Age and count based cleanup. |
+| Packaging | Platform-specific installers and update story. |
+| Accessibility | Keyboard reachability, labels, focus order, and screen reader support in each shell. |
+| Import/export | Save and load local telemetry sessions. |
+| Performance | Validate query, layout, scrolling, and memory budgets with large fixtures. |
+| Reliability | Crash-safe database writes and clear recovery UX. |
 
 ## Verification Loop
 
-Every code change goes through:
+Every core change goes through:
 
-```
-1. ninja -C build                        # compile (0 warnings)
-2. ninja -C build test                   # all tests pass
-3. GDK_BACKEND=x11 ./build/otelux &     # launch app
-4. curl POST test fixtures               # ingest data
-5. deskpal: click → screenshot → verify  # visual check
-6. Fix → repeat from 1
-7. git commit + push
+```sh
+meson setup build --wipe
+ninja -C build
+ninja -C build test
 ```
 
-deskpal (`~/deskpal`) is co-maintained. If the verification loop needs new
-capabilities, update deskpal first, commit+push, then continue OTelux work.
+Every platform-shell change adds its shell-specific build and UI verification on
+top of the core loop.
 
-Cross-reference Aspire Dashboard (`~/aspire/src/Aspire.Dashboard/`) for UI/UX
-decisions. See `plan.md` §UI/UX Reference for file mappings.
+## Current Definition of Done
+
+M1 is done when the repository builds a C++ core library, exposes a stable C ABI,
+ingests a trace fixture, stores/query traces in SQLite, computes waterfall layout,
+and verifies those behaviors with automated tests and the smoke executable.
