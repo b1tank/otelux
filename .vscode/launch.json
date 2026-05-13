@@ -1,0 +1,77 @@
+{
+	// VS Code debug configurations for OTelux.
+	//
+	// "Electron: Main + Renderer" is the everyday choice — it rebuilds the
+	// desktop bundle, launches Electron with the Node inspector attached to
+	// the main process, and attaches Chrome DevTools to the renderer on
+	// port 9223. Set breakpoints in `apps/desktop/src/main/*.ts`,
+	// `apps/desktop/src/preload/*.ts`, or `apps/desktop/src/renderer/*.tsx`
+	// and they will be hit thanks to the sourcemaps emitted by
+	// `electron.vite.config.ts`.
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Electron: Main",
+			"type": "node",
+			"request": "launch",
+			"cwd": "${workspaceFolder}/apps/desktop",
+			"runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron",
+			"windows": {
+				"runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron.cmd"
+			},
+			"runtimeArgs": [
+				"--remote-debugging-port=9223",
+				"."
+			],
+			"env": {
+				"NODE_ENV": "development",
+				"OTELUX_OTLP_PORT": "4318"
+			},
+			"outFiles": [
+				"${workspaceFolder}/apps/desktop/out/main/**/*.js",
+				"${workspaceFolder}/apps/desktop/out/preload/**/*.js"
+			],
+			"sourceMaps": true,
+			"resolveSourceMapLocations": [
+				"${workspaceFolder}/apps/desktop/out/**",
+				"!**/node_modules/**"
+			],
+			"preLaunchTask": "desktop: build",
+			"console": "integratedTerminal"
+		},
+		{
+			"name": "Electron: Renderer",
+			"type": "chrome",
+			"request": "attach",
+			"port": 9223,
+			"timeout": 30000,
+			"webRoot": "${workspaceFolder}/apps/desktop/src/renderer",
+			"sourceMapPathOverrides": {
+				"webpack:///./~/*": "${workspaceFolder}/node_modules/*",
+				"webpack:///./src/*": "${workspaceFolder}/apps/desktop/src/*",
+				"webpack:///*": "*"
+			}
+		},
+		{
+			// Attach the Node inspector to an already-running `electron-vite dev`
+			// session. Start `npm run -w @otelux/desktop dev -- --inspect=9229`
+			// in a terminal, then pick this configuration.
+			"name": "Electron: Attach to Main",
+			"type": "node",
+			"request": "attach",
+			"port": 9229,
+			"restart": true,
+			"outFiles": [
+				"${workspaceFolder}/apps/desktop/out/main/**/*.js",
+				"${workspaceFolder}/apps/desktop/out/preload/**/*.js"
+			]
+		}
+	],
+	"compounds": [
+		{
+			"name": "Electron: Main + Renderer",
+			"configurations": ["Electron: Main", "Electron: Renderer"],
+			"stopAll": true
+		}
+	]
+}

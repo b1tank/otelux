@@ -6,6 +6,9 @@ export default defineConfig({
 	main: {
 		plugins: [externalizeDepsPlugin()],
 		build: {
+			// Emit sourcemaps so VS Code's Node debugger can map breakpoints in
+			// `out/main/index.js` back to `src/main/index.ts`.
+			sourcemap: true,
 			rollupOptions: {
 				input: { index: resolve(__dirname, 'src/main/index.ts') },
 			},
@@ -14,6 +17,7 @@ export default defineConfig({
 	preload: {
 		plugins: [externalizeDepsPlugin()],
 		build: {
+			sourcemap: true,
 			rollupOptions: {
 				input: { index: resolve(__dirname, 'src/preload/index.ts') },
 				// Sandboxed preloads do not support ESM; Electron loads them
@@ -32,6 +36,7 @@ export default defineConfig({
 		root: resolve(__dirname, 'src/renderer'),
 		plugins: [react()],
 		build: {
+			sourcemap: true,
 			rollupOptions: {
 				input: { index: resolve(__dirname, 'src/renderer/index.html') },
 			},
