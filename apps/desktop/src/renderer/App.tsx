@@ -1,29 +1,19 @@
-import type { DataSource } from '@otelux/protocol';
 import { OTeluxWorkbench } from '@otelux/ui';
-import type { JSX } from 'react';
-
-// Placeholder DataSource. The real one — bridged from the main-process
-// engine over IPC — replaces this when the IPC bridge lands.
-const stubDataSource: DataSource = {
-	kind: 'otelux/datasource',
-	listTraces: async () => ({ rows: [], totalCount: 0 }),
-	getTrace: async () => ({
-		traceId: '',
-		spans: [],
-		startTimeUnixNano: 0n,
-		endTimeUnixNano: 0n,
-		durationNanos: 0n,
-		services: [],
-		spanCount: 0,
-		errorCount: 0,
-	}),
-	getSpanDetails: async () => {
-		throw new Error('no spans yet');
-	},
-	subscribe: () => ({ dispose: () => {} }),
-};
+import { type JSX, useMemo } from 'react';
+import { createIpcDataSource } from './ipcDataSource.js';
 
 export function App(): JSX.Element {
+	// Build the bridge-backed DataSource once per renderer. If the bridge
+	// is missing (e.g. the preload script failed to load) we surface a
+	// loud error here instead of silently showing an empty workbench.
+	const dataSource = useMemo(() => {
+		const bridge = window.otelux;
+		if (!bridge) {
+			throw new Error('OTelux: preload bridge missing on window.otelux');
+		}
+		return createIpcDataSource(bridge);
+	}, []);
+
 	return (
 		<main className="app">
 			<header className="app-header">
@@ -31,7 +21,7 @@ export function App(): JSX.Element {
 				<p className="app-subtitle">Local OpenTelemetry workbench</p>
 			</header>
 			<section className="app-body">
-				<OTeluxWorkbench dataSource={stubDataSource} theme="dark" />
+				<OTeluxWorkbench dataSource={dataSource} theme="dark" />
 			</section>
 		</main>
 	);
