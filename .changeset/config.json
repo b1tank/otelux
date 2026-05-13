@@ -1,0 +1,11 @@
+{
+	"$schema": "https://unpkg.com/@changesets/config@3.0.0/schema.json",
+	"changelog": ["@changesets/changelog-github", { "repo": "b1tank/otelux" }],
+	"commit": false,
+	"fixed": [],
+	"linked": [],
+	"access": "public",
+	"baseBranch": "main",
+	"updateInternalDependencies": "patch",
+	"ignore": ["@otelux/desktop", "@otelux/web-demo", "@otelux/vscode-example"]
+}
