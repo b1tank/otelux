@@ -1,0 +1,362 @@
+# OTelux — Plan
+
+Version: 3.0
+Updated: 2026-05-13
+
+This is the execution plan for OTelux. It says **how** we get from today to
+the product defined in [spec.md](spec.md). It is intentionally slow. Phases
+are effort budgets, not calendar weeks. Finish one well, breathe, start the
+next.
+
+---
+
+## 1. Honest audit
+
+### What we are keeping
+
+- The OTel data model thinking and waterfall layout algorithm baked into the
+  prior C++ core — ported to TypeScript in `@otelux/engine`.
+- Trace fixtures under `test/fixtures/` — driving Storybook stories, parity
+  tests, and integration tests.
+- This `docs/` set as the single source of design truth.
+- Lessons from the GTK Cairo waterfall prototype (label collision, depth
+  indent, time-ruler placement) — they inform the React waterfall design.
+
+### What we are deleting
+
+- `src/core/`, `src/cli/`, `src/shells/` (C++ core, smoke CLI, GTK shell).
+- `meson.build`, `subprojects/`, `vendor/`, `build/`.
+- All pre-pivot C files in `src/app.*`, `src/main.c`, `src/ingest`,
+  `src/store`, `src/render`, `src/ui`, `src/util` and their tests.
+
+This is a clean break, not a fork. Git history preserves the C++ ideas;
+commits `46ddc43..d25998c` are the reference if we ever need them.
+
+### What we are reusing from prior prototypes
+
+A standalone VS Code branch experiment proved several things we now treat as
+load-bearing assumptions:
+
+- `node:sqlite` works inside a webview-hosting extension without native
+  modules.
+- A typed `{ query → result }` postMessage facade is the right boundary
+  between a Node-side store and a webview UI.
+- Denormalizing hot attributes alongside a generic attributes table gives
+  fast filtered queries while keeping the schema OTEL-generic.
+- Theming via host CSS variables maps cleanly to a component theme.
+
+`@otelux/engine-node` and `@otelux/adapter-vscode` formalize those patterns
+as published packages.
+
+---
+
+## 2. Milestone 1 — Ship a Linux desktop app you can use
+
+**M1 is the single guiding goal of the first phase block.** Everything we
+build through M1 has to contribute to a Linux desktop binary you can install
+and run against your own applications.
+
+**Definition of M1 done — all of these are true:**
+
+1. You can install OTelux on Linux (AppImage and `.deb`).
+2. You launch it like any desktop app; cold start to first paint is under
+   300 ms (warm cache).
+3. The app listens on `http://localhost:4318` for OTLP/HTTP (JSON + protobuf)
+   traces with zero configuration. Any OpenTelemetry SDK pointing there
+   shows traces in the workbench.
+4. A trace list shows all received traces with timestamp, name, services,
+   span count, duration, status. It is virtualized, sortable, searchable,
+   and filterable by service, status, and time window.
+5. Clicking a trace opens a waterfall view: per-service color, depth indent,
+   time ruler, hover tooltip, keyboard navigation, error styling.
+6. Clicking a span opens a detail panel: attributes, events, context
+   (trace/span/parent IDs, scope, version), resource attributes.
+7. Live ingest works: new traces appear without restarting the app, with
+   pause/resume.
+8. Data persists across restarts in a local SQLite file with retention
+   (age and count) configurable in a Settings page.
+9. The app feels like an OS-native window: proper menus, keyboard shortcuts,
+   light/dark/high-contrast, screen-reader-labeled controls, focus rings.
+10. Crashes are recoverable: WAL pragma is set, partial writes do not
+    corrupt the store, ingest backpressure is bounded.
+
+**Out of M1:** logs, metrics, profiles, services overview, macOS/Windows
+desktop, auto-update, code signing, web demo, VS Code extension example.
+Those are explicit later phases.
+
+The package architecture is the means, not the end. We still build the
+packages — they are how M1 gets built — but during M1 they live as
+workspace packages consumed by `apps/desktop`. Publishing to npm happens
+in a later phase once the contracts have shaken out against a real product.
+
+---
+
+## 3. Phases
+
+### Phase 0 — Pivot landing (1 week)
+
+Goal: clean tree, scaffolded monorepo, CI green.
+
+Tasks:
+
+- Commit `chore: retire C++ core` — deletes `src/`, `meson.build`,
+  `subprojects/`, `vendor/`, `build/`, old test directories, dead C files.
+- Scaffold the npm monorepo: root `package.json` with workspaces,
+  `turbo.json`, `tsconfig.base.json`, `biome.json`, `.changeset/`,
+  `.npmrc` with `engine-strict=true`.
+- Create empty packages with `package.json`, `src/index.ts`,
+  `tsup.config.ts`, `vitest.config.ts`:
+  - `@otelux/types`
+  - `@otelux/engine`
+  - `@otelux/engine-node`
+  - `@otelux/protocol`
+  - `@otelux/ui` (plus Storybook 8 boot)
+  - `@otelux/adapter-direct`
+  - `@otelux/receiver`
+- Create empty `apps/desktop` (Electron + electron-builder + Vite renderer).
+- CI: GitHub Actions running `turbo run lint typecheck test build` on
+  Ubuntu × Node 22.
+- README rewrite stating the M1 goal in one paragraph.
+
+Exit criteria: `npm install && npm run build && npm test` passes on a clean
+Ubuntu checkout. `npm run -w apps/desktop dev` opens an empty Electron
+window.
+
+### Phase 1 — M1: Linux desktop trace workbench (8–12 weeks)
+
+The single end-to-end phase that delivers M1. Tracks run in parallel.
+
+Track A — Types and protocol:
+
+- `@otelux/types`: OTLP types — Trace, Span (status, kind, events, links),
+  Resource, InstrumentationScope.
+- `@otelux/protocol`: `DataSource` interface with `listTraces`, `getTrace`,
+  `getSpanDetails`, `subscribe`. Query/result types versioned.
+
+Track B — Engine:
+
+- Port waterfall layout from the retired C++ `append_layout_rows` to TS,
+  with parity tests against the same fixtures.
+- Trace queries: service filter, kind filter, status filter, name search,
+  duration/time-window filter, sort, pagination, total count.
+- Span detail fetch with full attribute parsing.
+- Live subscription: emit a "new traces" event the UI can poll/observe.
+- `@otelux/engine-node` (`node:sqlite`): schema versioning, WAL pragma,
+  prepared statements, retention (age + count), recovery on partial writes.
+
+Track C — Receiver:
+
+- `@otelux/receiver`: Hono server with `POST /v1/traces` for JSON and
+  protobuf using `@opentelemetry/otlp-transformer`.
+- Health endpoint, CORS, configurable port (default 4318).
+- Bounded ingest queue with drop metrics.
+
+Track D — UI:
+
+- Theme tokens (`--otelux-fg`, `--otelux-bg-panel`, `--otelux-accent`, …)
+  with sensible Linux-desktop defaults and a `--vscode-*` mapping layer so
+  later embedders inherit theme.
+- Components in Storybook with fixture-driven stories:
+  - `Waterfall` (SVG via visx, virtualized rows, depth indent, time ruler,
+    per-service color, error styling, hover, keyboard nav).
+  - `TraceList` (TanStack Table + Virtual: timestamp, name, services,
+    duration bar, status, sortable, virtualized).
+  - `SpanDetail` (overview, attributes, events, context, resource).
+  - `Toolbar` (service multi-select, status filter, search, pause, refresh).
+  - `Settings` (port, retention, theme).
+  - `EmptyState`, `ErrorBoundary`.
+- Top-level `OTeluxTracesWorkbench` assembles them.
+- Keyboard map: up/down, page up/down, home/end, enter, escape, `/` to
+  focus search, `ctrl+,` for settings.
+
+Track E — Adapter:
+
+- `@otelux/adapter-direct`: wraps an engine instance and exposes the
+  `DataSource` interface to the renderer. Used by Electron's IPC bridge.
+
+Track F — App:
+
+- `apps/desktop`: Electron main process boots the receiver + engine + IPC
+  bridge; renderer is a Vite-built React app consuming `@otelux/ui` via
+  `@otelux/adapter-direct` over Electron IPC.
+- Native menus, keyboard shortcuts, window state persistence, single-instance
+  lock so port 4318 is not double-bound.
+- electron-builder produces `.AppImage` and `.deb` artifacts for x64 and
+  arm64 in CI.
+- Smoke E2E with Playwright: launch the app, post a fixture to the
+  receiver, assert the trace appears in the list, click it, assert the
+  waterfall renders.
+
+Track G — Verification:
+
+- A `scripts/send-traces.sh` posts the bundled fixtures to a running app.
+- A `docs/m1-verification.md` checklist walks through the 10 done criteria.
+- Performance harness: 100k-span ingest, query, scroll, waterfall layout
+  measured against the budgets in spec.md § 8.
+
+Exit criteria: the M1 done definition above is met, end to end, on a fresh
+Ubuntu install.
+
+### Phase 2 — Structured logs (3–6 weeks)
+
+Engine:
+- Logs table: id, timestamp, severity, body, scope, service, trace_id,
+  span_id, attributes, resource attributes.
+- `POST /v1/logs` OTLP ingest.
+- Query: severity, service, scope, time, trace_id, free-text on body.
+
+UI:
+- `LogsTable` (virtualized, severity row tint, severity icon column).
+- `LogsToolbar`, `LogDetail`.
+- Trace correlation: click trace_id → switch to Traces focused on that
+  trace.
+- Live tail mode.
+
+Exit criteria: a user can debug a real local crash via logs and one-click
+correlate to its trace.
+
+### Phase 3 — Metrics (4–8 weeks)
+
+Engine:
+- Metric points table; aggregation helpers (rate, percentile from
+  histograms).
+- `POST /v1/metrics` OTLP ingest.
+- **Decision point:** introduce DuckDB-wasm only if SQLite cannot meet the
+  100 ms chart query budget at 100k points.
+
+UI:
+- `MeterTree`, `MetricChart` (line + histogram via visx),
+  `DimensionFilter`, exemplar markers → click jumps to trace.
+
+Exit criteria: users answer "what changed?" for a local service in OTelux.
+
+### Phase 4 — Services overview (3–5 weeks)
+
+- Engine: service registry derived from `resource.attributes.service.*`.
+  Per-service rollups (span count, error rate, p95 duration, log severity
+  distribution).
+- UI: `ServicesGrid`, per-service detail page combining recent traces,
+  logs, key metrics, with cross-links.
+
+### Phase 5 — Ingest production-readiness (3–6 weeks)
+
+- OTLP/gRPC via `@grpc/grpc-js` for all three signals.
+- Backpressure tuning, drop metrics surfaced in the UI.
+- Crash safety verification under power-loss simulation.
+- Optional simple auth token; CORS configurability.
+
+### Phase 6 — Power features (4–8 weeks)
+
+- Trace search by attribute (`http.method=POST AND http.status_code>=500`).
+- Saved views.
+- Span links graph.
+- Synthesized peer resolution (db/http/queue) on the waterfall.
+- Service map (nodes + edges from traces).
+- Telemetry export/import (zip of SQLite + metadata) for shareable repros.
+- FTS5-powered global search.
+- Waterfall Canvas renderer for >5k spans (same component API).
+
+### Phase 7 — macOS and Windows desktop (3–6 weeks)
+
+- Add macOS and Windows targets to electron-builder.
+- DMG, MSIX, AppImage, deb, rpm artifacts in CI.
+- Platform-specific menus, system tray, default window placement.
+- macOS notarization, Windows EV signing.
+- electron-updater for in-app updates.
+
+### Phase 8 — Web demo and `@otelux/engine-wasm` (2–4 weeks)
+
+- `@otelux/engine-wasm`: `@sqlite.org/sqlite-wasm` + OPFS adapter, sharing
+  the engine test suite with `engine-node`.
+- `apps/web-demo`: pure-browser viewer with bundled fixtures. Deployed to
+  GitHub Pages on every main push. Useful as a "try OTelux" link and as a
+  CSP-clean test harness.
+
+### Phase 9 — VS Code extension example (2–3 weeks)
+
+- `@otelux/adapter-vscode` published.
+- `apps/vscode-example`: a reference VS Code extension that runs the
+  receiver in the extension host, opens a webview, and consumes `@otelux/ui`
+  via `@otelux/adapter-vscode`.
+- `docs/integrations/vscode.md` recipe.
+
+### Phase 10 — Accessibility audit and localization scaffolding (3–6 weeks)
+
+- Full keyboard reachability, screen reader labels, high-contrast
+  verification across the app.
+- Localization scaffold with English baseline.
+
+### Phase 11 — Profiles (4–8 weeks)
+
+- OTLP profile ingest, sample/frame/label storage.
+- `FlameGraph` component (Canvas-backed for performance).
+- Trace ↔ profile correlation.
+
+### Phase 12 — Tauri swap (optional)
+
+Decide whether to stay on Electron or move to Tauri 2 + Node sidecar based
+on Electron binary size complaints and any blocking limitation. UI and
+engine packages are unchanged either way; only `apps/desktop` is rewritten.
+
+### Phase 13 — Optional GenAI assistant
+
+Strictly optional, fully off by default, pluggable backend, clear privacy
+story. May never ship.
+
+---
+
+## 4. Cross-cutting tracks
+
+### 4.1 Testing strategy
+
+- `@otelux/types` — type tests via `tsd`.
+- `@otelux/engine` — unit tests per module; parity tests against fixtures.
+- `@otelux/engine-node` / `engine-wasm` — same suite parameterized over
+  storage adapters.
+- `@otelux/ui` — Storybook stories double as test surface; Playwright
+  visual snapshots for representative states (loaded, empty, error,
+  selected, dark, high-contrast).
+- `@otelux/receiver` — integration tests posting OTLP payloads against an
+  ephemeral SQLite DB.
+- `apps/*` — smoke E2E with Playwright.
+- Fuzzing on OTLP decoders once stable.
+
+### 4.2 Packaging and distribution
+
+- Packages: npm, public, MIT, semver via Changesets. Publishing starts
+  after M1 ships, once contracts have shaken out.
+- Desktop app: electron-builder → `.AppImage` and `.deb` in M1, full
+  `.DMG`/`.MSIX`/`.rpm` set added in Phase 7, electron-updater added
+  alongside.
+- Web demo: GitHub Pages, auto-deployed (Phase 8).
+- VS Code example: marketplace publish optional, recipe is the primary
+  artifact (Phase 9).
+
+### 4.3 Documentation
+
+- `docs/spec.md` — what we are building (this file's sibling).
+- `docs/plan.md` — this file.
+- `docs/m1-verification.md` — added in Phase 1, the manual checklist for
+  M1 done.
+- `docs/integrations/*.md` — added when each integration lands.
+- `packages/*/README.md` — per-package usage docs.
+- Storybook is the live UI doc.
+
+### 4.4 Telemetry about OTelux itself
+
+Off by default. Optional, opt-in, local-only diagnostics file.
+
+---
+
+## 5. How to execute this plan
+
+- **One phase at a time.** Finish before opening the next. Re-audit at the
+  start of each phase and update this file's "Honest audit" section.
+- **Atomic commits**, conventional commit style, each touching code +
+  tests + docs together.
+- **Changesets** every PR that affects a published package (once publishing
+  starts after M1).
+- **Performance and a11y checks** are part of every PR that touches
+  `@otelux/ui` or `apps/desktop`.
+
+Slow is fine. Compounding wins. M1 first.
