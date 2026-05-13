@@ -1,0 +1,34 @@
+{
+	"name": "@otelux/protocol",
+	"version": "0.0.0",
+	"private": true,
+	"description": "DataSource interface and query/result shapes for the OTelux viewer.",
+	"license": "MIT",
+	"type": "module",
+	"main": "./dist/index.cjs",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.cjs"
+		}
+	},
+	"files": ["dist", "README.md"],
+	"scripts": {
+		"build": "tsup",
+		"dev": "tsup --watch",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"clean": "rm -rf dist .turbo"
+	},
+	"dependencies": {
+		"@otelux/types": "*"
+	},
+	"devDependencies": {
+		"tsup": "8.3.5",
+		"typescript": "5.7.2",
+		"vitest": "2.1.8"
+	}
+}

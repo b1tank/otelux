@@ -1,0 +1,31 @@
+{
+	"name": "@otelux/types",
+	"version": "0.0.0",
+	"private": true,
+	"description": "OpenTelemetry data-model TypeScript types for OTelux.",
+	"license": "MIT",
+	"type": "module",
+	"main": "./dist/index.cjs",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.cjs"
+		}
+	},
+	"files": ["dist", "README.md"],
+	"scripts": {
+		"build": "tsup",
+		"dev": "tsup --watch",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"clean": "rm -rf dist .turbo"
+	},
+	"devDependencies": {
+		"tsup": "8.3.5",
+		"typescript": "5.7.2",
+		"vitest": "2.1.8"
+	}
+}

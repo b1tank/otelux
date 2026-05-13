@@ -1,0 +1,39 @@
+{
+	"name": "@otelux/receiver",
+	"version": "0.0.0",
+	"private": true,
+	"description": "OTLP/HTTP and OTLP/gRPC receiver. Ingests into an @otelux/engine instance.",
+	"license": "MIT",
+	"type": "module",
+	"main": "./dist/index.cjs",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.cjs"
+		}
+	},
+	"files": ["dist", "README.md"],
+	"scripts": {
+		"build": "tsup",
+		"dev": "tsup --watch",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run",
+		"clean": "rm -rf dist .turbo"
+	},
+	"engines": {
+		"node": ">=22.0.0"
+	},
+	"dependencies": {
+		"@otelux/engine": "*",
+		"@otelux/types": "*"
+	},
+	"devDependencies": {
+		"@types/node": "22.10.1",
+		"tsup": "8.3.5",
+		"typescript": "5.7.2",
+		"vitest": "2.1.8"
+	}
+}
