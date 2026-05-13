@@ -1,46 +1,22 @@
 /**
- * Pure-TS OpenTelemetry engine. Ingest, query, layout, live subscription.
+ * @otelux/engine — pure-TS ingest, query, layout, live subscription.
  *
- * Phase 0 ships only the engine factory and Storage adapter interface.
- * Ingest, query, layout, and subscription land in Phase 1 alongside the
- * waterfall port from the retired C++ core.
+ * The engine is the only consumer of `Storage`. Storage is intentionally
+ * narrow: span writes + indexed reads. Higher-level concerns
+ * (subscriptions, Trace computation, waterfall layout) live in the engine
+ * so every storage backend gets them for free.
  */
 
-import type { DataSource, Disposable } from '@otelux/protocol';
-
-export interface Storage {
-	readonly kind: 'otelux/storage';
-	close(): Promise<void> | void;
-}
-
-export interface EngineOptions {
-	storage: Storage;
-}
-
-export interface Engine extends DataSource {
-	subscribe(handler: () => void): Disposable;
-	close(): Promise<void>;
-}
-
-export function createEngine(options: EngineOptions): Engine {
-	const { storage } = options;
-	const listeners = new Set<() => void>();
-
-	return {
-		kind: 'otelux/datasource',
-		subscribe(handler: () => void): Disposable {
-			listeners.add(handler);
-			return {
-				dispose: () => {
-					listeners.delete(handler);
-				},
-			};
-		},
-		async close(): Promise<void> {
-			listeners.clear();
-			await storage.close();
-		},
-	};
-}
-
-export const OTELUX_ENGINE_VERSION = '0.0.0' as const;
+export {
+	createEngine,
+	type Engine,
+	type EngineOptions,
+	OTELUX_ENGINE_VERSION,
+} from './engine.js';
+export { createMemoryStorage, type Storage } from './storage.js';
+export {
+	computeWaterfallLayout,
+	type WaterfallLayout,
+	type WaterfallRow,
+} from './layout.js';
+export { traceFromSpans } from './trace.js';

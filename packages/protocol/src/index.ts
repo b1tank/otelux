@@ -12,12 +12,7 @@ export interface Disposable {
 
 export type SortDirection = 'asc' | 'desc';
 
-export type TraceListSort =
-	| 'startTime'
-	| 'name'
-	| 'duration'
-	| 'spanCount'
-	| 'errorCount';
+export type TraceListSort = 'startTime' | 'name' | 'duration' | 'spanCount' | 'errorCount';
 
 /**
  * Query for the trace list page.

@@ -1,24 +1,217 @@
+import type { Span } from '@otelux/types';
+import { SpanKind, SpanStatusCode } from '@otelux/types';
 import { describe, expect, it } from 'vitest';
-import { OTELUX_ENGINE_VERSION, type Storage, createEngine } from './index.js';
+import {
+	computeWaterfallLayout,
+	createEngine,
+	createMemoryStorage,
+	traceFromSpans,
+} from './index.js';
 
-function memoryStorage(): Storage {
-	return { kind: 'otelux/storage', close() {} };
+const RESOURCE = {
+	attributes: { 'service.name': 'api-gateway' },
+} as const;
+const SCOPE = { name: 'http' } as const;
+
+function makeSpan(args: {
+	traceId: string;
+	spanId: string;
+	parentSpanId?: string;
+	name: string;
+	startUnixNano: bigint;
+	endUnixNano: bigint;
+	service?: string;
+	status?: 0 | 1 | 2;
+}): Span {
+	const base = {
+		traceId: args.traceId,
+		spanId: args.spanId,
+		name: args.name,
+		kind: SpanKind.Internal,
+		startTimeUnixNano: args.startUnixNano,
+		endTimeUnixNano: args.endUnixNano,
+		status: { code: (args.status ?? SpanStatusCode.Unset) as 0 | 1 | 2 },
+		attributes: {},
+		resource: args.service ? { attributes: { 'service.name': args.service } } : RESOURCE,
+		scope: SCOPE,
+	} satisfies Omit<Span, 'parentSpanId'>;
+	return args.parentSpanId === undefined ? base : { ...base, parentSpanId: args.parentSpanId };
 }
 
-describe('@otelux/engine', () => {
-	it('creates an engine that exposes the DataSource contract', () => {
-		const engine = createEngine({ storage: memoryStorage() });
-		expect(engine.kind).toBe('otelux/datasource');
+const TRACE = 'abcdef1234567890abcdef1234567890';
+
+describe('createMemoryStorage + createEngine', () => {
+	it('ingests spans and serves them through the DataSource', async () => {
+		const engine = createEngine({ storage: createMemoryStorage() });
+
+		const root = makeSpan({
+			traceId: TRACE,
+			spanId: '1111111111111111',
+			name: 'GET /api/users',
+			startUnixNano: 1_700_000_000_000_000_000n,
+			endUnixNano: 1_700_000_000_045_000_000n,
+			status: SpanStatusCode.Ok,
+		});
+		const child = makeSpan({
+			traceId: TRACE,
+			spanId: '2222222222222222',
+			parentSpanId: '1111111111111111',
+			name: 'auth.verify',
+			startUnixNano: 1_700_000_000_002_000_000n,
+			endUnixNano: 1_700_000_000_015_000_000n,
+			service: 'auth',
+			status: SpanStatusCode.Ok,
+		});
+
+		await engine.ingestSpans([root, child]);
+
+		const list = await engine.listTraces({});
+		expect(list.totalCount).toBe(1);
+		expect(list.rows[0]?.rootName).toBe('GET /api/users');
+		expect(list.rows[0]?.spanCount).toBe(2);
+		expect([...(list.rows[0]?.services ?? [])].sort()).toEqual(['api-gateway', 'auth']);
+
+		const trace = await engine.getTrace({ traceId: TRACE });
+		expect(trace.rootSpan?.spanId).toBe('1111111111111111');
+		expect(trace.spanCount).toBe(2);
+
+		const details = await engine.getSpanDetails({ spanId: '2222222222222222' });
+		expect(details.name).toBe('auth.verify');
+
+		await engine.close();
 	});
 
-	it('subscribe returns a disposable', () => {
-		const engine = createEngine({ storage: memoryStorage() });
-		const sub = engine.subscribe(() => {});
-		expect(typeof sub.dispose).toBe('function');
+	it('notifies subscribers when new spans land', async () => {
+		const engine = createEngine({ storage: createMemoryStorage() });
+		const events: string[] = [];
+		const sub = engine.subscribe((e) => {
+			events.push(e.kind);
+		});
+		await engine.ingestSpans([
+			makeSpan({
+				traceId: TRACE,
+				spanId: 'aaaaaaaaaaaaaaaa',
+				name: 'op',
+				startUnixNano: 0n,
+				endUnixNano: 1_000n,
+			}),
+		]);
+		expect(events).toEqual(['tracesChanged']);
 		sub.dispose();
+		await engine.ingestSpans([
+			makeSpan({
+				traceId: TRACE,
+				spanId: 'bbbbbbbbbbbbbbbb',
+				name: 'op2',
+				startUnixNano: 0n,
+				endUnixNano: 1_000n,
+			}),
+		]);
+		expect(events).toEqual(['tracesChanged']); // unchanged after dispose
+		await engine.close();
 	});
 
-	it('exports a version constant', () => {
-		expect(OTELUX_ENGINE_VERSION).toBe('0.0.0');
+	it('filters by hasError and search', async () => {
+		const engine = createEngine({ storage: createMemoryStorage() });
+		await engine.ingestSpans([
+			makeSpan({
+				traceId: '1'.repeat(32),
+				spanId: '1'.repeat(16),
+				name: 'happy',
+				startUnixNano: 1n,
+				endUnixNano: 10n,
+				status: SpanStatusCode.Ok,
+			}),
+			makeSpan({
+				traceId: '2'.repeat(32),
+				spanId: '2'.repeat(16),
+				name: 'sad path',
+				startUnixNano: 2n,
+				endUnixNano: 20n,
+				status: SpanStatusCode.Error,
+			}),
+		]);
+		const onlyErrors = await engine.listTraces({ hasError: true });
+		expect(onlyErrors.totalCount).toBe(1);
+		expect(onlyErrors.rows[0]?.rootName).toBe('sad path');
+
+		const search = await engine.listTraces({ search: 'happy' });
+		expect(search.totalCount).toBe(1);
+		expect(search.rows[0]?.rootName).toBe('happy');
+
+		await engine.close();
+	});
+});
+
+describe('traceFromSpans', () => {
+	it('returns undefined for an empty span set', () => {
+		expect(traceFromSpans(TRACE, [])).toBeUndefined();
+	});
+
+	it('picks the orphan-parent span as root', () => {
+		const root = makeSpan({
+			traceId: TRACE,
+			spanId: 'root000000000000',
+			name: 'root',
+			startUnixNano: 10n,
+			endUnixNano: 100n,
+		});
+		const child = makeSpan({
+			traceId: TRACE,
+			spanId: 'child00000000000',
+			parentSpanId: 'root000000000000',
+			name: 'child',
+			startUnixNano: 20n,
+			endUnixNano: 50n,
+		});
+		const trace = traceFromSpans(TRACE, [child, root]);
+		expect(trace?.rootSpan?.name).toBe('root');
+		expect(trace?.durationNanos).toBe(90n);
+	});
+});
+
+describe('computeWaterfallLayout', () => {
+	it('produces a depth-first row order with depth indents', () => {
+		const root = makeSpan({
+			traceId: TRACE,
+			spanId: 'r',
+			name: 'root',
+			startUnixNano: 0n,
+			endUnixNano: 100n,
+		});
+		const a = makeSpan({
+			traceId: TRACE,
+			spanId: 'a',
+			parentSpanId: 'r',
+			name: 'a',
+			startUnixNano: 10n,
+			endUnixNano: 40n,
+		});
+		const b = makeSpan({
+			traceId: TRACE,
+			spanId: 'b',
+			parentSpanId: 'a',
+			name: 'b',
+			startUnixNano: 15n,
+			endUnixNano: 35n,
+		});
+		const c = makeSpan({
+			traceId: TRACE,
+			spanId: 'c',
+			parentSpanId: 'r',
+			name: 'c',
+			startUnixNano: 50n,
+			endUnixNano: 90n,
+		});
+		const trace = traceFromSpans(TRACE, [c, b, a, root]);
+		if (!trace) {
+			throw new Error('expected trace');
+		}
+		const layout = computeWaterfallLayout(trace);
+
+		expect(layout.rows.map((r) => r.span.name)).toEqual(['root', 'a', 'b', 'c']);
+		expect(layout.rows.map((r) => r.depth)).toEqual([0, 1, 2, 1]);
+		expect(layout.rows[1]?.startOffsetNanos).toBe(10n);
+		expect(layout.totalDurationNanos).toBe(100n);
 	});
 });

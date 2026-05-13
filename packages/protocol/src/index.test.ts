@@ -1,10 +1,5 @@
 import { describe, expect, expectTypeOf, it } from 'vitest';
-import type {
-	ChangeEvent,
-	DataSource,
-	ListTracesQuery,
-	ListTracesResult,
-} from './index.js';
+import type { ChangeEvent, DataSource, ListTracesQuery, ListTracesResult } from './index.js';
 import { OTELUX_PROTOCOL_VERSION } from './index.js';
 
 describe('@otelux/protocol', () => {

@@ -6,7 +6,24 @@ import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { OTELUX_UI_VERSION, OTeluxWorkbench } from './index.js';
 
-const mockDataSource: DataSource = { kind: 'otelux/datasource' };
+const mockDataSource: DataSource = {
+	kind: 'otelux/datasource',
+	listTraces: async () => ({ rows: [], totalCount: 0 }),
+	getTrace: async () => ({
+		traceId: '',
+		spans: [],
+		startTimeUnixNano: 0n,
+		endTimeUnixNano: 0n,
+		durationNanos: 0n,
+		services: [],
+		spanCount: 0,
+		errorCount: 0,
+	}),
+	getSpanDetails: async () => {
+		throw new Error('not found');
+	},
+	subscribe: () => ({ dispose: () => {} }),
+};
 
 describe('@otelux/ui', () => {
 	it('renders the workbench placeholder', () => {
