@@ -63,6 +63,10 @@ function createWindow(): void {
 		autoHideMenuBar: true,
 		show: false,
 		webPreferences: {
+			// Sandboxed preload is built as CommonJS by `electron.vite.config.ts`;
+			// Electron loads it via an internal `require`-style runtime, so the
+			// preload extension is `.js` regardless of this package's
+			// `"type": "module"`.
 			preload: join(__dirname, '../preload/index.js'),
 			sandbox: true,
 			contextIsolation: true,
