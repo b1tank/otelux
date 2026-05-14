@@ -180,6 +180,25 @@ function createWindow(): void {
 		win.show();
 	});
 
+	// DevTools accelerators: F12 and Ctrl/Cmd+Shift+I. `autoHideMenuBar`
+	// suppresses the default Electron menu (which would otherwise bind
+	// these), so we wire them through `before-input-event` instead.
+	// Only active in dev — packaged builds get no inspector surface.
+	if (isDev) {
+		win.webContents.on('before-input-event', (event, input) => {
+			if (input.type !== 'keyDown') {
+				return;
+			}
+			const ctrlOrCmd = process.platform === 'darwin' ? input.meta : input.control;
+			const isF12 = input.key === 'F12';
+			const isInspector = ctrlOrCmd && input.shift && input.key.toLowerCase() === 'i';
+			if (isF12 || isInspector) {
+				win.webContents.toggleDevTools();
+				event.preventDefault();
+			}
+		});
+	}
+
 	// Open external links in the system browser, never in-window.
 	win.webContents.setWindowOpenHandler(({ url }) => {
 		void shell.openExternal(url);
