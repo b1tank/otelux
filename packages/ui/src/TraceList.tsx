@@ -17,10 +17,19 @@ export interface TraceListProps {
 	dataSource: DataSource;
 	selectedTraceId?: TraceId;
 	onSelect: (traceId: TraceId) => void;
+	/**
+	 * URL hosts can show in the empty-state hint so users know exactly
+	 * where to point their exporter. When omitted, falls back to the
+	 * OpenTelemetry default of `http://localhost:4318/v1/traces`. Hosts
+	 * that know the real bind (e.g. the desktop app, which honours an
+	 * env override) should always pass it.
+	 */
+	endpointUrl?: string;
 }
 
 export function TraceList(props: TraceListProps): JSX.Element {
-	const { dataSource, selectedTraceId, onSelect } = props;
+	const { dataSource, selectedTraceId, onSelect, endpointUrl } = props;
+	const displayEndpoint = endpointUrl ?? 'http://localhost:4318/v1/traces';
 	const query = useDataSourceQuery(
 		dataSource,
 		(ds) => ds.listTraces({ limit: 200, sortBy: 'startTime', sortDirection: 'desc' }),
@@ -42,7 +51,7 @@ export function TraceList(props: TraceListProps): JSX.Element {
 					<div className="otelux-trace-list__empty">
 						No traces yet. Point an OTel exporter at
 						<br />
-						<code>http://localhost:4318/v1/traces</code>
+						<code>{displayEndpoint}</code>
 					</div>
 				) : (
 					<ul className="otelux-trace-list__rows">

@@ -23,6 +23,20 @@ export function App(): JSX.Element {
 	const settings = useSettings(bridge);
 	const [settingsOpen, setSettingsOpen] = useState(false);
 
+	// Show the live receiver URL in the empty-state hint so the user
+	// copy-pastes the right thing (port may differ from the default
+	// 4318 via settings or the `OTELUX_OTLP_PORT` env override). Fall
+	// back to the persisted settings while the status is hydrating.
+	const endpointUrl = useMemo<string | undefined>(() => {
+		if (status?.kind === 'running') {
+			return `http://${status.host}:${status.port}/v1/traces`;
+		}
+		if (settings) {
+			return `http://127.0.0.1:${settings.otlp.port}/v1/traces`;
+		}
+		return undefined;
+	}, [status, settings]);
+
 	const onSavePort = useCallback(
 		async (port: number): Promise<UpdateSettingsResult> => {
 			const patch: PartialSettings = { otlp: { port } };
@@ -39,7 +53,11 @@ export function App(): JSX.Element {
 			</header>
 			<EndpointBar status={status} onOpenSettings={() => setSettingsOpen(true)} />
 			<section className="app-body">
-				<OTeluxWorkbench dataSource={dataSource} theme="dark" />
+				<OTeluxWorkbench
+					dataSource={dataSource}
+					theme="dark"
+					{...(endpointUrl !== undefined ? { endpointUrl } : {})}
+				/>
 			</section>
 			{settingsOpen && settings ? (
 				<SettingsModal settings={settings} onSave={onSavePort} onClose={() => setSettingsOpen(false)} />

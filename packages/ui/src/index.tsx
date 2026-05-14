@@ -23,10 +23,17 @@ export { colorForService, formatDuration, formatWallClock } from './format.js';
 export interface OTeluxWorkbenchProps {
 	dataSource: DataSource;
 	theme?: 'dark' | 'light';
+	/**
+	 * The OTLP/HTTP traces endpoint shown in the empty-state hint.
+	 * Hosts that know the live bind (desktop app with a configurable
+	 * port, vscode webview proxied through the extension) should pass
+	 * the real URL so users copy-paste the right thing.
+	 */
+	endpointUrl?: string;
 }
 
 export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
-	const { dataSource, theme = 'dark' } = props;
+	const { dataSource, theme = 'dark', endpointUrl } = props;
 	const [selectedTraceId, setSelectedTraceIdRaw] = useState<TraceId | undefined>(undefined);
 	const [selectedSpanId, setSelectedSpanId] = useState<SpanId | undefined>(undefined);
 
@@ -66,6 +73,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 				<TraceList
 					dataSource={dataSource}
 					{...(selectedTraceId !== undefined ? { selectedTraceId } : {})}
+					{...(endpointUrl !== undefined ? { endpointUrl } : {})}
 					onSelect={setSelectedTraceId}
 				/>
 			</aside>
