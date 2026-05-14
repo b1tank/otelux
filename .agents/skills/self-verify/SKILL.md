@@ -1,6 +1,6 @@
 ---
 name: self-verify
-description: Self-verify OTelux desktop app end-to-end by following test.md. Use when asked to test, verify, smoke-test, regress, or QA the app, OR after making changes to apps/desktop/** or packages/ui/** that could affect runtime behavior. Builds, launches Electron, probes UI + IPC + receiver via CDP and curl, reports per-step PASS/FAIL.
+description: Self-verify OTelux desktop app end-to-end by following test.md. Use when asked to test, verify, smoke-test, regress, or QA the app, OR after making changes to apps/desktop/** or packages/ui/** that could affect runtime behavior. Drives the app like a real user via deskpal (OCR + virtual input), with a CDP escape hatch only for invisible-to-the-eye state, and reports per-step PASS/FAIL.
 ---
 
 # Skill — Self-verify the OTelux desktop app
@@ -8,9 +8,44 @@ description: Self-verify OTelux desktop app end-to-end by following test.md. Use
 You are an agent acting as a QA tester. Your job is to mechanically follow
 `test.md` at the repo root and produce a per-step PASS/FAIL report.
 
-You do **not** click — you drive the renderer over the Chrome DevTools
-Protocol (CDP) and the receiver over curl. The human-clickable plan lives
-in `test.md`; this skill is its automatable mirror.
+**Mimic a real user as closely as possible.** The primary automation
+surface is **deskpal** (the MCP server at `/home/b1tank/deskpal`): it
+clicks via virtual mouse, types via `/dev/uinput`, screenshots, and reads
+the screen with OCR — exactly what a person does. CDP is only the
+escape hatch for properties OCR fundamentally cannot see.
+
+## Tool choice (in priority order)
+
+1. **deskpal** (default) — `launch_app`, `find_window`, `wait_for_window`,
+   `click_text`, `type_text`, `key_press`, `read_screen_text`, `screenshot`,
+   `mouse_move`, `scroll`, `drag`. This is what the user does. Use it first.
+2. **CDP probe** (`/tmp/otelux-cdp.mjs`, see below) — narrow escape hatch
+   for state that's *not visible on the screen*: the JSON content of
+   `window.otelux.invoke({kind:"updateSettings", …})` results, the
+   contents of `settings.json` after a write, port-listen state from
+   `ss`. **Never use CDP for "did the user see X" assertions.**
+3. **Shell** (`bash`, `curl`, `ss`, `cat`) — for OS-level probes that
+   neither deskpal nor CDP exposes (port listening, file inspection,
+   sending hostile HTTP payloads).
+
+If a test.md step *can* be done via deskpal, **do it via deskpal**, even
+if CDP would be faster — the point is to verify what a real user sees.
+
+## Known deskpal gaps for this skill
+
+The full list of proposed enhancements lives at
+[/home/b1tank/deskpal/docs/proposed-tools.md](/home/b1tank/deskpal/docs/proposed-tools.md).
+When the agent hits one, use the workaround inline and log it in the run
+report under "deskpal gaps encountered".
+
+| Gap | What we want | Workaround today |
+|-----|--------------|------------------|
+| **clipboard** | `get_clipboard` / `set_clipboard` to verify URL copy | shell `xclip -selection clipboard -o` (X11) or `wl-paste` (Wayland) |
+| **icon click** | `click_image` / `click_aria_label` / `click_at_window_coords` for icon-only buttons like ⚙ and ✕ that OCR misreads | `get_window_geometry` + manual offset, then `click x y`; or fall back to keyboard shortcut |
+| **filesystem read** | `read_file` to inspect `settings.json` | shell `cat` |
+| **shell exec** | `exec` for `curl`/`ss`/`pkill` from inside deskpal | shell calls outside deskpal |
+| **hover for tooltip** | `hover_text(text, ms)` that moves over an OCR'd element and waits for the tooltip | `mouse_move` then `sleep 1` then `screenshot` + `read_screen_text` |
+| **focused-element** | `get_focused_element` for keyboard-focus tests | CDP probe of `document.activeElement` |
 
 ## When to invoke
 
@@ -25,8 +60,8 @@ run only the relevant `test.md` sections.
 ## Workflow
 
 Mark each step as PASS/FAIL with one-line evidence. Don't fix bugs while
-testing — record them and continue. If a P1 (app won't launch, all traces
-fail to ingest) hits, abort with the failure and request guidance.
+testing — record them and continue. If a P1 (app won't launch, all
+traces fail to ingest) hits, abort with the failure and request guidance.
 
 ### 1. Preflight (test.md §0)
 
@@ -38,16 +73,15 @@ npm run typecheck       # expect exit 0
 npm run build           # expect 8/8 turbo tasks ok
 ```
 
-### 2. Set up a clean profile + CDP probe
+### 2. Drop the CDP escape-hatch probe
+
+Only used for invisible-to-the-eye state (see gaps table). Recreate every
+run since it lives in `/tmp`.
 
 ```bash
 pkill -9 -f "out/main/index.js" 2>/dev/null
 rm -rf /tmp/otelux-userdata
-```
 
-Drop the CDP helper (it's gitignored / temp — recreate every run):
-
-```bash
 cat > /tmp/otelux-cdp.mjs <<'JS'
 import WebSocket from '/home/b1tank/otelux/node_modules/ws/wrapper.mjs';
 const port = process.env.CDP_PORT ?? '19222';
@@ -75,208 +109,244 @@ ws.on('open', async () => {
 JS
 ```
 
-Helper to launch the app with CDP open:
+`probe '<js-expr>'` is the only CDP entry point. Reach for it only for:
 
-```bash
-launch() {
-  local env_port="$1"  # e.g. "" for none, or "14999"
-  pkill -9 -f "out/main/index.js" 2>/dev/null; sleep 0.3
-  local env_prefix=""
-  [[ -n "$env_port" ]] && env_prefix="OTELUX_OTLP_PORT=$env_port"
-  cd /home/b1tank/otelux/apps/desktop
-  eval "$env_prefix nohup npx electron out/main/index.js --remote-debugging-port=19222 --user-data-dir=/tmp/otelux-userdata > /tmp/otelux-app.log 2>&1 &"
-  cd /home/b1tank/otelux
-  sleep 3
-}
+- IPC result JSON content (`window.otelux.invoke({kind:"updateSettings",…})`
+  → `{ ok:false, error:"…" }`).
+- `document.activeElement` for focus tests.
+- Receiver status when it's hidden behind an error overlay OCR can't
+  parse cleanly.
 
-probe() {
-  node /tmp/otelux-cdp.mjs "$1"
-}
+### 3. Launch the app via deskpal
 
-quit() {
-  pkill -9 -f "out/main/index.js" 2>/dev/null
-  sleep 0.5
-}
+```text
+deskpal.launch_app({
+  command: "/home/b1tank/otelux/node_modules/.bin/electron",
+  args: ["/home/b1tank/otelux/apps/desktop/out/main/index.js",
+         "--remote-debugging-port=19222",
+         "--user-data-dir=/tmp/otelux-userdata"],
+  env: { OTELUX_OTLP_PORT: "" },          // empty = use persisted
+  waitForWindow: "OTelux",                 // or "Electron" if title not set
+  timeout: 10
+})
 ```
 
-### 3. Section-by-section probes
+For env-override scenarios in §5, set `env.OTELUX_OTLP_PORT = "14999"`.
+For a clean profile, `rm -rf /tmp/otelux-userdata` between launches via
+shell.
 
-For **each section** of `test.md`, run the matching probe(s) below. Format
-the report as a Markdown table (`Step | Result | Evidence`).
+### 4. Section-by-section, deskpal-first
+
+Format the final report as a `Section | Step | Tool | Result | Evidence`
+table.
 
 #### §1 Cold start
+- §1.1 — receiver bound. **shell.** `grep "listening on http://127.0.0.1:4318" /tmp/otelux-app.log` and `ss -ltnp | grep ':4318 '`.
+- §1.2 — visible chrome. **deskpal.**
+  ```text
+  deskpal.read_screen_text({ window: "OTelux" })
+    → assert text contains: "OTelux", "Local OpenTelemetry workbench",
+      "OTLP/HTTP", "http://127.0.0.1:4318/v1/traces", "Traces", "0".
+  deskpal.screenshot({ window: "OTelux", path: "/tmp/otelux-cold.png" })
+  ```
+- §1.3 — no settings file yet. **shell.** `test ! -f /tmp/otelux-userdata/settings.json`.
 
-```bash
-launch ""
-grep "listening on http://127.0.0.1:4318" /tmp/otelux-app.log   # §1.1
-ss -ltnp 2>/dev/null | grep ':4318 '                            # §1.1
-probe '({ bar: !!document.querySelector(".endpoint-bar"), running: !!document.querySelector(".endpoint-bar__dot--running"), url: document.querySelector("code")?.textContent, count: document.querySelector(".otelux-trace-list__count")?.textContent })'  # §1.2
-test ! -f /tmp/otelux-userdata/settings.json && echo "no file (PASS)"  # §1.3
-```
-
-Expected: bar=true, running=true, url=http://127.0.0.1:4318/v1/traces, count=0, no file.
-
-#### §2 EndpointBar (skip click-spam, can't programmatically clipboard-check reliably)
-
-```bash
-probe 'document.querySelector(".endpoint-bar__url--copy")?.title'   # → "Click to copy"
-probe '(document.querySelector(".endpoint-bar__cog")?.click(), !!document.querySelector(".modal"))'  # § cog opens settings
-```
+#### §2 EndpointBar
+- §2.1 hover tooltip. **deskpal.** Hover-for-tooltip gap:
+  ```text
+  read_screen_text returns positions; use mouse_move to the dot's center,
+  sleep 1s, then read_screen_text again → expect
+  "listening on http://127.0.0.1:4318/v1/traces" appears as tooltip.
+  ```
+- §2.2 URL copy. **deskpal + shell (clipboard gap).**
+  ```text
+  deskpal.click_text({ text: "http://127.0.0.1" })   // OCR finds URL pill
+  read_screen_text → expect "copied" briefly
+  shell: xclip -selection clipboard -o
+    → assert exactly "http://127.0.0.1:4318/v1/traces"
+  ```
+- §2.3 spam-click. **deskpal.** Loop `click_text` 5×, `screenshot`,
+  re-read — UI must still be responsive.
+- §2.4 cog opens settings. **deskpal, with icon-click gap.**
+  OCR often misses ⚙. Try `click_text("⚙")` first; if it fails:
+  ```text
+  read_screen_text → find position of "http://127.0.0.1"
+  click at (URL.x_end + 40, URL.y)   // cog is ~40px right of the URL
+  ```
+  `read_screen_text` should then include "Settings" and "OTLP/HTTP port".
 
 #### §3 Modal close paths
+- §3.1 ✕. **deskpal, icon-click gap.** Same coord fallback as cog.
+- §3.2 Cancel. **deskpal.** `click_text("Cancel")`.
+- §3.3 Escape. **deskpal.** `key_press("Escape")`.
+- §3.4 backdrop click. **deskpal.** `get_window_geometry`; click at
+  `(width - 20, height/2)` (outside the modal).
+- §3.5 body click no-propagate. **deskpal.** `click_text("Settings")`
+  on the header; modal should stay open.
+- §3.6 Tab cycle. **deskpal + CDP (focus gap).** `key_press("Tab")` ×N
+  and `probe 'document.activeElement?.className'` — focus must move
+  port→Cancel→Save→port.
 
-```bash
-# §3.3 Escape
-probe '(document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })), !!document.querySelector(".modal"))'
-# Reopen for the next one:
-probe 'document.querySelector(".endpoint-bar__cog")?.click()'
-# §3.1 ✕
-probe '(document.querySelector(".modal__close")?.click(), !!document.querySelector(".modal"))'
+#### §4 Validation matrix
+Real-user flow via deskpal is verbose but more representative:
+
+```text
+For each invalid V in [empty, 0, -1, 65536, "abc", 99999]:
+  open settings cog (or it's already open)
+  ctrl+a then Backspace to clear input
+  type_text(V)
+  click_text("Save")
+  read_screen_text → expect "Port must be an integer between 1 and 65535"
+  click_text("Cancel")
+For port 22:
+  same, read_screen_text → expect "failed to bind" and "EACCES"
+  screenshot to confirm dot is red
+For port 14320:
+  modal should close; read_screen_text → URL contains "14320"
 ```
 
-#### §4 Validation
+If OCR of the inline error is unreliable, escape-hatch:
+`probe 'document.querySelector(".modal__error")?.textContent'`.
 
-Reopen modal, then for each invalid value drive the input + submit:
-
-```bash
-probe 'document.querySelector(".endpoint-bar__cog")?.click()'
-probe '(() => { const i = document.querySelector(".modal input[type=number]"); const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set; setter.call(i, "99999"); i.dispatchEvent(new Event("input", { bubbles: true })); document.querySelector(".modal form").requestSubmit(); return new Promise(r => setTimeout(() => r(document.querySelector(".modal__error")?.textContent), 200)); })()'
-```
-
-Then exercise the IPC path directly — much cleaner than driving the form:
-
-```bash
-probe 'window.otelux.invoke({kind:"updateSettings", patch:{otlp:{port:0}}})'
-probe 'window.otelux.invoke({kind:"updateSettings", patch:{otlp:{port:65536}}})'
-probe 'window.otelux.invoke({kind:"updateSettings", patch:{otlp:{port:99999}}})'
-probe 'window.otelux.invoke({kind:"updateSettings", patch:{otlp:{port:22}}})'   # EACCES on Linux
-probe 'window.otelux.invoke({kind:"updateSettings", patch:{otlp:{port:14320}}})'
-```
-
-Expected `{ ok: false, error: ... }` for the first four, `{ ok: true, status: { kind: "running", port: 14320 } }` for the last.
+§4.12 (EADDRINUSE) requires a second listener (shell):
+`python3 -c "import socket,time; s=socket.socket(); s.bind(('127.0.0.1',14321)); s.listen(1); time.sleep(60)" &`.
 
 #### §5 Persistence
+Mostly shell + relaunch; deskpal confirms what the user sees.
 
-```bash
-cat /tmp/otelux-userdata/settings.json    # should show port:14320
-quit
-launch ""                                  # no env override
-probe 'window.otelux.invoke({kind:"getSettings"})'   # → port:14320
-quit
+```text
+shell: cat /tmp/otelux-userdata/settings.json     # read_file gap
+deskpal.launch_app(env={OTELUX_OTLP_PORT:""})     # no override
+deskpal.read_screen_text → URL contains "14320"   (loaded from file)
 
-launch 14999
-grep '127.0.0.1:14999' /tmp/otelux-app.log
-probe 'window.otelux.invoke({kind:"getSettings"})'   # still {otlp:{port:14320}} — env is one-shot
-quit
+deskpal.launch_app(env={OTELUX_OTLP_PORT:"14999"})
+deskpal.read_screen_text → URL contains "14999"
+shell: cat /tmp/otelux-userdata/settings.json → still 14320
+                                                (env did NOT mutate file)
 
-# Corrupt
-echo 'not json' > /tmp/otelux-userdata/settings.json
-launch ""
-grep '127.0.0.1:4318' /tmp/otelux-app.log            # fell back to default
-quit
+shell: echo 'not json' > /tmp/otelux-userdata/settings.json
+deskpal.launch_app(env={})
+deskpal.read_screen_text → URL contains "4318"   (fallback)
 
-# Invalid shape
-echo '{"version":99}' > /tmp/otelux-userdata/settings.json
-launch ""
-probe 'window.otelux.invoke({kind:"getSettings"})'   # → default
-quit
+shell: echo '{"version":99}' > /tmp/otelux-userdata/settings.json
+deskpal.launch_app(env={})
+deskpal.read_screen_text → URL contains "4318"
 
-# Bad env
-OTELUX_OTLP_PORT=abc launch ""
-grep -E '(invalid|listening on)' /tmp/otelux-app.log | tail -3
+deskpal.launch_app(env={OTELUX_OTLP_PORT:"abc"})
+shell: tail -5 /tmp/otelux-app.log
 ```
 
 #### §6 Trace ingest
-
-```bash
-launch ""
-PORT=4318 ./scripts/send-traces.sh
-sleep 0.5
-probe 'document.querySelector(".otelux-trace-list__count")?.textContent'   # → "1"
-FIXTURE=fixtures/distributed_trace.json PORT=4318 ./scripts/send-traces.sh
-FIXTURE=fixtures/sample_trace_error.json PORT=4318 ./scripts/send-traces.sh
-sleep 0.5
-probe 'document.querySelector(".otelux-trace-list__count")?.textContent'   # → "3"
-probe 'document.querySelectorAll(".otelux-trace-row__errors").length'      # → >=1
-probe 'document.querySelectorAll(".otelux-trace-row").length'              # → 3
+```text
+shell: PORT=4318 ./scripts/send-traces.sh
+deskpal.read_screen_text → "Traces" count increments to 1; row shows
+  "GET /api/users", "45.0ms", "api-gateway", "3 spans"
+shell: FIXTURE=fixtures/distributed_trace.json PORT=4318 ./scripts/send-traces.sh
+shell: FIXTURE=fixtures/sample_trace_error.json PORT=4318 ./scripts/send-traces.sh
+deskpal.read_screen_text → count is 3; one row has "err" badge
+deskpal.screenshot for evidence
 ```
 
 #### §7 Selection + §8 Waterfall + §9 Inspector
-
-```bash
-probe '(document.querySelector(".otelux-trace-row__button")?.click(), { sel: !!document.querySelector(".otelux-trace-row--selected"), waterfall: !!document.querySelector(".otelux-waterfall") })'
-probe '(document.querySelector("[role=button][aria-label^=Span]")?.click(), { selSpan: !!document.querySelector(".otelux-waterfall__row--selected") })'
-probe 'document.body.innerText.slice(0, 400)'   # eyeball — inspector should now show key=value
+```text
+deskpal.click_text("GET /api/users")       // click the trace row by name
+deskpal.read_screen_text → span names visible in main pane
+deskpal.click_text("<span-name>")          // click a span in the waterfall
+deskpal.read_screen_text → inspector shows "http.method" / "http.target"
+deskpal.screenshot for visual evidence
 ```
 
-#### §10 Malformed
+Selection styling is a CSS class — if OCR proves the text is correct
+but you want to assert "selected" styling, escape-hatch to:
+`probe '!!document.querySelector(".otelux-trace-row--selected")'`.
 
+#### §10 Malformed (shell only — hostile HTTP)
 ```bash
-curl -s -X POST -H 'Content-Type: application/json' --data-binary '@fixtures/malformed.json' http://127.0.0.1:4318/v1/traces -o /dev/null -w '%{http_code}\n'   # → 4xx
-curl -s -X POST -H 'Content-Type: text/plain' --data 'x' http://127.0.0.1:4318/v1/traces -o /dev/null -w '%{http_code}\n'                                       # → 4xx
-curl -s -X POST -H 'Content-Type: application/json' --data '' http://127.0.0.1:4318/v1/traces -o /dev/null -w '%{http_code}\n'                                  # → 4xx
-curl -s http://127.0.0.1:4318/ -o /dev/null -w '%{http_code}\n'                                                                                                  # → 404
+curl -s -X POST -H 'Content-Type: application/json' \
+  --data-binary '@fixtures/malformed.json' \
+  http://127.0.0.1:4318/v1/traces -o /dev/null -w '%{http_code}\n'   # 4xx
+curl -s -X POST -H 'Content-Type: text/plain' --data 'x' \
+  http://127.0.0.1:4318/v1/traces -o /dev/null -w '%{http_code}\n'   # 4xx
+curl -s http://127.0.0.1:4318/ -o /dev/null -w '%{http_code}\n'      # 404
+```
+Then `deskpal.read_screen_text` to confirm trace count unchanged.
+
+#### §11 Lifecycle stress
+Drive five port flips via the real UI:
+```text
+for p in 14320 14321 14322 14323 14324:
+  open cog → ctrl+a/Backspace → type_text(p) → click_text("Save")
+  read_screen_text → URL shows the new port
+shell: ss -ltnp | grep electron | wc -l    # → 1 (no zombies)
 ```
 
-#### §11 Lifecycle
-
-```bash
-for p in 14320 14321 14322 14323 14324; do
-  probe "window.otelux.invoke({kind:\"updateSettings\", patch:{otlp:{port:$p}}})" >/dev/null
-done
-ss -ltnp | grep -E ':1432[0-4] ' | wc -l   # → 1
-probe 'window.otelux.invoke({kind:"getReceiverStatus"})'   # → {kind:"running", port:14324}
+#### §12 Window lifecycle
+```text
+deskpal.key_press("ctrl+shift+i")    # DevTools opens (real key event)
+deskpal.read_screen_text → "Elements" / "Console" tabs visible
+deskpal.key_press("ctrl+shift+i")    # closes
+deskpal.key_press("alt+F4")          # closes window
+shell: sleep 1; ss -ltnp | grep -E ':4318|143[0-9][0-9]' → empty
 ```
 
-#### §12 Lifecycle
-
-```bash
-quit
-sleep 1
-ss -ltnp | grep -E ':4318|143[0-9][0-9]' || echo "all ports released"
-```
-
-### 4. Cleanup
+### 5. Cleanup
 
 ```bash
 pkill -9 -f "out/main/index.js" 2>/dev/null
 pkill -9 -f electron 2>/dev/null
 rm -rf /tmp/otelux-userdata
 rm -f /tmp/otelux-cdp.mjs /tmp/otelux-app.log
+# kill the EADDRINUSE helper if you spawned one in §4.12
+pkill -9 -f "socket.*14321" 2>/dev/null
 ```
 
-### 5. Report
-
-Output a single Markdown table summarizing every step from §1–§12 in
-test.md plus any deviations. Suggested format:
+### 6. Report format
 
 ```
-| Section | Step | Result | Notes |
-|---------|------|--------|-------|
-| §1.1    | log line  | PASS | found at line 7 |
-| §4.10   | port 22   | FAIL | got EADDRINUSE, expected EACCES — log it |
-...
+## Run summary
+launched via: deskpal.launch_app
+deskpal gaps encountered:
+  - get_clipboard      (used xclip in §2.2)
+  - click_image / icon (cog & ✕ via coord fallback in §2.4, §3.1)
+  - read_file          (used shell cat in §5)
+  - hover_text         (used mouse_move + sleep in §2.1)
+  - get_focused_element(used CDP activeElement in §3.6)
+
+## Per-step results
+| Section | Step | Tool | Result | Evidence |
+|---------|------|------|--------|----------|
+| §1.1    | receiver bound on 4318 | shell | PASS | log line at /tmp/otelux-app.log:7 |
+| §1.2    | initial chrome via OCR | deskpal | PASS | /tmp/otelux-cold.png |
+| §2.2    | URL copy → clipboard   | deskpal+shell | PASS | xclip returned exact URL |
+| §2.4    | cog opens settings     | deskpal (coord fallback) | PASS | OCR found "Settings" after click |
+| §4.10   | port 22 → EACCES       | deskpal | FAIL | OCR found "EADDRINUSE" not "EACCES" — investigate |
+…
+
+PASS — N/N steps passed
 ```
 
-End the report with one of:
-- `PASS — N/N steps passed`
-- `FAIL — M of N steps failed (severity: P1/P2/P3)`
+End with either `PASS — N/N steps passed` or
+`FAIL — M of N steps failed (severity: P1/P2/P3)`.
 
 ## Notes for the agent
 
-- Always run preflight first; if lint or typecheck fails, abort with that
-  message and don't try to launch.
-- Use one CDP probe per assertion; don't bundle, or you'll mis-attribute
-  failures.
-- Don't run §10.5 (oversize payload) unless explicitly asked.
-- Don't run §12.4 (release-build noise) unless a packaged build exists.
-- If asked to "test what I just changed", scope to the relevant section(s)
-  rather than the full suite.
+- Run preflight first; if lint/typecheck fails, abort.
+- One deskpal/CDP call per assertion. Don't bundle.
+- If OCR returns garbage, take a `screenshot` and run `tesseract` on
+  the file as a sanity check before declaring FAIL. If OCR is genuinely
+  unable to read the rendered text, escape-hatch to CDP for that one
+  step.
+- After each port change, give the receiver ~500 ms to rebind before
+  asserting on the new URL.
+- Don't run §10.5 (oversize payload) or §12.4 (release noise) unless
+  explicitly asked.
+- If asked to "test what I just changed", scope to relevant sections.
+- **When blocked by a deskpal gap, log it in the report. If
+  `/home/b1tank/deskpal/docs/proposed-tools.md` doesn't already list
+  it, mention adding it.**
 
 ## When NOT to use
 
 - The user wants you to **change** code (not verify it).
-- The user is doing a fresh init / "make a new app" — there's nothing to
-  verify yet.
-- You only ran a docs/config change with no runtime effect (no need to
-  spin up Electron).
+- The user is doing a fresh init / "make a new app" — nothing to verify.
+- A docs/config change with no runtime effect — no Electron needed.
