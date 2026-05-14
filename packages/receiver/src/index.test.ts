@@ -75,5 +75,17 @@ describe('@otelux/receiver', () => {
 			});
 			expect(res.status).toBe(400);
 		});
+
+		it('rejects start() when the port is already in use', async () => {
+			// The fixture receiver is already bound to `receiver.port`.
+			// A second receiver targeting the same port must surface the
+			// bind error as a rejection — otherwise callers (like the
+			// desktop main process) hang forever on `await start()`.
+			const second = createReceiver({ engine, port: receiver.port });
+			await expect(second.start()).rejects.toThrow(/EADDRINUSE/);
+			// A failed start must leave nothing to clean up; calling
+			// stop() should be a safe no-op.
+			await expect(second.stop()).resolves.toBeUndefined();
+		});
 	});
 });

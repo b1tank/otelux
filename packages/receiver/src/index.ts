@@ -72,8 +72,14 @@ export function createReceiver(options: ReceiverOptions): Receiver {
 		host,
 
 		start(): Promise<void> {
-			return new Promise<void>((resolve) => {
-				server = serve(
+			return new Promise<void>((resolve, reject) => {
+				// @hono/node-server invokes the success callback on `listening`
+				// but reports bind failures (EADDRINUSE, EACCES, ...) via the
+				// http server's `error` event. Without an explicit listener
+				// here, those errors would bubble up as unhandled and our
+				// Promise would never settle — see
+				// https://nodejs.org/api/net.html#event-error.
+				const s = serve(
 					{
 						fetch: app.fetch,
 						port: requestedPort,
@@ -81,9 +87,19 @@ export function createReceiver(options: ReceiverOptions): Receiver {
 					},
 					(info) => {
 						boundPort = info.port;
+						s.off('error', onError);
 						resolve();
 					},
 				);
+				const onError = (err: Error): void => {
+					s.off('error', onError);
+					// Discard the failed server so `stop()` doesn't try to
+					// close something that was never listening.
+					server = undefined;
+					reject(err);
+				};
+				s.once('error', onError);
+				server = s;
 			});
 		},
 
