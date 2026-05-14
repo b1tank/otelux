@@ -19,23 +19,17 @@
 			"windows": {
 				"runtimeExecutable": "${workspaceFolder}/node_modules/.bin/electron.cmd"
 			},
-			"runtimeArgs": [
-				"--remote-debugging-port=9223",
-				"."
-			],
+			"runtimeArgs": ["--remote-debugging-port=9223", "."],
 			"env": {
 				"NODE_ENV": "development",
-				"OTELUX_OTLP_PORT": "4318"
+				"OTELUX_OTLP_PORT": "4319"
 			},
 			"outFiles": [
 				"${workspaceFolder}/apps/desktop/out/main/**/*.js",
 				"${workspaceFolder}/apps/desktop/out/preload/**/*.js"
 			],
 			"sourceMaps": true,
-			"resolveSourceMapLocations": [
-				"${workspaceFolder}/apps/desktop/out/**",
-				"!**/node_modules/**"
-			],
+			"resolveSourceMapLocations": ["${workspaceFolder}/apps/desktop/out/**", "!**/node_modules/**"],
 			"preLaunchTask": "desktop: build",
 			"console": "integratedTerminal"
 		},

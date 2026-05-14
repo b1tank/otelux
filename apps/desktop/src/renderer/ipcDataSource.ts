@@ -45,7 +45,15 @@ export function createIpcDataSource(bridge: OteluxWindowBridge): DataSource {
 			return (await bridge.invoke({ kind: 'getSpanDetails', query })) as SpanDetails;
 		},
 		subscribe(handler): Disposable {
-			const unsubscribe = bridge.onEvent(handler);
+			// The bridge surface delivers a wider event union (settings and
+			// receiver-status pushes share the same channel). The workbench
+			// only cares about `tracesChanged`, so filter here — keeps the
+			// engine subscription contract narrow.
+			const unsubscribe = bridge.onEvent((event) => {
+				if (event.kind === 'tracesChanged') {
+					handler(event);
+				}
+			});
 			return { dispose: unsubscribe };
 		},
 	};

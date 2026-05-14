@@ -47,3 +47,258 @@ body,
 	overflow: auto;
 	padding: 16px;
 }
+
+/* ---- Endpoint bar -------------------------------------------------- */
+
+.endpoint-bar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 16px;
+	background: var(--otelux-bg-panel);
+	border-bottom: 1px solid #2d2d30;
+	font-size: 12px;
+}
+
+.endpoint-bar__dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex: 0 0 auto;
+	background: var(--otelux-fg-muted);
+}
+
+.endpoint-bar__dot--starting {
+	background: #d29922;
+	animation: pulse 1.2s ease-in-out infinite;
+}
+
+.endpoint-bar__dot--running {
+	background: #3fb950;
+	box-shadow: 0 0 6px rgba(63, 185, 80, 0.6);
+}
+
+.endpoint-bar__dot--error {
+	background: #f85149;
+	box-shadow: 0 0 6px rgba(248, 81, 73, 0.6);
+}
+
+@keyframes pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.35;
+	}
+}
+
+.endpoint-bar__label {
+	color: var(--otelux-fg-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	font-size: 11px;
+}
+
+.endpoint-bar__url {
+	color: var(--otelux-fg);
+	flex: 1;
+}
+
+.endpoint-bar__url--copy {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 2px 6px;
+	border-radius: 3px;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+}
+
+.endpoint-bar__url--copy:hover {
+	background: rgba(255, 255, 255, 0.06);
+}
+
+.endpoint-bar__url--copy code {
+	font-family: ui-monospace, "SF Mono", Menlo, monospace;
+	font-size: 12px;
+}
+
+.endpoint-bar__copy-hint {
+	color: var(--otelux-fg-muted);
+	font-size: 11px;
+}
+
+.endpoint-bar__cog {
+	background: none;
+	border: none;
+	color: var(--otelux-fg-muted);
+	cursor: pointer;
+	font-size: 14px;
+	padding: 4px 6px;
+	border-radius: 3px;
+}
+
+.endpoint-bar__cog:hover {
+	background: rgba(255, 255, 255, 0.06);
+	color: var(--otelux-fg);
+}
+
+/* ---- Modal --------------------------------------------------------- */
+
+.modal-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 100;
+}
+
+/* Invisible full-bleed button that captures "click outside" without
+   triggering Biome's a11y rules for clickable <div>s. The modal box sits
+   on top of it via z-index so its own clicks don't bubble here. */
+.modal-backdrop__hit {
+	position: absolute;
+	inset: 0;
+	background: transparent;
+	border: 0;
+	padding: 0;
+	margin: 0;
+	cursor: default;
+}
+
+.modal {
+	position: relative;
+	z-index: 1;
+	background: var(--otelux-bg-panel);
+	border: 1px solid #3d3d40;
+	border-radius: 6px;
+	min-width: 360px;
+	max-width: 480px;
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+	color: inherit;
+	padding: 0;
+}
+
+.modal__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 16px;
+	border-bottom: 1px solid #2d2d30;
+}
+
+.modal__header h2 {
+	margin: 0;
+	font-size: 14px;
+	font-weight: 600;
+}
+
+.modal__close {
+	background: none;
+	border: none;
+	color: var(--otelux-fg-muted);
+	cursor: pointer;
+	font-size: 14px;
+}
+
+.modal__close:hover {
+	color: var(--otelux-fg);
+}
+
+.modal__body {
+	padding: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.field__label {
+	font-size: 12px;
+	color: var(--otelux-fg);
+}
+
+.field__hint {
+	font-size: 11px;
+	color: var(--otelux-fg-muted);
+	line-height: 1.4;
+}
+
+.field__hint code {
+	background: rgba(255, 255, 255, 0.06);
+	padding: 1px 4px;
+	border-radius: 2px;
+	font-size: 11px;
+}
+
+.field input[type="number"] {
+	background: #1e1e1e;
+	border: 1px solid #3d3d40;
+	border-radius: 3px;
+	color: var(--otelux-fg);
+	padding: 6px 8px;
+	font: inherit;
+	width: 120px;
+}
+
+.field input[type="number"]:focus {
+	outline: none;
+	border-color: var(--otelux-accent);
+}
+
+.modal__error {
+	margin: 0;
+	padding: 8px 10px;
+	background: rgba(248, 81, 73, 0.12);
+	border: 1px solid rgba(248, 81, 73, 0.4);
+	color: #ffa198;
+	border-radius: 3px;
+	font-size: 12px;
+}
+
+.modal__actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+.modal__actions button {
+	background: #2d2d30;
+	border: 1px solid #3d3d40;
+	color: var(--otelux-fg);
+	padding: 6px 14px;
+	border-radius: 3px;
+	cursor: pointer;
+	font: inherit;
+}
+
+.modal__actions button:hover:not(:disabled) {
+	background: #383838;
+}
+
+.modal__actions button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.modal__actions .primary {
+	background: var(--otelux-accent);
+	border-color: var(--otelux-accent);
+	color: #fff;
+}
+
+.modal__actions .primary:hover:not(:disabled) {
+	background: #1f8ad6;
+}
