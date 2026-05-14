@@ -109,25 +109,49 @@ async function startBackend(): Promise<{
 }
 
 /**
- * Persist the new settings, then rebind the receiver on the requested
- * port. Both steps return their failures as data so the renderer can
- * render an inline error instead of seeing an IPC rejection.
+ * Two-phase settings update: validate, try to rebind, only then persist.
+ *
+ * The old "persist first, then bind" order corrupted `settings.json`
+ * whenever the new port could not be acquired (EACCES on privileged
+ * ports, EADDRINUSE on contended ones) — the bad value survived
+ * restarts and bricked the app until the user wiped their user-data
+ * directory. Doing the bind first means a failed save leaves both
+ * disk state and the running receiver on the previous port, and the
+ * renderer just shows the bind error inline.
  */
 async function updateSettings(
 	store: SettingsStore,
 	receiverHost: ReceiverHost,
 	patch: Parameters<SettingsStore['update']>[0],
 ): Promise<UpdateSettingsResult> {
-	let next: Awaited<ReturnType<SettingsStore['update']>>;
+	let next: Awaited<ReturnType<SettingsStore['preview']>>;
 	try {
-		next = await store.update(patch);
+		next = store.preview(patch);
 	} catch (err) {
 		return { ok: false, error: err instanceof Error ? err.message : String(err) };
 	}
 
+	const previousStatus = receiverHost.status;
 	const status = await receiverHost.start(next.otlp.port);
 	if (status.kind === 'error') {
+		// Best-effort rollback so the user is not left with a dead
+		// receiver. Use the port the receiver was actually bound to —
+		// that may differ from `store.get().otlp.port` when an env
+		// override (`OTELUX_OTLP_PORT`) is in effect, and rolling back
+		// to the persisted port would defeat the override.
+		// If even the previous port is now contended (rare — requires a
+		// third party to grab it in the gap) the host stays in
+		// `kind: 'error'` and the renderer surfaces that too.
+		if (previousStatus.kind === 'running' && previousStatus.port !== next.otlp.port) {
+			await receiverHost.start(previousStatus.port);
+		}
 		return { ok: false, error: status.message };
+	}
+
+	try {
+		await store.commit(next);
+	} catch (err) {
+		return { ok: false, error: err instanceof Error ? err.message : String(err) };
 	}
 	return { ok: true, settings: next, status };
 }

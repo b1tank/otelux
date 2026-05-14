@@ -46,7 +46,32 @@ export class SettingsStore {
 	 * convert that into a typed result on the IPC boundary.
 	 */
 	async update(patch: PartialSettings): Promise<Settings> {
+		const next = this.preview(patch);
+		await this.commit(next);
+		return next;
+	}
+
+	/**
+	 * Compute the would-be settings after applying `patch` without
+	 * persisting or notifying listeners. Throws on invalid input.
+	 *
+	 * Used by callers that need to validate a setting against a side
+	 * effect (binding a port, opening a file) before committing — so a
+	 * failure leaves both the in-memory state and `settings.json`
+	 * untouched.
+	 */
+	preview(patch: PartialSettings): Settings {
 		const next = merge(this.current, patch);
+		validate(next);
+		return next;
+	}
+
+	/**
+	 * Persist a pre-validated settings object, swap it in as current,
+	 * and notify listeners. Pair with {@link preview} for two-phase
+	 * updates that must succeed externally before being recorded.
+	 */
+	async commit(next: Settings): Promise<Settings> {
 		validate(next);
 		await persist(this.file, next);
 		this.current = next;
