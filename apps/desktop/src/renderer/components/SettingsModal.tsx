@@ -19,6 +19,7 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 	const [error, setError] = useState<string | undefined>(undefined);
 	const [saving, setSaving] = useState(false);
 	const portInputRef = useRef<HTMLInputElement>(null);
+	const dialogRef = useRef<HTMLDialogElement>(null);
 
 	useEffect(() => {
 		// Focus the first field on mount. Doing this in an effect avoids
@@ -36,6 +37,42 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 		window.addEventListener('keydown', onKey);
 		return () => window.removeEventListener('keydown', onKey);
 	}, [onClose, saving]);
+
+	/**
+	 * Trap Tab inside the dialog so focus cannot escape to the underlying
+	 * page, where it would land on the backdrop hit-button or workbench
+	 * controls. Native <dialog> does this automatically when shown with
+	 * `.showModal()`, but we render with the `open` attribute (so React
+	 * stays in control of mount/unmount) which leaves focus management
+	 * to us.
+	 */
+	const onDialogKeyDown = (e: React.KeyboardEvent<HTMLDialogElement>): void => {
+		if (e.key !== 'Tab') {
+			return;
+		}
+		const root = dialogRef.current;
+		if (!root) {
+			return;
+		}
+		const focusables = Array.from(
+			root.querySelectorAll<HTMLElement>(
+				'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+			),
+		);
+		if (focusables.length === 0) {
+			return;
+		}
+		const first = focusables[0];
+		const last = focusables[focusables.length - 1];
+		const active = document.activeElement as HTMLElement | null;
+		if (e.shiftKey && active === first) {
+			e.preventDefault();
+			last.focus();
+		} else if (!e.shiftKey && active === last) {
+			e.preventDefault();
+			first.focus();
+		}
+	};
 
 	const onSubmit = async (e: React.FormEvent): Promise<void> => {
 		e.preventDefault();
@@ -74,7 +111,14 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 				aria-label="Close settings"
 				tabIndex={-1}
 			/>
-			<dialog className="modal" aria-modal="true" aria-labelledby="settings-title" open>
+			<dialog
+				ref={dialogRef}
+				className="modal"
+				aria-modal="true"
+				aria-labelledby="settings-title"
+				open
+				onKeyDown={onDialogKeyDown}
+			>
 				<header className="modal__header">
 					<h2 id="settings-title">Settings</h2>
 					<button
