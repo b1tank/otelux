@@ -744,3 +744,33 @@
 	flex: 0 0 auto;
 	margin-left: auto;
 }
+
+/* ---------- FilterBar ---------- */
+
+.otelux-filter-bar {
+	display: flex;
+	align-items: center;
+	flex: 0 0 var(--otelux-filters-h);
+	height: var(--otelux-filters-h);
+	padding: 0 12px;
+	background: var(--otelux-bg);
+	border-bottom: 1px solid var(--otelux-border);
+	gap: 8px;
+}
+
+.otelux-filter-bar__filters {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow-x: auto;
+	scrollbar-width: thin;
+}
+
+.otelux-filter-bar__end {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 0 0 auto;
+}
