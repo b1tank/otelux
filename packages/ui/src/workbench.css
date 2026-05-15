@@ -1063,3 +1063,126 @@
 .otelux-service-chip--more {
 	color: var(--otelux-fg-faint);
 }
+
+/* ---------- Waterfall ---------- */
+
+.otelux-waterfall {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	min-width: var(--otelux-waterfall-min-w);
+	height: 100%;
+	min-height: 0;
+	background: var(--otelux-bg);
+}
+
+.otelux-waterfall__header {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex: 0 0 var(--otelux-pane-head-h);
+	height: var(--otelux-pane-head-h);
+	padding: 0 12px;
+	border-bottom: 1px solid var(--otelux-border);
+	background: var(--otelux-bg-panel);
+}
+
+.otelux-waterfall__name {
+	flex: 1 1 auto;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-size: 13px;
+	font-weight: 500;
+}
+
+.otelux-waterfall__duration {
+	flex: 0 0 auto;
+	font-family: var(--otelux-font-mono);
+	font-size: 12px;
+	color: var(--otelux-fg-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.otelux-waterfall__count {
+	flex: 0 0 auto;
+	font-size: 11px;
+	color: var(--otelux-fg-muted);
+}
+
+.otelux-waterfall__empty {
+	flex: 1 1 auto;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--otelux-fg-muted);
+	font-size: 12px;
+}
+
+.otelux-waterfall__scroll {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: auto;
+}
+
+.otelux-waterfall__svg {
+	display: block;
+}
+
+.otelux-waterfall__ruler-bg {
+	fill: var(--otelux-bg-panel);
+}
+
+.otelux-waterfall__ruler-tick {
+	stroke: var(--otelux-border-strong);
+	stroke-width: 1;
+}
+
+.otelux-waterfall__ruler-label {
+	font-size: 10px;
+	fill: var(--otelux-fg-muted);
+	font-family: var(--otelux-font-mono);
+}
+
+.otelux-waterfall__tickline {
+	stroke: var(--otelux-border);
+	stroke-width: 1;
+	opacity: 0.5;
+}
+
+.otelux-waterfall__row-bg {
+	fill: transparent;
+}
+
+.otelux-waterfall__row:hover .otelux-waterfall__row-bg {
+	fill: var(--otelux-bg-elevated);
+}
+
+.otelux-waterfall__row.is-selected .otelux-waterfall__row-bg {
+	fill: color-mix(in srgb, var(--otelux-accent) 14%, transparent);
+}
+
+.otelux-waterfall__label {
+	font-size: 12px;
+	fill: var(--otelux-fg);
+}
+
+.otelux-waterfall__duration-label {
+	font-size: 10px;
+	fill: var(--otelux-fg-muted);
+	font-family: var(--otelux-font-mono);
+}
+
+.otelux-waterfall__row.is-error .otelux-waterfall__bar {
+	stroke: var(--otelux-error);
+	stroke-width: 1.5;
+}
+
+.otelux-waterfall__row:focus {
+	outline: none;
+}
+
+.otelux-waterfall__row:focus-visible .otelux-waterfall__row-bg {
+	fill: color-mix(in srgb, var(--otelux-accent) 22%, transparent);
+}
