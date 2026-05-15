@@ -650,3 +650,63 @@
 	display: flex;
 	flex-direction: column;
 }
+
+/* ---------- Rail ---------- */
+
+.otelux-rail {
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	align-items: center;
+	width: 100%;
+	height: 100%;
+	padding: 8px 0;
+	gap: 8px;
+}
+
+.otelux-rail__group {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	align-items: center;
+}
+
+.otelux-rail__button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	padding: 0;
+	background: transparent;
+	color: var(--otelux-fg-muted);
+	border: 1px solid transparent;
+	border-radius: var(--otelux-r-1);
+	cursor: pointer;
+	transition: background 80ms ease, color 80ms ease;
+}
+
+.otelux-rail__button:hover:not(:disabled) {
+	background: var(--otelux-bg-elevated);
+	color: var(--otelux-fg);
+}
+
+.otelux-rail__button:focus-visible {
+	outline: none;
+	border-color: var(--otelux-accent);
+	box-shadow: 0 0 0 1px var(--otelux-accent);
+}
+
+.otelux-rail__button.is-active {
+	background: color-mix(in srgb, var(--otelux-accent) 18%, transparent);
+	color: var(--otelux-accent);
+}
+
+.otelux-rail__button:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.otelux-rail__icon {
+	display: inline-flex;
+}
