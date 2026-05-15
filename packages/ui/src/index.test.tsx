@@ -120,7 +120,7 @@ describe('OTeluxWorkbench', () => {
 		await engine.close();
 	});
 
-	it('shows the waterfall and span detail drawer after selecting a trace', async () => {
+	it('shows the waterfall after selecting a trace and opens the drawer when a span is picked', async () => {
 		const engine = createEngine({ storage: createMemoryStorage() });
 		await engine.ingestSpans([
 			makeSpan({ spanId: 'r'.repeat(16), name: 'root' }),
@@ -136,10 +136,19 @@ describe('OTeluxWorkbench', () => {
 		const row = await screen.findByText('root');
 		fireEvent.click(row);
 
-		// Waterfall renders the child span; drawer auto-opens with the root.
+		// Selecting a trace shows the waterfall but NOT the drawer. The
+		// drawer is user-opened so it never covers the waterfall on
+		// trace selection.
 		await waitFor(() => {
 			expect(screen.getAllByText('root').length).toBeGreaterThanOrEqual(1);
 			expect(screen.getByText('child')).not.toBeNull();
+		});
+		expect(screen.queryByRole('dialog')).toBeNull();
+
+		// Clicking a span row in the waterfall opens the detail drawer.
+		const childRow = await screen.findByLabelText(/^child,/);
+		fireEvent.click(childRow);
+		await waitFor(() => {
 			expect(screen.getByRole('dialog')).not.toBeNull();
 		});
 
@@ -198,8 +207,11 @@ describe('OTeluxWorkbench', () => {
 		const row = await screen.findByText('root');
 		fireEvent.click(row);
 
-		// The drawer auto-opens for the root span; find the eye button for
-		// the http.url attribute and click it.
+		// Open the detail drawer by clicking the root span in the
+		// waterfall (drawer no longer auto-opens), then click the eye
+		// button next to the http.url attribute.
+		const rootSpanRow = await screen.findByLabelText(/^root,/);
+		fireEvent.click(rootSpanRow);
 		const eye = await screen.findByLabelText('View value for http.url');
 		fireEvent.click(eye);
 

@@ -13,7 +13,7 @@
 
 import type { DataSource } from '@otelux/protocol';
 import type { AttributeValue, Span, SpanId, Trace, TraceId } from '@otelux/types';
-import { type JSX, useEffect, useState } from 'react';
+import { type JSX, useState } from 'react';
 import { SpanDetail, TraceList, Waterfall } from './domain/index.js';
 import { AppShell, FilterBar, Rail, type RailItem, Topbar, Workbench } from './layout/index.js';
 import {
@@ -117,14 +117,12 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 	);
 	const hasAnyTrace = (emptyProbe.value?.rows.length ?? 0) > 0;
 
-	// Auto-select the root span when a new trace lands so the detail
-	// drawer is never blank when a user lands on a trace.
-	useEffect(() => {
-		if (trace && !selectedSpanId && trace.rootSpan) {
-			setSelectedSpanId(trace.rootSpan.spanId);
-		}
-	}, [trace, selectedSpanId]);
-
+	// The detail drawer is opened explicitly by the user clicking a span
+	// row in the Waterfall — not auto-opened when a trace is selected.
+	// Auto-opening covered the waterfall the moment a trace was clicked
+	// and made the drawer feel unclosable: every trace click re-opened
+	// it. Now selecting a trace shows just the waterfall; the drawer
+	// only appears when the user picks a span to inspect.
 	const selectedSpan: Span | undefined = trace?.spans.find((s) => s.spanId === selectedSpanId);
 
 	const traceListProps = {
