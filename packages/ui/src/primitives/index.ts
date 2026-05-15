@@ -14,6 +14,8 @@ export { IconButton } from './IconButton.js';
 export type { IconButtonProps } from './IconButton.js';
 export { ToggleChip } from './ToggleChip.js';
 export type { ToggleChipProps } from './ToggleChip.js';
+export { ValueViewer } from './ValueViewer.js';
+export type { ValueViewerProps } from './ValueViewer.js';
 export {
 	ActivityIcon,
 	AlertCircleIcon,

@@ -1390,3 +1390,89 @@
 	color: var(--otelux-fg-muted);
 	margin: 0 2px;
 }
+
+/* ---------- ValueViewer ---------- */
+
+.otelux-value-viewer {
+	position: fixed;
+	inset: 0;
+	z-index: calc(var(--otelux-z-drawer) + 1);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	pointer-events: none;
+}
+
+.otelux-value-viewer__backdrop {
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.4);
+	border: 0;
+	padding: 0;
+	margin: 0;
+	cursor: default;
+	pointer-events: auto;
+}
+
+.otelux-value-viewer__panel {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	width: min(720px, calc(100vw - 32px));
+	max-height: min(80vh, 720px);
+	background: var(--otelux-bg-panel);
+	border: 1px solid var(--otelux-border);
+	border-radius: 8px;
+	box-shadow: 0 16px 48px rgba(0, 0, 0, 0.32);
+	pointer-events: auto;
+	overflow: hidden;
+}
+
+.otelux-value-viewer__header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 0 0 var(--otelux-pane-head-h);
+	height: var(--otelux-pane-head-h);
+	padding: 0 8px 0 12px;
+	border-bottom: 1px solid var(--otelux-border);
+}
+
+.otelux-value-viewer__title {
+	flex: 1 1 auto;
+	margin: 0;
+	min-width: 0;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--otelux-fg);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.otelux-value-viewer__actions {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+
+.otelux-value-viewer__body {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: auto;
+	margin: 0;
+	padding: 12px;
+	font-family: var(--otelux-font-mono);
+	font-size: 12px;
+	line-height: 1.5;
+	color: var(--otelux-fg);
+	background: var(--otelux-bg);
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.otelux-value-viewer__body--json {
+	white-space: pre;
+	word-break: normal;
+}
