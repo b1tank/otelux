@@ -106,8 +106,9 @@ describe('OTeluxWorkbench', () => {
 		const engine = createEngine({ storage: createMemoryStorage() });
 		render(<OTeluxWorkbench dataSource={engine} />);
 
+		// New empty-state copy comes from the redesigned TraceList.
 		await waitFor(() => {
-			expect(screen.getByText(/no traces yet/i)).not.toBeNull();
+			expect(screen.getByText(/No traces match/i)).not.toBeNull();
 		});
 
 		await engine.ingestSpans([makeSpan({ spanId: '1'.repeat(16), name: 'GET /' })]);
@@ -119,7 +120,7 @@ describe('OTeluxWorkbench', () => {
 		await engine.close();
 	});
 
-	it('shows the waterfall after selecting a trace', async () => {
+	it('shows the waterfall and span detail drawer after selecting a trace', async () => {
 		const engine = createEngine({ storage: createMemoryStorage() });
 		await engine.ingestSpans([
 			makeSpan({ spanId: 'r'.repeat(16), name: 'root' }),
@@ -135,10 +136,11 @@ describe('OTeluxWorkbench', () => {
 		const row = await screen.findByText('root');
 		fireEvent.click(row);
 
+		// Waterfall renders the child span; drawer auto-opens with the root.
 		await waitFor(() => {
-			// "root" appears in trace list and waterfall header — accept either.
 			expect(screen.getAllByText('root').length).toBeGreaterThanOrEqual(1);
 			expect(screen.getByText('child')).not.toBeNull();
+			expect(screen.getByRole('dialog')).not.toBeNull();
 		});
 
 		await engine.close();
