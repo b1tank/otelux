@@ -16,6 +16,8 @@ export { SearchField } from './SearchField.js';
 export type { SearchFieldProps } from './SearchField.js';
 export { ToggleChip } from './ToggleChip.js';
 export type { ToggleChipProps } from './ToggleChip.js';
+export { CopyButton } from './CopyButton.js';
+export type { CopyButtonProps } from './CopyButton.js';
 export { ValueViewer } from './ValueViewer.js';
 export type { ValueViewerProps } from './ValueViewer.js';
 export {

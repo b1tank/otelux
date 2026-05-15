@@ -230,18 +230,24 @@
   .tcard.is-selected { background: var(--bg-2); }
   .tcard.is-selected::before { content:""; position:absolute; left:0; top:0; bottom:0;
                                width:3px; background: var(--svc, var(--accent)); }
-  /* row 1 — meta strip: trace id (left, mono) · wall-clock (right) */
-  .tcard__row1 { display: flex; align-items: baseline; justify-content: space-between;
-                 gap: 8px; font-size: 11px; color: var(--fg-mute); }
-  .tcard__time { color: var(--fg-mute); font-variant-numeric: tabular-nums; }
+  /* row 1 — meta strip: tid + copy icon · span count · wall clock (right) */
+  .tcard__row1 { display: flex; align-items: center; gap: 8px;
+                 font-size: 11px; color: var(--fg-mute); }
+  .tcard__row1 time { margin-left: auto; color: var(--fg-mute);
+                      font-variant-numeric: tabular-nums; }
+  .tcard__tid-wrap { display: inline-flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+  .tcard__tid-copy { display: inline-flex; align-items: center; justify-content: center;
+                     width: 14px; height: 14px; padding: 0; background: none;
+                     border: none; color: var(--fg-faint); cursor: pointer; }
+  .tcard__tid-copy:hover { color: var(--fg); }
   .tcard__tid  { font-family: "JetBrains Mono", ui-monospace, monospace;
-                 letter-spacing: 0.02em; }
-  /* row 2 — headline: root name + span count after */
+                 letter-spacing: 0.02em; color: inherit; }
+  /* row 2 — headline: root name only (span count rides up in row 1) */
   .tcard__row2 { display: flex; align-items: baseline; gap: 8px; margin-top: 2px; }
   .tcard__name { flex: 0 1 auto; min-width: 0; font-size: 13px; color: var(--fg);
                  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tcard__spans { color: var(--fg-mute); font-size: 11px;
-                  font-variant-numeric: tabular-nums; }
+                  font-variant-numeric: tabular-nums; flex: 0 0 auto; }
   /* row 3 — tags strip: chips · error pill · duration (right) */
   .tcard__row3 { display: flex; align-items: center; gap: 6px;
                  margin-top: 4px; flex-wrap: wrap; }
@@ -571,10 +577,18 @@
         <div class="tlist" id="tlist" style="overflow:auto; flex:1; min-height:0">
           <!-- selected: invoke_agent 12.79s -->
           <article class="tcard is-selected" style="--svc:var(--svc-2)">
-            <div class="tcard__row1"><span class="tcard__tid">9c1db293</span><time>14:09:14.0</time></div>
+            <div class="tcard__row1">
+              <span class="tcard__tid-wrap">
+                <span class="tcard__tid">9c1db293</span>
+                <button class="tcard__tid-copy" title="Copy trace id" aria-label="Copy trace id">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                </button>
+              </span>
+              <span class="tcard__spans">10 spans</span>
+              <time>May 15, 14:09:14.0</time>
+            </div>
             <div class="tcard__row2">
               <span class="tcard__name">invoke_agent</span>
-              <span class="tcard__spans">10 spans</span>
             </div>
             <div class="tcard__row3">
               <span class="svcchip" style="--svc:var(--svc-2)">github-copilot</span>
@@ -583,10 +597,18 @@
           </article>
 
           <article class="tcard" style="--svc:var(--svc-1)">
-            <div class="tcard__row1"><span class="tcard__tid">3d1e32e</span><time>14:09:13.9</time></div>
+            <div class="tcard__row1">
+              <span class="tcard__tid-wrap">
+                <span class="tcard__tid">3d1e32e</span>
+                <button class="tcard__tid-copy" title="Copy trace id" aria-label="Copy trace id">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                </button>
+              </span>
+              <span class="tcard__spans">221 spans</span>
+              <time>May 15, 14:09:13.9</time>
+            </div>
             <div class="tcard__row2">
               <span class="tcard__name">chat claude-opus-4.7-1m-internal</span>
-              <span class="tcard__spans">221 spans</span>
             </div>
             <div class="tcard__row3">
               <span class="svcchip" style="--svc:var(--svc-1)">copilot-chat</span>
@@ -596,10 +618,18 @@
           </article>
 
           <article class="tcard" style="--svc:var(--svc-2)">
-            <div class="tcard__row1"><span class="tcard__tid">df9fa5d</span><time>14:12:10.6</time></div>
+            <div class="tcard__row1">
+              <span class="tcard__tid-wrap">
+                <span class="tcard__tid">df9fa5d</span>
+                <button class="tcard__tid-copy" title="Copy trace id" aria-label="Copy trace id">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                </button>
+              </span>
+              <span class="tcard__spans">38 spans</span>
+              <time>May 15, 14:12:10.6</time>
+            </div>
             <div class="tcard__row2">
               <span class="tcard__name">invoke_agent</span>
-              <span class="tcard__spans">38 spans</span>
             </div>
             <div class="tcard__row3">
               <span class="svcchip" style="--svc:var(--svc-2)">github-copilot</span>
@@ -609,10 +639,18 @@
           </article>
 
           <article class="tcard" style="--svc:var(--svc-1)">
-            <div class="tcard__row1"><span class="tcard__tid">41442e1</span><time>14:11:21.5</time></div>
+            <div class="tcard__row1">
+              <span class="tcard__tid-wrap">
+                <span class="tcard__tid">41442e1</span>
+                <button class="tcard__tid-copy" title="Copy trace id" aria-label="Copy trace id">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                </button>
+              </span>
+              <span class="tcard__spans">3 spans</span>
+              <time>May 15, 14:11:21.5</time>
+            </div>
             <div class="tcard__row2">
               <span class="tcard__name">chat gpt-4o-mini</span>
-              <span class="tcard__spans">3 spans</span>
             </div>
             <div class="tcard__row3">
               <span class="svcchip" style="--svc:var(--svc-1)">copilot-chat</span>
@@ -621,10 +659,18 @@
           </article>
 
           <article class="tcard" style="--svc:var(--svc-3)">
-            <div class="tcard__row1"><span class="tcard__tid">dd00dd00</span><time>14:13:20.0</time></div>
+            <div class="tcard__row1">
+              <span class="tcard__tid-wrap">
+                <span class="tcard__tid">dd00dd00</span>
+                <button class="tcard__tid-copy" title="Copy trace id" aria-label="Copy trace id">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                </button>
+              </span>
+              <span class="tcard__spans">8 spans</span>
+              <time>May 15, 14:13:20.0</time>
+            </div>
             <div class="tcard__row2">
               <span class="tcard__name">POST /orders</span>
-              <span class="tcard__spans">8 spans</span>
             </div>
             <div class="tcard__row3">
               <span class="svcchip" style="--svc:var(--svc-3)">api-gateway</span>
@@ -635,10 +681,18 @@
           </article>
 
           <article class="tcard" style="--svc:var(--svc-3)">
-            <div class="tcard__row1"><span class="tcard__tid">abcdef12</span><time>14:13:20.0</time></div>
+            <div class="tcard__row1">
+              <span class="tcard__tid-wrap">
+                <span class="tcard__tid">abcdef12</span>
+                <button class="tcard__tid-copy" title="Copy trace id" aria-label="Copy trace id">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                </button>
+              </span>
+              <span class="tcard__spans">3 spans</span>
+              <time>May 15, 14:13:20.0</time>
+            </div>
             <div class="tcard__row2">
               <span class="tcard__name">GET /api/users</span>
-              <span class="tcard__spans">3 spans</span>
             </div>
             <div class="tcard__row3">
               <span class="svcchip" style="--svc:var(--svc-3)">api-gateway</span>
@@ -647,10 +701,18 @@
           </article>
 
           <article class="tcard" style="--svc:var(--svc-5)">
-            <div class="tcard__row1"><span class="tcard__tid">11223344</span><time>14:13:20.0</time></div>
+            <div class="tcard__row1">
+              <span class="tcard__tid-wrap">
+                <span class="tcard__tid">11223344</span>
+                <button class="tcard__tid-copy" title="Copy trace id" aria-label="Copy trace id">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                </button>
+              </span>
+              <span class="tcard__spans">2 spans</span>
+              <time>May 15, 14:13:20.0</time>
+            </div>
             <div class="tcard__row2">
               <span class="tcard__name">POST /orders</span>
-              <span class="tcard__spans">2 spans</span>
             </div>
             <div class="tcard__row3">
               <span class="svcchip" style="--svc:var(--svc-5)">order-svc</span>

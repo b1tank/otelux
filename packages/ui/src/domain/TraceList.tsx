@@ -20,8 +20,9 @@
 
 import type { DataSource, ListTracesResultRow } from '@otelux/protocol';
 import type { TraceId } from '@otelux/types';
-import type { JSX } from 'react';
+import type { JSX, KeyboardEvent } from 'react';
 import { formatDuration, formatWallClock, serviceColorVar } from '../format.js';
+import { CopyButton } from '../primitives/CopyButton.js';
 import { useDataSourceQuery } from '../useDataSourceQuery.js';
 
 export type TraceListDensity = 'card' | 'flat';
@@ -150,35 +151,59 @@ function TraceRow(props: TraceRowProps): JSX.Element {
 			className={`otelux-trace-row otelux-trace-row--${density}${selected ? ' is-selected' : ''}`}
 			{...(rowStyle ? { style: rowStyle } : {})}
 		>
-			<button
-				type="button"
+			{/*
+			 * Outer interactive surface is a div role="button" rather
+			 * than a real <button>. The card embeds a real <button>
+			 * (CopyButton next to the trace id) — nesting <button>s is
+			 * invalid HTML, so the outer becomes a div with explicit
+			 * role + keyboard handlers. aria-pressed still communicates
+			 * the toggle state.
+			 */}
+			{/* biome-ignore lint/a11y/useSemanticElements: nested CopyButton forbids a real <button> here; explicit role + keydown preserves semantics. */}
+			<div
+				role="button"
+				tabIndex={0}
 				className="otelux-trace-row__button"
 				onClick={() => onSelect(row.traceId)}
+				onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
+					if (e.key === 'Enter' || e.key === ' ') {
+						e.preventDefault();
+						onSelect(row.traceId);
+					}
+				}}
 				aria-pressed={selected}
 			>
 				{density === 'card' ? (
 					<>
 						{/*
-						 * Card hierarchy:
-						 *   row 1 — meta strip: short trace id (left) · wall clock (right)
-						 *   row 2 — headline: root name + span count after
+						 * Card hierarchy (per design spec — see redesign-mockup.html):
+						 *   row 1 — meta strip: tid + copy icon · span count · wall clock w/ date
+						 *   row 2 — headline: root name (truncates with ellipsis)
 						 *   row 3 — tags strip: service chip(s) · error pill · duration (right)
-						 * Rationale: title is the visual focal point and earns the largest type;
-						 * the id+timestamp are technical scaffolding that should fade above the
-						 * title; chips + errors + duration form a "what shape is this trace"
-						 * tag strip at the bottom.
+						 * Spans count rides in row 1 so the eye reads tid → size → time
+						 * left-to-right, leaving row 2 as a clean title row.
 						 */}
 						<div className="otelux-trace-row__row otelux-trace-row__row--1">
-							<span className="otelux-trace-row__tid" title={row.traceId}>
-								{shortTraceId}
+							<span className="otelux-trace-row__tid-wrap">
+								<span className="otelux-trace-row__tid" title={row.traceId}>
+									{shortTraceId}
+								</span>
+								<CopyButton
+									value={row.traceId}
+									title="Copy trace id"
+									ariaLabel="Copy trace id"
+									className="otelux-trace-row__tid-copy"
+								/>
 							</span>
-							<time className="otelux-trace-row__time">{formatWallClock(row.startTimeUnixNano)}</time>
+							<span className="otelux-trace-row__spans">{row.spanCount} spans</span>
+							<time className="otelux-trace-row__time">
+								{formatWallClock(row.startTimeUnixNano, true)}
+							</time>
 						</div>
 						<div className="otelux-trace-row__row otelux-trace-row__row--2">
 							<span className="otelux-trace-row__name" title={row.rootName}>
 								{row.rootName || '(unnamed)'}
 							</span>
-							<span className="otelux-trace-row__spans">{row.spanCount} spans</span>
 						</div>
 						<div className="otelux-trace-row__row otelux-trace-row__row--3">
 							<ServiceChips services={row.services} max={2} />
@@ -202,7 +227,7 @@ function TraceRow(props: TraceRowProps): JSX.Element {
 						) : null}
 					</div>
 				)}
-			</button>
+			</div>
 		</li>
 	);
 }

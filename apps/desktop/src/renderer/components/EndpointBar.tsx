@@ -1,5 +1,5 @@
-import { CheckIcon, CopyIcon } from '@otelux/ui';
-import { type JSX, useEffect, useRef, useState } from 'react';
+import { CopyButton } from '@otelux/ui';
+import type { JSX } from 'react';
 import type { ReceiverStatus } from '../../shared/ipc.js';
 
 interface EndpointBarProps {
@@ -24,7 +24,16 @@ export function EndpointBar(props: EndpointBarProps): JSX.Element {
 			<StatusDot status={status} />
 			<span className="endpoint-bar__label">OTLP/HTTP</span>
 			{url ? (
-				<CopyableUrl url={url} />
+				// Shared CopyButton primitive: morphs Copy→Check (green)
+				// on success and never reflows the row width.
+				<CopyButton
+					value={url}
+					title="Click to copy"
+					ariaLabel="Copy OTLP/HTTP URL"
+					className="endpoint-bar__url endpoint-bar__url--copy"
+				>
+					<code>{url}</code>
+				</CopyButton>
 			) : (
 				<span className="endpoint-bar__url">{statusText(status)}</span>
 			)}
@@ -40,46 +49,6 @@ function StatusDot({ status }: { status: ReceiverStatus | undefined }): JSX.Elem
 			title={statusText(status)}
 			aria-label={statusText(status)}
 		/>
-	);
-}
-
-function CopyableUrl({ url }: { url: string }): JSX.Element {
-	const [justCopied, setJustCopied] = useState(false);
-	// Track the timer so we can clear it on unmount or rapid re-clicks
-	// (previously the timer leaked into a stale closure on unmount).
-	const timerRef = useRef<number | null>(null);
-	useEffect(() => {
-		return () => {
-			if (timerRef.current !== null) {
-				window.clearTimeout(timerRef.current);
-			}
-		};
-	}, []);
-	const onClick = (): void => {
-		void navigator.clipboard.writeText(url).then(() => {
-			setJustCopied(true);
-			if (timerRef.current !== null) {
-				window.clearTimeout(timerRef.current);
-			}
-			timerRef.current = window.setTimeout(() => setJustCopied(false), 1200);
-		});
-	};
-	return (
-		<button
-			type="button"
-			className="endpoint-bar__url endpoint-bar__url--copy"
-			onClick={onClick}
-			// Tooltip carries the affordance hint so the in-button label
-			// can be an icon-only state cue (no width swap → no flicker
-			// when the URL re-renders next to a longer/shorter label).
-			title={justCopied ? 'Copied' : 'Click to copy'}
-			aria-label={justCopied ? 'Copied' : 'Copy URL'}
-		>
-			<code>{url}</code>
-			<span className="endpoint-bar__copy-icon" aria-hidden="true">
-				{justCopied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
-			</span>
-		</button>
 	);
 }
 

@@ -188,6 +188,59 @@
 	background: var(--otelux-bg-elevated);
 }
 
+/* ---------- CopyButton ---------- */
+
+/*
+ * Shared icon-swap clipboard button. Used by the top-bar endpoint
+ * URL chip and by the trace-card id pill. Both call sites get the
+ * same icon stack and the same green check confirmation so users
+ * recognise the affordance everywhere it appears.
+ */
+.otelux-copy-button {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 0;
+	background: none;
+	border: none;
+	cursor: pointer;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+}
+
+.otelux-copy-button:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 1px var(--otelux-accent);
+	border-radius: 3px;
+}
+
+.otelux-copy-button__icon {
+	/*
+	 * Fixed 14x14 slot: the icon morphs CopyIcon -> CheckIcon on
+	 * success but the slot width is constant so the row never
+	 * reflows (no "click to copy" / "copied" width flicker).
+	 */
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 14px;
+	height: 14px;
+	flex: 0 0 auto;
+	color: var(--otelux-fg-muted);
+	transition: color 120ms ease;
+}
+
+.otelux-copy-button:hover .otelux-copy-button__icon {
+	color: var(--otelux-fg);
+}
+
+/* Green check confirmation — drawn from the shared `--otelux-ok`
+ * token so dark/light themes both pick the right hue. */
+.otelux-copy-button.is-copied .otelux-copy-button__icon {
+	color: var(--otelux-ok);
+}
+
 /* ---------- ToggleChip ---------- */
 
 .otelux-toggle-chip {
@@ -1116,12 +1169,31 @@
 	 * card layout depends on each row spanning the full button so that
 	 * `justify-content: space-between` (row 1) and `margin-left: auto`
 	 * (row 3 duration) actually have room to push items apart. Force
-	 * stretch back on explicitly.
+	 * stretch back on explicitly. (The outer surface is now a div
+	 * role="button"; we keep the explicit `stretch` anyway as a guard
+	 * if anyone reverts the tag.)
 	 */
 	align-items: stretch;
 	width: 100%;
+	/*
+	 * `width: 100%` + non-zero `padding` overflows the parent under
+	 * the default `box-sizing: content-box` model — the trace pane is
+	 * 360 wide but the button rendered 380 (100% + 28px padding) and
+	 * the rows pane scrolled horizontally. Switch the button to
+	 * border-box so the padding is subtracted from the 100% width.
+	 */
+	box-sizing: border-box;
+	/* Flex items default to a min-width of `min-content`. Keep this
+	 * explicit so unbreakable content (tabular date+time) can't push
+	 * the button past the pane regardless of padding model. */
+	min-width: 0;
 	padding: 10px 12px 10px 16px;
-	gap: 2px;
+	/*
+	 * Rows are spaced via per-row margin-top so we can match the mockup
+	 * exactly (2px between row1 and row2, 4px between row2 and row3).
+	 * A single `gap` value cannot express asymmetric spacing.
+	 */
+	gap: 0;
 	background: transparent;
 	color: var(--otelux-fg);
 	border: 1px solid transparent;
@@ -1175,28 +1247,34 @@
 }
 
 .otelux-trace-row__row--1 {
-	/* Meta strip: trace id (left, mono) and wall-clock timestamp (right).
-	   Both muted; this row exists to anchor the card with technical
-	   identifiers without competing with the headline below. */
-	justify-content: space-between;
+	/* Meta strip: trace id + copy icon, span count, wall clock (right).
+	   Color is muted (one shade above faint) — readable but lets the
+	   row 2 headline below take the eye first. The time pins to the
+	   right via `margin-left: auto` because we now have three flex
+	   children, so a plain space-between would dump the span count in
+	   the middle which the design rejects. */
+	align-items: center;
 	font-size: 11px;
-	color: var(--otelux-fg-faint);
+	color: var(--otelux-fg-muted);
 }
 
 .otelux-trace-row__row--2 {
-	/* Headline: root name dominates; span count rides alongside it in a
-	   muted weight so the eye reads 'invoke_agent — 10 spans'. */
+	/* Headline: root name alone (span count moved up to row 1). 2px
+	 * micro-gap from the meta strip above per the mockup. */
 	align-items: baseline;
 	gap: 8px;
+	margin-top: 2px;
 }
 
 .otelux-trace-row__row--3 {
 	/* Tags strip: chips/error pill flow left-to-right; duration is the
 	   right anchor via margin-left:auto so it always lands flush right
-	   regardless of how many chips precede it. */
+	   regardless of how many chips precede it. Slightly bigger gap to
+	   the title above so the chips read as a distinct strip. */
 	align-items: center;
 	gap: 6px;
 	flex-wrap: wrap;
+	margin-top: 4px;
 }
 
 .otelux-trace-row__row--flat {
@@ -1206,30 +1284,57 @@
 }
 
 .otelux-trace-row__time {
-	color: var(--otelux-fg-faint);
+	/* Lives at the right edge of row 1; row 1 now holds three children
+	 * (tid wrap, span count, time) so we use margin-left:auto to pin
+	 * the timestamp instead of `justify-content: space-between` which
+	 * would shove the span count to the middle. */
+	margin-left: auto;
+	color: var(--otelux-fg-muted);
 	font-variant-numeric: tabular-nums;
 }
 
 .otelux-trace-row__name {
-	/* Take only content width so the span count sits flush behind the
-	 * title (per design spec "title and span count adjacent"). Still
-	 * allow shrink + ellipsis when the title is longer than the row. */
+	/* Take only content width so an extra-long title still gracefully
+	 * truncates with ellipsis. Mockup uses the default 400 weight; we
+	 * inherit that here rather than override. */
 	flex: 0 1 auto;
 	min-width: 0;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
-	font-weight: 500;
 	font-size: 13px;
 	color: var(--otelux-fg);
+}
+
+.otelux-trace-row__tid-wrap {
+	/* Hold the short trace id and the copy button as one inline cluster
+	 * so the copy icon sits flush against the id without inheriting
+	 * row 1's 8px main-axis gap. */
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	flex: 0 0 auto;
 }
 
 .otelux-trace-row__tid {
 	flex: 0 0 auto;
 	font-family: var(--otelux-font-mono);
 	font-size: 11px;
-	color: var(--otelux-fg-faint);
+	/* Inherit row 1's muted color (used to be `--otelux-fg-faint`,
+	 * mockup uses `--otelux-fg-muted`). */
+	color: inherit;
 	letter-spacing: 0.02em;
+}
+
+/* CopyButton variant pinned next to the short trace id. The
+ * primitive provides background:none/border:none/cursor:pointer;
+ * we only nudge the colour to match the muted row 1 palette. */
+.otelux-trace-row__tid-copy .otelux-copy-button__icon {
+	color: var(--otelux-fg-faint);
+}
+
+.otelux-trace-row__tid-copy:hover .otelux-copy-button__icon {
+	color: var(--otelux-fg);
 }
 
 .otelux-trace-row__duration {

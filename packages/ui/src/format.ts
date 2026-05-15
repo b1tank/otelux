@@ -23,8 +23,15 @@ export function formatDuration(nanos: bigint): string {
 	return `${(Number(nanos) / Number(NS_PER_S)).toFixed(2)}s`;
 }
 
-/** Format a Unix-nanos timestamp as an ISO-ish wall-clock string. */
-export function formatWallClock(unixNano: bigint): string {
+/** Format a Unix-nanos timestamp as an ISO-ish wall-clock string.
+ *
+ * When `withDate` is true (default false), the result is prefixed with
+ * a short month/day prefix — `Mar 14, 14:09:14.000` — so trace rows
+ * stay disambiguated across day boundaries without showing a noisy
+ * full ISO date for every entry. Existing call sites (span detail,
+ * event time) keep the original time-only output by default.
+ */
+export function formatWallClock(unixNano: bigint, withDate = false): string {
 	if (unixNano === 0n) {
 		return '—';
 	}
@@ -34,8 +41,31 @@ export function formatWallClock(unixNano: bigint): string {
 	const mm = String(d.getMinutes()).padStart(2, '0');
 	const ss = String(d.getSeconds()).padStart(2, '0');
 	const sss = String(d.getMilliseconds()).padStart(3, '0');
-	return `${hh}:${mm}:${ss}.${sss}`;
+	const time = `${hh}:${mm}:${ss}.${sss}`;
+	if (!withDate) {
+		return time;
+	}
+	// Compact "Mon DD" prefix: month is intentionally an abbreviation so
+	// the date stays short next to a 12-char clock string.
+	const month = MONTH_NAMES_SHORT[d.getMonth()];
+	const day = String(d.getDate()).padStart(2, '0');
+	return `${month} ${day}, ${time}`;
 }
+
+const MONTH_NAMES_SHORT = [
+	'Jan',
+	'Feb',
+	'Mar',
+	'Apr',
+	'May',
+	'Jun',
+	'Jul',
+	'Aug',
+	'Sep',
+	'Oct',
+	'Nov',
+	'Dec',
+] as const;
 
 /**
  * Human "time ago" for trace cards: `just now`, `12s ago`, `4m ago`,
