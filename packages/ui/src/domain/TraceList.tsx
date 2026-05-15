@@ -1,0 +1,202 @@
+/**
+ * Redesigned trace list (T16).
+ *
+ * Two display modes:
+ *  - 'card' (default): three-line cards. Line 1: root name + duration.
+ *    Line 2: service chips + span/error counts. Line 3: relative time +
+ *    absolute wall clock.
+ *  - 'flat': single dense row per trace. Same data, less padding,
+ *    designed for power users with lots of traces on screen.
+ *
+ * Filtering is delegated to the data source via `ListTracesQuery`:
+ *  - `errorsOnly` -> hasError: true
+ *  - `services`  -> services
+ *  - `search`    -> search
+ *
+ * Re-fetches when the DataSource notifies. No virtualization yet — for
+ * the Milestone 1 desktop workload (hundreds of traces) a native scroll
+ * container performs well; revisit when a heavier load arrives.
+ */
+
+import type { DataSource, ListTracesResultRow } from '@otelux/protocol';
+import type { TraceId } from '@otelux/types';
+import type { JSX } from 'react';
+import { formatDuration, formatTimeAgo, formatWallClock, serviceColorVar } from '../format.js';
+import { useDataSourceQuery } from '../useDataSourceQuery.js';
+
+export type TraceListDensity = 'card' | 'flat';
+
+export interface TraceListProps {
+	dataSource: DataSource;
+	selectedTraceId?: TraceId;
+	onSelect(traceId: TraceId): void;
+	/** Visual density of each row. */
+	density?: TraceListDensity;
+	/** When true, only traces with at least one error are shown. */
+	errorsOnly?: boolean;
+	/** Restrict to traces touching any of these service names. */
+	services?: readonly string[];
+	/** Substring search applied by the data source. */
+	search?: string;
+	/** Max rows fetched. */
+	limit?: number;
+	/** Hint text for the empty state. */
+	endpointUrl?: string;
+}
+
+const DEFAULT_LIMIT = 200;
+const DEFAULT_ENDPOINT = 'http://localhost:4318/v1/traces';
+
+export function TraceList(props: TraceListProps): JSX.Element {
+	const {
+		dataSource,
+		selectedTraceId,
+		onSelect,
+		density = 'card',
+		errorsOnly,
+		services,
+		search,
+		limit = DEFAULT_LIMIT,
+		endpointUrl = DEFAULT_ENDPOINT,
+	} = props;
+
+	// Build the protocol-level query object. The serialization key below
+	// must include every input that changes the result set; otherwise the
+	// hook will reuse a stale fetch when filters change.
+	const queryKey = `list:${limit}:${errorsOnly ? '1' : '0'}:${(services ?? []).join(',')}:${search ?? ''}`;
+	const query = useDataSourceQuery(
+		dataSource,
+		(ds) => {
+			const q: Parameters<DataSource['listTraces']>[0] = {
+				limit,
+				sortBy: 'startTime',
+				sortDirection: 'desc',
+			};
+			if (errorsOnly) {
+				q.hasError = true;
+			}
+			if (services && services.length > 0) {
+				q.services = services;
+			}
+			if (search) {
+				q.search = search;
+			}
+			return ds.listTraces(q);
+		},
+		queryKey,
+	);
+
+	const rows = query.value?.rows ?? [];
+
+	return (
+		<section className={`otelux-trace-list otelux-trace-list--${density}`} aria-label="Traces">
+			<header className="otelux-trace-list__header">
+				<span className="otelux-trace-list__title">Traces</span>
+				<span className="otelux-trace-list__count">{query.value?.totalCount ?? 0}</span>
+			</header>
+			<div className="otelux-trace-list__body">
+				{query.loading && rows.length === 0 ? (
+					<div className="otelux-trace-list__empty">Waiting for traces…</div>
+				) : rows.length === 0 ? (
+					<div className="otelux-trace-list__empty">
+						No traces match. Point an OTel exporter at
+						<br />
+						<code>{endpointUrl}</code>
+					</div>
+				) : (
+					<ul className="otelux-trace-list__rows">
+						{rows.map((row) => (
+							<TraceRow
+								key={row.traceId}
+								row={row}
+								density={density}
+								selected={row.traceId === selectedTraceId}
+								onSelect={onSelect}
+							/>
+						))}
+					</ul>
+				)}
+			</div>
+		</section>
+	);
+}
+
+interface TraceRowProps {
+	row: ListTracesResultRow;
+	density: TraceListDensity;
+	selected: boolean;
+	onSelect(traceId: TraceId): void;
+}
+
+function TraceRow(props: TraceRowProps): JSX.Element {
+	const { row, density, selected, onSelect } = props;
+	return (
+		<li className={`otelux-trace-row otelux-trace-row--${density}${selected ? ' is-selected' : ''}`}>
+			<button
+				type="button"
+				className="otelux-trace-row__button"
+				onClick={() => onSelect(row.traceId)}
+				aria-pressed={selected}
+			>
+				<div className="otelux-trace-row__line otelux-trace-row__line--1">
+					<span className="otelux-trace-row__name" title={row.rootName}>
+						{row.rootName || '(unnamed)'}
+					</span>
+					<span className="otelux-trace-row__duration">{formatDuration(row.durationNanos)}</span>
+				</div>
+				{density === 'card' ? (
+					<>
+						<div className="otelux-trace-row__line otelux-trace-row__line--2">
+							<ServiceChips services={row.services} />
+							<span className="otelux-trace-row__counts">
+								<span className="otelux-trace-row__spans">{row.spanCount} spans</span>
+								{row.errorCount > 0 && (
+									<span className="otelux-trace-row__errors">{row.errorCount} err</span>
+								)}
+							</span>
+						</div>
+						<div className="otelux-trace-row__line otelux-trace-row__line--3">
+							<span className="otelux-trace-row__ago">{formatTimeAgo(row.startTimeUnixNano)}</span>
+							<span className="otelux-trace-row__wall">{formatWallClock(row.startTimeUnixNano)}</span>
+						</div>
+					</>
+				) : (
+					<div className="otelux-trace-row__line otelux-trace-row__line--flat">
+						<ServiceChips services={row.services} max={2} />
+						<span className="otelux-trace-row__spans">{row.spanCount}</span>
+						{row.errorCount > 0 && <span className="otelux-trace-row__errors">{row.errorCount} err</span>}
+						<span className="otelux-trace-row__ago">{formatTimeAgo(row.startTimeUnixNano)}</span>
+					</div>
+				)}
+			</button>
+		</li>
+	);
+}
+
+interface ServiceChipsProps {
+	services: readonly string[];
+	max?: number;
+}
+
+function ServiceChips(props: ServiceChipsProps): JSX.Element {
+	const max = props.max ?? 3;
+	const visible = props.services.slice(0, max);
+	const overflow = props.services.length - visible.length;
+	return (
+		<span className="otelux-service-chips">
+			{visible.map((s) => (
+				<span
+					key={s}
+					className="otelux-service-chip"
+					style={{ ['--chip-color' as string]: serviceColorVar(s) }}
+				>
+					<span className="otelux-service-chip__dot" aria-hidden />
+					<span className="otelux-service-chip__name">{s}</span>
+				</span>
+			))}
+			{overflow > 0 && (
+				<span className="otelux-service-chip otelux-service-chip--more">+{overflow}</span>
+			)}
+		</span>
+	);
+}
