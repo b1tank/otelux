@@ -6,6 +6,8 @@
 
 export { Dropdown } from './Dropdown.js';
 export type { DropdownOption, DropdownProps } from './Dropdown.js';
+export { Drawer } from './Drawer.js';
+export type { DrawerProps } from './Drawer.js';
 export { IconButton } from './IconButton.js';
 export type { IconButtonProps } from './IconButton.js';
 export { ToggleChip } from './ToggleChip.js';
