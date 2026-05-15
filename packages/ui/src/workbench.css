@@ -368,6 +368,44 @@
  * and never reaches into its children's internals.             *
  * ============================================================ */
 
+/* ---------- OTeluxWorkbench composition root ---------- */
+
+/*
+ * Top-level wrapper rendered by `OTeluxWorkbench`. The host page
+ * usually nests it inside a `height: 100vh` flex column (see
+ * `apps/desktop/.app`), so the root has to behave both as a flex
+ * child (grow to fill remaining height) and as a flow block in
+ * hosts that just give it a fixed-height parent. Without this rule
+ * AppShell's `height: 100%` resolves to 0 and the workbench
+ * collapses, leaving a black void below it.
+ */
+.otelux-workbench-root {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.otelux-workbench-root__brand {
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	color: var(--otelux-fg);
+}
+
+.otelux-workbench-root__placeholder {
+	display: flex;
+	flex: 1 1 auto;
+	align-items: center;
+	justify-content: center;
+	padding: 24px;
+	color: var(--otelux-fg-muted);
+	font-size: 12px;
+	text-align: center;
+}
+
 /* ---------- AppShell ---------- */
 
 .otelux-app-shell {
