@@ -12,6 +12,8 @@ export { Drawer } from './Drawer.js';
 export type { DrawerProps } from './Drawer.js';
 export { IconButton } from './IconButton.js';
 export type { IconButtonProps } from './IconButton.js';
+export { SearchField } from './SearchField.js';
+export type { SearchFieldProps } from './SearchField.js';
 export { ToggleChip } from './ToggleChip.js';
 export type { ToggleChipProps } from './ToggleChip.js';
 export { ValueViewer } from './ValueViewer.js';

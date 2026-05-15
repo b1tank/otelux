@@ -595,20 +595,18 @@
 	align-items: center;
 	flex: 0 0 var(--otelux-filters-h);
 	height: var(--otelux-filters-h);
-	padding: 0 12px;
+	padding: 0 16px;
 	background: var(--otelux-bg);
 	border-bottom: 1px solid var(--otelux-border);
-	gap: 8px;
+	gap: 10px;
 }
 
 .otelux-filter-bar__filters {
 	display: flex;
 	align-items: center;
-	gap: 8px;
+	gap: 10px;
 	flex: 1 1 auto;
 	min-width: 0;
-	overflow-x: auto;
-	scrollbar-width: thin;
 }
 
 .otelux-filter-bar__end {
@@ -616,6 +614,102 @@
 	align-items: center;
 	gap: 6px;
 	flex: 0 0 auto;
+	margin-left: auto;
+}
+
+/*
+ * Filtered trace count chip — sits at the far right of the FilterBar
+ * via the __end slot. Matches mockup .chip-count: count number in
+ * full fg, " traces" suffix in mute. Tabular nums prevent layout
+ * jitter as the count changes.
+ */
+.otelux-filter-bar__count {
+	font-size: 12px;
+	color: var(--otelux-fg-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.otelux-filter-bar__count > strong {
+	color: var(--otelux-fg);
+	font-weight: 600;
+	margin-right: 4px;
+}
+
+/* ---------- SearchField ---------- */
+
+.otelux-search-field {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	flex: 1 1 auto;
+	min-width: 180px;
+	max-width: 480px;
+	height: 28px;
+	padding: 0 6px 0 28px;
+	background: var(--otelux-bg-panel);
+	border: 1px solid var(--otelux-border);
+	border-radius: var(--otelux-r-1);
+	color: var(--otelux-fg);
+	transition: border-color 80ms ease, box-shadow 80ms ease;
+}
+
+.otelux-search-field:focus-within {
+	border-color: var(--otelux-accent);
+	box-shadow: 0 0 0 1px var(--otelux-accent);
+}
+
+.otelux-search-field__icon {
+	position: absolute;
+	left: 8px;
+	top: 50%;
+	transform: translateY(-50%);
+	display: inline-flex;
+	color: var(--otelux-fg-faint);
+	pointer-events: none;
+}
+
+.otelux-search-field__label {
+	font-size: 11px;
+	color: var(--otelux-fg-faint);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	margin-right: 4px;
+}
+
+.otelux-search-field__input {
+	flex: 1 1 auto;
+	min-width: 0;
+	height: 100%;
+	background: transparent;
+	border: 0;
+	outline: none;
+	color: inherit;
+	font: inherit;
+	font-size: 12px;
+	padding: 0;
+}
+
+.otelux-search-field__input::placeholder {
+	color: var(--otelux-fg-faint);
+}
+
+.otelux-search-field__clear {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	margin-left: 4px;
+	background: transparent;
+	color: var(--otelux-fg-faint);
+	border: 0;
+	border-radius: var(--otelux-r-1);
+	cursor: pointer;
+}
+
+.otelux-search-field__clear:hover {
+	color: var(--otelux-fg);
+	background: var(--otelux-bg-elevated);
 }
 
 /* ---------- Splitter ---------- */

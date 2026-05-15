@@ -13,14 +13,18 @@
 
 import type { DataSource } from '@otelux/protocol';
 import type { AttributeValue, Span, SpanId, Trace, TraceId } from '@otelux/types';
-import { type JSX, useState } from 'react';
+import { type JSX, useMemo, useState } from 'react';
 import { SpanDetail, TraceList, Waterfall } from './domain/index.js';
+import { serviceIndex } from './format.js';
 import { AppShell, FilterBar, Rail, type RailItem, Topbar, Workbench } from './layout/index.js';
 import {
 	BarChart3Icon,
 	Drawer,
+	Dropdown,
+	type DropdownOption,
 	GithubIcon,
 	LogsIcon,
+	SearchField,
 	SettingsIcon,
 	ToggleChip,
 	ValueViewer,
@@ -92,6 +96,8 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 	const [selectedTraceId, setSelectedTraceIdRaw] = useState<TraceId | undefined>(undefined);
 	const [selectedSpanId, setSelectedSpanId] = useState<SpanId | undefined>(undefined);
 	const [errorsOnly, setErrorsOnly] = useState(false);
+	const [selectedService, setSelectedService] = useState<string>('all');
+	const [searchQuery, setSearchQuery] = useState<string>('');
 	const [viewValue, setViewValue] = useState<ViewValueTarget | null>(null);
 
 	// Switching traces clears the span selection so the drawer never
@@ -114,24 +120,84 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 
 	const trace = traceQuery.value;
 
-	// Probe the data source for ANY trace, unfiltered, so we can tell
-	// whether the workbench has ever seen data. This drives the
-	// "cold start" UI: when no traces have arrived yet we collapse the
-	// right pane and hide the FilterBar so the user sees a single
-	// focused TraceList empty state rather than a half-populated app
-	// with toggles that filter nothing.
+	// Unfiltered probe used for two purposes:
+	//   1. detect cold-start (hasAnyTrace) so we can hide the FilterBar
+	//      and collapse the right pane before any data arrives.
+	//   2. populate the Service dropdown with available services and
+	//      per-service counts. Counts are derived from the row sample;
+	//      good enough for milestone 1 — a future iteration can move
+	//      this to a dedicated `listServices()` data source method.
 	//
-	// This is deliberately a separate query from the filter-aware list
-	// inside TraceList — when the user toggles `errorsOnly` and the
-	// filtered list goes empty, the FilterBar must stay visible so
-	// they can undo the toggle. That requires a probe that ignores the
-	// active filters.
-	const emptyProbe = useDataSourceQuery(
+	// limit=500 caps the work; trace counts above that round down in
+	// the dropdown but never affect the filtered TraceList itself
+	// (which has its own query).
+	const summaryProbe = useDataSourceQuery(
 		dataSource,
-		(ds) => ds.listTraces({ limit: 1, sortBy: 'startTime', sortDirection: 'desc' }),
-		'workbench:empty-probe',
+		(ds) => ds.listTraces({ limit: 500, sortBy: 'startTime', sortDirection: 'desc' }),
+		'workbench:summary-probe',
 	);
-	const hasAnyTrace = (emptyProbe.value?.rows.length ?? 0) > 0;
+	const summaryRows = summaryProbe.value?.rows ?? [];
+	const hasAnyTrace = summaryRows.length > 0;
+
+	const { serviceCounts, sortedServices } = useMemo(() => {
+		const counts = new Map<string, number>();
+		for (const row of summaryRows) {
+			for (const s of row.services) {
+				counts.set(s, (counts.get(s) ?? 0) + 1);
+			}
+		}
+		// Order by count descending, then alphabetically so the dropdown
+		// reads stably even when two services tie.
+		const sorted = Array.from(counts.entries())
+			.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+			.map(([name]) => name);
+		return { serviceCounts: counts, sortedServices: sorted };
+	}, [summaryRows]);
+
+	// Filtered count for the right-side `N traces` chip. Separate from
+	// TraceList's own query (TraceList owns its rows; the chip only
+	// needs totalCount). limit=1 keeps the network footprint minimal.
+	const filteredCountKey = `count:${errorsOnly ? '1' : '0'}:${selectedService}:${searchQuery}`;
+	const filteredCountProbe = useDataSourceQuery(
+		dataSource,
+		(ds) => {
+			const q: Parameters<DataSource['listTraces']>[0] = {
+				limit: 1,
+				sortBy: 'startTime',
+				sortDirection: 'desc',
+			};
+			if (errorsOnly) {
+				q.hasError = true;
+			}
+			if (selectedService !== 'all') {
+				q.services = [selectedService];
+			}
+			if (searchQuery) {
+				q.search = searchQuery;
+			}
+			return ds.listTraces(q);
+		},
+		filteredCountKey,
+	);
+	const filteredCount = filteredCountProbe.value?.totalCount ?? 0;
+
+	const serviceOptions = useMemo<readonly DropdownOption[]>(() => {
+		const opts: DropdownOption[] = [
+			{ value: 'all', label: 'All services', count: summaryProbe.value?.totalCount ?? 0 },
+		];
+		if (sortedServices.length > 0) {
+			opts.push({ kind: 'separator' });
+			for (const name of sortedServices) {
+				opts.push({
+					value: name,
+					label: name,
+					count: serviceCounts.get(name) ?? 0,
+					colorIndex: serviceIndex(name),
+				});
+			}
+		}
+		return opts;
+	}, [sortedServices, serviceCounts, summaryProbe.value?.totalCount]);
 
 	// The detail drawer is opened explicitly by the user clicking a span
 	// row in the Waterfall — not auto-opened when a trace is selected.
@@ -145,6 +211,8 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		dataSource,
 		onSelect: setSelectedTraceId,
 		errorsOnly,
+		...(selectedService !== 'all' ? { services: [selectedService] } : {}),
+		...(searchQuery ? { search: searchQuery } : {}),
 		...(selectedTraceId !== undefined ? { selectedTraceId } : {}),
 		...(endpointUrl !== undefined ? { endpointUrl } : {}),
 	};
@@ -187,9 +255,29 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 				{hasAnyTrace ? (
 					<FilterBar
 						filters={
-							<ToggleChip pressed={errorsOnly} onPressedChange={setErrorsOnly} pressedTone="error">
-								Errors only
-							</ToggleChip>
+							<>
+								<Dropdown
+									aria-label="Filter by service"
+									triggerLabel={selectedService === 'all' ? 'All' : selectedService}
+									value={selectedService}
+									onChange={setSelectedService}
+									options={serviceOptions}
+								/>
+								<ToggleChip pressed={errorsOnly} onPressedChange={setErrorsOnly} pressedTone="error">
+									Errors only
+								</ToggleChip>
+								<SearchField
+									value={searchQuery}
+									onChange={setSearchQuery}
+									placeholder="Search traces or spans by name, attribute, or trace ID…"
+									aria-label="Search traces"
+								/>
+							</>
+						}
+						end={
+							<span className="otelux-filter-bar__count">
+								<strong>{filteredCount}</strong> traces
+							</span>
 						}
 					/>
 				) : null}
