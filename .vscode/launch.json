@@ -11,7 +11,7 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "Electron: Main",
+			"name": "OTelux: Main",
 			"type": "node",
 			"request": "launch",
 			"cwd": "${workspaceFolder}/apps/desktop",
@@ -34,7 +34,7 @@
 			"console": "integratedTerminal"
 		},
 		{
-			"name": "Electron: Renderer",
+			"name": "OTelux: Renderer",
 			"type": "chrome",
 			"request": "attach",
 			"port": 9223,
@@ -50,7 +50,7 @@
 			// Attach the Node inspector to an already-running `electron-vite dev`
 			// session. Start `npm run -w @otelux/desktop dev -- --inspect=9229`
 			// in a terminal, then pick this configuration.
-			"name": "Electron: Attach to Main",
+			"name": "OTelux: Attach to Main",
 			"type": "node",
 			"request": "attach",
 			"port": 9229,
@@ -63,8 +63,8 @@
 	],
 	"compounds": [
 		{
-			"name": "Electron: Main + Renderer",
-			"configurations": ["Electron: Main", "Electron: Renderer"],
+			"name": "OTelux: Main + Renderer",
+			"configurations": ["OTelux: Main", "OTelux: Renderer"],
 			"stopAll": true
 		}
 	]
