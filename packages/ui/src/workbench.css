@@ -372,9 +372,13 @@
 }
 
 .otelux-dropdown__separator {
+	/* <hr> ships UA borders that paint on top of our background and produce
+	   a chunky inset line. Zero the border and let a soft hairline carry
+	   the divider semantics. */
 	height: 1px;
-	margin: 4px 0;
-	background: var(--otelux-border);
+	margin: 6px 8px;
+	border: 0;
+	background: color-mix(in srgb, var(--otelux-border) 60%, transparent);
 }
 
 .otelux-dropdown__empty {
