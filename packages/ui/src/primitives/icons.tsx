@@ -168,3 +168,35 @@ export function ActivityIcon(props: IconProps): JSX.Element {
 		</Icon>
 	);
 }
+
+export function BarChart3Icon(props: IconProps): JSX.Element {
+	return (
+		<Icon {...props}>
+			<path d="M3 20V10" />
+			<path d="M9 20V4" />
+			<path d="M15 20V14" />
+			<path d="M21 20V8" />
+		</Icon>
+	);
+}
+
+export function LogsIcon(props: IconProps): JSX.Element {
+	return (
+		<Icon {...props}>
+			<path d="M5 4h14" />
+			<path d="M5 9h14" />
+			<path d="M5 14h10" />
+			<path d="M5 19h8" />
+		</Icon>
+	);
+}
+
+export function WaterfallIcon(props: IconProps): JSX.Element {
+	return (
+		<Icon {...props}>
+			<rect x="3" y="5" width="10" height="3" rx="1" />
+			<rect x="6" y="11" width="10" height="3" rx="1" />
+			<rect x="9" y="17" width="10" height="3" rx="1" />
+		</Icon>
+	);
+}

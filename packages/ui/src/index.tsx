@@ -17,12 +17,14 @@ import { type JSX, useState } from 'react';
 import { SpanDetail, TraceList, Waterfall } from './domain/index.js';
 import { AppShell, FilterBar, Rail, type RailItem, Topbar, Workbench } from './layout/index.js';
 import {
-	ActivityIcon,
+	BarChart3Icon,
 	Drawer,
-	ListIcon,
+	GithubIcon,
+	LogsIcon,
 	SettingsIcon,
 	ToggleChip,
 	ValueViewer,
+	WaterfallIcon,
 } from './primitives/index.js';
 import { useDataSourceQuery } from './useDataSourceQuery.js';
 
@@ -56,14 +58,28 @@ export interface OTeluxWorkbenchProps {
 	 * shape into the workbench.
 	 */
 	topbarEnd?: JSX.Element;
+	/**
+	 * Invoked when the user clicks the settings cog at the bottom of
+	 * the left rail. Hosts that own a settings surface (e.g. the
+	 * desktop Settings modal) wire it here; left undefined the rail
+	 * cog is rendered disabled.
+	 */
+	onOpenSettings?: () => void;
 }
 
+// The rail's "Metrics" and "Logs" pillars are intentional placeholders
+// for future telemetry surfaces — they exist in the rail so the icon
+// bar stays anchored at three pillars (Traces / Metrics / Logs) even
+// before those views ship. They are disabled until the surfaces land.
 const RAIL_ITEMS: readonly RailItem[] = [
-	{ id: 'traces', label: 'Traces', icon: <ListIcon size={18} /> },
-];
-const RAIL_FOOTER: readonly RailItem[] = [
-	{ id: 'activity', label: 'Activity', icon: <ActivityIcon size={18} />, disabled: true },
-	{ id: 'settings', label: 'Settings', icon: <SettingsIcon size={18} />, disabled: true },
+	{ id: 'traces', label: 'Traces', icon: <WaterfallIcon size={18} /> },
+	{
+		id: 'metrics',
+		label: 'Metrics (coming soon)',
+		icon: <BarChart3Icon size={18} />,
+		disabled: true,
+	},
+	{ id: 'logs', label: 'Logs (coming soon)', icon: <LogsIcon size={18} />, disabled: true },
 ];
 
 interface ViewValueTarget {
@@ -72,7 +88,7 @@ interface ViewValueTarget {
 }
 
 export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
-	const { dataSource, theme = 'dark', endpointUrl, topbarEnd } = props;
+	const { dataSource, theme = 'dark', endpointUrl, topbarEnd, onOpenSettings } = props;
 	const [selectedTraceId, setSelectedTraceIdRaw] = useState<TraceId | undefined>(undefined);
 	const [selectedSpanId, setSelectedSpanId] = useState<SpanId | undefined>(undefined);
 	const [errorsOnly, setErrorsOnly] = useState(false);
@@ -137,11 +153,35 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		<div className="otelux-workbench-root" data-theme={theme} data-source={dataSource.kind}>
 			<AppShell
 				rail={
-					<Rail items={RAIL_ITEMS} activeId="traces" onActivate={() => {}} footerItems={RAIL_FOOTER} />
+					<Rail
+						items={RAIL_ITEMS}
+						activeId="traces"
+						onActivate={(id) => {
+							if (id === 'settings' && onOpenSettings) {
+								onOpenSettings();
+							}
+						}}
+						footerItems={[
+							{
+								id: 'github',
+								label: 'GitHub',
+								icon: <GithubIcon size={18} />,
+								href: 'https://github.com/b1tank/otelux',
+							},
+							{
+								id: 'settings',
+								label: 'Settings',
+								icon: <SettingsIcon size={18} />,
+								disabled: onOpenSettings === undefined,
+							},
+						]}
+						brand="⏚"
+						brandLabel="OTelux"
+					/>
 				}
 			>
 				<Topbar
-					start={<span className="otelux-workbench-root__brand">OTelux</span>}
+					start={<h1 className="otelux-topbar__title">Traces</h1>}
 					{...(topbarEnd !== undefined ? { end: topbarEnd } : {})}
 				/>
 				{hasAnyTrace ? (

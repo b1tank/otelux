@@ -52,6 +52,7 @@ export function App(): JSX.Element {
 				theme="dark"
 				{...(endpointUrl !== undefined ? { endpointUrl } : {})}
 				topbarEnd={<EndpointBar status={status} onOpenSettings={() => setSettingsOpen(true)} />}
+				onOpenSettings={() => setSettingsOpen(true)}
 			/>
 			{settingsOpen && settings ? (
 				<SettingsModal

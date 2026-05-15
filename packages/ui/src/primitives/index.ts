@@ -19,6 +19,7 @@ export type { ValueViewerProps } from './ValueViewer.js';
 export {
 	ActivityIcon,
 	AlertCircleIcon,
+	BarChart3Icon,
 	ChevronDownIcon,
 	ChevronRightIcon,
 	CopyIcon,
@@ -26,10 +27,12 @@ export {
 	EyeIcon,
 	GithubIcon,
 	ListIcon,
+	LogsIcon,
 	PanelLeftIcon,
 	PanelRightIcon,
 	SearchIcon,
 	SettingsIcon,
+	WaterfallIcon,
 	XIcon,
 } from './icons.js';
 export type { IconProps } from './icons.js';
