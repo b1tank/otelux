@@ -1323,3 +1323,70 @@
 .otelux-waterfall__row:focus-visible .otelux-waterfall__row-bg {
 	fill: color-mix(in srgb, var(--otelux-accent) 22%, transparent);
 }
+
+/* ---------- SpanDetail (new) ---------- */
+
+.otelux-span-detail__status.is-ok {
+	background: rgba(158, 206, 106, 0.15);
+	color: var(--otelux-ok);
+}
+
+.otelux-span-detail__status.is-error {
+	background: rgba(247, 118, 142, 0.15);
+	color: var(--otelux-error);
+}
+
+.otelux-span-detail__status.is-unset {
+	background: var(--otelux-bg-elevated);
+	color: var(--otelux-fg-muted);
+}
+
+.otelux-attr-table td {
+	display: flex;
+	align-items: flex-start;
+	gap: 6px;
+}
+
+.otelux-attr-table__value {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.otelux-attr-table__view {
+	flex: 0 0 auto;
+	opacity: 0;
+	transition: opacity 80ms ease;
+}
+
+.otelux-attr-table tr:hover .otelux-attr-table__view,
+.otelux-attr-table__view:focus-visible {
+	opacity: 1;
+}
+
+.otelux-span-detail__scope {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	font-size: 12px;
+}
+
+.otelux-span-detail__scope-name {
+	font-weight: 500;
+}
+
+.otelux-span-detail__links {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	font-size: 11px;
+	font-family: var(--otelux-font-mono);
+}
+
+.otelux-span-detail__link-sep {
+	color: var(--otelux-fg-muted);
+	margin: 0 2px;
+}
