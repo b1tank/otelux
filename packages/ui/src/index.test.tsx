@@ -149,4 +149,67 @@ describe('OTeluxWorkbench', () => {
 	it('exports a version constant', () => {
 		expect(OTELUX_UI_VERSION).toBe('0.1.0');
 	});
+
+	it('errors-only chip filters out healthy traces', async () => {
+		const engine = createEngine({ storage: createMemoryStorage() });
+
+		// Two distinct traces — one healthy, one with an error status.
+		// The chip must hide the healthy one while leaving the error one
+		// visible.
+		await engine.ingestSpans([
+			makeSpan({ spanId: '1'.repeat(16), traceId: 'a'.repeat(32), name: 'healthy-root' }),
+			makeSpan({
+				spanId: '2'.repeat(16),
+				traceId: 'b'.repeat(32),
+				name: 'broken-root',
+				status: { code: SpanStatusCode.Error },
+			}),
+		]);
+
+		render(<OTeluxWorkbench dataSource={engine} />);
+
+		await waitFor(() => {
+			expect(screen.getByText('healthy-root')).not.toBeNull();
+			expect(screen.getByText('broken-root')).not.toBeNull();
+		});
+
+		fireEvent.click(screen.getByRole('button', { name: /errors only/i }));
+
+		await waitFor(() => {
+			expect(screen.queryByText('healthy-root')).toBeNull();
+			expect(screen.getByText('broken-root')).not.toBeNull();
+		});
+
+		await engine.close();
+	});
+
+	it('eye button on an attribute opens the value viewer', async () => {
+		const engine = createEngine({ storage: createMemoryStorage() });
+		await engine.ingestSpans([
+			makeSpan({
+				spanId: 'r'.repeat(16),
+				name: 'root',
+				attributes: { 'http.url': 'https://example.test/users/42' },
+			}),
+		]);
+
+		render(<OTeluxWorkbench dataSource={engine} />);
+
+		const row = await screen.findByText('root');
+		fireEvent.click(row);
+
+		// The drawer auto-opens for the root span; find the eye button for
+		// the http.url attribute and click it.
+		const eye = await screen.findByLabelText('View value for http.url');
+		fireEvent.click(eye);
+
+		// ValueViewer mounts as a second dialog with Copy/Download/Close
+		// affordances. The URL itself appears twice in the document (in
+		// the attribute row and in the modal body) so we assert on the
+		// modal's distinctive Copy action instead.
+		expect(await screen.findByRole('button', { name: 'Copy' })).not.toBeNull();
+		expect(await screen.findByRole('button', { name: 'Download' })).not.toBeNull();
+
+		await engine.close();
+	});
 });
