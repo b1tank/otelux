@@ -1,35 +1,14 @@
 /**
- * Default OTelux workbench styles. CSS variables are themed by
- * `data-theme="dark" | "light"` on the workbench root.
+ * Default OTelux workbench styles.
  *
- * Hosts can override or replace any rule by loading their own
- * stylesheet after this one — the entire surface is namespaced under
- * `.otelux-*`.
+ * Theme tokens live in `tokens.css` and are imported here so consumers
+ * get one stylesheet (`@otelux/ui/workbench.css`). Override by setting
+ * any `--otelux-*` token on `.otelux-workbench` or above; replace any
+ * rule by loading your own CSS after this file — the entire surface is
+ * namespaced under `.otelux-*`.
  */
 
-:root {
-	--otelux-bg: #1a1b26;
-	--otelux-bg-panel: #16161e;
-	--otelux-bg-elevated: #1f202d;
-	--otelux-border: #292e42;
-	--otelux-fg: #c0caf5;
-	--otelux-fg-muted: #9aa5ce;
-	--otelux-accent: #7aa2f7;
-	--otelux-error: #f7768e;
-	--otelux-ok: #9ece6a;
-}
-
-.otelux-workbench[data-theme="light"] {
-	--otelux-bg: #f7f7fb;
-	--otelux-bg-panel: #ffffff;
-	--otelux-bg-elevated: #eef0f7;
-	--otelux-border: #d8dbe7;
-	--otelux-fg: #1a1b26;
-	--otelux-fg-muted: #6b6f8a;
-	--otelux-accent: #2d63a8;
-	--otelux-error: #c2435e;
-	--otelux-ok: #4f8a3a;
-}
+@import url("./tokens.css");
 
 .otelux-workbench {
 	display: grid;
@@ -39,7 +18,7 @@
 	height: 100%;
 	background: var(--otelux-border);
 	color: var(--otelux-fg);
-	font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	font-family: var(--otelux-font-sans);
 	font-size: 13px;
 	overflow: hidden;
 }

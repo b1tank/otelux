@@ -1,0 +1,117 @@
+/**
+ * OTelux design tokens.
+ *
+ * Single source of truth for theme values: color, spacing, sizing, radii,
+ * z-index. Hosts can override any token by setting it on the
+ * `.otelux-workbench` root (or any ancestor). Never hard-code a hex
+ * outside this file.
+ *
+ * Naming: every token is prefixed `--otelux-*` to keep the workbench
+ * scoped and avoid collisions with host CSS.
+ */
+
+:root {
+	/* ------------------------------------------------------------------
+	 * Surface
+	 * ----------------------------------------------------------------*/
+	--otelux-bg: #1a1b26; /* app background */
+	--otelux-bg-panel: #16161e; /* panel / list / sidebar */
+	--otelux-bg-elevated: #1f202d; /* hover, dropdown menu */
+	--otelux-bg-hover: #232634; /* active hover on rows */
+	--otelux-border: #292e42;
+	--otelux-border-strong: #3b4261;
+
+	/* ------------------------------------------------------------------
+	 * Foreground
+	 * ----------------------------------------------------------------*/
+	--otelux-fg: #c0caf5;
+	--otelux-fg-muted: #9aa5ce;
+	--otelux-fg-faint: #565f89;
+
+	/* ------------------------------------------------------------------
+	 * Accents
+	 * ----------------------------------------------------------------*/
+	--otelux-accent: #7aa2f7; /* primary blue */
+	--otelux-accent-2: #bb9af7; /* secondary violet */
+	--otelux-ok: #9ece6a;
+	--otelux-warn: #e0af68;
+	--otelux-error: #f7768e;
+
+	/* ------------------------------------------------------------------
+	 * Service palette (deterministic — see format.ts colorForService).
+	 * Eight distinct hues, balanced against the dark background.
+	 * Same hash → same color across rows, traces, drawer header, dropdown.
+	 * ----------------------------------------------------------------*/
+	--otelux-svc-1: #7aa2f7; /* blue */
+	--otelux-svc-2: #9ece6a; /* green */
+	--otelux-svc-3: #e0af68; /* amber */
+	--otelux-svc-4: #bb9af7; /* violet */
+	--otelux-svc-5: #f7768e; /* red */
+	--otelux-svc-6: #7dcfff; /* cyan */
+	--otelux-svc-7: #ff9e64; /* orange */
+	--otelux-svc-8: #73daca; /* teal */
+
+	/* ------------------------------------------------------------------
+	 * Layout — fixed sizes on the 8px grid.
+	 * ----------------------------------------------------------------*/
+	--otelux-rail-w: 56px;
+	--otelux-topbar-h: 48px;
+	--otelux-filters-h: 44px;
+	--otelux-pane-head-h: 40px;
+	--otelux-drawer-w: 460px;
+	--otelux-splitter-w: 6px;
+	--otelux-list-min-w: 280px;
+	--otelux-waterfall-min-w: 480px;
+
+	/* ------------------------------------------------------------------
+	 * Radii
+	 * ----------------------------------------------------------------*/
+	--otelux-r-1: 4px;
+	--otelux-r-2: 6px;
+	--otelux-r-3: 10px;
+
+	/* ------------------------------------------------------------------
+	 * Type
+	 * ----------------------------------------------------------------*/
+	--otelux-font-sans:
+		"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	--otelux-font-mono: "JetBrains Mono", "Fira Code", ui-monospace, Menlo, monospace;
+
+	/* ------------------------------------------------------------------
+	 * Z-index — keep a tight ladder, only a few overlays exist.
+	 * ----------------------------------------------------------------*/
+	--otelux-z-dropdown: 20;
+	--otelux-z-drawer: 30;
+	--otelux-z-modal: 50;
+}
+
+/* Light theme override. Keep the structure identical to dark — only the
+ * surface and foreground tokens swap. Service palette and accents are
+ * tuned for AA contrast against the lighter surfaces. */
+.otelux-workbench[data-theme="light"] {
+	--otelux-bg: #f7f7fb;
+	--otelux-bg-panel: #ffffff;
+	--otelux-bg-elevated: #eef0f7;
+	--otelux-bg-hover: #e4e7f1;
+	--otelux-border: #d8dbe7;
+	--otelux-border-strong: #b8bdd0;
+
+	--otelux-fg: #1a1b26;
+	--otelux-fg-muted: #5a6076;
+	--otelux-fg-faint: #8c93a8;
+
+	--otelux-accent: #2d63a8;
+	--otelux-accent-2: #6b3aa8;
+	--otelux-ok: #4f8a3a;
+	--otelux-warn: #a56a1d;
+	--otelux-error: #c2435e;
+
+	--otelux-svc-1: #2d63a8;
+	--otelux-svc-2: #4f8a3a;
+	--otelux-svc-3: #a56a1d;
+	--otelux-svc-4: #6b3aa8;
+	--otelux-svc-5: #c2435e;
+	--otelux-svc-6: #1f7a9c;
+	--otelux-svc-7: #b65a23;
+	--otelux-svc-8: #2e8a78;
+}
