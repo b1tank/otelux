@@ -51,7 +51,7 @@ export function App(): JSX.Element {
 				dataSource={dataSource}
 				theme="dark"
 				{...(endpointUrl !== undefined ? { endpointUrl } : {})}
-				topbarEnd={<EndpointBar status={status} onOpenSettings={() => setSettingsOpen(true)} />}
+				topbarEnd={<EndpointBar status={status} />}
 				onOpenSettings={() => setSettingsOpen(true)}
 			/>
 			{settingsOpen && settings ? (

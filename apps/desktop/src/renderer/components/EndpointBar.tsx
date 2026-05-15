@@ -3,7 +3,6 @@ import type { ReceiverStatus } from '../../shared/ipc.js';
 
 interface EndpointBarProps {
 	readonly status: ReceiverStatus | undefined;
-	readonly onOpenSettings: () => void;
 }
 
 /**
@@ -11,9 +10,12 @@ interface EndpointBarProps {
  * URL to copy. The status dot is green when the receiver is bound, amber
  * while it's restarting, and red on bind error — so the user gets a
  * single-glance answer to "is OTelux ready to receive traces?".
+ *
+ * The settings entry point lives on the rail (bottom of the left nav),
+ * not here, so this bar stays focused on receiver state.
  */
 export function EndpointBar(props: EndpointBarProps): JSX.Element {
-	const { status, onOpenSettings } = props;
+	const { status } = props;
 	const url = endpointUrl(status);
 
 	return (
@@ -25,15 +27,6 @@ export function EndpointBar(props: EndpointBarProps): JSX.Element {
 			) : (
 				<span className="endpoint-bar__url">{statusText(status)}</span>
 			)}
-			<button
-				type="button"
-				className="endpoint-bar__cog"
-				onClick={onOpenSettings}
-				aria-label="Open settings"
-				title="Settings"
-			>
-				⚙
-			</button>
 		</div>
 	);
 }

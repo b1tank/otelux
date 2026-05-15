@@ -258,7 +258,18 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 							<>
 								<Dropdown
 									aria-label="Filter by service"
-									triggerLabel={selectedService === 'all' ? 'All' : selectedService}
+									triggerLabel={selectedService === 'all' ? 'All services' : selectedService}
+									triggerIcon={
+										selectedService === 'all' ? undefined : (
+											<span
+												className="otelux-dropdown__color-dot"
+												style={{
+													background: `var(--otelux-svc-${serviceIndex(selectedService)})`,
+												}}
+												aria-hidden
+											/>
+										)
+									}
 									value={selectedService}
 									onChange={setSelectedService}
 									options={serviceOptions}

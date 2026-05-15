@@ -240,18 +240,18 @@
 .otelux-dropdown__trigger {
 	display: inline-flex;
 	align-items: center;
-	gap: 6px;
+	gap: 8px;
 	height: 28px;
-	padding: 0 8px 0 10px;
+	padding: 0 8px 0 12px;
 	background: var(--otelux-bg-elevated);
 	color: var(--otelux-fg);
 	border: 1px solid var(--otelux-border);
-	border-radius: var(--otelux-r-1);
+	border-radius: var(--otelux-r-2);
 	font: inherit;
 	font-size: 12px;
 	cursor: pointer;
-	min-width: 120px;
-	transition: border-color 80ms ease, background 80ms ease;
+	min-width: 160px;
+	transition: border-color 80ms ease, background 80ms ease, box-shadow 80ms ease;
 }
 
 .otelux-dropdown__trigger:hover {
@@ -275,12 +275,25 @@
 
 .otelux-dropdown__trigger-icon {
 	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
 	color: var(--otelux-fg-muted);
+}
+
+/*
+ * When the trigger icon slot holds a service color dot (set as inline
+ * background), render it slightly larger so it reads as a status
+ * indicator rather than a generic glyph.
+ */
+.otelux-dropdown__trigger-icon > .otelux-dropdown__color-dot {
+	width: 9px;
+	height: 9px;
 }
 
 .otelux-dropdown__menu-wrap {
 	position: absolute;
-	top: calc(100% + 4px);
+	top: calc(100% + 6px);
 	left: 0;
 	z-index: var(--otelux-z-dropdown);
 	min-width: 100%;
@@ -289,14 +302,14 @@
 .otelux-dropdown__menu {
 	display: flex;
 	flex-direction: column;
-	min-width: 200px;
+	min-width: 220px;
 	max-height: 320px;
 	overflow-y: auto;
 	background: var(--otelux-bg-panel);
-	border: 1px solid var(--otelux-border);
+	border: 1px solid var(--otelux-border-strong, var(--otelux-border));
 	border-radius: var(--otelux-r-2);
-	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
-	padding: 4px;
+	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.42), 0 2px 4px rgba(0, 0, 0, 0.24);
+	padding: 6px;
 }
 
 .otelux-dropdown__menu:focus {
@@ -306,12 +319,13 @@
 .otelux-dropdown__option {
 	display: flex;
 	align-items: center;
-	gap: 8px;
-	padding: 6px 8px;
+	gap: 10px;
+	padding: 7px 10px;
 	border-radius: var(--otelux-r-1);
 	color: var(--otelux-fg);
 	cursor: pointer;
 	user-select: none;
+	line-height: 1.2;
 }
 
 .otelux-dropdown__option.is-highlighted {
@@ -346,6 +360,15 @@
 	font-variant-numeric: tabular-nums;
 	color: var(--otelux-fg-muted);
 	font-size: 11px;
+	padding: 1px 6px;
+	border-radius: 999px;
+	background: var(--otelux-bg-elevated);
+}
+
+.otelux-dropdown__option.is-highlighted .otelux-dropdown__option-count,
+.otelux-dropdown__option.is-selected .otelux-dropdown__option-count {
+	background: color-mix(in srgb, var(--otelux-accent) 18%, transparent);
+	color: var(--otelux-fg);
 }
 
 .otelux-dropdown__separator {

@@ -23,9 +23,9 @@ export interface WorkbenchProps {
 	right: ReactNode;
 	leftCollapsed?: boolean;
 	rightCollapsed?: boolean;
-	/** Initial left-pane width in CSS px. Default: 480. */
+	/** Initial left-pane width in CSS px. Default: 360. */
 	initialLeftWidth?: number;
-	/** Min width of the left pane. Default: 280 (--otelux-list-min-w). */
+	/** Min width of the left pane. Default: 240 (--otelux-list-min-w). */
 	minLeftWidth?: number;
 	/** Max width of the left pane, computed from container width by default. */
 	maxLeftWidth?: number;
@@ -37,8 +37,8 @@ export interface WorkbenchProps {
 	splitterLabel?: string;
 }
 
-const DEFAULT_INITIAL_LEFT = 480;
-const DEFAULT_MIN_LEFT = 280;
+const DEFAULT_INITIAL_LEFT = 360;
+const DEFAULT_MIN_LEFT = 240;
 const DEFAULT_MIN_RIGHT = 480;
 const DEFAULT_MAX_LEFT = 1600;
 
