@@ -4,6 +4,8 @@
  * imports — they can be used in any host without a data source.
  */
 
+export { Accordion } from './Accordion.js';
+export type { AccordionItem, AccordionProps } from './Accordion.js';
 export { Dropdown } from './Dropdown.js';
 export type { DropdownOption, DropdownProps } from './Dropdown.js';
 export { Drawer } from './Drawer.js';
