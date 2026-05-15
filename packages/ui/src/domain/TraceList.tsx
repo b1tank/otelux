@@ -21,7 +21,7 @@
 import type { DataSource, ListTracesResultRow } from '@otelux/protocol';
 import type { TraceId } from '@otelux/types';
 import type { JSX } from 'react';
-import { formatDuration, formatTimeAgo, formatWallClock, serviceColorVar } from '../format.js';
+import { formatDuration, formatWallClock, serviceColorVar } from '../format.js';
 import { useDataSourceQuery } from '../useDataSourceQuery.js';
 
 export type TraceListDensity = 'card' | 'flat';
@@ -130,42 +130,66 @@ interface TraceRowProps {
 
 function TraceRow(props: TraceRowProps): JSX.Element {
 	const { row, density, selected, onSelect } = props;
+
+	// Primary service drives the left-edge selection stripe color and the
+	// row's --otelux-row-svc var so a single trace card can reference its
+	// dominant service color anywhere (chip, stripe, etc.) without
+	// re-hashing the service name in CSS.
+	const primarySvc = row.services[0];
+	const rowStyle =
+		primarySvc !== undefined
+			? ({ ['--otelux-row-svc' as string]: serviceColorVar(primarySvc) } as React.CSSProperties)
+			: undefined;
+
+	// 8-char prefix is enough to disambiguate by eye while keeping rows
+	// scannable. The full id is in the drawer when the user clicks.
+	const shortTraceId = row.traceId.slice(0, 8);
+
 	return (
-		<li className={`otelux-trace-row otelux-trace-row--${density}${selected ? ' is-selected' : ''}`}>
+		<li
+			className={`otelux-trace-row otelux-trace-row--${density}${selected ? ' is-selected' : ''}`}
+			{...(rowStyle ? { style: rowStyle } : {})}
+		>
 			<button
 				type="button"
 				className="otelux-trace-row__button"
 				onClick={() => onSelect(row.traceId)}
 				aria-pressed={selected}
 			>
-				<div className="otelux-trace-row__line otelux-trace-row__line--1">
-					<span className="otelux-trace-row__name" title={row.rootName}>
-						{row.rootName || '(unnamed)'}
-					</span>
-					<span className="otelux-trace-row__duration">{formatDuration(row.durationNanos)}</span>
-				</div>
 				{density === 'card' ? (
 					<>
-						<div className="otelux-trace-row__line otelux-trace-row__line--2">
-							<ServiceChips services={row.services} />
-							<span className="otelux-trace-row__counts">
-								<span className="otelux-trace-row__spans">{row.spanCount} spans</span>
-								{row.errorCount > 0 && (
-									<span className="otelux-trace-row__errors">{row.errorCount} err</span>
-								)}
+						<div className="otelux-trace-row__row otelux-trace-row__row--1">
+							<time className="otelux-trace-row__time">{formatWallClock(row.startTimeUnixNano)}</time>
+							<span className="otelux-trace-row__duration">{formatDuration(row.durationNanos)}</span>
+						</div>
+						<div className="otelux-trace-row__row otelux-trace-row__row--2">
+							<span className="otelux-trace-row__name" title={row.rootName}>
+								{row.rootName || '(unnamed)'}
+							</span>
+							<span className="otelux-trace-row__tid" title={row.traceId}>
+								{shortTraceId}
 							</span>
 						</div>
-						<div className="otelux-trace-row__line otelux-trace-row__line--3">
-							<span className="otelux-trace-row__ago">{formatTimeAgo(row.startTimeUnixNano)}</span>
-							<span className="otelux-trace-row__wall">{formatWallClock(row.startTimeUnixNano)}</span>
+						<div className="otelux-trace-row__row otelux-trace-row__row--3">
+							<ServiceChips services={row.services} max={2} />
+							<span className="otelux-trace-row__spans">{row.spanCount} spans</span>
+							{row.errorCount > 0 ? (
+								<span className="otelux-trace-row__errors">{row.errorCount} err</span>
+							) : null}
 						</div>
 					</>
 				) : (
-					<div className="otelux-trace-row__line otelux-trace-row__line--flat">
-						<ServiceChips services={row.services} max={2} />
+					<div className="otelux-trace-row__row otelux-trace-row__row--flat">
+						<time className="otelux-trace-row__time">{formatWallClock(row.startTimeUnixNano)}</time>
+						<span className="otelux-trace-row__duration">{formatDuration(row.durationNanos)}</span>
+						<span className="otelux-trace-row__name" title={row.rootName}>
+							{row.rootName || '(unnamed)'}
+						</span>
+						<ServiceChips services={row.services} max={1} />
 						<span className="otelux-trace-row__spans">{row.spanCount}</span>
-						{row.errorCount > 0 && <span className="otelux-trace-row__errors">{row.errorCount} err</span>}
-						<span className="otelux-trace-row__ago">{formatTimeAgo(row.startTimeUnixNano)}</span>
+						{row.errorCount > 0 ? (
+							<span className="otelux-trace-row__errors">{row.errorCount} err</span>
+						) : null}
 					</div>
 				)}
 			</button>

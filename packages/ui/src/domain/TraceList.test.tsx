@@ -65,9 +65,9 @@ describe('TraceList', () => {
 		const { findByText, container } = render(<TraceList dataSource={ds} onSelect={() => {}} />);
 		await findByText('GET /a');
 		expect(container.querySelector('.otelux-trace-list--card')).toBeTruthy();
-		// 3 distinct .__line elements per row
-		const lines = container.querySelectorAll('.otelux-trace-row__line');
-		expect(lines.length).toBe(3);
+		// 3 row blocks per card: time+duration, name+tid, chips+counts.
+		const rows = container.querySelectorAll('.otelux-trace-row__row');
+		expect(rows.length).toBe(3);
 		expect(container.textContent).toContain('7 spans');
 		expect(container.textContent).toContain('2 err');
 	});
@@ -79,8 +79,8 @@ describe('TraceList', () => {
 			<TraceList dataSource={ds} density="flat" onSelect={() => {}} />,
 		);
 		await findByText('GET /api/users');
-		const lines = container.querySelectorAll('.otelux-trace-row__line');
-		expect(lines.length).toBe(2); // line--1 (name+duration) + line--flat
+		const rows = container.querySelectorAll('.otelux-trace-row__row');
+		expect(rows.length).toBe(1);
 	});
 
 	it('forwards filter props into the data source query', async () => {

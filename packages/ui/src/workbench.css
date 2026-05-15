@@ -839,6 +839,7 @@
 /* ---------- TraceRow ---------- */
 
 .otelux-trace-row {
+	position: relative;
 	display: block;
 }
 
@@ -846,15 +847,16 @@
 	display: flex;
 	flex-direction: column;
 	width: 100%;
-	padding: 8px 10px;
-	gap: 4px;
+	padding: 10px 12px 10px 16px;
+	gap: 2px;
 	background: transparent;
 	color: var(--otelux-fg);
 	border: 1px solid transparent;
-	border-radius: var(--otelux-r-2);
+	border-radius: 0;
 	cursor: pointer;
 	text-align: left;
 	font: inherit;
+	border-bottom: 1px solid var(--otelux-border);
 }
 
 .otelux-trace-row__button:hover {
@@ -863,41 +865,68 @@
 
 .otelux-trace-row__button:focus-visible {
 	outline: none;
-	border-color: var(--otelux-accent);
-	box-shadow: 0 0 0 1px var(--otelux-accent);
+	background: var(--otelux-bg-elevated);
+	box-shadow: inset 0 0 0 1px var(--otelux-accent);
 }
 
 .otelux-trace-row.is-selected > .otelux-trace-row__button {
-	background: color-mix(in srgb, var(--otelux-accent) 14%, transparent);
-	border-color: color-mix(in srgb, var(--otelux-accent) 40%, transparent);
+	background: var(--otelux-bg-hover);
+}
+
+/*
+ * Selected stripe — a 3px slab of the trace's primary service color
+ * pinned to the left edge. The trace list lives inside the workbench
+ * pane which can be quite narrow, so the stripe is a visual anchor
+ * that survives a narrow column and a wrapped chip row.
+ */
+.otelux-trace-row.is-selected::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: 3px;
+	background: var(--otelux-row-svc, var(--otelux-accent));
 }
 
 .otelux-trace-row--flat .otelux-trace-row__button {
-	flex-direction: column;
-	padding: 4px 10px;
-	gap: 2px;
+	padding: 6px 12px 6px 16px;
+	gap: 0;
 }
 
-.otelux-trace-row__line {
+.otelux-trace-row__row {
 	display: flex;
-	align-items: center;
+	align-items: baseline;
 	gap: 8px;
 	min-width: 0;
 }
 
-.otelux-trace-row__line--1 {
+.otelux-trace-row__row--1 {
 	justify-content: space-between;
-}
-
-.otelux-trace-row__line--2,
-.otelux-trace-row__line--3 {
-	justify-content: space-between;
-}
-
-.otelux-trace-row__line--flat {
 	font-size: 11px;
-	color: var(--otelux-fg-muted);
-	gap: 10px;
+	color: var(--otelux-fg-faint);
+}
+
+.otelux-trace-row__row--2 {
+	align-items: baseline;
+	gap: 6px;
+}
+
+.otelux-trace-row__row--3 {
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
+.otelux-trace-row__row--flat {
+	align-items: center;
+	gap: 12px;
+	font-size: 12px;
+}
+
+.otelux-trace-row__time {
+	color: var(--otelux-fg-faint);
+	font-variant-numeric: tabular-nums;
 }
 
 .otelux-trace-row__name {
@@ -908,21 +937,22 @@
 	text-overflow: ellipsis;
 	font-weight: 500;
 	font-size: 13px;
+	color: var(--otelux-fg);
+}
+
+.otelux-trace-row__tid {
+	flex: 0 0 auto;
+	font-family: var(--otelux-font-mono);
+	font-size: 11px;
+	color: var(--otelux-fg-faint);
 }
 
 .otelux-trace-row__duration {
 	flex: 0 0 auto;
 	font-family: var(--otelux-font-mono);
-	font-size: 12px;
+	font-size: 11px;
 	color: var(--otelux-fg-muted);
 	font-variant-numeric: tabular-nums;
-}
-
-.otelux-trace-row__counts {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	flex: 0 0 auto;
 }
 
 .otelux-trace-row__spans {
@@ -932,23 +962,12 @@
 }
 
 .otelux-trace-row__errors {
-	font-size: 11px;
+	font-size: 10px;
 	color: var(--otelux-error);
+	padding: 1px 5px;
+	border: 1px solid color-mix(in srgb, var(--otelux-error) 40%, transparent);
+	border-radius: 8px;
 	font-variant-numeric: tabular-nums;
-}
-
-.otelux-trace-row__ago {
-	font-size: 11px;
-	color: var(--otelux-fg-muted);
-	flex: 0 0 auto;
-}
-
-.otelux-trace-row__wall {
-	font-size: 11px;
-	color: var(--otelux-fg-faint);
-	font-family: var(--otelux-font-mono);
-	font-variant-numeric: tabular-nums;
-	flex: 0 0 auto;
 }
 
 /* ---------- Service chips ---------- */
@@ -966,12 +985,12 @@
 	align-items: center;
 	gap: 4px;
 	max-width: 100%;
-	padding: 1px 6px 1px 4px;
-	background: var(--otelux-bg-elevated);
-	border: 1px solid var(--otelux-border);
-	border-radius: 999px;
+	padding: 1px 6px;
+	background: color-mix(in srgb, var(--chip-color, var(--otelux-fg-muted)) 18%, transparent);
+	border: 1px solid color-mix(in srgb, var(--chip-color, var(--otelux-border)) 30%, transparent);
+	border-radius: 10px;
 	font-size: 11px;
-	color: var(--otelux-fg-muted);
+	color: var(--chip-color, var(--otelux-fg));
 }
 
 .otelux-service-chip__dot {
