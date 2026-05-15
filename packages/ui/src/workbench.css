@@ -395,3 +395,220 @@
 	margin-left: 8px;
 	color: var(--otelux-fg-muted);
 }
+
+/* ============================================================ *
+ *                       PRIMITIVES                             *
+ *                                                              *
+ * Reusable presentation components living in src/primitives/.  *
+ * Each section is keyed on a single .otelux-{name} class.      *
+ * ============================================================ */
+
+/* ---------- IconButton ---------- */
+
+.otelux-icon-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	background: transparent;
+	color: var(--otelux-fg-muted);
+	border: 1px solid transparent;
+	border-radius: var(--otelux-r-1);
+	cursor: pointer;
+	transition: background 80ms ease, color 80ms ease, border-color 80ms ease;
+}
+
+.otelux-icon-button:hover:not(:disabled) {
+	background: var(--otelux-bg-elevated);
+	color: var(--otelux-fg);
+}
+
+.otelux-icon-button:focus-visible {
+	outline: none;
+	border-color: var(--otelux-accent);
+	box-shadow: 0 0 0 1px var(--otelux-accent);
+}
+
+.otelux-icon-button:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.otelux-icon-button--subtle {
+	background: var(--otelux-bg-elevated);
+}
+
+/* ---------- ToggleChip ---------- */
+
+.otelux-toggle-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 28px;
+	padding: 0 10px;
+	background: transparent;
+	color: var(--otelux-fg-muted);
+	border: 1px solid var(--otelux-border);
+	border-radius: var(--otelux-r-1);
+	font: inherit;
+	font-size: 12px;
+	cursor: pointer;
+	transition: background 80ms ease, color 80ms ease, border-color 80ms ease;
+}
+
+.otelux-toggle-chip:hover {
+	background: var(--otelux-bg-elevated);
+	color: var(--otelux-fg);
+}
+
+.otelux-toggle-chip:focus-visible {
+	outline: none;
+	border-color: var(--otelux-accent);
+	box-shadow: 0 0 0 1px var(--otelux-accent);
+}
+
+.otelux-toggle-chip[aria-pressed="true"].otelux-toggle-chip--accent {
+	background: color-mix(in srgb, var(--otelux-accent) 18%, transparent);
+	color: var(--otelux-accent);
+	border-color: color-mix(in srgb, var(--otelux-accent) 50%, transparent);
+}
+
+.otelux-toggle-chip[aria-pressed="true"].otelux-toggle-chip--error {
+	background: color-mix(in srgb, var(--otelux-error) 18%, transparent);
+	color: var(--otelux-error);
+	border-color: color-mix(in srgb, var(--otelux-error) 50%, transparent);
+}
+
+/* ---------- Dropdown ---------- */
+
+.otelux-dropdown {
+	position: relative;
+	display: inline-flex;
+	font-size: 12px;
+}
+
+.otelux-dropdown__trigger {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 28px;
+	padding: 0 8px 0 10px;
+	background: var(--otelux-bg-elevated);
+	color: var(--otelux-fg);
+	border: 1px solid var(--otelux-border);
+	border-radius: var(--otelux-r-1);
+	font: inherit;
+	font-size: 12px;
+	cursor: pointer;
+	min-width: 120px;
+	transition: border-color 80ms ease, background 80ms ease;
+}
+
+.otelux-dropdown__trigger:hover {
+	background: var(--otelux-bg-hover);
+}
+
+.otelux-dropdown__trigger:focus-visible,
+.otelux-dropdown__trigger[aria-expanded="true"] {
+	outline: none;
+	border-color: var(--otelux-accent);
+	box-shadow: 0 0 0 1px var(--otelux-accent);
+}
+
+.otelux-dropdown__trigger-label {
+	flex: 1 1 auto;
+	text-align: left;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.otelux-dropdown__trigger-icon {
+	display: inline-flex;
+	color: var(--otelux-fg-muted);
+}
+
+.otelux-dropdown__menu-wrap {
+	position: absolute;
+	top: calc(100% + 4px);
+	left: 0;
+	z-index: var(--otelux-z-dropdown);
+	min-width: 100%;
+}
+
+.otelux-dropdown__menu {
+	display: flex;
+	flex-direction: column;
+	min-width: 200px;
+	max-height: 320px;
+	overflow-y: auto;
+	background: var(--otelux-bg-panel);
+	border: 1px solid var(--otelux-border);
+	border-radius: var(--otelux-r-2);
+	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.32);
+	padding: 4px;
+}
+
+.otelux-dropdown__menu:focus {
+	outline: none;
+}
+
+.otelux-dropdown__option {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px;
+	border-radius: var(--otelux-r-1);
+	color: var(--otelux-fg);
+	cursor: pointer;
+	user-select: none;
+}
+
+.otelux-dropdown__option.is-highlighted {
+	background: var(--otelux-bg-elevated);
+}
+
+.otelux-dropdown__option.is-selected {
+	color: var(--otelux-accent);
+}
+
+.otelux-dropdown__option.is-disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.otelux-dropdown__color-dot {
+	flex: 0 0 auto;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+}
+
+.otelux-dropdown__option-label {
+	flex: 1 1 auto;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.otelux-dropdown__option-count {
+	flex: 0 0 auto;
+	font-variant-numeric: tabular-nums;
+	color: var(--otelux-fg-muted);
+	font-size: 11px;
+}
+
+.otelux-dropdown__separator {
+	height: 1px;
+	margin: 4px 0;
+	background: var(--otelux-border);
+}
+
+.otelux-dropdown__empty {
+	padding: 8px;
+	color: var(--otelux-fg-muted);
+	font-size: 12px;
+	text-align: center;
+}
