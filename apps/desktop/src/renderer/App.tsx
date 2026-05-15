@@ -54,7 +54,14 @@ export function App(): JSX.Element {
 				topbarEnd={<EndpointBar status={status} onOpenSettings={() => setSettingsOpen(true)} />}
 			/>
 			{settingsOpen && settings ? (
-				<SettingsModal settings={settings} onSave={onSavePort} onClose={() => setSettingsOpen(false)} />
+				<SettingsModal
+					settings={settings}
+					{...(status?.kind === 'running' || status?.kind === 'error'
+						? { currentPort: status.port }
+						: {})}
+					onSave={onSavePort}
+					onClose={() => setSettingsOpen(false)}
+				/>
 			) : null}
 		</main>
 	);

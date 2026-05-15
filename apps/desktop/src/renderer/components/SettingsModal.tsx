@@ -3,6 +3,16 @@ import { MAX_PORT, MIN_PORT, type Settings, type UpdateSettingsResult } from '..
 
 interface SettingsModalProps {
 	readonly settings: Settings;
+	/**
+	 * Port the receiver is actually bound to right now. When provided
+	 * this is the value the field is prefilled with, so users see — and
+	 * edit — what is actively in effect rather than the persisted
+	 * setting (which can drift from the live port when an env override
+	 * like `OTELUX_OTLP_PORT` is in play, or when a bind retry picked a
+	 * different port). Falls back to `settings.otlp.port` when the
+	 * receiver has not reported a port yet.
+	 */
+	readonly currentPort?: number;
 	readonly onSave: (port: number) => Promise<UpdateSettingsResult>;
 	readonly onClose: () => void;
 }
@@ -14,8 +24,8 @@ interface SettingsModalProps {
  * errors from the main process surface inline rather than as toasts.
  */
 export function SettingsModal(props: SettingsModalProps): JSX.Element {
-	const { settings, onSave, onClose } = props;
-	const [portInput, setPortInput] = useState(String(settings.otlp.port));
+	const { settings, currentPort, onSave, onClose } = props;
+	const [portInput, setPortInput] = useState(String(currentPort ?? settings.otlp.port));
 	const [error, setError] = useState<string | undefined>(undefined);
 	const [saving, setSaving] = useState(false);
 	const portInputRef = useRef<HTMLInputElement>(null);
