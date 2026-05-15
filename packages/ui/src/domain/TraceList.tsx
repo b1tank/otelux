@@ -158,24 +158,34 @@ function TraceRow(props: TraceRowProps): JSX.Element {
 			>
 				{density === 'card' ? (
 					<>
+						{/*
+						 * Card hierarchy:
+						 *   row 1 — meta strip: short trace id (left) · wall clock (right)
+						 *   row 2 — headline: root name + span count after
+						 *   row 3 — tags strip: service chip(s) · error pill · duration (right)
+						 * Rationale: title is the visual focal point and earns the largest type;
+						 * the id+timestamp are technical scaffolding that should fade above the
+						 * title; chips + errors + duration form a "what shape is this trace"
+						 * tag strip at the bottom.
+						 */}
 						<div className="otelux-trace-row__row otelux-trace-row__row--1">
+							<span className="otelux-trace-row__tid" title={row.traceId}>
+								{shortTraceId}
+							</span>
 							<time className="otelux-trace-row__time">{formatWallClock(row.startTimeUnixNano)}</time>
-							<span className="otelux-trace-row__duration">{formatDuration(row.durationNanos)}</span>
 						</div>
 						<div className="otelux-trace-row__row otelux-trace-row__row--2">
 							<span className="otelux-trace-row__name" title={row.rootName}>
 								{row.rootName || '(unnamed)'}
 							</span>
-							<span className="otelux-trace-row__tid" title={row.traceId}>
-								{shortTraceId}
-							</span>
+							<span className="otelux-trace-row__spans">{row.spanCount} spans</span>
 						</div>
 						<div className="otelux-trace-row__row otelux-trace-row__row--3">
 							<ServiceChips services={row.services} max={2} />
-							<span className="otelux-trace-row__spans">{row.spanCount} spans</span>
 							{row.errorCount > 0 ? (
 								<span className="otelux-trace-row__errors">{row.errorCount} err</span>
 							) : null}
+							<span className="otelux-trace-row__duration">{formatDuration(row.durationNanos)}</span>
 						</div>
 					</>
 				) : (

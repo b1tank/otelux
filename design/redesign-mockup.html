@@ -230,24 +230,30 @@
   .tcard.is-selected { background: var(--bg-2); }
   .tcard.is-selected::before { content:""; position:absolute; left:0; top:0; bottom:0;
                                width:3px; background: var(--svc, var(--accent)); }
+  /* row 1 — meta strip: trace id (left, mono) · wall-clock (right) */
   .tcard__row1 { display: flex; align-items: baseline; justify-content: space-between;
                  gap: 8px; font-size: 11px; color: var(--fg-mute); }
-  .tcard__time { color: var(--fg-mute); }
-  .tcard__dur  { color: var(--fg-1); font-variant-numeric: tabular-nums; }
-  .tcard__name { margin-top: 2px; font-size: 13px; color: var(--fg);
+  .tcard__time { color: var(--fg-mute); font-variant-numeric: tabular-nums; }
+  .tcard__tid  { font-family: "JetBrains Mono", ui-monospace, monospace;
+                 letter-spacing: 0.02em; }
+  /* row 2 — headline: root name + span count after */
+  .tcard__row2 { display: flex; align-items: baseline; gap: 8px; margin-top: 2px; }
+  .tcard__name { flex: 0 1 auto; min-width: 0; font-size: 13px; color: var(--fg);
                  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .tcard__name .tid { color: var(--fg-mute); margin-left: 6px;
-                      font-family: "JetBrains Mono", ui-monospace, monospace;
-                      font-size: 11px; }
+  .tcard__spans { color: var(--fg-mute); font-size: 11px;
+                  font-variant-numeric: tabular-nums; }
+  /* row 3 — tags strip: chips · error pill · duration (right) */
   .tcard__row3 { display: flex; align-items: center; gap: 6px;
                  margin-top: 4px; flex-wrap: wrap; }
+  .tcard__dur  { margin-left: auto; color: var(--fg-mute);
+                 font-family: "JetBrains Mono", ui-monospace, monospace;
+                 font-size: 11px; font-variant-numeric: tabular-nums; }
   .svcchip { display: inline-flex; align-items: center; gap: 4px;
              font-size: 11px; padding: 1px 6px; border-radius: 10px;
              background: color-mix(in srgb, var(--svc), transparent 75%);
              color: var(--svc); }
   .svcchip::before { content:""; width:6px; height:6px; border-radius:50%;
                      background: var(--svc); }
-  .tcard__spans { color: var(--fg-mute); font-size: 11px; }
   .errpill { font-size: 10px; color: var(--err); padding: 1px 5px;
              border: 1px solid color-mix(in srgb, var(--err), transparent 60%);
              border-radius: 8px; }
@@ -565,70 +571,91 @@
         <div class="tlist" id="tlist" style="overflow:auto; flex:1; min-height:0">
           <!-- selected: invoke_agent 12.79s -->
           <article class="tcard is-selected" style="--svc:var(--svc-2)">
-            <div class="tcard__row1"><time>14:09:14.0</time><span class="tcard__dur">12.79s</span></div>
-            <div class="tcard__name">invoke_agent <span class="tid mono">9c1db293</span></div>
+            <div class="tcard__row1"><span class="tcard__tid">9c1db293</span><time>14:09:14.0</time></div>
+            <div class="tcard__row2">
+              <span class="tcard__name">invoke_agent</span>
+              <span class="tcard__spans">10 spans</span>
+            </div>
             <div class="tcard__row3">
               <span class="svcchip" style="--svc:var(--svc-2)">github-copilot</span>
-              <span class="tcard__spans">10 spans</span>
+              <span class="tcard__dur">12.79s</span>
             </div>
           </article>
 
           <article class="tcard" style="--svc:var(--svc-1)">
-            <div class="tcard__row1"><time>14:09:13.9</time><span class="tcard__dur">15m 7s</span></div>
-            <div class="tcard__name">chat claude-opus-4.7-1m-internal <span class="tid mono">3d1e32e</span></div>
+            <div class="tcard__row1"><span class="tcard__tid">3d1e32e</span><time>14:09:13.9</time></div>
+            <div class="tcard__row2">
+              <span class="tcard__name">chat claude-opus-4.7-1m-internal</span>
+              <span class="tcard__spans">221 spans</span>
+            </div>
             <div class="tcard__row3">
               <span class="svcchip" style="--svc:var(--svc-1)">copilot-chat</span>
-              <span class="tcard__spans">221 spans</span>
               <span class="errpill">3 err</span>
+              <span class="tcard__dur">15m 7s</span>
             </div>
           </article>
 
           <article class="tcard" style="--svc:var(--svc-2)">
-            <div class="tcard__row1"><time>14:12:10.6</time><span class="tcard__dur">2m 45s</span></div>
-            <div class="tcard__name">invoke_agent <span class="tid mono">df9fa5d</span></div>
+            <div class="tcard__row1"><span class="tcard__tid">df9fa5d</span><time>14:12:10.6</time></div>
+            <div class="tcard__row2">
+              <span class="tcard__name">invoke_agent</span>
+              <span class="tcard__spans">38 spans</span>
+            </div>
             <div class="tcard__row3">
               <span class="svcchip" style="--svc:var(--svc-2)">github-copilot</span>
-              <span class="tcard__spans">38 spans</span>
               <span class="errpill">1 err</span>
+              <span class="tcard__dur">2m 45s</span>
             </div>
           </article>
 
           <article class="tcard" style="--svc:var(--svc-1)">
-            <div class="tcard__row1"><time>14:11:21.5</time><span class="tcard__dur">8.29s</span></div>
-            <div class="tcard__name">chat gpt-4o-mini <span class="tid mono">41442e1</span></div>
+            <div class="tcard__row1"><span class="tcard__tid">41442e1</span><time>14:11:21.5</time></div>
+            <div class="tcard__row2">
+              <span class="tcard__name">chat gpt-4o-mini</span>
+              <span class="tcard__spans">3 spans</span>
+            </div>
             <div class="tcard__row3">
               <span class="svcchip" style="--svc:var(--svc-1)">copilot-chat</span>
-              <span class="tcard__spans">3 spans</span>
+              <span class="tcard__dur">8.29s</span>
             </div>
           </article>
 
           <article class="tcard" style="--svc:var(--svc-3)">
-            <div class="tcard__row1"><time>14:13:20.0</time><span class="tcard__dur">100.0ms</span></div>
-            <div class="tcard__name">POST /orders <span class="tid mono">dd00dd00</span></div>
+            <div class="tcard__row1"><span class="tcard__tid">dd00dd00</span><time>14:13:20.0</time></div>
+            <div class="tcard__row2">
+              <span class="tcard__name">POST /orders</span>
+              <span class="tcard__spans">8 spans</span>
+            </div>
             <div class="tcard__row3">
               <span class="svcchip" style="--svc:var(--svc-3)">api-gateway</span>
               <span class="svcchip" style="--svc:var(--svc-4)">order-service</span>
               <span class="svcchip" style="--svc:var(--svc-6)">user-service</span>
-              <span class="tcard__spans">8 spans</span>
+              <span class="tcard__dur">100.0ms</span>
             </div>
           </article>
 
           <article class="tcard" style="--svc:var(--svc-3)">
-            <div class="tcard__row1"><time>14:13:20.0</time><span class="tcard__dur">45.0ms</span></div>
-            <div class="tcard__name">GET /api/users <span class="tid mono">abcdef12</span></div>
+            <div class="tcard__row1"><span class="tcard__tid">abcdef12</span><time>14:13:20.0</time></div>
+            <div class="tcard__row2">
+              <span class="tcard__name">GET /api/users</span>
+              <span class="tcard__spans">3 spans</span>
+            </div>
             <div class="tcard__row3">
               <span class="svcchip" style="--svc:var(--svc-3)">api-gateway</span>
-              <span class="tcard__spans">3 spans</span>
+              <span class="tcard__dur">45.0ms</span>
             </div>
           </article>
 
           <article class="tcard" style="--svc:var(--svc-5)">
-            <div class="tcard__row1"><time>14:13:20.0</time><span class="tcard__dur">100.0ms</span></div>
-            <div class="tcard__name">POST /orders <span class="tid mono">11223344</span></div>
+            <div class="tcard__row1"><span class="tcard__tid">11223344</span><time>14:13:20.0</time></div>
+            <div class="tcard__row2">
+              <span class="tcard__name">POST /orders</span>
+              <span class="tcard__spans">2 spans</span>
+            </div>
             <div class="tcard__row3">
               <span class="svcchip" style="--svc:var(--svc-5)">order-svc</span>
-              <span class="tcard__spans">2 spans</span>
               <span class="errpill">2 err</span>
+              <span class="tcard__dur">100.0ms</span>
             </div>
           </article>
         </div>

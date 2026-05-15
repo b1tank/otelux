@@ -183,14 +183,19 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 
 	const serviceOptions = useMemo<readonly DropdownOption[]>(() => {
 		const opts: DropdownOption[] = [];
-		// When a specific service is filtered we still need an "All services"
-		// entry so the user can clear back to the unfiltered view. When the
-		// filter is already 'all', that row is redundant with the trigger
-		// label (and its count is now on the trigger badge), so omit it and
-		// the separator that would follow.
+		// When a specific service is filtered we surface an "All services"
+		// entry at the top so the user can clear back to the unfiltered
+		// view. It carries the total count (mirroring the trigger badge
+		// shape) and reads as a peer to the service rows below — no
+		// separator needed: the label distinguishes it, and the absence of
+		// a colored dot is itself a visual cue. When the filter is already
+		// 'all', the row is redundant with the trigger label and omitted.
 		if (selectedService !== 'all') {
-			opts.push({ value: 'all', label: 'All services' });
-			opts.push({ kind: 'separator' });
+			opts.push({
+				value: 'all',
+				label: 'All services',
+				count: summaryProbe.value?.totalCount ?? 0,
+			});
 		}
 		for (const name of sortedServices) {
 			opts.push({
@@ -201,7 +206,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 			});
 		}
 		return opts;
-	}, [sortedServices, serviceCounts, selectedService]);
+	}, [sortedServices, serviceCounts, selectedService, summaryProbe.value?.totalCount]);
 
 	const serviceTriggerCount =
 		selectedService === 'all' ? summaryProbe.value?.totalCount : serviceCounts.get(selectedService);

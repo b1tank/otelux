@@ -259,11 +259,11 @@
 }
 
 /*
- * Keyboard-focus ring stays as a 1-px box-shadow when the menu is
- * *closed*. When the menu is open we drop the ring and instead keep
- * just an accent border + transparent bottom border so the trigger
- * visually fuses with the menu (which sits flush below). A surrounding
- * box-shadow would otherwise be sliced by the menu's top edge.
+ * Closed-state keyboard focus keeps a subtle 1-px accent ring so the
+ * trigger is discoverable via Tab. We deliberately do *not* paint this
+ * ring while the menu is open: the menu's own elevation (shadow + soft
+ * border) is the affordance, and an accent outline framed against the
+ * floating panel reads as a chunky double-border.
  */
 .otelux-dropdown__trigger:focus-visible:not([aria-expanded="true"]) {
 	outline: none;
@@ -273,11 +273,16 @@
 
 .otelux-dropdown__trigger[aria-expanded="true"] {
 	outline: none;
-	border-color: var(--otelux-accent);
-	border-bottom-color: transparent;
-	border-bottom-left-radius: 0;
-	border-bottom-right-radius: 0;
-	box-shadow: none;
+	background: var(--otelux-bg-hover);
+}
+
+/* Chevron rotates to acknowledge the open state. The icon ships as an
+   inline SVG without a class, so we select it positionally. */
+.otelux-dropdown__trigger > svg {
+	transition: transform 120ms ease;
+}
+.otelux-dropdown__trigger[aria-expanded="true"] > svg {
+	transform: rotate(180deg);
 }
 
 .otelux-dropdown__trigger-label {
@@ -308,9 +313,10 @@
 
 /*
  * Numeric badge next to the trigger label — mirrors the option-count
- * pill style so the count of the current selection reads the same
- * whether it lives in the trigger (current filter) or the menu (other
- * choices).
+ * pill style and stays muted in every state. We previously brightened
+ * it on open via an accent tint, but that read as a second focal
+ * point inside an already-active control. The chevron rotation is
+ * affordance enough.
  */
 .otelux-dropdown__trigger-count {
 	flex: 0 0 auto;
@@ -322,18 +328,11 @@
 	background: color-mix(in srgb, var(--otelux-bg) 60%, transparent);
 }
 
-.otelux-dropdown__trigger[aria-expanded="true"] .otelux-dropdown__trigger-count {
-	background: color-mix(in srgb, var(--otelux-accent) 18%, transparent);
-	color: var(--otelux-fg);
-}
-
 .otelux-dropdown__menu-wrap {
 	position: absolute;
-	/* Sit flush against the trigger — the -1px overlap lets the menu's
-	   top border replace the trigger's (now transparent) bottom border
-	   so the two surfaces read as one panel. */
-	top: 100%;
-	margin-top: -1px;
+	/* Small detached gap. The drop shadow on the menu is what reads as
+	   the elevation, not a continuous accent border. */
+	top: calc(100% + 4px);
 	left: 0;
 	z-index: var(--otelux-z-dropdown);
 	min-width: 100%;
@@ -346,9 +345,8 @@
 	max-height: 320px;
 	overflow-y: auto;
 	background: var(--otelux-bg-panel);
-	border: 1px solid var(--otelux-accent);
-	/* Top corners square: they meet the trigger's now-square bottom. */
-	border-radius: 0 0 var(--otelux-r-2) var(--otelux-r-2);
+	border: 1px solid var(--otelux-border);
+	border-radius: var(--otelux-r-2);
 	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.42), 0 2px 4px rgba(0, 0, 0, 0.24);
 	padding: 6px;
 }
@@ -1111,6 +1109,16 @@
 .otelux-trace-row__button {
 	display: flex;
 	flex-direction: column;
+	/*
+	 * Chromium's UA stylesheet sets `button { align-items: flex-start }`,
+	 * which overrides the flex default of `stretch` and makes our column
+	 * children (rows 1/2/3) collapse to their content width. The trace
+	 * card layout depends on each row spanning the full button so that
+	 * `justify-content: space-between` (row 1) and `margin-left: auto`
+	 * (row 3 duration) actually have room to push items apart. Force
+	 * stretch back on explicitly.
+	 */
+	align-items: stretch;
 	width: 100%;
 	padding: 10px 12px 10px 16px;
 	gap: 2px;
@@ -1167,17 +1175,25 @@
 }
 
 .otelux-trace-row__row--1 {
+	/* Meta strip: trace id (left, mono) and wall-clock timestamp (right).
+	   Both muted; this row exists to anchor the card with technical
+	   identifiers without competing with the headline below. */
 	justify-content: space-between;
 	font-size: 11px;
 	color: var(--otelux-fg-faint);
 }
 
 .otelux-trace-row__row--2 {
+	/* Headline: root name dominates; span count rides alongside it in a
+	   muted weight so the eye reads 'invoke_agent — 10 spans'. */
 	align-items: baseline;
-	gap: 6px;
+	gap: 8px;
 }
 
 .otelux-trace-row__row--3 {
+	/* Tags strip: chips/error pill flow left-to-right; duration is the
+	   right anchor via margin-left:auto so it always lands flush right
+	   regardless of how many chips precede it. */
 	align-items: center;
 	gap: 6px;
 	flex-wrap: wrap;
@@ -1195,7 +1211,10 @@
 }
 
 .otelux-trace-row__name {
-	flex: 1 1 auto;
+	/* Take only content width so the span count sits flush behind the
+	 * title (per design spec "title and span count adjacent"). Still
+	 * allow shrink + ellipsis when the title is longer than the row. */
+	flex: 0 1 auto;
 	min-width: 0;
 	white-space: nowrap;
 	overflow: hidden;
@@ -1210,10 +1229,13 @@
 	font-family: var(--otelux-font-mono);
 	font-size: 11px;
 	color: var(--otelux-fg-faint);
+	letter-spacing: 0.02em;
 }
 
 .otelux-trace-row__duration {
 	flex: 0 0 auto;
+	/* Right-anchor inside the tag strip regardless of chip count. */
+	margin-left: auto;
 	font-family: var(--otelux-font-mono);
 	font-size: 11px;
 	color: var(--otelux-fg-muted);
@@ -1221,6 +1243,7 @@
 }
 
 .otelux-trace-row__spans {
+	flex: 0 0 auto;
 	font-size: 11px;
 	color: var(--otelux-fg-muted);
 	font-variant-numeric: tabular-nums;
