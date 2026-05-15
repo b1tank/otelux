@@ -25,38 +25,18 @@ body,
 	height: 100vh;
 }
 
-.app-header {
-	padding: 12px 16px;
-	border-bottom: 1px solid #2d2d30;
-}
-
-.app-header h1 {
-	font-size: 14px;
-	margin: 0;
-	font-weight: 600;
-}
-
-.app-subtitle {
-	margin: 4px 0 0;
-	color: var(--otelux-fg-muted);
-	font-size: 12px;
-}
-
-.app-body {
-	flex: 1;
-	overflow: auto;
-	padding: 16px;
-}
-
 /* ---- Endpoint bar -------------------------------------------------- */
 
+/*
+ * EndpointBar is rendered inside the workbench Topbar's end slot. The
+ * Topbar provides height, background, and border-bottom — so this rule
+ * only carries the inner layout (dot + label + url + cog) and lets the
+ * Topbar handle the chrome.
+ */
 .endpoint-bar {
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	padding: 8px 16px;
-	background: var(--otelux-bg-panel);
-	border-bottom: 1px solid #2d2d30;
 	font-size: 12px;
 }
 

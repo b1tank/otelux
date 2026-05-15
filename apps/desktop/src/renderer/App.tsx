@@ -47,18 +47,12 @@ export function App(): JSX.Element {
 
 	return (
 		<main className="app">
-			<header className="app-header">
-				<h1>OTelux</h1>
-				<p className="app-subtitle">Local OpenTelemetry workbench</p>
-			</header>
-			<EndpointBar status={status} onOpenSettings={() => setSettingsOpen(true)} />
-			<section className="app-body">
-				<OTeluxWorkbench
-					dataSource={dataSource}
-					theme="dark"
-					{...(endpointUrl !== undefined ? { endpointUrl } : {})}
-				/>
-			</section>
+			<OTeluxWorkbench
+				dataSource={dataSource}
+				theme="dark"
+				{...(endpointUrl !== undefined ? { endpointUrl } : {})}
+				topbarEnd={<EndpointBar status={status} onOpenSettings={() => setSettingsOpen(true)} />}
+			/>
 			{settingsOpen && settings ? (
 				<SettingsModal settings={settings} onSave={onSavePort} onClose={() => setSettingsOpen(false)} />
 			) : null}
