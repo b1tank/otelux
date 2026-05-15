@@ -1,0 +1,1148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>OTelux — redesign mockup</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+  /* ----------------------------------------------------------
+     OTelux redesign mockup — single file, no deps.
+     Influences: Jaeger ticks/find-in-trace/indent guides,
+                 SigNoz drawer-not-modal span detail.
+     ---------------------------------------------------------- */
+  :root {
+    --bg:        #1a1b26;
+    --bg-1:     #1f2335;
+    --bg-2:     #24283b;
+    --bg-hover: #292e42;
+    --border:   #2b3050;
+    --border-1: #3b4261;
+    --fg:        #c0caf5;
+    --fg-1:     #a9b1d6;
+    --fg-mute:  #565f89;
+    --accent:    #7aa2f7;
+    --accent-2: #bb9af7;
+    --ok:        #9ece6a;
+    --warn:      #e0af68;
+    --err:       #f7768e;
+
+    /* deterministic 20-service palette (Jaeger-style hash bucket) */
+    --svc-1:#7aa2f7; --svc-2:#bb9af7; --svc-3:#7dcfff; --svc-4:#9ece6a;
+    --svc-5:#e0af68; --svc-6:#f7768e; --svc-7:#ff9e64; --svc-8:#73daca;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg);
+               font: 13px/1.45 -apple-system, "Segoe UI", system-ui, sans-serif; }
+  code, .mono { font-family: "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+                font-size: 12px; }
+  button { font: inherit; color: inherit; background: none; border: 0;
+           cursor: pointer; padding: 0; }
+  a { color: inherit; text-decoration: none; }
+
+  /* ---------- shell ---------- */
+  .app { display: grid;
+         grid-template-columns: 56px 1fr;
+         grid-template-rows: 100vh;
+         min-height: 100vh; }
+
+  /* ---------- left rail ---------- */
+  .rail { background: var(--bg-1); border-right: 1px solid var(--border);
+          display: flex; flex-direction: column; align-items: stretch; }
+  .rail__brand { display: flex; align-items: center; justify-content: center;
+                 height: 56px; color: var(--accent-2); font-weight: 700;
+                 letter-spacing: .04em; }
+  .rail__items { display: flex; flex-direction: column; padding: 4px 0; }
+  .rail__items--end { margin-top: auto; padding-bottom: 8px; }
+  .rail__item { display: flex; align-items: center; justify-content: center;
+                height: 44px; color: var(--fg-mute); position: relative; }
+  .rail__item:hover { color: var(--fg); background: var(--bg-hover); }
+  .rail__item.is-active { color: var(--fg); }
+  .rail__item.is-active::before { content:""; position:absolute; left:0; top:8px; bottom:8px;
+                                  width:2px; border-radius:2px; background: var(--accent); }
+  .rail__item svg { width: 18px; height: 18px; }
+
+  /* ---------- page ---------- */
+  .page { display: grid; grid-template-rows: 48px 44px 1fr; min-width: 0; min-height: 0; }
+
+  /* ---------- top bar (title left, endpoint right) ---------- */
+  .topbar { display: flex; align-items: center; gap: 16px; padding: 0 16px;
+            border-bottom: 1px solid var(--border); background: var(--bg-1); }
+  .topbar h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: .01em; }
+  .topbar .spacer { flex: 1; }
+  .endpoint { display: flex; align-items: center; gap: 8px; font-size: 12px;
+              color: var(--fg-1); }
+  .endpoint__scheme { color: var(--fg-mute); font-weight: 600; letter-spacing: .04em;
+                      font-size: 11px; text-transform: uppercase; }
+  .endpoint__url { color: var(--fg); }
+  .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--ok);
+           box-shadow: 0 0 0 0 currentColor; animation: pulse 2s infinite;
+           color: var(--ok); }
+  .pulse--down { background: var(--err); color: var(--err); animation-duration: 1s; }
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(158,206,106,.4); }
+    70%  { box-shadow: 0 0 0 6px rgba(158,206,106,0); }
+    100% { box-shadow: 0 0 0 0 rgba(158,206,106,0); }
+  }
+  .icon-btn { width: 28px; height: 28px; display: inline-flex; align-items: center;
+              justify-content: center; border-radius: 4px; color: var(--fg-mute); }
+  .icon-btn:hover { background: var(--bg-hover); color: var(--fg); }
+
+  /* ---------- filters row ---------- */
+  .filters { display: flex; align-items: center; gap: 8px; padding: 0 16px;
+             border-bottom: 1px solid var(--border); background: var(--bg); }
+  .field { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 8px;
+           border: 1px solid var(--border-1); border-radius: 4px;
+           background: var(--bg-1); color: var(--fg-1); }
+  .field:focus-within { border-color: var(--accent); }
+  .field input {
+    border: 0; background: transparent; color: var(--fg); outline: none;
+    font: inherit; min-width: 0;
+  }
+  .field--search { flex: 1; max-width: 480px; }
+  .field__label { color: var(--fg-mute); font-size: 11px;
+                  text-transform: uppercase; letter-spacing: .04em; }
+  .chip-count { margin-left: auto; color: var(--fg-mute); font-size: 12px; }
+  .chip-count strong { color: var(--fg); font-weight: 600; }
+
+  /* ---------- custom dropdown (replaces native <select>) ---------- */
+  .dd { position: relative; }
+  .dd__btn { display: flex; align-items: center; gap: 8px; height: 28px;
+             padding: 0 6px 0 10px;
+             border: 1px solid var(--border-1); border-radius: 4px;
+             background: var(--bg-1); color: var(--fg);
+             cursor: pointer; min-width: 180px; }
+  .dd__btn:hover { background: var(--bg-hover); border-color: var(--accent); }
+  .dd[aria-expanded="true"] .dd__btn { border-color: var(--accent); }
+  .dd__value { flex: 1; text-align: left; white-space: nowrap;
+               overflow: hidden; text-overflow: ellipsis;
+               font-variant-numeric: tabular-nums; }
+  .dd__caret { width: 14px; height: 14px; color: var(--fg-mute);
+               transition: transform .12s ease; }
+  .dd[aria-expanded="true"] .dd__caret { transform: rotate(180deg); color: var(--fg); }
+  .dd__menu { position: absolute; top: calc(100% + 4px); left: 0;
+              min-width: 220px; max-width: 320px;
+              background: var(--bg-1); border: 1px solid var(--border-1);
+              border-radius: 6px; padding: 4px; margin: 0; list-style: none;
+              box-shadow: 0 12px 32px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.4);
+              z-index: 20; max-height: 320px; overflow: auto; }
+  .dd__menu[hidden] { display: none; }
+  .dd__opt { display: flex; align-items: center; gap: 8px;
+             padding: 6px 8px; border-radius: 4px;
+             color: var(--fg-1); cursor: pointer;
+             font-size: 13px; }
+  .dd__opt:hover { background: var(--bg-hover); color: var(--fg); }
+  .dd__opt.is-selected { color: var(--fg); }
+  .dd__opt.is-selected .dd__check { opacity: 1; }
+  .dd__check { width: 14px; height: 14px; color: var(--accent); opacity: 0;
+               flex: 0 0 14px; }
+  .dd__opt-dot { width: 8px; height: 8px; border-radius: 50%;
+                 background: var(--svc, var(--fg-mute)); flex: 0 0 8px; }
+  .dd__opt-label { flex: 1; white-space: nowrap; overflow: hidden;
+                   text-overflow: ellipsis; }
+  .dd__opt-count { color: var(--fg-mute); font-size: 11px;
+                   font-variant-numeric: tabular-nums; }
+  .dd__sep { height: 1px; background: var(--border); margin: 4px -4px; }
+
+  /* ---------- filter toggle chip (Errors-only) ---------- */
+  .filter-toggle { display: inline-flex; align-items: center; gap: 6px;
+                   height: 28px; padding: 0 10px;
+                   border: 1px solid var(--border-1); border-radius: 4px;
+                   background: var(--bg-1); color: var(--fg-1);
+                   cursor: pointer; }
+  .filter-toggle:hover { background: var(--bg-hover); color: var(--fg); }
+  .filter-toggle .ico { width: 14px; height: 14px; }
+  .filter-toggle[aria-pressed="true"] {
+    background: color-mix(in srgb, var(--err), transparent 82%);
+    border-color: color-mix(in srgb, var(--err), transparent 40%);
+    color: var(--err);
+  }
+
+  /* ---------- 2-col workbench (flex; supports drag + collapse) ---------- */
+  .workbench { display: flex; min-height: 0; min-width: 0; }
+  .workbench.is-dragging { user-select: none; cursor: col-resize; }
+  .pane { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+  .pane--list { flex: 0 0 var(--list-w, 360px); background: var(--bg); min-width: 280px; }
+  .pane--waterfall { flex: 1 1 0; background: var(--bg); position: relative; min-width: 480px; }
+  .splitter { flex: 0 0 6px; background: var(--border); cursor: col-resize;
+              position: relative; transition: background .12s ease; }
+  .splitter::after { content: ""; position: absolute; top: 0; bottom: 0;
+                     left: -3px; right: -3px; }
+  .splitter:hover, .splitter.is-active { background: var(--accent); }
+
+  /* pane header (sits above trace list, mirrors wf__head height) */
+  .pane__head { flex: 0 0 40px; display: flex; align-items: center; gap: 8px;
+                padding: 0 6px 0 16px; border-bottom: 1px solid var(--border);
+                background: var(--bg-1); }
+  .pane__title { font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+                 color: var(--fg-mute); font-weight: 600; }
+  .pane__count { background: var(--bg-2); color: var(--fg-1); padding: 1px 6px;
+                 border-radius: 8px; font-size: 11px; font-variant-numeric: tabular-nums; }
+  .pane__spacer { flex: 1; }
+
+  /* collapsed rail (replaces a pane when its side is collapsed) — DEPRECATED, kept empty to avoid stragglers */
+  .rail-collapsed { display: none !important; }
+
+  /* collapse state: hide one pane + splitter completely; remaining pane fills the space */
+  .workbench.is-list-collapsed .pane--list,
+  .workbench.is-list-collapsed .splitter,
+  .workbench.is-wf-collapsed   .pane--waterfall,
+  .workbench.is-wf-collapsed   .splitter        { display: none; }
+  /* let the surviving pane grow to fill — overrides the fixed flex-basis */
+  .workbench.is-wf-collapsed   .pane--list      { flex: 1 1 auto; min-width: 0; }
+
+  /* in-header buttons that only appear in the right state */
+  .wf__head   .btn-show-list { display: none; }
+  .pane__head .btn-show-wf   { display: none; }
+  .workbench.is-list-collapsed .wf__head   .btn-show-list { display: inline-flex; }
+  .workbench.is-wf-collapsed   .pane__head .btn-show-wf   { display: inline-flex; }
+  /* hiding the list while the waterfall is already hidden leaves nothing — disable that path */
+  .workbench.is-wf-collapsed   .pane__head .btn-collapse-list { display: none; }
+
+  /* flat-row trace card mode (when waterfall is collapsed and list takes full width) */
+  .workbench.is-wf-collapsed .tcard {
+    display: grid;
+    grid-template-columns: 96px 76px 1fr auto;
+    align-items: center; gap: 16px;
+    padding: 8px 16px;
+  }
+  .workbench.is-wf-collapsed .tcard__row1 { display: contents; }
+  .workbench.is-wf-collapsed .tcard__row1 time { font-variant-numeric: tabular-nums; }
+  .workbench.is-wf-collapsed .tcard__row1 .tcard__dur {
+    color: var(--fg); font-weight: 600; text-align: right; font-variant-numeric: tabular-nums;
+  }
+  .workbench.is-wf-collapsed .tcard__name {
+    margin-top: 0; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .workbench.is-wf-collapsed .tcard__row3 {
+    margin-top: 0;
+    display: flex; align-items: center; gap: 6px; flex-wrap: nowrap;
+  }
+  .workbench.is-wf-collapsed .tcard__row3 .svcchip {
+    max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* ---------- compact trace cards (3 lines each) ---------- */
+  .tlist { display: flex; flex-direction: column; }
+  .tcard { position: relative; padding: 10px 12px 10px 16px;
+           border-bottom: 1px solid var(--border); cursor: pointer; }
+  .tcard:hover { background: var(--bg-1); }
+  .tcard.is-selected { background: var(--bg-2); }
+  .tcard.is-selected::before { content:""; position:absolute; left:0; top:0; bottom:0;
+                               width:3px; background: var(--svc, var(--accent)); }
+  .tcard__row1 { display: flex; align-items: baseline; justify-content: space-between;
+                 gap: 8px; font-size: 11px; color: var(--fg-mute); }
+  .tcard__time { color: var(--fg-mute); }
+  .tcard__dur  { color: var(--fg-1); font-variant-numeric: tabular-nums; }
+  .tcard__name { margin-top: 2px; font-size: 13px; color: var(--fg);
+                 white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tcard__name .tid { color: var(--fg-mute); margin-left: 6px;
+                      font-family: "JetBrains Mono", ui-monospace, monospace;
+                      font-size: 11px; }
+  .tcard__row3 { display: flex; align-items: center; gap: 6px;
+                 margin-top: 4px; flex-wrap: wrap; }
+  .svcchip { display: inline-flex; align-items: center; gap: 4px;
+             font-size: 11px; padding: 1px 6px; border-radius: 10px;
+             background: color-mix(in srgb, var(--svc), transparent 75%);
+             color: var(--svc); }
+  .svcchip::before { content:""; width:6px; height:6px; border-radius:50%;
+                     background: var(--svc); }
+  .tcard__spans { color: var(--fg-mute); font-size: 11px; }
+  .errpill { font-size: 10px; color: var(--err); padding: 1px 5px;
+             border: 1px solid color-mix(in srgb, var(--err), transparent 60%);
+             border-radius: 8px; }
+
+  /* ---------- waterfall ---------- */
+  .wf { display: grid; grid-template-rows: 40px 28px 1fr; height: 100%;
+        min-height: 0; }
+  .wf__head { display: flex; align-items: center; gap: 12px;
+              padding: 0 16px; border-bottom: 1px solid var(--border);
+              background: var(--bg-1); }
+  .wf__root { font-weight: 600; }
+  .wf__meta { color: var(--fg-mute); font-size: 12px; }
+  .wf__spacer { flex: 1; }
+
+  /* ruler (Jaeger ticks) */
+  .ruler { display: grid;
+           grid-template-columns: 280px 1fr 64px;
+           align-items: center; padding-right: 16px;
+           border-bottom: 1px solid var(--border);
+           color: var(--fg-mute); font-size: 11px;
+           background: var(--bg); }
+  .ruler__left { padding: 0 12px; display: flex; align-items: center; gap: 8px;
+                 color: var(--fg-mute); text-transform: uppercase;
+                 letter-spacing: .04em; font-size: 10px; }
+  .ruler__ticks { position: relative; height: 100%; }
+  .ruler__ticks span { position: absolute; top: 50%; transform: translate(-50%, -50%);
+                       white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .ruler__ticks::before { content:""; position: absolute; left: 0; right: 0;
+                           bottom: -1px; height: 1px; background: var(--border); }
+  .ruler__expand { color: var(--fg-mute); font-size: 11px; text-align: right; }
+  .ruler__expand button:hover { color: var(--fg); }
+
+  /* rows */
+  .wf__rows { overflow: auto; }
+  .row { display: grid;
+         grid-template-columns: 280px 1fr 64px;
+         align-items: center; height: 26px;
+         border-bottom: 1px solid var(--border);
+         cursor: pointer; user-select: none; }
+  .row:hover { background: var(--bg-1); }
+  .row.is-selected { background: var(--bg-2); }
+  .row.is-match { background: color-mix(in srgb, var(--warn), transparent 88%); }
+
+  .row__name { display: flex; align-items: center; gap: 4px;
+               padding-right: 8px; min-width: 0; overflow: hidden;
+               padding-left: calc(8px + var(--depth, 0) * 14px); }
+  .row__caret { width: 14px; height: 14px; display: inline-flex; align-items: center;
+                justify-content: center; color: var(--fg-mute); flex: none; }
+  .row__caret--leaf { visibility: hidden; }
+  .row.is-collapsed .row__caret svg { transform: rotate(-90deg); }
+  .row__caret:hover { color: var(--fg); }
+  .row__title { color: var(--fg); white-space: nowrap;
+                overflow: hidden; text-overflow: ellipsis; }
+  .row__svc { font-size: 11px; color: var(--svc, var(--accent));
+              padding-left: 6px; flex: none; }
+  .row__bar-track { position: relative; height: 100%; padding-right: 16px; }
+  .row__bar { position: absolute; top: 6px; height: 14px; border-radius: 2px;
+              background: var(--svc, var(--accent)); }
+  .row.is-error .row__bar { box-shadow: 0 0 0 1px var(--err); }
+  .row__bar-label { position: absolute; top: 5px; font-size: 11px;
+                    color: var(--fg-mute); font-variant-numeric: tabular-nums; }
+  .row__dur { text-align: right; font-size: 11px; color: var(--fg-mute);
+              font-variant-numeric: tabular-nums; padding-right: 16px; }
+
+  /* indent guides */
+  .row__name { position: relative; }
+  .row__guide { position: absolute; top: 0; bottom: 0; width: 1px;
+                background: var(--border); opacity: .7; pointer-events: none; }
+
+  /* ---------- empty waterfall ---------- */
+  .empty { display: grid; place-items: center; height: 100%;
+           color: var(--fg-mute); padding: 40px; text-align: center; }
+  .empty__big { width: 56px; height: 56px; border-radius: 50%;
+                background: var(--bg-1); display: grid; place-items: center;
+                color: var(--accent-2); margin-bottom: 16px; }
+  .empty h2 { margin: 0 0 6px; font-size: 14px; color: var(--fg); font-weight: 500; }
+  .empty p  { margin: 0; max-width: 320px; font-size: 12px; }
+
+  /* ---------- right slide-in drawer (SigNoz) ---------- */
+  .drawer { position: fixed; top: 0; right: 0; height: 100vh;
+            width: 460px; background: var(--bg-1);
+            border-left: 1px solid var(--border);
+            display: grid; grid-template-rows: 48px 1fr;
+            box-shadow: -16px 0 40px rgba(0,0,0,.35);
+            transform: translateX(100%); transition: transform .18s ease; }
+  .drawer.is-open { transform: translateX(0); }
+  .drawer__head { display: flex; align-items: center; gap: 10px;
+                  padding: 0 12px 0 16px; border-bottom: 1px solid var(--border); }
+  .drawer__dot { width: 10px; height: 10px; border-radius: 50%;
+                 background: var(--svc, var(--accent-2)); flex: none; }
+  .drawer__title { font-weight: 600; font-size: 13px; flex: 1;
+                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .drawer__tag { font-size: 11px; padding: 1px 6px; border-radius: 10px;
+                 background: var(--bg-2); color: var(--fg-mute); }
+  .drawer__body { overflow: auto; padding: 0; }
+
+  .acc { border-bottom: 1px solid var(--border); }
+  .acc__head { display: flex; align-items: center; gap: 8px;
+               padding: 10px 16px; cursor: pointer; user-select: none;
+               font-size: 11px; text-transform: uppercase;
+               letter-spacing: .04em; color: var(--fg-mute); }
+  .acc__head:hover { color: var(--fg); }
+  .acc__caret { color: var(--fg-mute); transition: transform .15s ease; }
+  .acc.is-closed .acc__caret { transform: rotate(-90deg); }
+  .acc__count { margin-left: auto; padding: 1px 6px; border-radius: 10px;
+                background: var(--bg-2); color: var(--fg-1); }
+  .acc__body { padding: 4px 0 12px; }
+  .acc.is-closed .acc__body { display: none; }
+
+  .kv { display: grid; grid-template-columns: 168px 1fr 24px;
+        column-gap: 12px; row-gap: 0; padding: 0 16px; }
+  .kv__row { display: contents; }
+  .kv__row > * { padding: 5px 0; border-bottom: 1px dashed var(--border); }
+  .kv__row:last-child > * { border-bottom: 0; }
+  .k { color: var(--fg-mute); font-size: 12px; }
+  .v { color: var(--fg); font-size: 12px; word-break: break-word;
+       white-space: pre-wrap; }
+  .v.is-trunc { white-space: nowrap; overflow: hidden;
+                text-overflow: ellipsis; font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .view-btn { width: 22px; height: 22px; display: grid; place-items: center;
+              align-self: center; border-radius: 4px; color: var(--fg-mute); }
+  .view-btn:hover { background: var(--bg-2); color: var(--accent-2); }
+
+  /* ---------- text visualizer modal ---------- */
+  .overlay { position: fixed; inset: 0; background: rgba(10,11,20,.65);
+             display: grid; place-items: center; z-index: 50; }
+  .viewer { width: min(880px, 92vw); height: min(560px, 80vh);
+            background: var(--bg-1); border: 1px solid var(--border);
+            border-radius: 6px; display: grid;
+            grid-template-rows: 48px 1fr 44px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+  .viewer__head { display: flex; align-items: center; gap: 12px;
+                  padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .viewer__head h3 { margin: 0; font-size: 13px; font-weight: 600; flex: 1; }
+  .viewer__body { display: grid; grid-template-columns: 48px 1fr;
+                  overflow: auto; font-family: "JetBrains Mono", ui-monospace, monospace;
+                  font-size: 12px; line-height: 1.6; background: var(--bg); }
+  .viewer__gutter { color: var(--fg-mute); text-align: right;
+                    padding: 12px 8px; user-select: none;
+                    border-right: 1px solid var(--border); }
+  .viewer__code { padding: 12px 16px; white-space: pre; color: var(--fg); }
+  .viewer__code .s { color: var(--ok); }
+  .viewer__code .k { color: var(--accent-2); }
+  .viewer__foot { display: flex; align-items: center; justify-content: flex-end;
+                  gap: 8px; padding: 0 16px; border-top: 1px solid var(--border); }
+  .btn { display: inline-flex; align-items: center; gap: 6px;
+         height: 28px; padding: 0 12px; border-radius: 4px;
+         border: 1px solid var(--border-1); color: var(--fg); }
+  .btn:hover { background: var(--bg-hover); }
+  .btn.primary { background: var(--accent); border-color: var(--accent);
+                 color: #0a0e2a; font-weight: 600; }
+  .btn.primary:hover { filter: brightness(1.08); }
+
+  /* tiny inline svg helpers */
+  .ico { width: 14px; height: 14px; flex: none; }
+
+  /* mockup toggles */
+  .toggles { position: fixed; bottom: 12px; left: 72px; z-index: 60;
+             display: flex; gap: 6px; }
+  .toggles button { padding: 4px 10px; border-radius: 4px;
+                    background: var(--bg-2); border: 1px solid var(--border-1);
+                    color: var(--fg-1); font-size: 11px; }
+  .toggles button:hover { color: var(--fg); }
+  .toggles button.is-on { color: var(--bg); background: var(--accent); border-color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============ LEFT RAIL ============ -->
+  <aside class="rail">
+    <div class="rail__brand" title="OTelux">⏚</div>
+    <nav class="rail__items">
+      <a class="rail__item is-active" title="Traces" aria-current="page">
+        <!-- waterfall icon -->
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <rect x="3" y="5"  width="10" height="3" rx="1"/>
+          <rect x="6" y="11" width="10" height="3" rx="1"/>
+          <rect x="9" y="17" width="10" height="3" rx="1"/>
+        </svg>
+      </a>
+      <a class="rail__item" title="Metrics (coming soon)">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M3 20V10M9 20V4M15 20V14M21 20V8"/>
+        </svg>
+      </a>
+      <a class="rail__item" title="Logs (coming soon)">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M5 4h14M5 9h14M5 14h10M5 19h8"/>
+        </svg>
+      </a>
+    </nav>
+    <nav class="rail__items rail__items--end">
+      <a class="rail__item" title="GitHub" href="https://github.com/b1tank/otelux" target="_blank" rel="noopener">
+        <svg class="ico" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.3.8-.6v-2c-3.2.7-3.9-1.5-3.9-1.5-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.7.4-1.3.7-1.5-2.5-.3-5.2-1.3-5.2-5.7 0-1.3.4-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2.9-.3 2-.4 3-.4s2.1.1 3 .4c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.2 5.7.4.4.8 1.1.8 2.2v3.2c0 .3.2.7.8.6 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5z"/>
+        </svg>
+      </a>
+      <a class="rail__item" title="Settings" id="open-settings">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.8.3l-.1.1A2 2 0 1 1 4.3 17l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1A2 2 0 1 1 7 4.3l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
+        </svg>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- ============ PAGE ============ -->
+  <main class="page">
+
+    <!-- ----- top bar ----- -->
+    <header class="topbar">
+      <h1>Traces</h1>
+      <span class="spacer"></span>
+      <div class="endpoint" title="OTLP/HTTP receiver listening">
+        <span class="pulse" id="pulse"></span>
+        <span class="endpoint__scheme">OTLP/HTTP</span>
+        <span class="endpoint__url mono" id="endpoint-url">http://127.0.0.1:14320/v1/traces</span>
+        <button class="icon-btn" title="Copy endpoint URL" id="copy-endpoint">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="9" y="9" width="11" height="11" rx="2"/>
+            <path d="M5 15V5a2 2 0 0 1 2-2h10"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- ----- filters row ----- -->
+    <div class="filters">
+      <div class="dd" id="dd-service" aria-expanded="false">
+        <button class="dd__btn" id="dd-service-btn" type="button"
+                aria-haspopup="listbox" aria-expanded="false" aria-controls="dd-service-menu">
+          <span class="field__label">Service</span>
+          <span class="dd__value" id="dd-service-value">All</span>
+          <svg class="dd__caret ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="m6 9 6 6 6-6"/>
+          </svg>
+        </button>
+        <ul class="dd__menu" id="dd-service-menu" role="listbox" aria-labelledby="dd-service-btn" hidden>
+          <li class="dd__opt is-selected" role="option" data-value="all" data-label="All">
+            <svg class="dd__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>
+            <span class="dd__opt-label">All services</span>
+            <span class="dd__opt-count">7</span>
+          </li>
+          <li class="dd__sep" aria-hidden="true"></li>
+          <li class="dd__opt" role="option" data-value="github-copilot" data-label="github-copilot">
+            <svg class="dd__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>
+            <span class="dd__opt-dot" style="--svc:var(--svc-2)"></span>
+            <span class="dd__opt-label">github-copilot</span>
+            <span class="dd__opt-count">2</span>
+          </li>
+          <li class="dd__opt" role="option" data-value="copilot-chat" data-label="copilot-chat">
+            <svg class="dd__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>
+            <span class="dd__opt-dot" style="--svc:var(--svc-1)"></span>
+            <span class="dd__opt-label">copilot-chat</span>
+            <span class="dd__opt-count">2</span>
+          </li>
+          <li class="dd__opt" role="option" data-value="api-gateway" data-label="api-gateway">
+            <svg class="dd__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>
+            <span class="dd__opt-dot" style="--svc:var(--svc-3)"></span>
+            <span class="dd__opt-label">api-gateway</span>
+            <span class="dd__opt-count">2</span>
+          </li>
+          <li class="dd__opt" role="option" data-value="order-svc" data-label="order-svc">
+            <svg class="dd__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5L20 7"/></svg>
+            <span class="dd__opt-dot" style="--svc:var(--svc-5)"></span>
+            <span class="dd__opt-label">order-svc</span>
+            <span class="dd__opt-count">1</span>
+          </li>
+        </ul>
+      </div>
+
+      <button class="filter-toggle" id="errors-only" type="button" aria-pressed="false" title="Show only traces with errors">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 8v5"/>
+          <circle cx="12" cy="16" r="0.8" fill="currentColor"/>
+        </svg>
+        <span>Errors only</span>
+      </button>
+      <div class="field field--search">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--fg-mute)">
+          <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
+        </svg>
+        <input placeholder="Search traces or spans by name, attribute, or trace ID…" />
+      </div>
+      <div class="chip-count"><strong id="count">7</strong> traces</div>
+    </div>
+
+    <!-- ----- workbench ----- -->
+    <div class="workbench">
+
+      <!-- collapsed-list rail (visible when list is hidden) -->
+      <!-- removed: replaced by in-header restore buttons -->
+
+      <!-- left: compact trace list -->
+      <section class="pane pane--list" id="pane-list">
+        <header class="pane__head">
+          <span class="pane__title">Traces</span>
+          <span class="pane__count">7</span>
+          <span class="pane__spacer"></span>
+          <button class="icon-btn btn-show-wf" id="show-wf" title="Show waterfall  ]" aria-label="Show waterfall">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <rect x="3" y="5"  width="14" height="3" rx="1"/>
+              <rect x="3" y="11" width="18" height="3" rx="1"/>
+              <rect x="3" y="17" width="10" height="3" rx="1"/>
+            </svg>
+          </button>
+          <button class="icon-btn btn-collapse-list" id="collapse-list" title="Collapse trace list  [" aria-label="Collapse trace list">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="m15 6-6 6 6 6"/>
+            </svg>
+          </button>
+        </header>
+        <div class="tlist" id="tlist" style="overflow:auto; flex:1; min-height:0">
+          <!-- selected: invoke_agent 12.79s -->
+          <article class="tcard is-selected" style="--svc:var(--svc-2)">
+            <div class="tcard__row1"><time>14:09:14.0</time><span class="tcard__dur">12.79s</span></div>
+            <div class="tcard__name">invoke_agent <span class="tid mono">9c1db293</span></div>
+            <div class="tcard__row3">
+              <span class="svcchip" style="--svc:var(--svc-2)">github-copilot</span>
+              <span class="tcard__spans">10 spans</span>
+            </div>
+          </article>
+
+          <article class="tcard" style="--svc:var(--svc-1)">
+            <div class="tcard__row1"><time>14:09:13.9</time><span class="tcard__dur">15m 7s</span></div>
+            <div class="tcard__name">chat claude-opus-4.7-1m-internal <span class="tid mono">3d1e32e</span></div>
+            <div class="tcard__row3">
+              <span class="svcchip" style="--svc:var(--svc-1)">copilot-chat</span>
+              <span class="tcard__spans">221 spans</span>
+              <span class="errpill">3 err</span>
+            </div>
+          </article>
+
+          <article class="tcard" style="--svc:var(--svc-2)">
+            <div class="tcard__row1"><time>14:12:10.6</time><span class="tcard__dur">2m 45s</span></div>
+            <div class="tcard__name">invoke_agent <span class="tid mono">df9fa5d</span></div>
+            <div class="tcard__row3">
+              <span class="svcchip" style="--svc:var(--svc-2)">github-copilot</span>
+              <span class="tcard__spans">38 spans</span>
+              <span class="errpill">1 err</span>
+            </div>
+          </article>
+
+          <article class="tcard" style="--svc:var(--svc-1)">
+            <div class="tcard__row1"><time>14:11:21.5</time><span class="tcard__dur">8.29s</span></div>
+            <div class="tcard__name">chat gpt-4o-mini <span class="tid mono">41442e1</span></div>
+            <div class="tcard__row3">
+              <span class="svcchip" style="--svc:var(--svc-1)">copilot-chat</span>
+              <span class="tcard__spans">3 spans</span>
+            </div>
+          </article>
+
+          <article class="tcard" style="--svc:var(--svc-3)">
+            <div class="tcard__row1"><time>14:13:20.0</time><span class="tcard__dur">100.0ms</span></div>
+            <div class="tcard__name">POST /orders <span class="tid mono">dd00dd00</span></div>
+            <div class="tcard__row3">
+              <span class="svcchip" style="--svc:var(--svc-3)">api-gateway</span>
+              <span class="svcchip" style="--svc:var(--svc-4)">order-service</span>
+              <span class="svcchip" style="--svc:var(--svc-6)">user-service</span>
+              <span class="tcard__spans">8 spans</span>
+            </div>
+          </article>
+
+          <article class="tcard" style="--svc:var(--svc-3)">
+            <div class="tcard__row1"><time>14:13:20.0</time><span class="tcard__dur">45.0ms</span></div>
+            <div class="tcard__name">GET /api/users <span class="tid mono">abcdef12</span></div>
+            <div class="tcard__row3">
+              <span class="svcchip" style="--svc:var(--svc-3)">api-gateway</span>
+              <span class="tcard__spans">3 spans</span>
+            </div>
+          </article>
+
+          <article class="tcard" style="--svc:var(--svc-5)">
+            <div class="tcard__row1"><time>14:13:20.0</time><span class="tcard__dur">100.0ms</span></div>
+            <div class="tcard__name">POST /orders <span class="tid mono">11223344</span></div>
+            <div class="tcard__row3">
+              <span class="svcchip" style="--svc:var(--svc-5)">order-svc</span>
+              <span class="tcard__spans">2 spans</span>
+              <span class="errpill">2 err</span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- draggable splitter -->
+      <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" tabindex="0" aria-label="Resize trace list"></div>
+
+      <!-- right: waterfall -->
+      <section class="pane pane--waterfall">
+        <div class="wf" id="wf">
+          <header class="wf__head">
+            <button class="icon-btn btn-show-list" id="show-list" title="Show trace list  [" aria-label="Show trace list">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+                <line x1="8" y1="6"  x2="21" y2="6"/>
+                <line x1="8" y1="12" x2="21" y2="12"/>
+                <line x1="8" y1="18" x2="21" y2="18"/>
+                <circle cx="3.6" cy="6"  r="1" fill="currentColor" stroke="none"/>
+                <circle cx="3.6" cy="12" r="1" fill="currentColor" stroke="none"/>
+                <circle cx="3.6" cy="18" r="1" fill="currentColor" stroke="none"/>
+              </svg>
+            </button>
+            <span class="wf__root">invoke_agent</span>
+            <span class="wf__meta">12.79s · 10 spans · service <strong>github-copilot</strong></span>
+            <span class="wf__spacer"></span>
+            <button class="icon-btn" title="Expand all">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M6 9l6-6 6 6M6 15l6 6 6-6"/>
+              </svg>
+            </button>
+            <button class="icon-btn" title="Collapse all">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M6 15l6-6 6 6M6 9l6 6 6-6"/>
+              </svg>
+            </button>
+            <span style="width:6px"></span>
+            <button class="icon-btn" id="collapse-wf" title="Collapse waterfall pane  ]" aria-label="Collapse waterfall pane">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="m9 6 6 6-6 6"/>
+              </svg>
+            </button>
+          </header>
+
+          <div class="ruler">
+            <div class="ruler__left">Span</div>
+            <div class="ruler__ticks">
+              <span style="left:0%">0</span>
+              <span style="left:25%">3.2s</span>
+              <span style="left:50%">6.4s</span>
+              <span style="left:75%">9.6s</span>
+              <span style="left:100%">12.8s</span>
+            </div>
+            <div class="ruler__expand mono">Duration</div>
+          </div>
+
+          <div class="wf__rows" id="wf-rows">
+            <!-- 1. root invoke_agent -->
+            <div class="row is-selected" style="--depth:0; --svc:var(--svc-2)">
+              <div class="row__name">
+                <button class="row__caret"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
+                <span class="row__title">invoke_agent</span>
+                <span class="row__svc">github-copilot</span>
+              </div>
+              <div class="row__bar-track">
+                <div class="row__bar" style="left:0%; width:100%"></div>
+                <span class="row__bar-label" style="left:0.5%">12.79s</span>
+              </div>
+              <div class="row__dur mono">12.79s</div>
+            </div>
+            <!-- 2. chat haiku 7.86s -->
+            <div class="row" style="--depth:1; --svc:var(--svc-1)">
+              <div class="row__name">
+                <span class="row__guide" style="left:14px"></span>
+                <button class="row__caret"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
+                <span class="row__title">chat claude-haiku-4.5</span>
+                <span class="row__svc">copilot-chat</span>
+              </div>
+              <div class="row__bar-track">
+                <div class="row__bar" style="left:0.5%; width:61.5%"></div>
+                <span class="row__bar-label" style="left:62.5%">7.86s</span>
+              </div>
+              <div class="row__dur mono">7.86s</div>
+            </div>
+            <!-- 3. execute_tool task (collapsed) -->
+            <div class="row is-collapsed is-match" style="--depth:1; --svc:var(--svc-2)">
+              <div class="row__name">
+                <span class="row__guide" style="left:14px"></span>
+                <button class="row__caret"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
+                <span class="row__title">execute_tool task</span>
+                <span class="row__svc">github-copilot</span>
+              </div>
+              <div class="row__bar-track">
+                <div class="row__bar" style="left:35%; width:35.8%"></div>
+                <span class="row__bar-label" style="left:71%">4.58s</span>
+              </div>
+              <div class="row__dur mono">4.58s</div>
+            </div>
+            <!-- expanded variant: invoke_agent explore -->
+            <div class="row" style="--depth:2; --svc:var(--svc-2)">
+              <div class="row__name">
+                <span class="row__guide" style="left:14px"></span>
+                <span class="row__guide" style="left:28px"></span>
+                <button class="row__caret"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg></button>
+                <span class="row__title">invoke_agent explore</span>
+                <span class="row__svc">github-copilot</span>
+              </div>
+              <div class="row__bar-track">
+                <div class="row__bar" style="left:35.4%; width:35.5%"></div>
+                <span class="row__bar-label" style="left:71%">4.55s</span>
+              </div>
+              <div class="row__dur mono">4.55s</div>
+            </div>
+            <!-- chat haiku nested -->
+            <div class="row is-match" style="--depth:3; --svc:var(--svc-1)">
+              <div class="row__name">
+                <span class="row__guide" style="left:14px"></span>
+                <span class="row__guide" style="left:28px"></span>
+                <span class="row__guide" style="left:42px"></span>
+                <button class="row__caret row__caret--leaf"></button>
+                <span class="row__title">chat claude-haiku-4.5</span>
+                <span class="row__svc">copilot-chat</span>
+              </div>
+              <div class="row__bar-track">
+                <div class="row__bar" style="left:35.4%; width:35.5%"></div>
+                <span class="row__bar-label" style="left:71%">4.55s</span>
+              </div>
+              <div class="row__dur mono">4.55s</div>
+            </div>
+            <!-- grep, permission -->
+            <div class="row" style="--depth:3; --svc:var(--svc-2)">
+              <div class="row__name">
+                <span class="row__guide" style="left:14px"></span>
+                <span class="row__guide" style="left:28px"></span>
+                <span class="row__guide" style="left:42px"></span>
+                <button class="row__caret row__caret--leaf"></button>
+                <span class="row__title">execute_tool grep</span>
+                <span class="row__svc">github-copilot</span>
+              </div>
+              <div class="row__bar-track">
+                <div class="row__bar" style="left:68%; width:0.5%"></div>
+                <span class="row__bar-label" style="left:69%">27.3ms</span>
+              </div>
+              <div class="row__dur mono">27.3ms</div>
+            </div>
+            <div class="row is-error" style="--depth:3; --svc:var(--svc-6)">
+              <div class="row__name">
+                <span class="row__guide" style="left:14px"></span>
+                <span class="row__guide" style="left:28px"></span>
+                <span class="row__guide" style="left:42px"></span>
+                <button class="row__caret row__caret--leaf"></button>
+                <span class="row__title">permission</span>
+                <span class="row__svc">github-copilot</span>
+              </div>
+              <div class="row__bar-track">
+                <div class="row__bar" style="left:70%; width:0.2%"></div>
+                <span class="row__bar-label" style="left:71%">5.7ms</span>
+              </div>
+              <div class="row__dur mono">5.7ms</div>
+            </div>
+            <!-- siblings of execute_tool task -->
+            <div class="row" style="--depth:1; --svc:var(--svc-1)">
+              <div class="row__name">
+                <span class="row__guide" style="left:14px"></span>
+                <button class="row__caret row__caret--leaf"></button>
+                <span class="row__title">chat claude-haiku-4.5</span>
+                <span class="row__svc">copilot-chat</span>
+              </div>
+              <div class="row__bar-track">
+                <div class="row__bar" style="left:71%; width:22%"></div>
+                <span class="row__bar-label" style="left:93%">2.89s</span>
+              </div>
+              <div class="row__dur mono">2.89s</div>
+            </div>
+            <div class="row" style="--depth:1; --svc:var(--svc-2)">
+              <div class="row__name">
+                <span class="row__guide" style="left:14px"></span>
+                <button class="row__caret row__caret--leaf"></button>
+                <span class="row__title">execute_tool create</span>
+                <span class="row__svc">github-copilot</span>
+              </div>
+              <div class="row__bar-track">
+                <div class="row__bar" style="left:93%; width:1.5%"></div>
+                <span class="row__bar-label" style="left:95%">15.7ms</span>
+              </div>
+              <div class="row__dur mono">15.7ms</div>
+            </div>
+            <div class="row" style="--depth:1; --svc:var(--svc-1)">
+              <div class="row__name">
+                <span class="row__guide" style="left:14px"></span>
+                <button class="row__caret row__caret--leaf"></button>
+                <span class="row__title">chat claude-haiku-4.5</span>
+                <span class="row__svc">copilot-chat</span>
+              </div>
+              <div class="row__bar-track">
+                <div class="row__bar" style="left:94.6%; width:5.2%"></div>
+                <span class="row__bar-label" style="left:99.8%; transform:translateX(-100%)">0.66s</span>
+              </div>
+              <div class="row__dur mono">0.66s</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ----- empty alternative (hidden by default; toggle with the button below) ----- -->
+        <div class="empty" id="empty" style="display:none">
+          <div class="empty__big">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" width="28" height="28">
+              <rect x="3" y="5"  width="10" height="3" rx="1"/>
+              <rect x="6" y="11" width="10" height="3" rx="1"/>
+              <rect x="9" y="17" width="10" height="3" rx="1"/>
+            </svg>
+          </div>
+          <h2>Select a trace from the list</h2>
+          <p>Click any trace on the left to view its waterfall and drill into individual spans.</p>
+        </div>
+      </section>
+
+      <!-- collapsed-waterfall rail (visible when waterfall is hidden) -->
+      <!-- removed: replaced by in-header restore buttons -->
+
+    </div>
+  </main>
+</div>
+
+<!-- ============ SPAN DETAIL DRAWER ============ -->
+<aside class="drawer is-open" id="drawer">
+  <header class="drawer__head" style="--svc:var(--svc-2)">
+    <span class="drawer__dot"></span>
+    <span class="drawer__title">invoke_agent</span>
+    <span class="drawer__tag">Client</span>
+    <button class="icon-btn" id="close-drawer" title="Close" aria-label="Close">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  </header>
+  <div class="drawer__body">
+    <section class="acc">
+      <header class="acc__head">
+        <svg class="ico acc__caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        Span <span class="acc__count">7</span>
+      </header>
+      <div class="acc__body kv">
+        <div class="kv__row"><span class="k">Span ID</span><span class="v mono">12cb56d3c4b2e6f6</span><span></span></div>
+        <div class="kv__row"><span class="k">Trace ID</span><span class="v mono">ac2d50f4c35e3f57b3bbe3b943bb7266</span><span></span></div>
+        <div class="kv__row"><span class="k">Kind</span><span class="v">Client</span><span></span></div>
+        <div class="kv__row"><span class="k">Duration</span><span class="v">12.79s</span><span></span></div>
+        <div class="kv__row"><span class="k">Started</span><span class="v">22:56:04.179</span><span></span></div>
+        <div class="kv__row"><span class="k">Ended</span><span class="v">22:56:16.967</span><span></span></div>
+        <div class="kv__row"><span class="k">Status</span><span class="v">Ok</span><span></span></div>
+      </div>
+    </section>
+    <section class="acc">
+      <header class="acc__head">
+        <svg class="ico acc__caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        Attributes <span class="acc__count">12</span>
+      </header>
+      <div class="acc__body kv">
+        <div class="kv__row"><span class="k">gen_ai.operation.name</span><span class="v">invoke_agent</span><span></span></div>
+        <div class="kv__row"><span class="k">gen_ai.provider.name</span><span class="v">github</span><span></span></div>
+        <div class="kv__row"><span class="k">gen_ai.agent.id</span><span class="v mono">9c1db293-2c55-4a7c-bcf6-11435b091dd4</span><span></span></div>
+        <div class="kv__row"><span class="k">gen_ai.request.model</span><span class="v">claude-haiku-4.5</span><span></span></div>
+        <div class="kv__row"><span class="k">gen_ai.usage.input_tokens</span><span class="v mono">59670</span><span></span></div>
+        <div class="kv__row"><span class="k">gen_ai.usage.output_tokens</span><span class="v mono">502</span><span></span></div>
+        <div class="kv__row"><span class="k">gen_ai.usage.cache_read_input_tokens</span><span class="v mono">58698</span><span></span></div>
+        <div class="kv__row"><span class="k">github.copilot.cost</span><span class="v mono">0.99</span><span></span></div>
+        <div class="kv__row">
+          <span class="k">gen_ai.input.messages</span>
+          <span class="v is-trunc" title="[{&quot;role&quot;:&quot;user&quot;,&quot;parts&quot;:…">[{"role":"user","parts":[{"type":"text","content":"count hello using subagent and then write to txt"}]}]</span>
+          <button class="view-btn" title="View full value" data-view='input'>
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12s3.5-7 8-7 8 7 8 7-3.5 7-8 7-8-7-8-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div class="kv__row">
+          <span class="k">gen_ai.output.messages</span>
+          <span class="v is-trunc">[{"role":"assistant","parts":[{"type":"text","content":"Done! …Summary…Found 2 occurrences of \"hello\" in the codebase…"}]}]</span>
+          <button class="view-btn" title="View full value" data-view='output' id="view-output">
+            <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12s3.5-7 8-7 8 7 8 7-3.5 7-8 7-8-7-8-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+    <section class="acc is-closed">
+      <header class="acc__head">
+        <svg class="ico acc__caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        Resource <span class="acc__count">3</span>
+      </header>
+      <div class="acc__body kv">
+        <div class="kv__row"><span class="k">service.name</span><span class="v">github-copilot</span><span></span></div>
+        <div class="kv__row"><span class="k">service.version</span><span class="v">1.0.39</span><span></span></div>
+        <div class="kv__row"><span class="k">host.name</span><span class="v">sl</span><span></span></div>
+      </div>
+    </section>
+    <section class="acc is-closed">
+      <header class="acc__head">
+        <svg class="ico acc__caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        Events <span class="acc__count">0</span>
+      </header>
+      <div class="acc__body" style="padding:12px 16px; color:var(--fg-mute); font-size:12px">No events.</div>
+    </section>
+  </div>
+</aside>
+
+<!-- ============ TEXT VISUALIZER MODAL ============ -->
+<div class="overlay" id="overlay" style="display:none">
+  <div class="viewer" role="dialog" aria-modal="true" aria-labelledby="viewer-title">
+    <header class="viewer__head">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color:var(--accent-2)"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/></svg>
+      <h3 id="viewer-title">gen_ai.output.messages</h3>
+      <div class="field" style="min-width:140px">
+        <span class="field__label">Format</span>
+        <select><option>JSON</option><option>Text</option><option>Markdown</option></select>
+      </div>
+      <button class="icon-btn" id="close-viewer" title="Close">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </header>
+    <div class="viewer__body">
+      <pre class="viewer__gutter mono"> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12</pre>
+<pre class="viewer__code mono">[
+  {
+    <span class="k">"role"</span>: <span class="s">"assistant"</span>,
+    <span class="k">"parts"</span>: [
+      {
+        <span class="k">"type"</span>: <span class="s">"text"</span>,
+        <span class="k">"content"</span>: <span class="s">"Done! Summary: Found 2 occurrences of \"hello\" in the codebase (all in test_main.py). Results written to hello_count.txt."</span>
+      }
+    ],
+    <span class="k">"finish_reason"</span>: <span class="s">"stop"</span>
+  }
+]</pre>
+    </div>
+    <footer class="viewer__foot">
+      <button class="btn">Download</button>
+      <button class="btn primary">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+        Copy to clipboard
+      </button>
+    </footer>
+  </div>
+</div>
+
+<!-- ----- mockup toggles ----- -->
+<div class="toggles">
+  <button id="t-drawer" class="is-on">Drawer</button>
+  <button id="t-empty">Empty waterfall</button>
+  <button id="t-down">Endpoint down</button>
+</div>
+
+<script>
+  // small interactivity so the user can play with the mockup
+  const $ = (s) => document.querySelector(s);
+  $('#close-drawer').addEventListener('click', () => { $('#drawer').classList.remove('is-open'); $('#t-drawer').classList.remove('is-on'); });
+  $('#t-drawer').addEventListener('click', (e) => {
+    $('#drawer').classList.toggle('is-open');
+    e.currentTarget.classList.toggle('is-on', $('#drawer').classList.contains('is-open'));
+  });
+  $('#t-empty').addEventListener('click', (e) => {
+    const showEmpty = $('#wf').style.display !== 'none';
+    $('#wf').style.display = showEmpty ? 'none' : 'grid';
+    $('#empty').style.display = showEmpty ? 'grid' : 'none';
+    e.currentTarget.classList.toggle('is-on', showEmpty);
+  });
+  $('#t-down').addEventListener('click', (e) => {
+    $('#pulse').classList.toggle('pulse--down');
+    e.currentTarget.classList.toggle('is-on', $('#pulse').classList.contains('pulse--down'));
+  });
+
+  // ---- pane collapse / expand (left list, right waterfall) ----
+  (() => {
+    const wb = document.querySelector('.workbench');
+    function setCollapsed(side, on) {
+      // never collapse both: collapsing one auto-expands the other
+      if (on) {
+        wb.classList.toggle('is-list-collapsed', side === 'list');
+        wb.classList.toggle('is-wf-collapsed',   side === 'wf');
+      } else {
+        wb.classList.remove(side === 'list' ? 'is-list-collapsed' : 'is-wf-collapsed');
+      }
+    }
+    $('#collapse-list').addEventListener('click', () => setCollapsed('list', true));
+    $('#collapse-wf'  ).addEventListener('click', () => setCollapsed('wf',   true));
+    $('#show-list'    ).addEventListener('click', () => setCollapsed('list', false));
+    $('#show-wf'      ).addEventListener('click', () => setCollapsed('wf',   false));
+    document.addEventListener('keydown', (e) => {
+      if (e.target.matches('input, textarea, select, [contenteditable]')) return;
+      if (e.key === '[') setCollapsed('list', !wb.classList.contains('is-list-collapsed'));
+      if (e.key === ']') setCollapsed('wf',   !wb.classList.contains('is-wf-collapsed'));
+    });
+  })();
+
+  // ---- Service dropdown (custom, replaces native <select>) ----
+  (() => {
+    const dd     = $('#dd-service');
+    const btn    = $('#dd-service-btn');
+    const menu   = $('#dd-service-menu');
+    const value  = $('#dd-service-value');
+    function open() {
+      menu.hidden = false;
+      dd.setAttribute('aria-expanded', 'true');
+      btn.setAttribute('aria-expanded', 'true');
+    }
+    function close() {
+      menu.hidden = true;
+      dd.setAttribute('aria-expanded', 'false');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      menu.hidden ? open() : close();
+    });
+    menu.addEventListener('click', (e) => {
+      const opt = e.target.closest('.dd__opt');
+      if (!opt) return;
+      menu.querySelectorAll('.dd__opt').forEach(o => o.classList.remove('is-selected'));
+      opt.classList.add('is-selected');
+      value.textContent = opt.dataset.label || opt.querySelector('.dd__opt-label').textContent;
+      close();
+    });
+    document.addEventListener('click', (e) => { if (!dd.contains(e.target)) close(); });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !menu.hidden) { close(); btn.focus(); }
+    });
+    // keyboard nav inside menu
+    btn.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        if (menu.hidden) open();
+        menu.querySelector('.dd__opt')?.focus();
+      }
+    });
+  })();
+
+  // ---- Errors-only toggle ----
+  (() => {
+    const t = $('#errors-only');
+    t.addEventListener('click', () => {
+      const on = t.getAttribute('aria-pressed') === 'true';
+      t.setAttribute('aria-pressed', String(!on));
+    });
+  })();
+  document.querySelectorAll('.tcard').forEach(c => c.addEventListener('click', () => {
+    document.querySelectorAll('.tcard').forEach(x => x.classList.remove('is-selected'));
+    c.classList.add('is-selected');
+  }));
+  document.querySelectorAll('.row').forEach(r => r.addEventListener('click', () => {
+    document.querySelectorAll('.row').forEach(x => x.classList.remove('is-selected'));
+    r.classList.add('is-selected');
+    const title = r.querySelector('.row__title')?.textContent ?? '';
+    const svc   = r.querySelector('.row__svc')?.textContent ?? '';
+    $('#drawer .drawer__title').textContent = title;
+    $('#drawer').style.setProperty('--svc', getComputedStyle(r).getPropertyValue('--svc'));
+    $('#drawer').classList.add('is-open'); $('#t-drawer').classList.add('is-on');
+  }));
+  document.querySelectorAll('.row__caret:not(.row__caret--leaf)').forEach(b => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    b.closest('.row').classList.toggle('is-collapsed');
+  }));
+  document.querySelectorAll('.acc__head').forEach(h => h.addEventListener('click', () => h.parentElement.classList.toggle('is-closed')));
+  $('#view-output').addEventListener('click', () => $('#overlay').style.display = 'grid');
+  $('#close-viewer').addEventListener('click', () => $('#overlay').style.display = 'none');
+  $('#overlay').addEventListener('click', (e) => { if (e.target === $('#overlay')) $('#overlay').style.display = 'none'; });
+
+  // ---- draggable splitter between trace list and waterfall ----
+  (() => {
+    const splitter = $('#splitter');
+    const workbench = document.querySelector('.workbench');
+    const MIN_LEFT  = 280;   // 3-line trace cards still readable
+    const MIN_RIGHT = 480;   // waterfall: name col 280 + bar room + duration 64 + padding
+    let dragging = false;
+
+    function setWidth(px) {
+      const total = workbench.getBoundingClientRect().width;
+      // workbench grid is: [list] 6px [splitter] 1fr [waterfall]
+      const maxLeft = total - 6 - MIN_RIGHT;
+      const clamped = Math.max(MIN_LEFT, Math.min(maxLeft, px));
+      workbench.style.setProperty('--list-w', clamped + 'px');
+    }
+    function onMove(e) {
+      if (!dragging) return;
+      const rect = workbench.getBoundingClientRect();
+      setWidth(e.clientX - rect.left);
+    }
+    function onUp() {
+      if (!dragging) return;
+      dragging = false;
+      workbench.classList.remove('is-dragging');
+      splitter.classList.remove('is-active');
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    }
+    splitter.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      workbench.classList.add('is-dragging');
+      splitter.classList.add('is-active');
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      e.preventDefault();
+    });
+    // keyboard nudging for accessibility
+    splitter.addEventListener('keydown', (e) => {
+      const cur = parseInt(getComputedStyle(workbench).getPropertyValue('--list-w')) || 360;
+      if (e.key === 'ArrowLeft')  setWidth(cur - (e.shiftKey ? 32 : 8));
+      if (e.key === 'ArrowRight') setWidth(cur + (e.shiftKey ? 32 : 8));
+    });
+  })();
+</script>
+</body>
+</html>
