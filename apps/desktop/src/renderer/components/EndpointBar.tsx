@@ -1,4 +1,5 @@
-import { type JSX, useState } from 'react';
+import { CheckIcon, CopyIcon } from '@otelux/ui';
+import { type JSX, useEffect, useRef, useState } from 'react';
 import type { ReceiverStatus } from '../../shared/ipc.js';
 
 interface EndpointBarProps {
@@ -44,10 +45,23 @@ function StatusDot({ status }: { status: ReceiverStatus | undefined }): JSX.Elem
 
 function CopyableUrl({ url }: { url: string }): JSX.Element {
 	const [justCopied, setJustCopied] = useState(false);
+	// Track the timer so we can clear it on unmount or rapid re-clicks
+	// (previously the timer leaked into a stale closure on unmount).
+	const timerRef = useRef<number | null>(null);
+	useEffect(() => {
+		return () => {
+			if (timerRef.current !== null) {
+				window.clearTimeout(timerRef.current);
+			}
+		};
+	}, []);
 	const onClick = (): void => {
 		void navigator.clipboard.writeText(url).then(() => {
 			setJustCopied(true);
-			window.setTimeout(() => setJustCopied(false), 1200);
+			if (timerRef.current !== null) {
+				window.clearTimeout(timerRef.current);
+			}
+			timerRef.current = window.setTimeout(() => setJustCopied(false), 1200);
 		});
 	};
 	return (
@@ -55,10 +69,16 @@ function CopyableUrl({ url }: { url: string }): JSX.Element {
 			type="button"
 			className="endpoint-bar__url endpoint-bar__url--copy"
 			onClick={onClick}
-			title="Click to copy"
+			// Tooltip carries the affordance hint so the in-button label
+			// can be an icon-only state cue (no width swap → no flicker
+			// when the URL re-renders next to a longer/shorter label).
+			title={justCopied ? 'Copied' : 'Click to copy'}
+			aria-label={justCopied ? 'Copied' : 'Copy URL'}
 		>
 			<code>{url}</code>
-			<span className="endpoint-bar__copy-hint">{justCopied ? 'copied' : 'click to copy'}</span>
+			<span className="endpoint-bar__copy-icon" aria-hidden="true">
+				{justCopied ? <CheckIcon size={14} /> : <CopyIcon size={14} />}
+			</span>
 		</button>
 	);
 }

@@ -87,8 +87,8 @@ body,
 
 .endpoint-bar__url--copy {
 	display: flex;
-	align-items: baseline;
-	gap: 8px;
+	align-items: center;
+	gap: 6px;
 	background: none;
 	border: none;
 	cursor: pointer;
@@ -103,14 +103,29 @@ body,
 	background: rgba(255, 255, 255, 0.06);
 }
 
+.endpoint-bar__url--copy:hover .endpoint-bar__copy-icon {
+	color: var(--otelux-fg);
+}
+
 .endpoint-bar__url--copy code {
 	font-family: ui-monospace, "SF Mono", Menlo, monospace;
 	font-size: 12px;
 }
 
-.endpoint-bar__copy-hint {
+.endpoint-bar__copy-icon {
+	/*
+	 * Fixed 14x14 box keeps the row width identical between the
+	 * Copy and Check states — no reflow flicker when the icon
+	 * morphs after a successful copy.
+	 */
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 14px;
+	height: 14px;
+	flex: 0 0 auto;
 	color: var(--otelux-fg-muted);
-	font-size: 11px;
+	transition: color 120ms ease;
 }
 
 .endpoint-bar__cog {

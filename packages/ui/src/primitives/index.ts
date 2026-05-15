@@ -22,6 +22,7 @@ export {
 	ActivityIcon,
 	AlertCircleIcon,
 	BarChart3Icon,
+	CheckIcon,
 	ChevronDownIcon,
 	ChevronRightIcon,
 	CopyIcon,
