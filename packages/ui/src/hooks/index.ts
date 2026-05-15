@@ -6,3 +6,7 @@
 
 export { clampWidth, useResizable } from './useResizable.js';
 export type { UseResizableOptions, UseResizableResult } from './useResizable.js';
+export { useDisclosure } from './useDisclosure.js';
+export type { UseDisclosureOptions, UseDisclosureResult } from './useDisclosure.js';
+export { usePaneCollapse } from './usePaneCollapse.js';
+export type { Pane, UsePaneCollapseOptions, UsePaneCollapseResult } from './usePaneCollapse.js';
