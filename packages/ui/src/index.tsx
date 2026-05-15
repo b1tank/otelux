@@ -182,22 +182,29 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 	const filteredCount = filteredCountProbe.value?.totalCount ?? 0;
 
 	const serviceOptions = useMemo<readonly DropdownOption[]>(() => {
-		const opts: DropdownOption[] = [
-			{ value: 'all', label: 'All services', count: summaryProbe.value?.totalCount ?? 0 },
-		];
-		if (sortedServices.length > 0) {
+		const opts: DropdownOption[] = [];
+		// When a specific service is filtered we still need an "All services"
+		// entry so the user can clear back to the unfiltered view. When the
+		// filter is already 'all', that row is redundant with the trigger
+		// label (and its count is now on the trigger badge), so omit it and
+		// the separator that would follow.
+		if (selectedService !== 'all') {
+			opts.push({ value: 'all', label: 'All services' });
 			opts.push({ kind: 'separator' });
-			for (const name of sortedServices) {
-				opts.push({
-					value: name,
-					label: name,
-					count: serviceCounts.get(name) ?? 0,
-					colorIndex: serviceIndex(name),
-				});
-			}
+		}
+		for (const name of sortedServices) {
+			opts.push({
+				value: name,
+				label: name,
+				count: serviceCounts.get(name) ?? 0,
+				colorIndex: serviceIndex(name),
+			});
 		}
 		return opts;
-	}, [sortedServices, serviceCounts, summaryProbe.value?.totalCount]);
+	}, [sortedServices, serviceCounts, selectedService]);
+
+	const serviceTriggerCount =
+		selectedService === 'all' ? summaryProbe.value?.totalCount : serviceCounts.get(selectedService);
 
 	// The detail drawer is opened explicitly by the user clicking a span
 	// row in the Waterfall — not auto-opened when a trace is selected.
@@ -270,6 +277,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 											/>
 										)
 									}
+									{...(serviceTriggerCount !== undefined ? { triggerCount: serviceTriggerCount } : {})}
 									value={selectedService}
 									onChange={setSelectedService}
 									options={serviceOptions}

@@ -41,6 +41,13 @@ export interface DropdownProps {
 	triggerLabel?: string;
 	/** Optional icon inside the trigger (left of the label). */
 	triggerIcon?: ReactNode;
+	/**
+	 * Optional numeric badge rendered in the trigger between the label
+	 * and the chevron. Used when the dropdown is a *filter* and the
+	 * current selection has a meaningful count (e.g. matched traces) —
+	 * surfaces that count without forcing the user to open the menu.
+	 */
+	triggerCount?: number;
 	/** Tooltip + accessible name for the trigger when no visible label is meaningful. */
 	'aria-label'?: string;
 	className?: string;
@@ -66,6 +73,7 @@ export function Dropdown(props: DropdownProps): JSX.Element {
 		placeholder = 'Select…',
 		triggerLabel,
 		triggerIcon,
+		triggerCount,
 		className,
 		'aria-label': ariaLabel,
 	} = props;
@@ -162,6 +170,9 @@ export function Dropdown(props: DropdownProps): JSX.Element {
 			>
 				{triggerIcon && <span className="otelux-dropdown__trigger-icon">{triggerIcon}</span>}
 				<span className="otelux-dropdown__trigger-label">{visibleLabel}</span>
+				{triggerCount !== undefined && (
+					<span className="otelux-dropdown__trigger-count">{triggerCount}</span>
+				)}
 				<ChevronDownIcon size={14} />
 			</button>
 			{open && (

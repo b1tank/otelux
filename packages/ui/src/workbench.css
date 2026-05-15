@@ -258,11 +258,26 @@
 	background: var(--otelux-bg-hover);
 }
 
-.otelux-dropdown__trigger:focus-visible,
-.otelux-dropdown__trigger[aria-expanded="true"] {
+/*
+ * Keyboard-focus ring stays as a 1-px box-shadow when the menu is
+ * *closed*. When the menu is open we drop the ring and instead keep
+ * just an accent border + transparent bottom border so the trigger
+ * visually fuses with the menu (which sits flush below). A surrounding
+ * box-shadow would otherwise be sliced by the menu's top edge.
+ */
+.otelux-dropdown__trigger:focus-visible:not([aria-expanded="true"]) {
 	outline: none;
 	border-color: var(--otelux-accent);
 	box-shadow: 0 0 0 1px var(--otelux-accent);
+}
+
+.otelux-dropdown__trigger[aria-expanded="true"] {
+	outline: none;
+	border-color: var(--otelux-accent);
+	border-bottom-color: transparent;
+	border-bottom-left-radius: 0;
+	border-bottom-right-radius: 0;
+	box-shadow: none;
 }
 
 .otelux-dropdown__trigger-label {
@@ -291,9 +306,34 @@
 	height: 9px;
 }
 
+/*
+ * Numeric badge next to the trigger label — mirrors the option-count
+ * pill style so the count of the current selection reads the same
+ * whether it lives in the trigger (current filter) or the menu (other
+ * choices).
+ */
+.otelux-dropdown__trigger-count {
+	flex: 0 0 auto;
+	font-variant-numeric: tabular-nums;
+	font-size: 11px;
+	color: var(--otelux-fg-muted);
+	padding: 1px 6px;
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--otelux-bg) 60%, transparent);
+}
+
+.otelux-dropdown__trigger[aria-expanded="true"] .otelux-dropdown__trigger-count {
+	background: color-mix(in srgb, var(--otelux-accent) 18%, transparent);
+	color: var(--otelux-fg);
+}
+
 .otelux-dropdown__menu-wrap {
 	position: absolute;
-	top: calc(100% + 6px);
+	/* Sit flush against the trigger — the -1px overlap lets the menu's
+	   top border replace the trigger's (now transparent) bottom border
+	   so the two surfaces read as one panel. */
+	top: 100%;
+	margin-top: -1px;
 	left: 0;
 	z-index: var(--otelux-z-dropdown);
 	min-width: 100%;
@@ -306,8 +346,9 @@
 	max-height: 320px;
 	overflow-y: auto;
 	background: var(--otelux-bg-panel);
-	border: 1px solid var(--otelux-border-strong, var(--otelux-border));
-	border-radius: var(--otelux-r-2);
+	border: 1px solid var(--otelux-accent);
+	/* Top corners square: they meet the trigger's now-square bottom. */
+	border-radius: 0 0 var(--otelux-r-2) var(--otelux-r-2);
 	box-shadow: 0 12px 32px rgba(0, 0, 0, 0.42), 0 2px 4px rgba(0, 0, 0, 0.24);
 	padding: 6px;
 }
