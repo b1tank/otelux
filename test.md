@@ -41,14 +41,21 @@ cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-us
   - `ss -ltnp | grep 4318` shows electron listening
 
 ### 1.2 Initial UI
-- **Visible chrome (top → bottom)**
-  1. Header strip with **OTelux** title + tagline "Local OpenTelemetry workbench"
-  2. **EndpointBar** — green dot, label `OTLP/HTTP`, URL `http://127.0.0.1:4318/v1/traces`, cog button (⚙)
-  3. Three-pane workbench
-     - Left aside: trace list (`Traces` header, count `0`, "Waiting for traces…" placeholder)
-     - Main: placeholder "Select a trace from the list to view its waterfall."
-     - Right aside: placeholder "No span selected."
-- **PASS** if dot is green and URL renders.
+- **Visible chrome (top → bottom, left → right)**
+  1. Left **Rail** — narrow icon strip with the **Traces** tab active and
+     disabled Activity / Settings icons in the footer.
+  2. **Topbar** — `OTelux` brand on the left, **EndpointBar** on the
+     right (status dot, `OTLP/HTTP` label, URL `http://127.0.0.1:4318/v1/traces`,
+     cog button ⚙).
+  3. **FilterBar** — single `Errors only` toggle chip, not pressed.
+  4. **Workbench** body (left → right)
+     - Left pane: trace list (`Traces` header, count `0`,
+       "No traces match…" empty-state copy).
+     - Right pane: placeholder "Select a trace from the list to view
+       its waterfall."
+  5. No drawer / value-viewer modal is visible.
+- **PASS** if dot is green and URL renders inside the topbar (no separate
+  header strip above the workbench).
 
 ### 1.3 Persisted settings file
 ```bash
