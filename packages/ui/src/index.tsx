@@ -98,6 +98,25 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 
 	const trace = traceQuery.value;
 
+	// Probe the data source for ANY trace, unfiltered, so we can tell
+	// whether the workbench has ever seen data. This drives the
+	// "cold start" UI: when no traces have arrived yet we collapse the
+	// right pane and hide the FilterBar so the user sees a single
+	// focused TraceList empty state rather than a half-populated app
+	// with toggles that filter nothing.
+	//
+	// This is deliberately a separate query from the filter-aware list
+	// inside TraceList — when the user toggles `errorsOnly` and the
+	// filtered list goes empty, the FilterBar must stay visible so
+	// they can undo the toggle. That requires a probe that ignores the
+	// active filters.
+	const emptyProbe = useDataSourceQuery(
+		dataSource,
+		(ds) => ds.listTraces({ limit: 1, sortBy: 'startTime', sortDirection: 'desc' }),
+		'workbench:empty-probe',
+	);
+	const hasAnyTrace = (emptyProbe.value?.rows.length ?? 0) > 0;
+
 	// Auto-select the root span when a new trace lands so the detail
 	// drawer is never blank when a user lands on a trace.
 	useEffect(() => {
@@ -127,15 +146,18 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 					start={<span className="otelux-workbench-root__brand">OTelux</span>}
 					{...(topbarEnd !== undefined ? { end: topbarEnd } : {})}
 				/>
-				<FilterBar
-					filters={
-						<ToggleChip pressed={errorsOnly} onPressedChange={setErrorsOnly} pressedTone="error">
-							Errors only
-						</ToggleChip>
-					}
-				/>
+				{hasAnyTrace ? (
+					<FilterBar
+						filters={
+							<ToggleChip pressed={errorsOnly} onPressedChange={setErrorsOnly} pressedTone="error">
+								Errors only
+							</ToggleChip>
+						}
+					/>
+				) : null}
 				<Workbench
 					left={<TraceList {...traceListProps} />}
+					rightCollapsed={!hasAnyTrace}
 					right={
 						trace && trace.spans.length > 0 ? (
 							<Waterfall
