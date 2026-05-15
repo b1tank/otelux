@@ -292,8 +292,18 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 								{...(selectedSpanId !== undefined ? { selectedSpanId } : {})}
 							/>
 						) : (
-							<div className="otelux-workbench-root__placeholder">
-								{selectedTraceId ? 'Loading trace…' : 'Select a trace from the list to view its waterfall.'}
+							<div className="otelux-empty-state">
+								<div className="otelux-empty-state__icon" aria-hidden>
+									<WaterfallIcon size={28} />
+								</div>
+								<h2 className="otelux-empty-state__title">
+									{selectedTraceId ? 'Loading trace…' : 'Select a trace'}
+								</h2>
+								<p className="otelux-empty-state__body">
+									{selectedTraceId
+										? 'Fetching spans for the selected trace.'
+										: 'Pick a trace from the list to view its waterfall.'}
+								</p>
 							</div>
 						)
 					}
