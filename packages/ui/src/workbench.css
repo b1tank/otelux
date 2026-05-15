@@ -710,3 +710,37 @@
 .otelux-rail__icon {
 	display: inline-flex;
 }
+
+/* ---------- Topbar ---------- */
+
+.otelux-topbar {
+	display: flex;
+	align-items: center;
+	flex: 0 0 var(--otelux-topbar-h);
+	height: var(--otelux-topbar-h);
+	padding: 0 12px;
+	background: var(--otelux-bg-panel);
+	border-bottom: 1px solid var(--otelux-border);
+	gap: 12px;
+}
+
+.otelux-topbar__slot {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.otelux-topbar__slot--start {
+	flex: 0 0 auto;
+}
+
+.otelux-topbar__slot--center {
+	flex: 1 1 auto;
+	justify-content: center;
+}
+
+.otelux-topbar__slot--end {
+	flex: 0 0 auto;
+	margin-left: auto;
+}
