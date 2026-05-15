@@ -7,7 +7,16 @@ import type { Span } from '@otelux/types';
 import { SpanKind, SpanStatusCode } from '@otelux/types';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { OTELUX_UI_VERSION, OTeluxWorkbench, SpanDetail, formatDuration } from './index.js';
+import {
+	OTELUX_UI_VERSION,
+	OTeluxWorkbench,
+	SpanDetail,
+	colorForService,
+	formatDuration,
+	formatTimeAgo,
+	serviceColorVar,
+	serviceIndex,
+} from './index.js';
 
 const TRACE_ID = 'a'.repeat(32);
 
@@ -31,6 +40,48 @@ describe('formatDuration', () => {
 		expect(formatDuration(5_000n)).toBe('5.0µs');
 		expect(formatDuration(5_000_000n)).toBe('5.0ms');
 		expect(formatDuration(2_500_000_000n)).toBe('2.50s');
+	});
+});
+
+describe('formatTimeAgo', () => {
+	// Anchor "now" deterministically so the bucket boundaries are easy to read.
+	const NOW_MS = Date.UTC(2026, 0, 1, 12, 0, 0);
+	const at = (offsetMs: number): bigint => BigInt(NOW_MS - offsetMs) * 1_000_000n;
+
+	it('buckets recent → days', () => {
+		expect(formatTimeAgo(at(0), NOW_MS)).toBe('just now');
+		expect(formatTimeAgo(at(4_000), NOW_MS)).toBe('just now');
+		expect(formatTimeAgo(at(12_000), NOW_MS)).toBe('12s ago');
+		expect(formatTimeAgo(at(4 * 60_000), NOW_MS)).toBe('4m ago');
+		expect(formatTimeAgo(at(2 * 3_600_000), NOW_MS)).toBe('2h ago');
+		expect(formatTimeAgo(at(3 * 86_400_000), NOW_MS)).toBe('3d ago');
+	});
+
+	it('zero nanos renders em-dash', () => {
+		expect(formatTimeAgo(0n, NOW_MS)).toBe('—');
+	});
+});
+
+describe('serviceIndex / colorForService', () => {
+	it('is deterministic and 1-based 1..8', () => {
+		const idx = serviceIndex('frontend');
+		expect(idx).toBe(serviceIndex('frontend'));
+		expect(idx).toBeGreaterThanOrEqual(1);
+		expect(idx).toBeLessThanOrEqual(8);
+	});
+
+	it('different names land in the palette range', () => {
+		for (const name of ['a', 'frontend', 'api-gateway', 'unknown', 'svc-with-a-long-id']) {
+			const idx = serviceIndex(name);
+			expect(idx).toBeGreaterThanOrEqual(1);
+			expect(idx).toBeLessThanOrEqual(8);
+		}
+	});
+
+	it('colorForService and serviceColorVar agree on the slot', () => {
+		const idx = serviceIndex('frontend');
+		expect(serviceColorVar('frontend')).toBe(`var(--otelux-svc-${idx})`);
+		expect(colorForService('frontend')).toMatch(/^#[0-9a-f]{6}$/);
 	});
 });
 

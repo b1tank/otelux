@@ -73,8 +73,7 @@
 	/* ------------------------------------------------------------------
 	 * Type
 	 * ----------------------------------------------------------------*/
-	--otelux-font-sans:
-		"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	--otelux-font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 	--otelux-font-mono: "JetBrains Mono", "Fira Code", ui-monospace, Menlo, monospace;
 
 	/* ------------------------------------------------------------------

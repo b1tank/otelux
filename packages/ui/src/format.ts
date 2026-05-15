@@ -38,29 +38,86 @@ export function formatWallClock(unixNano: bigint): string {
 }
 
 /**
- * Deterministic color for a service name. Uses a small fixed palette so
- * the same service always renders in the same hue across components and
- * sessions. Hash is FNV-1a — non-cryptographic, fast, well-distributed.
+ * Human "time ago" for trace cards: `just now`, `12s ago`, `4m ago`,
+ * `2h ago`, `3d ago`. The `nowMs` argument is injectable so tests are
+ * deterministic; defaults to `Date.now()`.
  */
-const SERVICE_PALETTE = [
-	'#7aa2f7', // blue
-	'#9ece6a', // green
-	'#e0af68', // amber
-	'#bb9af7', // violet
-	'#f7768e', // red
-	'#7dcfff', // cyan
-	'#ff9e64', // orange
-	'#73daca', // teal
-];
+export function formatTimeAgo(unixNano: bigint, nowMs: number = Date.now()): string {
+	if (unixNano === 0n) {
+		return '—';
+	}
+	const thenMs = Number(unixNano / NS_PER_MS);
+	const deltaSec = Math.max(0, Math.floor((nowMs - thenMs) / 1000));
+	if (deltaSec < 5) {
+		return 'just now';
+	}
+	if (deltaSec < 60) {
+		return `${deltaSec}s ago`;
+	}
+	const min = Math.floor(deltaSec / 60);
+	if (min < 60) {
+		return `${min}m ago`;
+	}
+	const hr = Math.floor(min / 60);
+	if (hr < 24) {
+		return `${hr}h ago`;
+	}
+	const d = Math.floor(hr / 24);
+	return `${d}d ago`;
+}
 
-export function colorForService(name: string): string {
-	let hash = 2166136261;
+/**
+ * The fixed service palette. Eight distinct hues that map to
+ * `--otelux-svc-1..8` in tokens.css. Keep these in sync — same index in
+ * both places. Exported so consumers (e.g. an inline-SVG renderer that
+ * can't use CSS vars in SVG `fill` attributes reliably) can read the
+ * resolved color directly.
+ */
+export const SERVICE_PALETTE = [
+	'#7aa2f7', // svc-1 blue
+	'#9ece6a', // svc-2 green
+	'#e0af68', // svc-3 amber
+	'#bb9af7', // svc-4 violet
+	'#f7768e', // svc-5 red
+	'#7dcfff', // svc-6 cyan
+	'#ff9e64', // svc-7 orange
+	'#73daca', // svc-8 teal
+] as const;
+
+const FNV_OFFSET = 2166136261;
+const FNV_PRIME = 16777619;
+
+/**
+ * Deterministic 1-based index (1..8) for a service name. Hash is FNV-1a
+ * — non-cryptographic, fast, well-distributed. The same name always
+ * resolves to the same slot, in this process and across processes, so
+ * a service is the same color in every row, header, and dropdown.
+ */
+export function serviceIndex(name: string): number {
+	let hash = FNV_OFFSET;
 	for (let i = 0; i < name.length; i++) {
 		hash ^= name.charCodeAt(i);
-		hash = Math.imul(hash, 16777619);
+		hash = Math.imul(hash, FNV_PRIME);
 	}
-	const idx = (hash >>> 0) % SERVICE_PALETTE.length;
-	return SERVICE_PALETTE[idx] ?? '#7aa2f7';
+	return ((hash >>> 0) % SERVICE_PALETTE.length) + 1;
+}
+
+/** Deterministic color hex for a service name. Backed by `serviceIndex`. */
+export function colorForService(name: string): string {
+	const palette = SERVICE_PALETTE;
+	const color = palette[serviceIndex(name) - 1];
+	// serviceIndex always returns 1..palette.length, so this is total.
+	return color ?? palette[0];
+}
+
+/**
+ * The CSS variable name for a service's palette slot, e.g.
+ * `var(--otelux-svc-3)`. Use this in inline `style` so the rendered
+ * color follows the active theme (dark/light) without re-running the
+ * hash on theme change.
+ */
+export function serviceColorVar(name: string): string {
+	return `var(--otelux-svc-${serviceIndex(name)})`;
 }
 
 /**

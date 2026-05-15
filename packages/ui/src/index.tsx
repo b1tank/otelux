@@ -18,7 +18,15 @@ export { SpanDetail } from './SpanDetail.js';
 export { TraceList } from './TraceList.js';
 export { Waterfall } from './Waterfall.js';
 export { useDataSourceQuery } from './useDataSourceQuery.js';
-export { colorForService, formatDuration, formatWallClock } from './format.js';
+export {
+	colorForService,
+	formatDuration,
+	formatTimeAgo,
+	formatWallClock,
+	SERVICE_PALETTE,
+	serviceColorVar,
+	serviceIndex,
+} from './format.js';
 
 export interface OTeluxWorkbenchProps {
 	dataSource: DataSource;
