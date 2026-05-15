@@ -774,3 +774,57 @@
 	gap: 6px;
 	flex: 0 0 auto;
 }
+
+/* ---------- Splitter ---------- */
+
+.otelux-splitter {
+	flex: 0 0 var(--otelux-splitter-w);
+	width: var(--otelux-splitter-w);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	cursor: col-resize;
+	background: transparent;
+	transition: background 80ms ease;
+	user-select: none;
+}
+
+.otelux-splitter:hover,
+.otelux-splitter:focus-visible {
+	background: color-mix(in srgb, var(--otelux-accent) 30%, transparent);
+	outline: none;
+}
+
+.otelux-splitter__grip {
+	width: 1px;
+	height: 32px;
+	background: var(--otelux-border-strong);
+}
+
+/* ---------- Workbench (two-pane container) ---------- */
+
+.otelux-workbench {
+	display: flex;
+	flex: 1 1 auto;
+	min-height: 0;
+	width: 100%;
+	background: var(--otelux-bg);
+}
+
+.otelux-workbench__pane {
+	display: flex;
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+}
+
+.otelux-workbench__pane--left {
+	flex: 0 0 auto;
+	background: var(--otelux-bg-panel);
+	border-right: 1px solid var(--otelux-border);
+}
+
+.otelux-workbench__pane--right {
+	flex: 1 1 auto;
+	background: var(--otelux-bg);
+}
