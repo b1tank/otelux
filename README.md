@@ -1,9 +1,9 @@
 # OTelux
 
 A local-first OpenTelemetry workbench. **Milestone 1: ship a Linux desktop
-app you can install and use** — it listens on `http://localhost:4318` for
-OTLP traces and shows them in a fast workbench with a virtualized trace
-list, a per-service-colored waterfall, and a span detail panel. Internally,
+app you can install and use** — it listens on `http://localhost:4319` for
+OTLP/HTTP traces and shows them in a fast workbench with a compact trace
+list, a per-service-colored waterfall, and a span detail drawer. Internally,
 the same React components, engine, and protocol are packaged as
 `@otelux/*` workspaces so they can later embed in VS Code webviews and a
 pure-browser demo without forking the codebase.
@@ -13,7 +13,9 @@ beats every general-purpose OTel viewer for local development.
 
 - [docs/spec.md](docs/spec.md) — what OTelux is.
 - [docs/plan.md](docs/plan.md) — how it ships.
-- [sprint.plan.md](sprint.plan.md) — current sprint.
+- [docs/test.md](docs/test.md) — the manual end-to-end test plan for the desktop app.
+- [design/README.md](design/README.md) — UI redesign philosophy and the
+  [`design/redesign-mockup.html`](design/redesign-mockup.html) reference.
 
 ## Repository layout
 
@@ -59,8 +61,12 @@ npm run -w @otelux/desktop package
 
 ## Status
 
-Pre-release. Phase 0 ships the monorepo skeleton; Milestone 1 ships the
-Linux desktop trace workbench. See [docs/plan.md](docs/plan.md).
+Pre-release. Milestone 1 (Linux desktop trace workbench) is in progress —
+the Electron shell, OTLP/HTTP JSON receiver, in-memory engine, and the
+`@otelux/ui` workbench (trace list, waterfall, span drawer, settings) are
+shipping end-to-end against local OTel SDKs. Persistent `node:sqlite`
+storage, OTLP gRPC + protobuf, and packaging polish are still to come.
+See [docs/plan.md](docs/plan.md).
 
 ## License
 

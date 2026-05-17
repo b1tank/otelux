@@ -1255,6 +1255,17 @@
 	overflow-y: auto;
 }
 
+/*
+ * No traces yet (or loading): suppress the scroll gutter. The empty
+ * hint is centered with min-height: 100% and there is nothing to
+ * scroll, so the otherwise-reserved track on the right edge would be
+ * visual noise. `:has()` keeps this purely declarative — no extra
+ * class plumbing in the React tree.
+ */
+.otelux-trace-list__body:has(.otelux-trace-list__empty) {
+	overflow-y: hidden;
+}
+
 .otelux-trace-list__empty {
 	display: flex;
 	flex-direction: column;

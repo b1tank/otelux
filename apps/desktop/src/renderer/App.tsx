@@ -25,7 +25,7 @@ export function App(): JSX.Element {
 
 	// Show the live receiver URL in the empty-state hint so the user
 	// copy-pastes the right thing (port may differ from the default
-	// 4318 via settings or the `OTELUX_OTLP_PORT` env override). Fall
+	// 4319 via settings or the `OTELUX_OTLP_PORT` env override). Fall
 	// back to the persisted settings while the status is hydrating.
 	const endpointUrl = useMemo<string | undefined>(() => {
 		if (status?.kind === 'running') {

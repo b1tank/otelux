@@ -43,9 +43,14 @@ export interface PartialSettings {
 	};
 }
 
+// Default OTLP/HTTP port. We deliberately use 4319 (one above the
+// industry-standard 4318) so OTelux does not collide with a locally
+// running OTel Collector or another OTLP receiver bound on 4318.
+// Users can change this in Settings; the empty-state hint and copy
+// URL always reflect the actual bound port.
 export const DEFAULT_SETTINGS: Settings = {
 	version: 1,
-	otlp: { port: 4318 },
+	otlp: { port: 4319 },
 };
 
 /** Inclusive bounds for a valid TCP port. */

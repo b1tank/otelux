@@ -141,12 +141,12 @@ Format the final report as a `Section | Step | Tool | Result | Evidence`
 table.
 
 #### §1 Cold start
-- §1.1 — receiver bound. **shell.** `grep "listening on http://127.0.0.1:4318" /tmp/otelux-app.log` and `ss -ltnp | grep ':4318 '`.
+- §1.1 — receiver bound. **shell.** `grep "listening on http://127.0.0.1:4319" /tmp/otelux-app.log` and `ss -ltnp | grep ':4319 '`.
 - §1.2 — visible chrome. **deskpal.**
   ```text
   deskpal.read_screen_text({ window: "OTelux" })
     → assert text contains: "OTelux", "Local OpenTelemetry workbench",
-      "OTLP/HTTP", "http://127.0.0.1:4318/v1/traces", "Traces", "0".
+      "OTLP/HTTP", "http://127.0.0.1:4319/v1/traces", "Traces", "0".
   deskpal.screenshot({ window: "OTelux", path: "/tmp/otelux-cold.png" })
   ```
 - §1.3 — no settings file yet. **shell.** `test ! -f /tmp/otelux-userdata/settings.json`.
@@ -156,14 +156,14 @@ table.
   ```text
   read_screen_text returns positions; use mouse_move to the dot's center,
   sleep 1s, then read_screen_text again → expect
-  "listening on http://127.0.0.1:4318/v1/traces" appears as tooltip.
+  "listening on http://127.0.0.1:4319/v1/traces" appears as tooltip.
   ```
 - §2.2 URL copy. **deskpal + shell (clipboard gap).**
   ```text
   deskpal.click_text({ text: "http://127.0.0.1" })   // OCR finds URL pill
   read_screen_text → expect "copied" briefly
   shell: xclip -selection clipboard -o
-    → assert exactly "http://127.0.0.1:4318/v1/traces"
+    → assert exactly "http://127.0.0.1:4319/v1/traces"
   ```
 - §2.3 spam-click. **deskpal.** Loop `click_text` 5×, `screenshot`,
   re-read — UI must still be responsive.
@@ -226,11 +226,11 @@ shell: cat /tmp/otelux-userdata/settings.json → still 14320
 
 shell: echo 'not json' > /tmp/otelux-userdata/settings.json
 deskpal.launch_app(env={})
-deskpal.read_screen_text → URL contains "4318"   (fallback)
+deskpal.read_screen_text → URL contains "4319"   (fallback)
 
 shell: echo '{"version":99}' > /tmp/otelux-userdata/settings.json
 deskpal.launch_app(env={})
-deskpal.read_screen_text → URL contains "4318"
+deskpal.read_screen_text → URL contains "4319"
 
 deskpal.launch_app(env={OTELUX_OTLP_PORT:"abc"})
 shell: tail -5 /tmp/otelux-app.log
@@ -238,11 +238,11 @@ shell: tail -5 /tmp/otelux-app.log
 
 #### §6 Trace ingest
 ```text
-shell: PORT=4318 ./scripts/send-traces.sh
+shell: PORT=4319 ./scripts/send-traces.sh
 deskpal.read_screen_text → "Traces" count increments to 1; row shows
   "GET /api/users", "45.0ms", "api-gateway", "3 spans"
-shell: FIXTURE=fixtures/distributed_trace.json PORT=4318 ./scripts/send-traces.sh
-shell: FIXTURE=fixtures/sample_trace_error.json PORT=4318 ./scripts/send-traces.sh
+shell: FIXTURE=fixtures/distributed_trace.json PORT=4319 ./scripts/send-traces.sh
+shell: FIXTURE=fixtures/sample_trace_error.json PORT=4319 ./scripts/send-traces.sh
 deskpal.read_screen_text → count is 3; one row has "err" badge
 deskpal.screenshot for evidence
 ```
@@ -258,16 +258,16 @@ deskpal.screenshot for visual evidence
 
 Selection styling is a CSS class — if OCR proves the text is correct
 but you want to assert "selected" styling, escape-hatch to:
-`probe '!!document.querySelector(".otelux-trace-row--selected")'`.
+`probe '!!document.querySelector(".otelux-trace-row.is-selected")'`.
 
 #### §10 Malformed (shell only — hostile HTTP)
 ```bash
 curl -s -X POST -H 'Content-Type: application/json' \
   --data-binary '@fixtures/malformed.json' \
-  http://127.0.0.1:4318/v1/traces -o /dev/null -w '%{http_code}\n'   # 4xx
+  http://127.0.0.1:4319/v1/traces -o /dev/null -w '%{http_code}\n'   # 4xx
 curl -s -X POST -H 'Content-Type: text/plain' --data 'x' \
-  http://127.0.0.1:4318/v1/traces -o /dev/null -w '%{http_code}\n'   # 4xx
-curl -s http://127.0.0.1:4318/ -o /dev/null -w '%{http_code}\n'      # 404
+  http://127.0.0.1:4319/v1/traces -o /dev/null -w '%{http_code}\n'   # 4xx
+curl -s http://127.0.0.1:4319/ -o /dev/null -w '%{http_code}\n'      # 404
 ```
 Then `deskpal.read_screen_text` to confirm trace count unchanged.
 
@@ -286,7 +286,7 @@ deskpal.key_press("ctrl+shift+i")    # DevTools opens (real key event)
 deskpal.read_screen_text → "Elements" / "Console" tabs visible
 deskpal.key_press("ctrl+shift+i")    # closes
 deskpal.key_press("alt+F4")          # closes window
-shell: sleep 1; ss -ltnp | grep -E ':4318|143[0-9][0-9]' → empty
+shell: sleep 1; ss -ltnp | grep -E ':4319|143[0-9][0-9]' → empty
 ```
 
 ### 5. Cleanup
@@ -315,7 +315,7 @@ deskpal gaps encountered:
 ## Per-step results
 | Section | Step | Tool | Result | Evidence |
 |---------|------|------|--------|----------|
-| §1.1    | receiver bound on 4318 | shell | PASS | log line at /tmp/otelux-app.log:7 |
+| §1.1    | receiver bound on 4319 | shell | PASS | log line at /tmp/otelux-app.log:7 |
 | §1.2    | initial chrome via OCR | deskpal | PASS | /tmp/otelux-cold.png |
 | §2.2    | URL copy → clipboard   | deskpal+shell | PASS | xclip returned exact URL |
 | §2.4    | cog opens settings     | deskpal (coord fallback) | PASS | OCR found "Settings" after click |

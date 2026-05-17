@@ -20,7 +20,7 @@ const isDev = !app.isPackaged;
  *   1. `OTELUX_OTLP_PORT` env var (one-shot dev/CI override; does NOT
  *      mutate the persisted settings).
  *   2. Persisted settings (`<userData>/settings.json`).
- *   3. Default {@link DEFAULT_SETTINGS}.otlp.port (4318).
+ *   3. Default {@link DEFAULT_SETTINGS}.otlp.port (4319).
  */
 function resolveStartupPort(persisted: number): number {
 	const raw = process.env.OTELUX_OTLP_PORT;

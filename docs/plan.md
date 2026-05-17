@@ -16,7 +16,7 @@ next.
 
 - The OTel data model thinking and waterfall layout algorithm baked into the
   prior C++ core — ported to TypeScript in `@otelux/engine`.
-- Trace fixtures under `test/fixtures/` — driving Storybook stories, parity
+- Trace fixtures under `fixtures/` — driving Storybook stories, parity
   tests, and integration tests.
 - This `docs/` set as the single source of design truth.
 - Lessons from the GTK Cairo waterfall prototype (label collision, depth
@@ -61,7 +61,7 @@ and run against your own applications.
 1. You can install OTelux on Linux (AppImage and `.deb`).
 2. You launch it like any desktop app; cold start to first paint is under
    300 ms (warm cache).
-3. The app listens on `http://localhost:4318` for OTLP/HTTP (JSON + protobuf)
+3. The app listens on `http://localhost:4319` for OTLP/HTTP (JSON + protobuf)
    traces with zero configuration. Any OpenTelemetry SDK pointing there
    shows traces in the workbench.
 4. A trace list shows all received traces with timestamp, name, services,
@@ -148,7 +148,7 @@ Track C — Receiver:
 
 - `@otelux/receiver`: Hono server with `POST /v1/traces` for JSON and
   protobuf using `@opentelemetry/otlp-transformer`.
-- Health endpoint, CORS, configurable port (default 4318).
+- Health endpoint, CORS, configurable port (default 4319).
 - Bounded ingest queue with drop metrics.
 
 Track D — UI:
@@ -165,7 +165,7 @@ Track D — UI:
   - `Toolbar` (service multi-select, status filter, search, pause, refresh).
   - `Settings` (port, retention, theme).
   - `EmptyState`, `ErrorBoundary`.
-- Top-level `OTeluxTracesWorkbench` assembles them.
+- Top-level `OTeluxWorkbench` assembles them.
 - Keyboard map: up/down, page up/down, home/end, enter, escape, `/` to
   focus search, `ctrl+,` for settings.
 
@@ -180,7 +180,7 @@ Track F — App:
   bridge; renderer is a Vite-built React app consuming `@otelux/ui` via
   `@otelux/adapter-direct` over Electron IPC.
 - Native menus, keyboard shortcuts, window state persistence, single-instance
-  lock so port 4318 is not double-bound.
+  lock so port 4319 is not double-bound.
 - electron-builder produces `.AppImage` and `.deb` artifacts for x64 and
   arm64 in CI.
 - Smoke E2E with Playwright: launch the app, post a fixture to the

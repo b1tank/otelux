@@ -35,27 +35,32 @@ plan — those live next to source.
 cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-userdata
 ```
 - **Expected**:
-  - main-process log line: `[otelux] OTLP/HTTP receiver listening on http://127.0.0.1:4318/v1/traces`
+  - main-process log line: `[otelux] OTLP/HTTP receiver listening on http://127.0.0.1:4319/v1/traces`
   - Electron window opens within ~3 s
   - Window title: contains "OTelux" or "Electron"
-  - `ss -ltnp | grep 4318` shows electron listening
+  - `ss -ltnp | grep 4319` shows electron listening
 
 ### 1.2 Initial UI
 - **Visible chrome (top → bottom, left → right)**
-  1. Left **Rail** — narrow icon strip with the **Traces** tab active and
-     disabled Activity / Settings icons in the footer.
-  2. **Topbar** — `OTelux` brand on the left, **EndpointBar** on the
-     right (status dot, `OTLP/HTTP` label, URL `http://127.0.0.1:4318/v1/traces`,
-     cog button ⚙).
-  3. **FilterBar** — single `Errors only` toggle chip, not pressed.
-  4. **Workbench** body (left → right)
-     - Left pane: trace list (`Traces` header, count `0`,
-       "No traces match…" empty-state copy).
-     - Right pane: placeholder "Select a trace from the list to view
-       its waterfall."
+  1. Left **Rail** — narrow icon strip with the **Traces** tab active,
+     disabled **Metrics (coming soon)** and **Logs (coming soon)** items
+     below it, and a footer with **GitHub** (external link) and the
+     **Settings** cog (opens the settings modal).
+  2. **Topbar** — `Traces` heading on the left, **EndpointBar** on the
+     right (status dot, `OTLP/HTTP` label, URL
+     `http://127.0.0.1:4319/v1/traces` as a click-to-copy pill). The
+     settings cog lives on the rail, not in the topbar.
+  3. **FilterBar** — hidden on cold start (no traces yet); it appears
+     once at least one trace has been received and exposes a Service
+     dropdown, an `Errors only` toggle chip, and a search field.
+  4. **Workbench** body — right pane is collapsed (no waterfall yet);
+     the left pane fills the width and shows the trace list with the
+     `Traces` header, count `0`, and "Waiting for traces…" empty-state
+     copy (or "No traces match. Point an OTel exporter at
+     http://127.0.0.1:4319/v1/traces" once the first probe completes).
   5. No drawer / value-viewer modal is visible.
-- **PASS** if dot is green and URL renders inside the topbar (no separate
-  header strip above the workbench).
+- **PASS** if the dot is green and the URL renders inside the topbar
+  (no separate header strip above the workbench).
 
 ### 1.3 Persisted settings file
 ```bash
@@ -69,27 +74,30 @@ cat /tmp/otelux-userdata/settings.json 2>/dev/null
 
 ### 2.1 Status dot tooltip
 - Hover the dot.
-- **Expected**: tooltip reads `listening on http://127.0.0.1:4318/v1/traces`.
+- **Expected**: tooltip reads `listening on http://127.0.0.1:4319/v1/traces`.
 
 ### 2.2 URL copy
 - Click the URL pill once.
 - **Expected**:
-  - hint text flips from `click to copy` → `copied` for ~1.2 s, then back.
-  - System clipboard now contains exactly `http://127.0.0.1:4318/v1/traces` — verify with `xclip -selection clipboard -o` or paste into a textbox.
+  - The tooltip (button `title`) flips from `Click to copy` → `Copied`
+    and the trailing icon morphs from the copy glyph to a green check
+    for ~1.2 s, then both revert.
+  - System clipboard now contains exactly `http://127.0.0.1:4319/v1/traces` — verify with `xclip -selection clipboard -o` or paste into a textbox.
 
 ### 2.3 URL copy spamming
 - Click the URL 5 times rapidly.
-- **Expected**: no crash, no JS error in DevTools console (Ctrl+Shift+I), the `copied` hint resets cleanly each time.
+- **Expected**: no crash, no JS error in DevTools console (Ctrl+Shift+I), the `Copied` tooltip + check icon reset cleanly each time without the row reflowing.
 
-### 2.4 Cog opens settings
-- Click ⚙.
-- **Expected**: backdrop dims, settings dialog appears centered, OTLP/HTTP port input focused with value selected (cursor highlights `4318`).
+### 2.4 Settings cog opens settings
+- Click the **Settings** cog at the bottom of the **rail** (not the
+  topbar — the cog moved there in the redesign).
+- **Expected**: backdrop dims, settings dialog appears centered, OTLP/HTTP port input focused with value selected (cursor highlights `4319`).
 
 ---
 
 ## 3. SettingsModal — open/close interactions
 
-For each of the close paths, reopen the modal via ⚙ before the next step.
+For each of the close paths, reopen the modal via the rail's Settings cog before the next step.
 
 | Step | Action | Expected |
 |------|--------|----------|
@@ -104,7 +112,7 @@ For each of the close paths, reopen the modal via ⚙ before the next step.
 
 ## 4. SettingsModal — validation matrix
 
-Open settings (⚙) before each row. After each row hit Cancel unless the row saves successfully.
+Open settings (rail → Settings cog) before each row. After each row hit Cancel unless the row saves successfully.
 
 | Step | Input | Click | Expected |
 |------|-------|-------|----------|
@@ -117,7 +125,7 @@ Open settings (⚙) before each row. After each row hit Cancel unless the row sa
 | 4.7 | `12.5` | Save | parses as `12`, see 4.8 outcome (success) — confirm coercion is intentional |
 | 4.8 | `14320` | Save | modal closes; receiver dot transitions starting→running; URL updates to `http://127.0.0.1:14320/v1/traces`; `cat /tmp/otelux-userdata/settings.json` shows `{"version":1,"otlp":{"port":14320}}` |
 | 4.9 | `14320` again | Save | no-op rebind (still running on 14320), modal closes |
-| 4.10 | `22` (privileged, on Linux not allowed for non-root) | Save | inline error like `failed to bind 127.0.0.1:22: EACCES` (or EADDRINUSE if something runs there); EndpointBar dot turns **red**; URL replaced by status text. Click ⚙ again, enter `14320`, Save → recovers to green. |
+| 4.10 | `22` (privileged, on Linux not allowed for non-root) | Save | inline error like `failed to bind 127.0.0.1:22: EACCES` (or EADDRINUSE if something runs there); EndpointBar dot turns **red**; URL replaced by status text. Reopen settings from the rail, enter `14320`, Save → recovers to green. |
 | 4.11 | While 4.10 is in error state, click URL area | no copy (URL is hidden in error state); status-text span is plain text |
 
 ### 4.12 Port already in use
@@ -152,14 +160,14 @@ Then settings → set `14321` → Save.
 1. Quit.
 2. `echo 'this is not json' > /tmp/otelux-userdata/settings.json`
 3. Relaunch.
-- **Expected**: no crash, log shows `listening on http://127.0.0.1:4318/v1/traces` (default), settings modal shows `4318`.
+- **Expected**: no crash, log shows `listening on http://127.0.0.1:4319/v1/traces` (default), settings modal shows `4319`.
 4. Save `14320` from the modal — `settings.json` is rewritten as valid JSON.
 
 ### 5.4 Invalid-shape settings tolerated
 1. Quit.
 2. `echo '{"version":99,"unknown":true}' > /tmp/otelux-userdata/settings.json`
 3. Relaunch.
-- **Expected**: same fallback to 4318. Save → file gets rewritten in the current shape.
+- **Expected**: same fallback to 4319. Save → file gets rewritten in the current shape.
 
 ### 5.5 Env validation
 1. Quit.
@@ -212,7 +220,7 @@ for i in {1..20}; do PORT=14320 ./scripts/send-traces.sh >/dev/null; done
 
 ### 7.1 Selection toggles highlight
 - Click first row.
-- **Expected**: row gets `otelux-trace-row--selected` styling (different background), main pane switches from placeholder to waterfall.
+- **Expected**: row gains the `is-selected` modifier (the `<li>` is `otelux-trace-row is-selected`) and visibly changes background, main pane switches from placeholder to waterfall.
 
 ### 7.2 Select different row
 - Click second row.
@@ -388,9 +396,9 @@ When you only have a minute (e.g. post-commit gate):
 
 1. Build: `npm run lint && npm run typecheck && npm run build`
 2. Launch: `cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-smoke &`
-3. `sleep 3 && PORT=4318 ./scripts/send-traces.sh`
+3. `sleep 3 && PORT=4319 ./scripts/send-traces.sh`
 4. Click the trace, click any span — confirm waterfall + inspector populate.
-5. ⚙ → change port to `4319` → Save → confirm green dot + new URL.
+5. Rail → Settings cog → change port to a different one (e.g. `4399`) → Save → confirm green dot + new URL, then change back to `4319`.
 6. Close window. `pkill -9 -f out/main/index.js`. Done.
 
 ---

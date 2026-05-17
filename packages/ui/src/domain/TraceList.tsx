@@ -60,7 +60,7 @@ export interface TraceListProps {
 }
 
 const DEFAULT_LIMIT = 200;
-const DEFAULT_ENDPOINT = 'http://localhost:4318/v1/traces';
+const DEFAULT_ENDPOINT = 'http://localhost:4319/v1/traces';
 
 export function TraceList(props: TraceListProps): JSX.Element {
 	const {
