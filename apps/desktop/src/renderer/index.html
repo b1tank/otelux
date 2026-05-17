@@ -6,6 +6,17 @@
 			http-equiv="Content-Security-Policy"
 			content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self';"
 		/>
+		<!--
+			Favicon — inlined as a data URL so we don't need to ship a static
+			PNG through Vite's asset pipeline, and so the icon survives the
+			CSP (`img-src 'self' data:`). Master copy of this artwork lives at
+			`apps/desktop/build/icon.svg`; keep the two in sync.
+		-->
+		<link
+			rel="icon"
+			type="image/svg+xml"
+			href="data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20256%20256%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22m%22%20x1%3D%2240%22%20y1%3D%2272%22%20x2%3D%22216%22%20y2%3D%22184%22%20gradientUnits%3D%22userSpaceOnUse%22%3E%3Cstop%20offset%3D%220%25%22%20stop-color%3D%22%23bb9af7%22%2F%3E%3Cstop%20offset%3D%22100%25%22%20stop-color%3D%22%237aa2f7%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22256%22%20height%3D%22256%22%20rx%3D%2256%22%20fill%3D%22%231f2335%22%2F%3E%3Cg%20fill%3D%22none%22%20stroke%3D%22url(%23m)%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20stroke-width%3D%2220%22%3E%3Cpath%20d%3D%22M%2040%2072%20L%20220%2072%20M%20196%2058%20L%20220%2072%20L%20196%2086%22%2F%3E%3Cpath%20d%3D%22M%2080%20128%20L%20212%20128%20M%20188%20114%20L%20212%20128%20L%20188%20142%22%2F%3E%3Cpath%20d%3D%22M%20120%20184%20L%20204%20184%20M%20180%20170%20L%20204%20184%20L%20180%20198%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E"
+		/>
 		<title>OTelux</title>
 	</head>
 	<body>

@@ -91,6 +91,29 @@ These should be enforced in code, not in CSS.
 
 ---
 
+## Brand mark
+
+The name **OTelux** = OTel + flux. The brand mark is three horizontal
+arrows pointing right, with tails indenting from the left and tips
+cascading slightly down-right. The shape reads as both:
+
+- **flux** — smooth right-pointing flow (the data the app receives), and
+- **a trace waterfall** — root span on top, child spans indenting and
+  getting shorter top-to-bottom (the same visual contract the workbench
+  waterfall uses).
+
+A violet → blue gradient anchored to `--accent-2` (#bb9af7) → `--accent`
+(#7aa2f7) ties the mark to the rest of the UI.
+
+- **Master SVG:** [`apps/desktop/build/icon.svg`](../apps/desktop/build/icon.svg) — single source of truth for the geometry.
+- **In-app component:** [`OTeluxLogo`](../packages/ui/src/primitives/OTeluxLogo.tsx) — same paths inlined as React, no `<rect>` background (the rail provides the surface).
+- **Desktop app icon:** rasterized by [`scripts/build-icons.sh`](../scripts/build-icons.sh) to PNGs under `apps/desktop/build/icon.png` and `apps/desktop/build/icons/{16,32,48,64,128,256,512}x*.png`. electron-builder picks them up via the `linux.icon: build/icons` directory in [`apps/desktop/electron-builder.yml`](../apps/desktop/electron-builder.yml).
+- **Favicon:** inlined as a data URL in [`apps/desktop/src/renderer/index.html`](../apps/desktop/src/renderer/index.html), so it survives the renderer CSP (`img-src 'self' data:`) without a separate served asset.
+
+If you edit the geometry, edit `icon.svg`, mirror the change in `OTeluxLogo.tsx` and the mockup's `.rail__brand`, then run `./scripts/build-icons.sh` to refresh the PNGs.
+
+---
+
 ## Component map (mockup → React)
 
 | Mockup class | Planned React component | Suggested primitive |

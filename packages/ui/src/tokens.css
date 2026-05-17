@@ -12,20 +12,28 @@
 
 :root {
 	/* ------------------------------------------------------------------
-	 * Surface
+	 * Surface — values pinned to design/redesign-mockup.html. The mockup
+	 * is the source of truth; do not drift these hexes without updating
+	 * the mockup at the same time.
 	 * ----------------------------------------------------------------*/
 	--otelux-bg: #1a1b26; /* app background */
-	--otelux-bg-panel: #16161e; /* panel / list / sidebar */
-	--otelux-bg-elevated: #1f202d; /* hover, dropdown menu */
-	--otelux-bg-hover: #232634; /* active hover on rows */
-	--otelux-border: #292e42;
+	--otelux-bg-panel: #1f2335; /* panel / list / sidebar (mockup --bg-1) */
+	--otelux-bg-elevated: #24283b; /* selected row / pill chip (mockup --bg-2) */
+	--otelux-bg-hover: #292e42; /* hover bg on rows / icon buttons */
+	--otelux-border: #2b3050;
 	--otelux-border-strong: #3b4261;
 
 	/* ------------------------------------------------------------------
-	 * Foreground
+	 * Foreground — three tones matching the mockup's --fg / --fg-1 /
+	 * --fg-mute. `--otelux-fg-secondary` is the in-between tone used for
+	 * field text and meta. `--otelux-fg-muted` is the dimmest, reserved
+	 * for uppercase labels, timestamps, and unfocused metadata. The legacy
+	 * `--otelux-fg-faint` alias remains pointing at the same value so
+	 * existing call-sites keep working until they migrate.
 	 * ----------------------------------------------------------------*/
 	--otelux-fg: #c0caf5;
-	--otelux-fg-muted: #9aa5ce;
+	--otelux-fg-secondary: #a9b1d6;
+	--otelux-fg-muted: #565f89;
 	--otelux-fg-faint: #565f89;
 
 	/* ------------------------------------------------------------------
@@ -40,14 +48,16 @@
 	/* ------------------------------------------------------------------
 	 * Service palette (deterministic — see format.ts colorForService).
 	 * Eight distinct hues, balanced against the dark background.
-	 * Same hash → same color across rows, traces, drawer header, dropdown.
+	 * Order matches the mockup so the same hashed service name picks the
+	 * same hue in app + mockup screenshots. Same hash → same color across
+	 * rows, traces, drawer header, dropdown.
 	 * ----------------------------------------------------------------*/
 	--otelux-svc-1: #7aa2f7; /* blue */
-	--otelux-svc-2: #9ece6a; /* green */
-	--otelux-svc-3: #e0af68; /* amber */
-	--otelux-svc-4: #bb9af7; /* violet */
-	--otelux-svc-5: #f7768e; /* red */
-	--otelux-svc-6: #7dcfff; /* cyan */
+	--otelux-svc-2: #bb9af7; /* violet */
+	--otelux-svc-3: #7dcfff; /* cyan */
+	--otelux-svc-4: #9ece6a; /* green */
+	--otelux-svc-5: #e0af68; /* amber */
+	--otelux-svc-6: #f7768e; /* red */
 	--otelux-svc-7: #ff9e64; /* orange */
 	--otelux-svc-8: #73daca; /* teal */
 
@@ -96,7 +106,8 @@
 	--otelux-border-strong: #b8bdd0;
 
 	--otelux-fg: #1a1b26;
-	--otelux-fg-muted: #5a6076;
+	--otelux-fg-secondary: #3b4053;
+	--otelux-fg-muted: #8c93a8;
 	--otelux-fg-faint: #8c93a8;
 
 	--otelux-accent: #2d63a8;
@@ -105,12 +116,16 @@
 	--otelux-warn: #a56a1d;
 	--otelux-error: #c2435e;
 
+	/* Light-theme palette ordered to match the dark palette by hue family:
+	 * blue, violet, cyan, green, amber, red, orange, teal. Keeping the
+	 * order aligned means a service's hash maps to the same hue family
+	 * across themes. */
 	--otelux-svc-1: #2d63a8;
-	--otelux-svc-2: #4f8a3a;
-	--otelux-svc-3: #a56a1d;
-	--otelux-svc-4: #6b3aa8;
-	--otelux-svc-5: #c2435e;
-	--otelux-svc-6: #1f7a9c;
+	--otelux-svc-2: #6b3aa8;
+	--otelux-svc-3: #1f7a9c;
+	--otelux-svc-4: #4f8a3a;
+	--otelux-svc-5: #a56a1d;
+	--otelux-svc-6: #c2435e;
 	--otelux-svc-7: #b65a23;
 	--otelux-svc-8: #2e8a78;
 }

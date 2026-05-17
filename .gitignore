@@ -32,3 +32,5 @@ __pycache__/
 # Electron-builder
 dist-electron/
 release/
+
+.playwright-mcp/

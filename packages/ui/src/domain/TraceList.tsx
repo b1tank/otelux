@@ -23,6 +23,8 @@ import type { TraceId } from '@otelux/types';
 import type { JSX, KeyboardEvent } from 'react';
 import { formatDuration, formatWallClock, serviceColorVar } from '../format.js';
 import { CopyButton } from '../primitives/CopyButton.js';
+import { IconButton } from '../primitives/IconButton.js';
+import { PanelLeftIcon, WaterfallIcon } from '../primitives/icons.js';
 import { useDataSourceQuery } from '../useDataSourceQuery.js';
 
 export type TraceListDensity = 'card' | 'flat';
@@ -43,6 +45,18 @@ export interface TraceListProps {
 	limit?: number;
 	/** Hint text for the empty state. */
 	endpointUrl?: string;
+	/**
+	 * When provided, a collapse-pane icon button is rendered on the
+	 * right side of the header. Clicking it invokes the callback so the
+	 * host can hide this pane (mockup parity: `.pane__head .btn-collapse-list`).
+	 */
+	onCollapse?: () => void;
+	/**
+	 * When provided, a "show waterfall" restore button appears in the
+	 * header. Only relevant when the sibling waterfall pane is currently
+	 * collapsed so the user has a way to bring it back.
+	 */
+	onRestoreWaterfall?: () => void;
 }
 
 const DEFAULT_LIMIT = 200;
@@ -59,6 +73,8 @@ export function TraceList(props: TraceListProps): JSX.Element {
 		search,
 		limit = DEFAULT_LIMIT,
 		endpointUrl = DEFAULT_ENDPOINT,
+		onCollapse,
+		onRestoreWaterfall,
 	} = props;
 
 	// Build the protocol-level query object. The serialization key below
@@ -94,6 +110,27 @@ export function TraceList(props: TraceListProps): JSX.Element {
 			<header className="otelux-trace-list__header">
 				<span className="otelux-trace-list__title">Traces</span>
 				<span className="otelux-trace-list__count">{query.value?.totalCount ?? 0}</span>
+				<span className="otelux-trace-list__spacer" />
+				{onRestoreWaterfall ? (
+					<IconButton
+						aria-label="Show waterfall"
+						title="Show waterfall"
+						className="otelux-trace-list__restore"
+						onClick={onRestoreWaterfall}
+					>
+						<WaterfallIcon size={14} />
+					</IconButton>
+				) : null}
+				{onCollapse ? (
+					<IconButton
+						aria-label="Collapse trace list"
+						title="Collapse trace list"
+						className="otelux-trace-list__collapse"
+						onClick={onCollapse}
+					>
+						<PanelLeftIcon size={14} />
+					</IconButton>
+				) : null}
 			</header>
 			<div className="otelux-trace-list__body">
 				{query.loading && rows.length === 0 ? (

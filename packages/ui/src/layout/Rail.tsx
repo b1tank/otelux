@@ -28,10 +28,10 @@ export interface RailProps {
 	/** Items rendered at the bottom of the rail (e.g. settings). */
 	footerItems?: ReadonlyArray<RailItem>;
 	/**
-	 * Optional brand glyph rendered in a 44px block at the very top of
-	 * the rail (above the items). Typically a single character or tiny
-	 * inline SVG. The mockup uses an electrical-ground glyph (⏚) in
-	 * the accent-2 color.
+	 * Optional brand mark rendered in a 56px block at the very top of
+	 * the rail (above the items). Typically the inline `OTeluxLogo`
+	 * primitive, but any small `ReactNode` works — short glyphs render
+	 * in the rail's accent color, SVGs carry their own fill.
 	 */
 	brand?: ReactNode;
 	/** Tooltip shown on the brand block. */

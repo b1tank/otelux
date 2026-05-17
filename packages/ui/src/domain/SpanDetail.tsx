@@ -1,12 +1,14 @@
 /**
  * `SpanDetail` — read-only inspector for a selected `Span`.
  *
- * Structure: a fixed identity header (name + status + facts) at the
- * top, followed by an `Accordion` of independently collapsible
- * sections — Attributes, Resource, Scope, and (when populated)
- * Events and Links. Long attribute values can be inspected via the
- * optional `onViewValue` callback which T21 wires to a `ValueViewer`
- * modal; without it, attribute values render inline.
+ * Structure: a single `Accordion` whose first item ("Span") holds the
+ * span's identity facts (kind, status, duration, ids, timestamps),
+ * followed by Attributes, Resource, Scope, and — when populated —
+ * Events and Links. The span's name and status badge are surfaced by
+ * the hosting Drawer header (via `accentVar` + `kindLabel`); we don't
+ * repeat them inside the body. Long attribute values can be inspected
+ * via the optional `onViewValue` callback which is wired to the
+ * `ValueViewer` modal.
  *
  * Layered import discipline: lives in `src/domain/` and depends on
  * `primitives` + `format.ts` + `@otelux/types`. It MUST NOT import
@@ -51,6 +53,12 @@ export function SpanDetail(props: SpanDetailProps): JSX.Element {
 
 	const items: AccordionItem[] = [
 		{
+			id: 'span',
+			label: 'Span',
+			defaultOpen: true,
+			children: <SpanFacts span={span} duration={duration} statusKey={statusKey} />,
+		},
+		{
 			id: 'attributes',
 			label: 'Attributes',
 			badge: <Count value={Object.keys(span.attributes).length} />,
@@ -90,32 +98,41 @@ export function SpanDetail(props: SpanDetailProps): JSX.Element {
 
 	return (
 		<section className="otelux-span-detail" aria-label="Span detail">
-			<header className="otelux-span-detail__header">
-				<h2 className="otelux-span-detail__name" title={span.name || '(unnamed)'}>
-					{span.name || '(unnamed)'}
-				</h2>
-				<span className={`otelux-span-detail__status is-${statusKey}`}>
-					{STATUS_LABELS[span.status.code] ?? 'Unset'}
-				</span>
-			</header>
-
-			<dl className="otelux-span-detail__facts">
-				<Fact label="Span ID" value={span.spanId} mono />
-				<Fact label="Trace ID" value={span.traceId} mono />
-				{span.parentSpanId !== undefined ? (
-					<Fact label="Parent" value={span.parentSpanId} mono />
-				) : null}
-				<Fact label="Kind" value={SPAN_KIND_LABELS[span.kind] ?? 'Unspecified'} />
-				<Fact label="Duration" value={formatDuration(duration)} />
-				<Fact label="Started" value={formatWallClock(span.startTimeUnixNano)} />
-				<Fact label="Ended" value={formatWallClock(span.endTimeUnixNano)} />
-				{span.status.message !== undefined && span.status.message !== '' ? (
-					<Fact label="Status message" value={span.status.message} />
-				) : null}
-			</dl>
-
 			<Accordion items={items} />
 		</section>
+	);
+}
+
+function SpanFacts(props: {
+	span: Span;
+	duration: bigint;
+	statusKey: 'ok' | 'error' | 'unset';
+}): JSX.Element {
+	const { span, duration, statusKey } = props;
+	return (
+		<div className="otelux-kv">
+			<KVRow label="Name" value={span.name || '(unnamed)'} />
+			<KVRow
+				label="Status"
+				value={
+					<span className={`otelux-span-detail__status is-${statusKey}`}>
+						{STATUS_LABELS[span.status.code] ?? 'Unset'}
+					</span>
+				}
+			/>
+			{span.status.message !== undefined && span.status.message !== '' ? (
+				<KVRow label="Status message" value={span.status.message} />
+			) : null}
+			<KVRow label="Kind" value={SPAN_KIND_LABELS[span.kind] ?? 'Unspecified'} />
+			<KVRow label="Duration" value={formatDuration(duration)} />
+			<KVRow label="Started" value={formatWallClock(span.startTimeUnixNano)} />
+			<KVRow label="Ended" value={formatWallClock(span.endTimeUnixNano)} />
+			<KVRow label="Span ID" value={span.spanId} mono />
+			<KVRow label="Trace ID" value={span.traceId} mono />
+			{span.parentSpanId !== undefined ? (
+				<KVRow label="Parent" value={span.parentSpanId} mono />
+			) : null}
+		</div>
 	);
 }
 
@@ -123,13 +140,16 @@ function Count(props: { value: number }): JSX.Element {
 	return <>{props.value}</>;
 }
 
-function Fact(props: { label: string; value: string; mono?: boolean }): JSX.Element {
+function KVRow(props: { label: string; value: JSX.Element | string; mono?: boolean }): JSX.Element {
+	// `title` exposes the raw text on hover for ellipsised single-line values.
+	const titleAttr = typeof props.value === 'string' ? props.value : undefined;
 	return (
-		<div className="otelux-fact">
-			<dt className="otelux-fact__label">{props.label}</dt>
-			<dd className={`otelux-fact__value${props.mono ? ' otelux-fact__value--mono' : ''}`}>
+		<div className="otelux-kv__row">
+			<span className="otelux-kv__key">{props.label}</span>
+			<span className={`otelux-kv__val${props.mono ? ' otelux-kv__val--mono' : ''}`} title={titleAttr}>
 				{props.value}
-			</dd>
+			</span>
+			<span className="otelux-kv__view" aria-hidden="true" />
 		</div>
 	);
 }
@@ -143,30 +163,33 @@ function AttributeTable(props: AttributeTableProps): JSX.Element {
 	const { attributes, onViewValue } = props;
 	const entries = Object.entries(attributes);
 	if (entries.length === 0) {
-		return <div className="otelux-attr-table__empty">none</div>;
+		return <div className="otelux-kv__empty">none</div>;
 	}
 	return (
-		<table className="otelux-attr-table">
-			<tbody>
-				{entries.map(([k, v]) => (
-					<tr key={k}>
-						<th scope="row">{k}</th>
-						<td>
-							<span className="otelux-attr-table__value">{renderAttributeValue(v)}</span>
-							{onViewValue !== undefined ? (
-								<IconButton
-									aria-label={`View value for ${k}`}
-									className="otelux-attr-table__view"
-									onClick={() => onViewValue(k, v)}
-								>
-									<EyeIcon />
-								</IconButton>
-							) : null}
-						</td>
-					</tr>
-				))}
-			</tbody>
-		</table>
+		<div className="otelux-kv">
+			{entries.map(([k, v]) => {
+				const rendered = renderAttributeValue(v);
+				return (
+					<div key={k} className="otelux-kv__row">
+						<span className="otelux-kv__key">{k}</span>
+						<span className="otelux-kv__val otelux-kv__val--mono" title={rendered}>
+							{rendered}
+						</span>
+						{onViewValue !== undefined ? (
+							<IconButton
+								aria-label={`View value for ${k}`}
+								className="otelux-kv__view"
+								onClick={() => onViewValue(k, v)}
+							>
+								<EyeIcon />
+							</IconButton>
+						) : (
+							<span className="otelux-kv__view" aria-hidden="true" />
+						)}
+					</div>
+				);
+			})}
+		</div>
 	);
 }
 

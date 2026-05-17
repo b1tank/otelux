@@ -26,10 +26,11 @@ export function formatDuration(nanos: bigint): string {
 /** Format a Unix-nanos timestamp as an ISO-ish wall-clock string.
  *
  * When `withDate` is true (default false), the result is prefixed with
- * a short month/day prefix — `Mar 14, 14:09:14.000` — so trace rows
- * stay disambiguated across day boundaries without showing a noisy
- * full ISO date for every entry. Existing call sites (span detail,
- * event time) keep the original time-only output by default.
+ * a short month/day/year prefix and the time drops sub-second precision
+ * — `May 15 2026, 17:09:14` — so trace rows stay disambiguated across
+ * day and year boundaries while staying compact. Existing call sites
+ * (span detail, event time) keep the original time-with-millis output
+ * by default since sub-second precision matters when inspecting spans.
  */
 export function formatWallClock(unixNano: bigint, withDate = false): string {
 	if (unixNano === 0n) {
@@ -40,16 +41,18 @@ export function formatWallClock(unixNano: bigint, withDate = false): string {
 	const hh = String(d.getHours()).padStart(2, '0');
 	const mm = String(d.getMinutes()).padStart(2, '0');
 	const ss = String(d.getSeconds()).padStart(2, '0');
-	const sss = String(d.getMilliseconds()).padStart(3, '0');
-	const time = `${hh}:${mm}:${ss}.${sss}`;
 	if (!withDate) {
-		return time;
+		const sss = String(d.getMilliseconds()).padStart(3, '0');
+		return `${hh}:${mm}:${ss}.${sss}`;
 	}
-	// Compact "Mon DD" prefix: month is intentionally an abbreviation so
-	// the date stays short next to a 12-char clock string.
+	// Compact "Mon DD YYYY" prefix: month is an abbreviation so the
+	// date stays short; year is included so traces across year
+	// boundaries are unambiguous. Sub-second precision is dropped in
+	// this mode — the trace list cares about "when", not "which ms".
 	const month = MONTH_NAMES_SHORT[d.getMonth()];
 	const day = String(d.getDate()).padStart(2, '0');
-	return `${month} ${day}, ${time}`;
+	const year = d.getFullYear();
+	return `${month} ${day} ${year}, ${hh}:${mm}:${ss}`;
 }
 
 const MONTH_NAMES_SHORT = [
@@ -104,12 +107,17 @@ export function formatTimeAgo(unixNano: bigint, nowMs: number = Date.now()): str
  * resolved color directly.
  */
 export const SERVICE_PALETTE = [
+	// Ordered to match design/redesign-mockup.html. Keep in sync with the
+	// --otelux-svc-N tokens in tokens.css: a given index must yield the
+	// same hex in both places. Same hash (FNV-1a, see serviceIndex) maps
+	// a service name to the same hue across app screens and the static
+	// mockup, so reviewers can match designs to running screens 1:1.
 	'#7aa2f7', // svc-1 blue
-	'#9ece6a', // svc-2 green
-	'#e0af68', // svc-3 amber
-	'#bb9af7', // svc-4 violet
-	'#f7768e', // svc-5 red
-	'#7dcfff', // svc-6 cyan
+	'#bb9af7', // svc-2 violet
+	'#7dcfff', // svc-3 cyan
+	'#9ece6a', // svc-4 green
+	'#e0af68', // svc-5 amber
+	'#f7768e', // svc-6 red
 	'#ff9e64', // svc-7 orange
 	'#73daca', // svc-8 teal
 ] as const;

@@ -48,15 +48,29 @@ describe('Drawer', () => {
 		expect(onClose).toHaveBeenCalledTimes(1);
 	});
 
-	it('fires onClose when the backdrop is clicked', () => {
-		const onClose = vi.fn();
-		const { getByLabelText } = render(
-			<Drawer open={true} onClose={onClose} title="t">
+	it('does not render a dim backdrop (design parity)', () => {
+		const { container } = render(
+			<Drawer open={true} onClose={() => {}} title="t">
 				x
 			</Drawer>,
 		);
-		fireEvent.click(getByLabelText('Close drawer'));
-		expect(onClose).toHaveBeenCalledTimes(1);
+		expect(container.querySelector('.otelux-drawer__backdrop')).toBeNull();
+	});
+
+	it('renders accent dot and kind tag when provided', () => {
+		const { container, getByText } = render(
+			<Drawer
+				open={true}
+				onClose={() => {}}
+				title="GET /api"
+				accentVar="var(--otelux-svc-3)"
+				kindLabel="Client"
+			>
+				x
+			</Drawer>,
+		);
+		expect(container.querySelector('.otelux-drawer__dot')).toBeTruthy();
+		expect(getByText('Client')).toBeTruthy();
 	});
 
 	it('fires onClose when Escape is pressed', () => {

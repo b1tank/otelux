@@ -20,6 +20,8 @@ export { CopyButton } from './CopyButton.js';
 export type { CopyButtonProps } from './CopyButton.js';
 export { ValueViewer } from './ValueViewer.js';
 export type { ValueViewerProps } from './ValueViewer.js';
+export { OTeluxLogo } from './OTeluxLogo.js';
+export type { OTeluxLogoProps } from './OTeluxLogo.js';
 export {
 	ActivityIcon,
 	AlertCircleIcon,

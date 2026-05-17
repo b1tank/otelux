@@ -56,6 +56,32 @@ export function ChevronRightIcon(props: IconProps): JSX.Element {
 	);
 }
 
+/**
+ * Expand-all glyph: two chevrons pointing outward. Lucide name:
+ * "chevrons-up-down".
+ */
+export function ChevronsUpDownIcon(props: IconProps): JSX.Element {
+	return (
+		<Icon {...props}>
+			<path d="m7 15 5 5 5-5" />
+			<path d="m7 9 5-5 5 5" />
+		</Icon>
+	);
+}
+
+/**
+ * Collapse-all glyph: two chevrons pointing inward. Lucide name:
+ * "chevrons-down-up".
+ */
+export function ChevronsDownUpIcon(props: IconProps): JSX.Element {
+	return (
+		<Icon {...props}>
+			<path d="m7 20 5-5 5 5" />
+			<path d="m7 4 5 5 5-5" />
+		</Icon>
+	);
+}
+
 export function CopyIcon(props: IconProps): JSX.Element {
 	return (
 		<Icon {...props}>

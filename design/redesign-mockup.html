@@ -431,7 +431,28 @@
 
   <!-- ============ LEFT RAIL ============ -->
   <aside class="rail">
-    <div class="rail__brand" title="OTelux">⏚</div>
+    <div class="rail__brand" title="OTelux" aria-hidden="true">
+      <!-- OTelux brand mark. Master copy: apps/desktop/build/icon.svg.
+           Same geometry as packages/ui/src/primitives/OTeluxLogo.tsx.
+           Three flux arrows cascading top-to-bottom: reads as "OTel +
+           flux" (smooth flow) and as a trace waterfall (head-aligned
+           right, tails indenting from the left). The squircle background
+           is omitted here because the rail already provides the surface;
+           the stroke gradient carries the brand color. -->
+      <svg width="28" height="28" viewBox="0 0 256 256" fill="none">
+        <defs>
+          <linearGradient id="brandMark" x1="40" y1="72" x2="216" y2="184" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#bb9af7"/>
+            <stop offset="100%" stop-color="#7aa2f7"/>
+          </linearGradient>
+        </defs>
+        <g fill="none" stroke="url(#brandMark)" stroke-linecap="round" stroke-linejoin="round" stroke-width="20">
+          <path d="M 40 72  L 220 72  M 196 58  L 220 72  L 196 86"/>
+          <path d="M 80 128 L 212 128 M 188 114 L 212 128 L 188 142"/>
+          <path d="M 120 184 L 204 184 M 180 170 L 204 184 L 180 198"/>
+        </g>
+      </svg>
+    </div>
     <nav class="rail__items">
       <a class="rail__item is-active" title="Traces" aria-current="page">
         <!-- waterfall icon -->

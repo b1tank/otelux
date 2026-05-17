@@ -13,9 +13,10 @@
 
 import type { DataSource } from '@otelux/protocol';
 import type { AttributeValue, Span, SpanId, Trace, TraceId } from '@otelux/types';
+import { SpanKind } from '@otelux/types';
 import { type JSX, useMemo, useState } from 'react';
 import { SpanDetail, TraceList, Waterfall } from './domain/index.js';
-import { serviceIndex } from './format.js';
+import { serviceColorVar, serviceIndex } from './format.js';
 import { AppShell, FilterBar, Rail, type RailItem, Topbar, Workbench } from './layout/index.js';
 import {
 	BarChart3Icon,
@@ -24,6 +25,7 @@ import {
 	type DropdownOption,
 	GithubIcon,
 	LogsIcon,
+	OTeluxLogo,
 	SearchField,
 	SettingsIcon,
 	ToggleChip,
@@ -86,6 +88,18 @@ const RAIL_ITEMS: readonly RailItem[] = [
 	{ id: 'logs', label: 'Logs (coming soon)', icon: <LogsIcon size={18} />, disabled: true },
 ];
 
+// Shown in the span-detail drawer header to the right of the span name.
+// Matches the mockup's `.drawer__tag` (e.g. "Client", "Server"). We omit
+// `Unspecified` entirely so the tag chip doesn't appear at all when the
+// SDK didn't fill the field.
+const SPAN_KIND_DRAWER_LABEL: Readonly<Record<number, string>> = {
+	[SpanKind.Internal]: 'Internal',
+	[SpanKind.Server]: 'Server',
+	[SpanKind.Client]: 'Client',
+	[SpanKind.Producer]: 'Producer',
+	[SpanKind.Consumer]: 'Consumer',
+};
+
 interface ViewValueTarget {
 	key: string;
 	value: AttributeValue;
@@ -98,6 +112,12 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 	const [errorsOnly, setErrorsOnly] = useState(false);
 	const [selectedService, setSelectedService] = useState<string>('all');
 	const [searchQuery, setSearchQuery] = useState<string>('');
+	// Pane collapse state. Mutually exclusive (collapsing one side
+	// auto-uncollapses the other) so the workbench never ends up with
+	// nothing visible. The Workbench layout's invariant requires at most
+	// one of `leftCollapsed` / `rightCollapsed` to be true at any time.
+	const [listCollapsed, setListCollapsed] = useState(false);
+	const [wfCollapsed, setWfCollapsed] = useState(false);
 	const [viewValue, setViewValue] = useState<ViewValueTarget | null>(null);
 
 	// Switching traces clears the span selection so the drawer never
@@ -154,47 +174,21 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		return { serviceCounts: counts, sortedServices: sorted };
 	}, [summaryRows]);
 
-	// Filtered count for the right-side `N traces` chip. Separate from
-	// TraceList's own query (TraceList owns its rows; the chip only
-	// needs totalCount). limit=1 keeps the network footprint minimal.
-	const filteredCountKey = `count:${errorsOnly ? '1' : '0'}:${selectedService}:${searchQuery}`;
-	const filteredCountProbe = useDataSourceQuery(
-		dataSource,
-		(ds) => {
-			const q: Parameters<DataSource['listTraces']>[0] = {
-				limit: 1,
-				sortBy: 'startTime',
-				sortDirection: 'desc',
-			};
-			if (errorsOnly) {
-				q.hasError = true;
-			}
-			if (selectedService !== 'all') {
-				q.services = [selectedService];
-			}
-			if (searchQuery) {
-				q.search = searchQuery;
-			}
-			return ds.listTraces(q);
-		},
-		filteredCountKey,
-	);
-	const filteredCount = filteredCountProbe.value?.totalCount ?? 0;
-
 	const serviceOptions = useMemo<readonly DropdownOption[]>(() => {
 		const opts: DropdownOption[] = [];
 		// When a specific service is filtered we surface an "All services"
 		// entry at the top so the user can clear back to the unfiltered
-		// view. It carries the total count (mirroring the trigger badge
-		// shape) and reads as a peer to the service rows below — no
-		// separator needed: the label distinguishes it, and the absence of
-		// a colored dot is itself a visual cue. When the filter is already
-		// 'all', the row is redundant with the trigger label and omitted.
+		// view. The count here is the number of distinct services in scope
+		// (matching the trigger badge), so users can immediately tell how
+		// many services the unfiltered list spans. The absence of a colored
+		// dot is itself the visual cue that this row is the "all" peer;
+		// when the filter is already 'all', the row is redundant with the
+		// trigger label and omitted.
 		if (selectedService !== 'all') {
 			opts.push({
 				value: 'all',
 				label: 'All services',
-				count: summaryProbe.value?.totalCount ?? 0,
+				count: sortedServices.length,
 			});
 		}
 		for (const name of sortedServices) {
@@ -206,10 +200,15 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 			});
 		}
 		return opts;
-	}, [sortedServices, serviceCounts, selectedService, summaryProbe.value?.totalCount]);
+	}, [sortedServices, serviceCounts, selectedService]);
 
+	// Trigger badge: when no service is filtered, show how many distinct
+	// services contribute to the visible trace set (matches the count
+	// the user would see if they opened the dropdown and counted rows).
+	// When a specific service is filtered, show how many traces touch
+	// that service — useful for confirming the filter took effect.
 	const serviceTriggerCount =
-		selectedService === 'all' ? summaryProbe.value?.totalCount : serviceCounts.get(selectedService);
+		selectedService === 'all' ? sortedServices.length : serviceCounts.get(selectedService);
 
 	// The detail drawer is opened explicitly by the user clicking a span
 	// row in the Waterfall — not auto-opened when a trace is selected.
@@ -227,6 +226,15 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		...(searchQuery ? { search: searchQuery } : {}),
 		...(selectedTraceId !== undefined ? { selectedTraceId } : {}),
 		...(endpointUrl !== undefined ? { endpointUrl } : {}),
+		// Collapse the left pane on click. Also clear any wf-collapse so the
+		// invariant (at most one collapsed pane) holds.
+		onCollapse: () => {
+			setWfCollapsed(false);
+			setListCollapsed(true);
+		},
+		// When waterfall is currently hidden, expose a restore button so
+		// the user can bring it back without re-selecting a trace.
+		...(wfCollapsed && trace ? { onRestoreWaterfall: () => setWfCollapsed(false) } : {}),
 	};
 
 	return (
@@ -255,7 +263,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 								disabled: onOpenSettings === undefined,
 							},
 						]}
-						brand="⏚"
+						brand={<OTeluxLogo size={28} />}
 						brandLabel="OTelux"
 					/>
 				}
@@ -270,6 +278,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 							<>
 								<Dropdown
 									aria-label="Filter by service"
+									triggerSlotLabel="Service"
 									triggerLabel={selectedService === 'all' ? 'All services' : selectedService}
 									triggerIcon={
 										selectedService === 'all' ? undefined : (
@@ -298,22 +307,23 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 								/>
 							</>
 						}
-						end={
-							<span className="otelux-filter-bar__count">
-								<strong>{filteredCount}</strong> traces
-							</span>
-						}
 					/>
 				) : null}
 				<Workbench
 					left={<TraceList {...traceListProps} />}
-					rightCollapsed={!hasAnyTrace}
+					leftCollapsed={listCollapsed}
+					rightCollapsed={!hasAnyTrace || wfCollapsed}
 					right={
 						trace && trace.spans.length > 0 ? (
 							<Waterfall
 								trace={trace}
 								onSpanSelect={setSelectedSpanId}
 								{...(selectedSpanId !== undefined ? { selectedSpanId } : {})}
+								onCollapse={() => {
+									setListCollapsed(false);
+									setWfCollapsed(true);
+								}}
+								{...(listCollapsed ? { onRestoreList: () => setListCollapsed(false) } : {})}
 							/>
 						) : (
 							<div className="otelux-empty-state">
@@ -321,12 +331,12 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 									<WaterfallIcon size={28} />
 								</div>
 								<h2 className="otelux-empty-state__title">
-									{selectedTraceId ? 'Loading trace…' : 'Select a trace'}
+									{selectedTraceId ? 'Loading trace…' : 'Select a trace to inspect its spans'}
 								</h2>
 								<p className="otelux-empty-state__body">
 									{selectedTraceId
 										? 'Fetching spans for the selected trace.'
-										: 'Pick a trace from the list to view its waterfall.'}
+										: 'Pick a trace from the list to view its waterfall and drill into spans.'}
 								</p>
 							</div>
 						)
@@ -337,6 +347,14 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 				open={selectedSpan !== undefined}
 				onClose={() => setSelectedSpanId(undefined)}
 				{...(selectedSpan ? { title: selectedSpan.name || '(unnamed)' } : {})}
+				{...(selectedSpan
+					? {
+							accentVar: serviceColorVar(
+								(selectedSpan.resource.attributes['service.name'] as string | undefined) ?? '',
+							),
+							kindLabel: SPAN_KIND_DRAWER_LABEL[selectedSpan.kind] ?? 'Span',
+						}
+					: {})}
 			>
 				{selectedSpan ? (
 					<SpanDetail span={selectedSpan} onViewValue={(key, value) => setViewValue({ key, value })} />

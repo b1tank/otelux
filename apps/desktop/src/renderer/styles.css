@@ -1,10 +1,15 @@
+/*
+ * Color tokens live in @otelux/ui's tokens.css and are imported via
+ * `@otelux/ui/workbench.css` at the renderer entry. The previous
+ * `:root` block here redeclared `--otelux-bg`, `--otelux-bg-panel`,
+ * `--otelux-fg-muted`, and `--otelux-accent` with VS Code-style
+ * greys/blues, which silently shadowed the workbench palette and
+ * pulled the desktop build off the design system. The only thing
+ * left here is `color-scheme: dark` so form controls and scrollbars
+ * pick the dark UA chrome.
+ */
 :root {
 	color-scheme: dark;
-	--otelux-bg: #1e1e1e;
-	--otelux-bg-panel: #252526;
-	--otelux-fg: #d4d4d4;
-	--otelux-fg-muted: #8a8a8a;
-	--otelux-accent: #007acc;
 }
 
 html,
@@ -49,18 +54,18 @@ body,
 }
 
 .endpoint-bar__dot--starting {
-	background: #d29922;
+	background: var(--otelux-warn);
 	animation: pulse 1.2s ease-in-out infinite;
 }
 
 .endpoint-bar__dot--running {
-	background: #3fb950;
-	box-shadow: 0 0 6px rgba(63, 185, 80, 0.6);
+	background: var(--otelux-ok);
+	box-shadow: 0 0 6px color-mix(in srgb, var(--otelux-ok) 60%, transparent);
 }
 
 .endpoint-bar__dot--error {
-	background: #f85149;
-	box-shadow: 0 0 6px rgba(248, 81, 73, 0.6);
+	background: var(--otelux-error);
+	box-shadow: 0 0 6px color-mix(in srgb, var(--otelux-error) 60%, transparent);
 }
 
 @keyframes pulse {
@@ -149,7 +154,7 @@ body,
 	position: relative;
 	z-index: 1;
 	background: var(--otelux-bg-panel);
-	border: 1px solid #3d3d40;
+	border: 1px solid var(--otelux-border);
 	border-radius: 6px;
 	min-width: 360px;
 	max-width: 480px;
@@ -163,7 +168,7 @@ body,
 	align-items: center;
 	justify-content: space-between;
 	padding: 12px 16px;
-	border-bottom: 1px solid #2d2d30;
+	border-bottom: 1px solid var(--otelux-border);
 }
 
 .modal__header h2 {
@@ -216,8 +221,8 @@ body,
 }
 
 .field input[type="number"] {
-	background: #1e1e1e;
-	border: 1px solid #3d3d40;
+	background: var(--otelux-bg);
+	border: 1px solid var(--otelux-border);
 	border-radius: 3px;
 	color: var(--otelux-fg);
 	padding: 6px 8px;
@@ -233,9 +238,9 @@ body,
 .modal__error {
 	margin: 0;
 	padding: 8px 10px;
-	background: rgba(248, 81, 73, 0.12);
-	border: 1px solid rgba(248, 81, 73, 0.4);
-	color: #ffa198;
+	background: color-mix(in srgb, var(--otelux-error) 12%, transparent);
+	border: 1px solid color-mix(in srgb, var(--otelux-error) 40%, transparent);
+	color: var(--otelux-error);
 	border-radius: 3px;
 	font-size: 12px;
 }
@@ -247,8 +252,8 @@ body,
 }
 
 .modal__actions button {
-	background: #2d2d30;
-	border: 1px solid #3d3d40;
+	background: var(--otelux-bg-elevated);
+	border: 1px solid var(--otelux-border);
 	color: var(--otelux-fg);
 	padding: 6px 14px;
 	border-radius: 3px;
@@ -257,7 +262,7 @@ body,
 }
 
 .modal__actions button:hover:not(:disabled) {
-	background: #383838;
+	background: var(--otelux-bg-hover);
 }
 
 .modal__actions button:disabled {
@@ -268,9 +273,12 @@ body,
 .modal__actions .primary {
 	background: var(--otelux-accent);
 	border-color: var(--otelux-accent);
-	color: #fff;
+	/* Accent (#7aa2f7) is a saturated mid-blue; pure white text on it
+	 * looks washed out, while a deep ink-blue keeps the cap-and-stroke
+	 * contrast crisp. Matches the mockup's primary-button ink. */
+	color: #0b0d18;
 }
 
 .modal__actions .primary:hover:not(:disabled) {
-	background: #1f8ad6;
+	background: color-mix(in srgb, var(--otelux-accent) 85%, #ffffff);
 }

@@ -28,6 +28,8 @@ function makeSpan(over: Partial<Span> = {}): Span {
 describe('SpanDetail', () => {
 	it('renders identity facts and the default accordion sections', () => {
 		const { getByText, queryByText } = render(<SpanDetail span={makeSpan()} />);
+		// Identity is now hosted in the "Span" accordion (open by default).
+		expect(getByText('Span')).toBeTruthy();
 		expect(getByText('GET /users')).toBeTruthy();
 		expect(getByText('Ok')).toBeTruthy();
 		expect(getByText('Span ID')).toBeTruthy();

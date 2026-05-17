@@ -19,7 +19,8 @@ describe('ValueViewer', () => {
 		expect(getByText('http.url')).toBeTruthy();
 		const body = container.querySelector('.otelux-value-viewer__body');
 		expect(body?.className).toContain('--text');
-		expect(body?.textContent).toBe('/api/users');
+		const code = container.querySelector('.otelux-value-viewer__code');
+		expect(code?.textContent).toBe('/api/users');
 	});
 
 	it('renders an array as pretty-printed JSON', () => {
@@ -28,13 +29,14 @@ describe('ValueViewer', () => {
 		);
 		const body = container.querySelector('.otelux-value-viewer__body');
 		expect(body?.className).toContain('--json');
-		expect(body?.textContent).toBe('[\n  "a",\n  "b",\n  "c"\n]');
+		const code = container.querySelector('.otelux-value-viewer__code');
+		expect(code?.textContent).toBe('[\n  "a",\n  "b",\n  "c"\n]');
 	});
 
 	it('coerces bigint values to a decimal string', () => {
 		const { container } = render(<ValueViewer open={true} onClose={() => {}} value={42n} />);
-		const body = container.querySelector('.otelux-value-viewer__body');
-		expect(body?.textContent).toBe('42');
+		const code = container.querySelector('.otelux-value-viewer__code');
+		expect(code?.textContent).toBe('42');
 	});
 
 	it('fires onClose when close button, backdrop, or Escape are activated', () => {
@@ -51,17 +53,34 @@ describe('ValueViewer', () => {
 		unmount();
 	});
 
-	it('copies the rendered text to the clipboard', () => {
-		const writeText = vi.fn();
+	it('copies the rendered text to the clipboard', async () => {
+		const writeText = vi.fn().mockResolvedValue(undefined);
 		// jsdom does not implement the clipboard API; install a minimal fake.
 		Object.defineProperty(navigator, 'clipboard', {
 			configurable: true,
 			value: { writeText },
 		});
-		const { getByLabelText } = render(
+		const { getByRole, findByRole } = render(
 			<ValueViewer open={true} onClose={() => {}} title="x" value="hi" />,
 		);
-		fireEvent.click(getByLabelText('Copy'));
+		fireEvent.click(getByRole('button', { name: 'Copy' }));
 		expect(writeText).toHaveBeenCalledWith('hi');
+		// Await the post-clipboard state morph so React's act warning is satisfied.
+		await findByRole('button', { name: 'Copied' });
+	});
+
+	it('morphs the Copy button to "Copied" with a check icon after click', async () => {
+		const writeText = vi.fn().mockResolvedValue(undefined);
+		Object.defineProperty(navigator, 'clipboard', {
+			configurable: true,
+			value: { writeText },
+		});
+		const { getByRole, findByRole } = render(
+			<ValueViewer open={true} onClose={() => {}} title="x" value="hi" />,
+		);
+		fireEvent.click(getByRole('button', { name: 'Copy' }));
+		// Wait for the clipboard promise to resolve and the state morph.
+		const copied = await findByRole('button', { name: 'Copied' });
+		expect(copied.className).toContain('is-copied');
 	});
 });

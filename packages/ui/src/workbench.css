@@ -13,37 +13,18 @@
 /* ============================================================ *
  *                      LEGACY SHIM                              *
  *                                                               *
- * Span detail and attribute-table base rules — these classes    *
- * are still used by the redesigned SpanDetail (src/domain/      *
- * SpanDetail.tsx) and are kept here until the SpanDetail block  *
- * is migrated into the DOMAIN section below. The pre-redesign   *
- * workbench / trace-list / trace-row / waterfall / section      *
- * blocks have been deleted; their replacements live in the      *
- * LAYOUT and DOMAIN sections at the bottom of this file.        *
+ * Span detail / events list rules kept here while SpanDetail    *
+ * is being migrated. The pre-redesign workbench / trace-list /  *
+ * trace-row / waterfall blocks have been deleted; replacements  *
+ * live in the LAYOUT and DOMAIN sections at the bottom of this  *
+ * file.                                                         *
  * ============================================================ */
 
 .otelux-span-detail {
-	padding: 16px;
+	padding: 0;
 	overflow-y: auto;
 	height: 100%;
 	box-sizing: border-box;
-}
-
-.otelux-span-detail__header {
-	display: flex;
-	align-items: baseline;
-	justify-content: space-between;
-	gap: 12px;
-	margin-bottom: 12px;
-}
-
-.otelux-span-detail__name {
-	margin: 0;
-	font-size: 14px;
-	font-weight: 600;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
 }
 
 .otelux-span-detail__status {
@@ -54,55 +35,86 @@
 	white-space: nowrap;
 }
 
-.otelux-span-detail__facts {
+/* ---------- KV grid (key / value / view) ---------- */
+
+/*
+ * Mockup `.kv` two-column grid with an optional view button rendered in
+ * a fixed third column. Each row uses `display: contents` so the three
+ * cell spans become direct grid children and align across rows.
+ * Cells get a dashed bottom rule that fades out for the last row, so
+ * long key/value lists read as a stable table without painting an
+ * actual `<table>`.
+ */
+.otelux-kv {
 	display: grid;
-	grid-template-columns: max-content 1fr;
-	gap: 4px 12px;
-	margin: 0 0 16px;
+	grid-template-columns: 168px 1fr 24px;
+	column-gap: 12px;
+	padding: 0 16px;
 	font-size: 12px;
+	line-height: 1.5;
 }
 
-.otelux-fact {
+.otelux-kv__row {
 	display: contents;
 }
 
-.otelux-fact__label {
-	color: var(--otelux-fg-muted);
+.otelux-kv__key,
+.otelux-kv__val,
+.otelux-kv__view {
+	border-bottom: 1px dashed var(--otelux-border);
+	padding: 5px 0;
 }
 
-.otelux-fact__value {
-	margin: 0;
+.otelux-kv__row:last-child > .otelux-kv__key,
+.otelux-kv__row:last-child > .otelux-kv__val,
+.otelux-kv__row:last-child > .otelux-kv__view {
+	border-bottom: 0;
+}
+
+.otelux-kv__key {
+	color: var(--otelux-fg-muted);
 	overflow-wrap: anywhere;
 }
 
-.otelux-fact__value--mono {
-	font-family: ui-monospace, SFMono-Regular, monospace;
-	font-size: 11px;
-}
-
-.otelux-attr-table {
-	width: 100%;
-	border-collapse: collapse;
-	font-size: 12px;
-}
-
-.otelux-attr-table th {
-	text-align: left;
-	font-weight: 500;
-	color: var(--otelux-fg-muted);
-	padding: 4px 8px 4px 0;
-	vertical-align: top;
+.otelux-kv__val {
+	color: var(--otelux-fg);
+	min-width: 0;
+	/* Long attribute values stay on a single line and ellipsise; the
+	 * value-viewer modal (eye icon) is the way to inspect overflow. The
+	 * native `title` attribute on the value cell exposes the raw text
+	 * on hover so users can preview without opening the modal. */
 	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
-.otelux-attr-table td {
-	padding: 4px 0;
-	font-family: ui-monospace, SFMono-Regular, monospace;
+.otelux-kv__val--mono {
+	font-family: var(--otelux-font-mono);
 	font-size: 11px;
-	overflow-wrap: anywhere;
 }
 
-.otelux-attr-table__empty {
+.otelux-kv__view {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+}
+
+/* Hover affordance for the optional view button. The IconButton inside
+ * inherits the 24px column width so the eye icon hugs the right edge. */
+.otelux-kv__row .otelux-kv__view > button {
+	opacity: 0;
+	transition: opacity 80ms ease;
+	width: 24px;
+	height: 24px;
+}
+
+.otelux-kv__row:hover .otelux-kv__view > button,
+.otelux-kv__row .otelux-kv__view > button:focus-visible {
+	opacity: 1;
+}
+
+.otelux-kv__empty {
+	padding: 8px 16px 12px;
 	font-size: 12px;
 	color: var(--otelux-fg-muted);
 	font-style: italic;
@@ -116,7 +128,7 @@
 
 .otelux-span-detail__event {
 	border-top: 1px solid var(--otelux-border);
-	padding: 8px 0;
+	padding: 8px 16px;
 }
 
 .otelux-span-detail__event:first-child {
@@ -134,9 +146,21 @@
 }
 
 .otelux-span-detail__event-time {
-	font-family: ui-monospace, SFMono-Regular, monospace;
+	font-family: var(--otelux-font-mono);
 	font-size: 11px;
 	color: var(--otelux-fg-muted);
+}
+
+.otelux-span-detail__scope {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	font-size: 12px;
+	padding: 0 16px;
+}
+
+.otelux-span-detail__scope-name {
+	font-weight: 500;
 }
 
 .otelux-span-detail__scope-version {
@@ -351,6 +375,21 @@
 	align-items: center;
 	justify-content: center;
 	flex: 0 0 auto;
+	color: var(--otelux-fg-muted);
+}
+
+/*
+ * Inline uppercase prefix inside the trigger pill (e.g. "SERVICE"
+ * before the selected value). Mockup parity: `.field__label` rendered
+ * inside `.dd__btn`. Color uses the muted tone so the label whispers
+ * and the value reads as primary content.
+ */
+.otelux-dropdown__trigger-slot-label {
+	flex: 0 0 auto;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
 	color: var(--otelux-fg-muted);
 }
 
@@ -615,23 +654,34 @@
 }
 
 /*
- * Brand block — anchors the rail at 44px tall, matching the row
- * height of items, so the rail reads as 4 equally-sized cells stacked
- * over the icon group. The glyph is colored with --accent-2 (violet)
- * to distinguish it from the rest of the rail's mute foreground.
+ * Brand block — 56px square at the very top of the rail, sitting
+ * directly above the rail items. Matches the mockup's .rail__brand
+ * height so the rail reads as: brand square (56) | item column (44 each)
+ * | spacer | footer items.
  */
 .otelux-rail__brand {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	width: 100%;
-	height: 44px;
-	flex: 0 0 44px;
+	height: 56px;
+	flex: 0 0 56px;
 	color: var(--otelux-accent-2);
 	font-size: 18px;
 	font-weight: 700;
 	line-height: 1;
 	user-select: none;
+}
+
+/*
+ * When the brand slot hosts an SVG mark (the OTeluxLogo component) the
+ * gradient fill carries the color, so the inherited `color` is unused.
+ * The 28px logo sits centered inside the 56px square, leaving ~14px of
+ * optical padding on each side — matches the visual weight of the
+ * 24px rail icons sitting directly below.
+ */
+.otelux-rail__brand > svg {
+	display: block;
 }
 
 .otelux-rail__group {
@@ -656,7 +706,7 @@
 	height: 44px;
 	padding: 0;
 	background: transparent;
-	color: var(--otelux-fg-faint);
+	color: var(--otelux-fg-muted);
 	border: 0;
 	border-radius: 0;
 	cursor: pointer;
@@ -666,6 +716,7 @@
 
 .otelux-rail__button:hover:not(:disabled):not([aria-disabled="true"]) {
 	color: var(--otelux-fg);
+	background: var(--otelux-bg-hover);
 }
 
 .otelux-rail__button:focus-visible {
@@ -674,23 +725,26 @@
 }
 
 /*
- * Active marker — a 2px slab of accent pinned to the left edge,
- * matching the mockup's .rail__item.is-active::before. The icon
- * itself goes to the accent color so the active item is unmistakable
- * even when the slab is occluded by hover background.
+ * Active marker — the icon color flips to --fg and a 2px accent slab is
+ * pinned to the left edge (mockup parity: .rail__item.is-active +
+ * .rail__item.is-active::before). The mockup intentionally does NOT
+ * change the row background for active items — the left slab + icon
+ * color alone provide enough affordance, and a filled background fights
+ * the rail's calm vertical rhythm.
  */
 .otelux-rail__button.is-active {
-	color: var(--otelux-accent);
-	background: var(--otelux-bg-elevated);
+	color: var(--otelux-fg);
+	background: transparent;
 }
 
 .otelux-rail__button.is-active::before {
 	content: "";
 	position: absolute;
 	left: 0;
-	top: 0;
-	bottom: 0;
+	top: 8px;
+	bottom: 8px;
 	width: 2px;
+	border-radius: 2px;
 	background: var(--otelux-accent);
 }
 
@@ -714,6 +768,14 @@
 	height: var(--otelux-topbar-h);
 	padding: 0 16px;
 	background: var(--otelux-bg-panel);
+	/*
+	 * 1px bottom rule matches the mockup's `.topbar { border-bottom: 1px
+	 * solid var(--border); }`. The FilterBar below also carries its own
+	 * border-bottom — the two together produce the two-stripe header
+	 * chrome the design intends. Both borders use the same low-contrast
+	 * `--otelux-border` so they read as a single layered separator, not
+	 * a chunky double-line.
+	 */
 	border-bottom: 1px solid var(--otelux-border);
 	gap: 12px;
 }
@@ -783,22 +845,12 @@
 }
 
 /*
- * Filtered trace count chip — sits at the far right of the FilterBar
- * via the __end slot. Matches mockup .chip-count: count number in
- * full fg, " traces" suffix in mute. Tabular nums prevent layout
- * jitter as the count changes.
+ * Filter-bar end slot is reserved for future secondary controls
+ * (save view, clear filters, etc.). The redundant "N traces" chip
+ * was removed once the TraceList header started carrying the same
+ * count as a badge — keeping it here too duplicated the number on
+ * the same screen.
  */
-.otelux-filter-bar__count {
-	font-size: 12px;
-	color: var(--otelux-fg-muted);
-	font-variant-numeric: tabular-nums;
-}
-
-.otelux-filter-bar__count > strong {
-	color: var(--otelux-fg);
-	font-weight: 600;
-	margin-right: 4px;
-}
 
 /* ---------- SearchField ---------- */
 
@@ -883,24 +935,33 @@
 	flex: 0 0 var(--otelux-splitter-w);
 	width: var(--otelux-splitter-w);
 	display: flex;
-	align-items: center;
-	justify-content: center;
+	align-items: stretch;
+	justify-content: stretch;
 	cursor: col-resize;
-	background: transparent;
+	/*
+	 * Resting state: full-width hairline using --otelux-border so the
+	 * splitter reads as a visible divider, not an invisible drag target.
+	 * Mockup parity: `.splitter { background: var(--border); }`.
+	 */
+	background: var(--otelux-border);
 	transition: background 80ms ease;
 	user-select: none;
 }
 
 .otelux-splitter:hover,
-.otelux-splitter:focus-visible {
-	background: color-mix(in srgb, var(--otelux-accent) 30%, transparent);
+.otelux-splitter:focus-visible,
+.otelux-splitter.is-active {
+	/* Hover/focus: the entire 6px strip turns accent so the drag target
+	 * is unmistakable. Matches `.splitter:hover { background: var(--accent) }`. */
+	background: var(--otelux-accent);
 	outline: none;
 }
 
 .otelux-splitter__grip {
-	width: 1px;
-	height: 32px;
-	background: var(--otelux-border-strong);
+	/* The mockup splitter has no inner grip — the full 6px strip is the
+	 * affordance. Keep the element in the DOM so existing tests can find
+	 * it, but hide it visually so the resting strip is one clean color. */
+	display: none;
 }
 
 /* ---------- Workbench (two-pane container) ---------- */
@@ -934,35 +995,42 @@
 /* ---------- Accordion ---------- */
 
 .otelux-accordion {
+	/* Sections butt up against each other; the only separator is the
+	 * item's own border-bottom. No gap, no surrounding border. */
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
 }
 
 .otelux-accordion__item {
-	border: 1px solid var(--otelux-border);
-	border-radius: 6px;
-	background: var(--otelux-bg-panel);
-	overflow: hidden;
+	/* Mockup `.acc` is a flat strip: no border, no radius, no fill.
+	 * Items stack and are visually divided by a single hairline below. */
+	border: 0;
+	border-bottom: 1px solid var(--otelux-border);
+	border-radius: 0;
+	background: transparent;
 }
 
 .otelux-accordion__head {
+	/* Uppercase mute label — matches mockup `.acc__head`. The chevron, label
+	 * and badge are the only children. Padding hugs the panel sides. */
 	display: flex;
 	align-items: center;
 	gap: 8px;
 	width: 100%;
-	padding: 8px 10px;
+	padding: 10px 16px;
 	background: transparent;
 	border: 0;
-	color: var(--otelux-fg);
-	font-size: 12px;
+	color: var(--otelux-fg-muted);
+	font-size: 11px;
 	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
 	text-align: left;
 	cursor: pointer;
 }
 
 .otelux-accordion__head:hover {
-	background: var(--otelux-bg-elevated);
+	color: var(--otelux-fg);
 }
 
 .otelux-accordion__head:focus-visible {
@@ -993,38 +1061,38 @@
 	font-size: 11px;
 	font-weight: 500;
 	color: var(--otelux-fg-muted);
-	background: var(--otelux-bg);
+	background: var(--otelux-bg-elevated);
 	padding: 1px 6px;
-	border-radius: 999px;
-	border: 1px solid var(--otelux-border);
+	border-radius: 10px;
+	border: 0;
+	letter-spacing: 0;
+	text-transform: none;
+	font-variant-numeric: tabular-nums;
 }
 
 .otelux-accordion__body {
-	padding: 8px 10px 10px;
-	border-top: 1px solid var(--otelux-border);
-	background: var(--otelux-bg);
+	padding: 4px 0 12px;
+	border-top: 0;
+	background: transparent;
 }
 
 /* ---------- Drawer ---------- */
 
 .otelux-drawer {
+	/*
+	 * Mockup parity: the drawer is a right-anchored panel with NO dim
+	 * backdrop. Users keep full visibility and click-through to the
+	 * waterfall and trace list while the drawer is open. The fixed
+	 * overlay just positions the panel; pointer-events: none lets the
+	 * underlying surfaces receive clicks. The panel itself re-enables
+	 * pointer-events.
+	 */
 	position: fixed;
 	inset: 0;
 	z-index: var(--otelux-z-drawer);
 	display: flex;
 	justify-content: flex-end;
 	pointer-events: none;
-}
-
-.otelux-drawer__backdrop {
-	position: absolute;
-	inset: 0;
-	background: rgba(0, 0, 0, 0.32);
-	border: 0;
-	padding: 0;
-	margin: 0;
-	cursor: default;
-	pointer-events: auto;
 }
 
 .otelux-drawer__panel {
@@ -1045,8 +1113,20 @@
 	gap: 8px;
 	flex: 0 0 var(--otelux-pane-head-h);
 	height: var(--otelux-pane-head-h);
-	padding: 0 8px 0 12px;
+	padding: 0 8px 0 16px;
 	border-bottom: 1px solid var(--otelux-border);
+}
+
+/*
+ * Status dot rendered before the title (e.g. service color for the
+ * span-detail drawer). Inline background is supplied by the consumer
+ * via the `accentVar` prop.
+ */
+.otelux-drawer__dot {
+	flex: 0 0 auto;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
 }
 
 .otelux-drawer__title {
@@ -1061,11 +1141,27 @@
 	text-overflow: ellipsis;
 }
 
+/*
+ * Uppercase tag (e.g. "Client", "Server") rendered after the title.
+ * Mockup `.drawer__tag` \u2014 muted text on bg-elevated, small radius pill.
+ */
+.otelux-drawer__tag {
+	flex: 0 0 auto;
+	padding: 2px 7px;
+	border-radius: 4px;
+	background: var(--otelux-bg-elevated);
+	color: var(--otelux-fg-muted);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
 .otelux-drawer__body {
 	flex: 1 1 auto;
 	min-height: 0;
 	overflow: auto;
-	padding: 12px;
+	padding: 0;
 }
 
 /* ============================================================ *
@@ -1090,7 +1186,7 @@
 .otelux-trace-list__header {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
+	gap: 8px;
 	flex: 0 0 var(--otelux-pane-head-h);
 	height: var(--otelux-pane-head-h);
 	padding: 0 6px 0 16px;
@@ -1098,18 +1194,59 @@
 	background: var(--otelux-bg-panel);
 }
 
+/* Flex spacer between the (title + count) cluster on the left and the
+ * icon-button cluster (collapse, restore other pane) on the right. */
+.otelux-trace-list__spacer {
+	flex: 1 1 auto;
+}
+
+/* Make the in-header collapse / restore icon buttons sit flush against
+ * the right padding without bumping the header height. The size mirrors
+ * the mockup's pane-head buttons. */
+.otelux-trace-list__collapse,
+.otelux-trace-list__restore {
+	flex: 0 0 auto;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+}
+
 .otelux-trace-list__title {
-	font-size: 12px;
+	/*
+	 * Mockup parity: `.pane__title` uppercase mute label, 11px / 600 /
+	 * letter-spacing .06em. Sits left in the pane head, immediately to
+	 * the left of the count pill below.
+	 */
+	font-size: 11px;
 	font-weight: 600;
 	color: var(--otelux-fg-muted);
 	text-transform: uppercase;
-	letter-spacing: 0.04em;
+	letter-spacing: 0.06em;
 }
 
-.otelux-trace-list__count {
+.otelux-trace-list__count,
+.otelux-waterfall__spans-pill {
+	/*
+	 * Count pill rendered next to the title. Background uses
+	 * `--otelux-bg-elevated` (mockup's --bg-2) so the pill reads as a
+	 * subtle chip lifted above the panel background; foreground is the
+	 * secondary text tone so the number is legible but doesn't compete
+	 * with the primary title. Tabular nums + center alignment keep the
+	 * digit visually centred as the count grows.
+	 */
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 20px;
+	height: 18px;
+	padding: 0 7px;
+	background: var(--otelux-bg-elevated);
+	border-radius: 9px;
 	font-variant-numeric: tabular-nums;
-	color: var(--otelux-fg-muted);
-	font-size: 12px;
+	color: var(--otelux-fg-secondary);
+	font-size: 11px;
+	font-weight: 500;
+	line-height: 1;
 }
 
 .otelux-trace-list__body {
@@ -1144,12 +1281,18 @@
 }
 
 .otelux-trace-list__rows {
+	/*
+	 * Mockup parity: cards are flush, separated only by their own
+	 * `border-bottom`. The UL is just a list container — no padding,
+	 * no gap, no margins. Trace cards live directly inside the
+	 * scrollable body.
+	 */
 	list-style: none;
 	margin: 0;
-	padding: 4px;
+	padding: 0;
 	display: flex;
 	flex-direction: column;
-	gap: 2px;
+	gap: 0;
 }
 
 /* ---------- TraceRow ---------- */
@@ -1205,17 +1348,23 @@
 }
 
 .otelux-trace-row__button:hover {
-	background: var(--otelux-bg-elevated);
+	background: var(--otelux-bg-panel);
 }
 
 .otelux-trace-row__button:focus-visible {
 	outline: none;
-	background: var(--otelux-bg-elevated);
+	background: var(--otelux-bg-panel);
 	box-shadow: inset 0 0 0 1px var(--otelux-accent);
 }
 
 .otelux-trace-row.is-selected > .otelux-trace-row__button {
-	background: var(--otelux-bg-hover);
+	/*
+	 * Mockup `.tcard.is-selected` uses `--bg-2` which is our
+	 * `--otelux-bg-elevated`. The 3px service-color slab on the left
+	 * (handled by the `::before` rule below) carries the trace's
+	 * identity color so the selection still reads even on a busy row.
+	 */
+	background: var(--otelux-bg-elevated);
 }
 
 /*
@@ -1259,22 +1408,26 @@
 }
 
 .otelux-trace-row__row--2 {
-	/* Headline: root name alone (span count moved up to row 1). 2px
-	 * micro-gap from the meta strip above per the mockup. */
+	/* Headline: root name alone (span count moved up to row 1).
+	 * The title row is the dominant element in the card — give it a
+	 * little more vertical air on both sides so it reads as its own
+	 * line rather than being crushed against the meta strip above
+	 * and the tag strip below. */
 	align-items: baseline;
 	gap: 8px;
-	margin-top: 2px;
+	margin-top: 6px;
 }
 
 .otelux-trace-row__row--3 {
 	/* Tags strip: chips/error pill flow left-to-right; duration is the
 	   right anchor via margin-left:auto so it always lands flush right
-	   regardless of how many chips precede it. Slightly bigger gap to
-	   the title above so the chips read as a distinct strip. */
+	   regardless of how many chips precede it. Symmetric 6px gap to
+	   the title above matches the gap below row 1, so the title row
+	   sits visually centered between meta and tags. */
 	align-items: center;
 	gap: 6px;
 	flex-wrap: wrap;
-	margin-top: 4px;
+	margin-top: 6px;
 }
 
 .otelux-trace-row__row--flat {
@@ -1374,13 +1527,20 @@
 }
 
 .otelux-service-chip {
+	/*
+	 * Mockup .svcchip: tinted 25% pill, no border, text takes the service
+	 * color, dot leads. The CSS variable `--chip-color` is supplied inline
+	 * by the consumer (TraceRow) and resolves to a var() like
+	 * `var(--otelux-svc-3)`. We re-declare it as `--svc` on the chip so the
+	 * background `color-mix` can pick it up regardless of variable-chain depth.
+	 */
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
 	max-width: 100%;
 	padding: 1px 6px;
-	background: color-mix(in srgb, var(--chip-color, var(--otelux-fg-muted)) 18%, transparent);
-	border: 1px solid color-mix(in srgb, var(--chip-color, var(--otelux-border)) 30%, transparent);
+	background: color-mix(in srgb, var(--chip-color, var(--otelux-fg-muted)) 25%, transparent);
+	border: 0;
 	border-radius: 10px;
 	font-size: 11px;
 	color: var(--chip-color, var(--otelux-fg));
@@ -1429,7 +1589,11 @@
 }
 
 .otelux-waterfall__name {
-	flex: 1 1 auto;
+	/* Hug the text so the trace id + span count cluster sits immediately
+	 * to the right of the name (mockup parity: name · tid · meta ·
+	 * spacer · controls). The spacer grows to push trailing controls
+	 * to the right edge instead of relying on the name's flex. */
+	flex: 0 1 auto;
 	min-width: 0;
 	white-space: nowrap;
 	overflow: hidden;
@@ -1439,18 +1603,60 @@
 	color: var(--otelux-fg);
 }
 
-.otelux-waterfall__duration {
+.otelux-waterfall__spacer {
+	flex: 1 1 auto;
+}
+
+.otelux-waterfall__collapse,
+.otelux-waterfall__restore {
 	flex: 0 0 auto;
-	font-family: var(--otelux-font-mono);
-	font-size: 12px;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+}
+
+/* Trace summary meta strip: duration · spanCount · root service. The
+ * <strong> child is the root service name; we restyle it as a subtle
+ * mono-cased token so it reads as a label rather than emphasized
+ * text. */
+.otelux-waterfall__meta {
+	flex: 0 0 auto;
+	font-size: 11px;
 	color: var(--otelux-fg-muted);
 	font-variant-numeric: tabular-nums;
 }
 
-.otelux-waterfall__count {
+.otelux-waterfall__meta strong {
+	color: var(--otelux-fg-secondary);
+	font-weight: 600;
+}
+
+/*
+ * Trace id + copy button cluster in the waterfall header. Mirrors
+ * `.otelux-trace-row__tid-wrap` in the trace list for visual
+ * consistency.
+ */
+.otelux-waterfall__tid-wrap {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
 	flex: 0 0 auto;
+}
+
+.otelux-waterfall__tid {
+	flex: 0 0 auto;
+	font-family: var(--otelux-font-mono);
 	font-size: 11px;
 	color: var(--otelux-fg-muted);
+	letter-spacing: 0.02em;
+}
+
+.otelux-waterfall__tid-copy .otelux-copy-button__icon {
+	color: var(--otelux-fg-faint);
+}
+
+.otelux-waterfall__tid-copy:hover .otelux-copy-button__icon {
+	color: var(--otelux-fg);
 }
 
 .otelux-waterfall__empty {
@@ -1462,111 +1668,225 @@
 	font-size: 12px;
 }
 
-.otelux-waterfall__scroll {
-	flex: 1 1 auto;
-	min-height: 0;
-	overflow: auto;
+/*
+ * Ruler: 280px SPAN label · flexible tick track · 64px DURATION label.
+ * The grid columns mirror the row template below so column alignment
+ * stays pixel-perfect as the pane resizes.
+ */
+.otelux-waterfall__ruler {
+	display: grid;
+	grid-template-columns: 280px 1fr 64px;
+	align-items: center;
+	gap: 0;
+	height: 28px;
+	padding: 0 12px 0 16px;
+	border-bottom: 1px solid var(--otelux-border);
+	background: var(--otelux-bg-panel);
+	color: var(--otelux-fg-muted);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
 }
 
-.otelux-waterfall__svg {
-	display: block;
+.otelux-waterfall__ruler-head {
+	color: var(--otelux-fg-muted);
 }
 
-.otelux-waterfall__ruler-bg {
-	fill: var(--otelux-bg-panel);
+.otelux-waterfall__ruler-head--right {
+	text-align: right;
+}
+
+/* Tick container — relative so absolutely positioned tick marks can
+ * use percentage `left` values driven directly by trace time. */
+.otelux-waterfall__ruler-track {
+	position: relative;
+	height: 100%;
 }
 
 .otelux-waterfall__ruler-tick {
-	stroke: var(--otelux-border-strong);
-	stroke-width: 1;
-}
-
-.otelux-waterfall__ruler-label {
-	font-size: 10px;
-	fill: var(--otelux-fg-muted);
+	position: absolute;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	padding: 0 4px;
+	background: var(--otelux-bg-panel);
+	color: var(--otelux-fg-muted);
 	font-family: var(--otelux-font-mono);
+	font-size: 10px;
+	font-weight: 500;
+	letter-spacing: 0;
+	text-transform: none;
+	white-space: nowrap;
 }
 
-.otelux-waterfall__tickline {
-	stroke: var(--otelux-border);
-	stroke-width: 1;
-	opacity: 0.5;
+/* Rows region — scroll vertically when the trace is tall. The whole
+ * region uses an aria-label so assistive tech can land here directly
+ * without picking up the surrounding chrome. */
+.otelux-waterfall__rows {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding: 6px 0;
 }
 
-.otelux-waterfall__row-bg {
-	fill: transparent;
-}
-
-.otelux-waterfall__row:hover .otelux-waterfall__row-bg {
-	fill: var(--otelux-bg-elevated);
-}
-
-.otelux-waterfall__row.is-selected .otelux-waterfall__row-bg {
-	fill: color-mix(in srgb, var(--otelux-accent) 14%, transparent);
-}
-
-.otelux-waterfall__label {
+/* One row = three columns. The name column is fixed-width so labels
+ * across rows visually align; the bar track flexes; the duration
+ * column is fixed and right-aligned so the duration text reads as a
+ * column. */
+.otelux-waterfall__row {
+	position: relative;
+	display: grid;
+	grid-template-columns: 280px 1fr 64px;
+	align-items: center;
+	gap: 0;
+	height: 24px;
+	padding: 0 12px 0 16px;
+	color: var(--otelux-fg);
 	font-size: 12px;
-	fill: var(--otelux-fg);
+	cursor: pointer;
+	user-select: none;
 }
 
-.otelux-waterfall__duration-label {
-	font-size: 10px;
-	fill: var(--otelux-fg-muted);
-	font-family: var(--otelux-font-mono);
+.otelux-waterfall__row:hover {
+	background: var(--otelux-bg-hover);
 }
 
-.otelux-waterfall__row.is-error .otelux-waterfall__bar {
-	stroke: var(--otelux-error);
-	stroke-width: 1.5;
+.otelux-waterfall__row.is-selected {
+	background: color-mix(in srgb, var(--otelux-accent) 14%, transparent);
+	box-shadow: inset 2px 0 0 var(--otelux-accent);
+}
+
+.otelux-waterfall__row.is-match {
+	background: color-mix(in srgb, var(--otelux-warn) 12%, transparent);
+}
+
+.otelux-waterfall__row.is-error .otelux-waterfall__title {
+	color: var(--otelux-error);
 }
 
 .otelux-waterfall__row:focus {
 	outline: none;
 }
 
-.otelux-waterfall__row:focus-visible .otelux-waterfall__row-bg {
-	fill: color-mix(in srgb, var(--otelux-accent) 22%, transparent);
+.otelux-waterfall__row:focus-visible {
+	box-shadow: inset 2px 0 0 var(--otelux-accent);
+}
+
+/* Name cell — flex row with caret + title. Indent guides live as
+ * absolutely positioned children so they stack behind the text. */
+.otelux-waterfall__name-cell {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+	padding-right: 8px;
+}
+
+/* Ancestor indent guides — thin vertical hairlines at each ancestor
+ * column position. Stacked behind the caret so they don't visually
+ * compete with interactive controls. */
+.otelux-waterfall__guide {
+	position: absolute;
+	top: -2px;
+	bottom: -2px;
+	width: 1px;
+	background: var(--otelux-border);
+	pointer-events: none;
+}
+
+.otelux-waterfall__caret {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	margin-right: 4px;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: var(--otelux-fg-muted);
+	cursor: pointer;
+	border-radius: 3px;
+	transition: transform 80ms ease, color 80ms ease, background 80ms ease;
+}
+
+/* Empty placeholder rendered in place of the caret on leaf rows so
+ * the span title stays vertically aligned with sibling parent rows.
+ * No icon, no hover, no interaction — just a width-preserving slot. */
+.otelux-waterfall__caret-spacer {
+	flex: 0 0 auto;
+	display: inline-block;
+	width: 16px;
+	height: 16px;
+	margin-right: 4px;
+}
+
+.otelux-waterfall__caret:hover {
+	color: var(--otelux-fg);
+	background: var(--otelux-bg-elevated);
+}
+
+.otelux-waterfall__caret.is-collapsed {
+	/* Rotate the down-chevron so it points right when the subtree is
+	 * collapsed (mockup-parity: chevron-down for open, chevron-right
+	 * for closed). */
+	transform: rotate(-90deg);
+}
+
+.otelux-waterfall__title {
+	flex: 1 1 auto;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Bar track — relative so the bar can absolutely position by % */
+.otelux-waterfall__bar-track {
+	position: relative;
+	height: 8px;
+	margin: 0 8px;
+}
+
+.otelux-waterfall__bar {
+	position: absolute;
+	top: 0;
+	height: 8px;
+	border-radius: 2px;
+	min-width: 2px;
+}
+
+.otelux-waterfall__row.is-error .otelux-waterfall__bar {
+	box-shadow: 0 0 0 1px var(--otelux-error);
+}
+
+.otelux-waterfall__duration {
+	flex: 0 0 auto;
+	text-align: right;
+	font-family: var(--otelux-font-mono);
+	font-size: 11px;
+	color: var(--otelux-fg-muted);
+	font-variant-numeric: tabular-nums;
 }
 
 /* ---------- SpanDetail (new) ---------- */
 
 .otelux-span-detail__status.is-ok {
-	background: rgba(158, 206, 106, 0.15);
+	background: color-mix(in srgb, var(--otelux-ok) 18%, transparent);
 	color: var(--otelux-ok);
 }
 
 .otelux-span-detail__status.is-error {
-	background: rgba(247, 118, 142, 0.15);
+	background: color-mix(in srgb, var(--otelux-error) 18%, transparent);
 	color: var(--otelux-error);
 }
 
 .otelux-span-detail__status.is-unset {
 	background: var(--otelux-bg-elevated);
 	color: var(--otelux-fg-muted);
-}
-
-.otelux-attr-table td {
-	display: flex;
-	align-items: flex-start;
-	gap: 6px;
-}
-
-.otelux-attr-table__value {
-	flex: 1 1 auto;
-	min-width: 0;
-	overflow-wrap: anywhere;
-}
-
-.otelux-attr-table__view {
-	flex: 0 0 auto;
-	opacity: 0;
-	transition: opacity 80ms ease;
-}
-
-.otelux-attr-table tr:hover .otelux-attr-table__view,
-.otelux-attr-table__view:focus-visible {
-	opacity: 1;
 }
 
 .otelux-span-detail__scope {
@@ -1583,7 +1903,7 @@
 .otelux-span-detail__links {
 	list-style: none;
 	margin: 0;
-	padding: 0;
+	padding: 0 16px;
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
@@ -1611,7 +1931,7 @@
 .otelux-value-viewer__backdrop {
 	position: absolute;
 	inset: 0;
-	background: rgba(0, 0, 0, 0.4);
+	background: rgba(0, 0, 0, 0.55);
 	border: 0;
 	padding: 0;
 	margin: 0;
@@ -1620,11 +1940,17 @@
 }
 
 .otelux-value-viewer__panel {
+	/*
+	 * Mockup parity: roomy modal with a fixed-row grid so the header /
+	 * body / footer never reflow as content scrolls. Width caps at 880,
+	 * height at 560, with viewport-relative ceilings so tiny windows
+	 * still get a usable modal.
+	 */
 	position: relative;
-	display: flex;
-	flex-direction: column;
-	width: min(720px, calc(100vw - 32px));
-	max-height: min(80vh, 720px);
+	display: grid;
+	grid-template-rows: 48px 1fr 44px;
+	width: min(880px, 92vw);
+	height: min(560px, 80vh);
 	background: var(--otelux-bg-panel);
 	border: 1px solid var(--otelux-border);
 	border-radius: 8px;
@@ -1637,9 +1963,7 @@
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	flex: 0 0 var(--otelux-pane-head-h);
-	height: var(--otelux-pane-head-h);
-	padding: 0 8px 0 12px;
+	padding: 0 8px 0 16px;
 	border-bottom: 1px solid var(--otelux-border);
 }
 
@@ -1655,29 +1979,98 @@
 	text-overflow: ellipsis;
 }
 
-.otelux-value-viewer__actions {
+/* Format dropdown sits between title and close. The Dropdown primitive
+ * carries its own width so we just slot it in. */
+.otelux-value-viewer__format {
 	flex: 0 0 auto;
-	display: flex;
-	align-items: center;
-	gap: 2px;
 }
 
 .otelux-value-viewer__body {
-	flex: 1 1 auto;
+	/* Two-column grid: 48px gutter for line numbers + flexible code. The
+	 * gutter and code share a single scroll container so they stay in
+	 * lockstep when content overflows vertically. */
+	display: grid;
+	grid-template-columns: 48px 1fr;
 	min-height: 0;
 	overflow: auto;
-	margin: 0;
-	padding: 12px;
+	background: var(--otelux-bg);
 	font-family: var(--otelux-font-mono);
 	font-size: 12px;
 	line-height: 1.5;
 	color: var(--otelux-fg);
-	background: var(--otelux-bg);
+}
+
+.otelux-value-viewer__gutter {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	padding: 12px 8px 12px 0;
+	color: var(--otelux-fg-muted);
+	background: var(--otelux-bg-panel);
+	border-right: 1px solid var(--otelux-border);
+	user-select: none;
+	font-variant-numeric: tabular-nums;
+}
+
+.otelux-value-viewer__code {
+	margin: 0;
+	padding: 12px 16px;
 	white-space: pre-wrap;
 	word-break: break-word;
 }
 
-.otelux-value-viewer__body--json {
+.otelux-value-viewer__body--json .otelux-value-viewer__code {
+	/* JSON looks better with strict no-wrap so the formatter's indentation
+	 * is preserved; users can scroll horizontally if needed. */
 	white-space: pre;
 	word-break: normal;
+}
+
+.otelux-value-viewer__footer {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	padding: 0 12px;
+	border-top: 1px solid var(--otelux-border);
+	background: var(--otelux-bg-panel);
+}
+
+.otelux-value-viewer__btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	height: 28px;
+	/* min-width sized so "Copy" -> "Copied" morph doesn't reflow the footer. */
+	min-width: 96px;
+	padding: 0 12px;
+	border: 1px solid var(--otelux-border);
+	border-radius: var(--otelux-r-1);
+	background: transparent;
+	color: var(--otelux-fg);
+	font: inherit;
+	font-size: 12px;
+	cursor: pointer;
+	transition: background 80ms ease, border-color 80ms ease;
+}
+
+.otelux-value-viewer__btn:hover {
+	background: var(--otelux-bg-elevated);
+}
+
+.otelux-value-viewer__btn:focus-visible {
+	outline: none;
+	border-color: var(--otelux-accent);
+	box-shadow: 0 0 0 1px var(--otelux-accent);
+}
+
+.otelux-value-viewer__btn--primary {
+	background: var(--otelux-accent);
+	border-color: var(--otelux-accent);
+	color: #0b0d18;
+}
+
+.otelux-value-viewer__btn--primary:hover {
+	background: color-mix(in srgb, var(--otelux-accent) 85%, #ffffff);
 }

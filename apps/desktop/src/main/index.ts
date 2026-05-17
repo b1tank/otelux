@@ -157,10 +157,20 @@ async function updateSettings(
 }
 
 function createWindow(): void {
+	// Window icon source. In dev `__dirname` is `out/main/`, so we walk
+	// two levels up to reach the project root (`apps/desktop/`). In a
+	// packaged build, electron-builder copies `build/icon.png` next to
+	// the asar and Electron picks it up automatically from the resource
+	// path the platform expects — we still pass it explicitly so the
+	// taskbar/dock identity is correct on Linux where the desktop file
+	// is the only ambient icon source.
+	const iconPath = join(__dirname, '..', '..', 'build', 'icon.png');
+
 	const win = new BrowserWindow({
 		width: 1280,
 		height: 800,
 		title: 'OTelux',
+		icon: iconPath,
 		backgroundColor: '#1e1e1e',
 		autoHideMenuBar: true,
 		show: false,

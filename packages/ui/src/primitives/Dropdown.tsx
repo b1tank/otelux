@@ -39,6 +39,13 @@ export interface DropdownProps {
 	placeholder?: string;
 	/** Override the trigger label; defaults to the matching option's label. */
 	triggerLabel?: string;
+	/**
+	 * Optional uppercase mute prefix rendered inside the trigger, immediately
+	 * before the selected value. Used by the FilterBar to put a short field
+	 * name (e.g. "Service") in the same pill as the value. Mockup parity:
+	 * `.field__label` inside `.dd__btn`.
+	 */
+	triggerSlotLabel?: ReactNode;
 	/** Optional icon inside the trigger (left of the label). */
 	triggerIcon?: ReactNode;
 	/**
@@ -72,6 +79,7 @@ export function Dropdown(props: DropdownProps): JSX.Element {
 		options,
 		placeholder = 'Select…',
 		triggerLabel,
+		triggerSlotLabel,
 		triggerIcon,
 		triggerCount,
 		className,
@@ -169,6 +177,9 @@ export function Dropdown(props: DropdownProps): JSX.Element {
 				{...triggerProps}
 			>
 				{triggerIcon && <span className="otelux-dropdown__trigger-icon">{triggerIcon}</span>}
+				{triggerSlotLabel !== undefined && (
+					<span className="otelux-dropdown__trigger-slot-label">{triggerSlotLabel}</span>
+				)}
 				<span className="otelux-dropdown__trigger-label">{visibleLabel}</span>
 				{triggerCount !== undefined && (
 					<span className="otelux-dropdown__trigger-count">{triggerCount}</span>

@@ -4,8 +4,10 @@
  * permanently consuming horizontal space in the workbench.
  *
  * Controlled: the consumer owns `open`. The drawer raises `onClose`
- * on Escape, on backdrop click, and on the close button. The consumer
- * is free to ignore the request.
+ * on Escape and on the close button. There is no dim backdrop — the
+ * design (see redesign-mockup.html `.drawer`) keeps the rest of the
+ * workbench fully visible and clickable so users can drive the trace
+ * list / waterfall without first dismissing the drawer.
  *
  * Layered import discipline: this file lives in `src/primitives/` and
  * MUST NOT import from `layout/` or `domain/`. Inputs are plain
@@ -19,10 +21,21 @@ import { XIcon } from './icons.js';
 export interface DrawerProps {
 	/** Controlled open state. */
 	open: boolean;
-	/** Raised on Escape, backdrop click, and close button. */
+	/** Raised on Escape and on the close button. */
 	onClose: () => void;
 	/** Optional header title. When omitted, `ariaLabel` should be provided. */
 	title?: ReactNode;
+	/**
+	 * Optional CSS color (e.g. `var(--otelux-svc-3)`) for the small 8px
+	 * status dot rendered before the title. Used by the span-detail drawer
+	 * to surface the span's service color in the header.
+	 */
+	accentVar?: string;
+	/**
+	 * Optional uppercase pill rendered after the title (e.g. "Client",
+	 * "Server"). Matches mockup `.drawer__tag`.
+	 */
+	kindLabel?: ReactNode;
 	/** Accessible label for the dialog. Required when `title` is omitted. */
 	ariaLabel?: string;
 	/** Body content. */
@@ -30,7 +43,7 @@ export interface DrawerProps {
 }
 
 export function Drawer(props: DrawerProps): JSX.Element | null {
-	const { open, onClose, title, ariaLabel, children } = props;
+	const { open, onClose, title, accentVar, kindLabel, ariaLabel, children } = props;
 	const panelRef = useRef<HTMLDivElement>(null);
 	const closeBtnRef = useRef<HTMLButtonElement>(null);
 	const previouslyFocused = useRef<HTMLElement | null>(null);
@@ -82,22 +95,18 @@ export function Drawer(props: DrawerProps): JSX.Element | null {
 
 	return (
 		<div className="otelux-drawer" role="presentation">
-			<button
-				type="button"
-				className="otelux-drawer__backdrop"
-				aria-label="Close drawer"
-				onClick={onClose}
-				tabIndex={-1}
-			/>
 			<div
 				ref={panelRef}
 				className="otelux-drawer__panel"
-				// biome-ignore lint/a11y/useSemanticElements: HTML <dialog> is not used here because we render an always-mounted overlay manually with backdrop semantics; role=dialog + aria-modal is the documented WAI-ARIA escape.
+				// biome-ignore lint/a11y/useSemanticElements: HTML <dialog> is not used here because we render an always-mounted overlay manually; role=dialog + aria-modal is the documented WAI-ARIA escape.
 				role="dialog"
 				aria-modal="true"
 				{...labelProps}
 			>
 				<header className="otelux-drawer__header">
+					{accentVar !== undefined && (
+						<span className="otelux-drawer__dot" style={{ background: accentVar }} aria-hidden="true" />
+					)}
 					{title !== undefined ? (
 						<h2 className="otelux-drawer__title" id={titleId}>
 							{title}
@@ -105,6 +114,7 @@ export function Drawer(props: DrawerProps): JSX.Element | null {
 					) : (
 						<span className="otelux-drawer__title" aria-hidden="true" />
 					)}
+					{kindLabel !== undefined && <span className="otelux-drawer__tag">{kindLabel}</span>}
 					<IconButton
 						ref={closeBtnRef}
 						aria-label="Close"
