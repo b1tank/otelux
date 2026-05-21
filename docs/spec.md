@@ -131,7 +131,7 @@ Apps live under `apps/` and are not published to npm:
 | Library bundling | **tsup** (ESM + CJS + types). |
 | App bundling | **Vite**. |
 | Test runner | **Vitest**. |
-| Component workshop | **Storybook 8** (React-Vite framework). |
+| Component workshop | **Storybook 8** (React-Vite framework). _Planned; not yet adopted — see [plan.md](plan.md)._ |
 | E2E / visual regression | **Playwright**. |
 | Lint + format | **Biome**, fall back to ESLint+Prettier only if Biome blocks. |
 | Versioning + releases | **Changesets**. |
@@ -201,11 +201,11 @@ serveDataSource(panel.webview, engine);
 
 ```tsx
 // embedded webview (browser) — renders the UI
-import { OTeluxTracesWorkbench } from '@otelux/ui';
+import { OTeluxWorkbench } from '@otelux/ui';
 import { createPostMessageDataSource } from '@otelux/adapter-vscode/client';
 
 const ds = createPostMessageDataSource(acquireHostApi());
-root.render(<OTeluxTracesWorkbench dataSource={ds} theme="host" />);
+root.render(<OTeluxWorkbench dataSource={ds} theme="host" />);
 ```
 
 Constraints honored by design (informed by VS Code webview rules, which are
@@ -289,6 +289,11 @@ npm run build
 ```
 
 Each command goes through Turborepo so only affected packages rebuild.
+
+> The commands below are forward-looking — the corresponding scripts and
+> apps (`web-demo`, `vscode-example`, Storybook, Playwright) land
+> alongside the matching phases in `plan.md` and are not yet present in
+> the workspace.
 
 UI changes additionally pass:
 

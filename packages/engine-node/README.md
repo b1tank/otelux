@@ -3,4 +3,8 @@
 `node:sqlite` storage adapter for `@otelux/engine`. Requires Node 22+
 (the SQLite module is built in — no native compile, no node-gyp).
 
-Phase 0 ships a stub. Real schema/WAL/retention lands in Phase 1.
+Milestone 1 ships an in-memory passthrough: `createNodeSqliteStorage()`
+currently forwards to `@otelux/engine`'s `createMemoryStorage()` so
+downstream code can already depend on this package and pick up the real
+implementation transparently. The persistent `DatabaseSync`-backed store
+(schema versioning, WAL pragma, retention) lands in Milestone 2.
