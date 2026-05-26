@@ -50,44 +50,63 @@ as published packages.
 
 ---
 
-## 2. Milestone 1 — Ship a Linux desktop app you can use
+## 2. Milestone 1 — Ship a Linux desktop app **and** a VS Code extension you can use
 
 **M1 is the single guiding goal of the first phase block.** Everything we
-build through M1 has to contribute to a Linux desktop binary you can install
-and run against your own applications.
+build through M1 has to contribute to two consumers of the same packages:
+a Linux desktop binary you can install, and a VS Code extension you can
+side-load. Shipping both at once is the cheapest way to prove the
+package boundaries are right; deferring the second consumer is how monorepos
+rot into single-app monorepos.
 
 **Definition of M1 done — all of these are true:**
 
-1. You can install OTelux on Linux (AppImage and `.deb`).
-2. You launch it like any desktop app; cold start to first paint is under
-   300 ms (warm cache).
-3. The app listens on `http://localhost:4319` for OTLP/HTTP (JSON + protobuf)
-   traces with zero configuration. Any OpenTelemetry SDK pointing there
-   shows traces in the workbench.
+1. You can install OTelux on Linux (AppImage and `.deb`) **and** install
+   the OTelux VS Code extension as a `.vsix` from CI.
+2. You launch the desktop app like any desktop app; cold start to first
+   paint is under 300 ms (warm cache). The VS Code extension activates
+   on startup and exposes the Telemetry Explorer panel within the same
+   budget once opened.
+3. The desktop app listens on `http://localhost:4319` for OTLP/HTTP
+   (JSON + protobuf). The VS Code extension listens on the standard
+   `http://localhost:4318`. Any OpenTelemetry SDK pointing at either
+   shows traces in its workbench with zero configuration. gRPC is
+   explicitly out of M1 — it lands in Phase 5.
 4. A trace list shows all received traces with timestamp, name, services,
    span count, duration, status. It is virtualized, sortable, searchable,
-   and filterable by service, status, and time window.
+   and filterable by service, status, and time window. **The same
+   `@otelux/ui` component renders in both consumers** — no per-app fork.
 5. Clicking a trace opens a waterfall view: per-service color, depth indent,
    time ruler, hover tooltip, keyboard navigation, error styling.
 6. Clicking a span opens a detail panel: attributes, events, context
    (trace/span/parent IDs, scope, version), resource attributes.
-7. Live ingest works: new traces appear without restarting the app, with
-   pause/resume.
+7. Live ingest works: new traces appear without restarting the app or
+   reopening the panel, with pause/resume.
 8. Data persists across restarts in a local SQLite file with retention
    (age and count) configurable in a Settings page.
-9. The app feels like an OS-native window: proper menus, keyboard shortcuts,
-   light/dark/high-contrast, screen-reader-labeled controls, focus rings.
+9. The desktop app feels like an OS-native window: proper menus, keyboard
+   shortcuts, light/dark/high-contrast, screen-reader-labeled controls,
+   focus rings. The extension's webview inherits VS Code theme via the
+   `--vscode-*` mapping in `@otelux/ui` and meets the same a11y bar.
 10. Crashes are recoverable: WAL pragma is set, partial writes do not
-    corrupt the store, ingest backpressure is bounded.
+    corrupt the store, ingest backpressure is bounded. Running both
+    consumers simultaneously is handled by `@otelux/receiver`'s
+    `claimSingleInstance` (see [spec.md § 7.1](spec.md)).
+11. **Copilot LM Tools** are registered in the extension and callable from
+    Copilot Chat for the canonical troubleshooting questions (see
+    [spec.md § 12.3](spec.md)). MCP server endpoint is mounted on the
+    same store; a one-click "Enable Codex / Claude Code / Cursor
+    integration" command writes the corresponding MCP config.
 
 **Out of M1:** logs, metrics, profiles, services overview, macOS/Windows
-desktop, auto-update, code signing, web demo, VS Code extension example.
-Those are explicit later phases.
+desktop, auto-update, code signing, web demo, OTLP/gRPC. Those are
+explicit later phases.
 
 The package architecture is the means, not the end. We still build the
 packages — they are how M1 gets built — but during M1 they live as
-workspace packages consumed by `apps/desktop`. Publishing to npm happens
-in a later phase once the contracts have shaken out against a real product.
+workspace packages consumed by `apps/desktop` **and** `apps/vscode-extension`
+via workspace links. Public npm publish happens in a later phase once the
+contracts have shaken out against two real consumers.
 
 ---
 
@@ -112,19 +131,26 @@ Tasks:
   - `@otelux/protocol`
   - `@otelux/ui` (plus Storybook 8 boot)
   - `@otelux/adapter-direct`
+  - `@otelux/adapter-vscode`
   - `@otelux/receiver`
+  - `@otelux/mcp-server`
 - Create empty `apps/desktop` (Electron + electron-builder + Vite renderer).
+- Create empty `apps/vscode-extension` (esbuild for host entry, Vite for
+  webview entry; see [spec.md § 5.1](spec.md)).
 - CI: GitHub Actions running `turbo run lint typecheck test build` on
   Ubuntu × Node 22.
 - README rewrite stating the M1 goal in one paragraph.
 
 Exit criteria: `npm install && npm run build && npm test` passes on a clean
 Ubuntu checkout. `npm run -w apps/desktop dev` opens an empty Electron
-window.
+window. `npm run -w apps/vscode-extension package` produces a `.vsix`
+that activates in a fresh VS Code and opens an empty webview.
 
-### Phase 1 — M1: Linux desktop trace workbench (8–12 weeks)
+### Phase 1 — M1: trace workbench shipped as desktop + VS Code extension (8–12 weeks)
 
-The single end-to-end phase that delivers M1. Tracks run in parallel.
+The single end-to-end phase that delivers M1. Tracks run in parallel. The
+extension is a peer consumer of `@otelux/*`, not a follow-up port —
+shipping it in lockstep is what proves the package boundaries.
 
 Track A — Types and protocol:
 
@@ -148,8 +174,13 @@ Track C — Receiver:
 
 - `@otelux/receiver`: Hono server with `POST /v1/traces` for JSON and
   protobuf using `@opentelemetry/otlp-transformer`.
-- Health endpoint, CORS, configurable port (default 4319).
+- Health endpoint, CORS, configurable port.
 - Bounded ingest queue with drop metrics.
+- `claimSingleInstance({ port })` helper (see
+  [spec.md § 7.1](spec.md)) so two consumers (or two windows of the same
+  consumer) cooperate rather than fight for the OTLP ports. Integration
+  tests cover three cases: same kind, different kind, stale lockfile.
+- OTLP/gRPC is explicitly out of M1; it lands in Phase 5.
 
 Track D — UI:
 
@@ -169,33 +200,90 @@ Track D — UI:
 - Keyboard map: up/down, page up/down, home/end, enter, escape, `/` to
   focus search, `ctrl+,` for settings.
 
-Track E — Adapter:
+Track E — Adapters:
 
 - `@otelux/adapter-direct`: wraps an engine instance and exposes the
   `DataSource` interface to the renderer. Used by Electron's IPC bridge.
+- `@otelux/adapter-vscode`: `serveDataSource(webview, engine)` on the
+  extension host side; `createPostMessageDataSource(vscodeApi)` on the
+  webview side. Round-trip latency budget verified against the trace
+  list and waterfall pages.
 
-Track F — App:
+Track F — Desktop app:
 
-- `apps/desktop`: Electron main process boots the receiver + engine + IPC
-  bridge; renderer is a Vite-built React app consuming `@otelux/ui` via
-  `@otelux/adapter-direct` over Electron IPC.
-- Native menus, keyboard shortcuts, window state persistence, single-instance
-  lock so port 4319 is not double-bound.
+- `apps/desktop`: Electron main process boots the receiver + engine +
+  `@otelux/mcp-server` + IPC bridge; renderer is a Vite-built React app
+  consuming `@otelux/ui` via `@otelux/adapter-direct` over Electron IPC.
+- Native menus, keyboard shortcuts, window state persistence.
+- Default OTLP/HTTP port `4319` (off the standard, see spec § 7.1) so the
+  desktop never collides with a user's standalone collector.
 - electron-builder produces `.AppImage` and `.deb` artifacts for x64 and
   arm64 in CI.
 - Smoke E2E with Playwright: launch the app, post a fixture to the
   receiver, assert the trace appears in the list, click it, assert the
   waterfall renders.
 
+Track H — VS Code extension:
+
+- `apps/vscode-extension`: extension host boots the same
+  `@otelux/receiver` + `@otelux/engine-node` + `@otelux/mcp-server`
+  pipeline as the desktop, then opens a webview that renders
+  `@otelux/ui` via `@otelux/adapter-vscode`.
+- Default OTLP/HTTP port `4318` so users point any SDK at the standard
+  endpoint with zero configuration.
+- Status-bar entry: endpoint, span count, status menu (start / restart /
+  stop / open).
+- Multi-window behavior: second window detects the first via
+  `@otelux/receiver`'s `claimSingleInstance` and connects in client-only
+  mode rather than failing.
+- Webview CSP-clean (already a frozen spec requirement). Theme inherits
+  from `--vscode-*` via the existing mapping in `@otelux/ui`.
+- CI publishes a `.vsix` artifact per commit on `main`.
+
+Track I — Copilot LM Tools:
+
+- Register the canonical troubleshooting tools listed in
+  [spec.md § 12.3](spec.md) via `vscode.lm.registerTool`, plus a
+  `package.json` `languageModelTools` contribution so they appear as
+  `#otel*` references in Copilot Chat.
+- Each tool is a thin wrapper over an `@otelux/engine` query so the same
+  logic powers the MCP server.
+- Confirmation messages, JSON schemas, and result formatters match the
+  VS Code LM Tool conventions.
+- Smoke test: open Copilot Chat in a launched extension host, invoke
+  `#otel_get_slowest_spans`, assert the answer cites span IDs from a
+  fixture.
+
+Track J — MCP surface and one-click integrations:
+
+- `@otelux/mcp-server`: hand-written JSON-RPC dispatcher with HTTP
+  (Hono-mounted) and stdio transports; protocol versions `2025-06-18`,
+  `2025-03-26`, `2024-11-05`.
+- Tools are the same shims used by Track I, ensuring LM Tools and MCP
+  return identical results.
+- Extension commands `Enable Codex Integration`, `Enable Claude Code
+  Integration`, `Enable Cursor Integration` write each agent's MCP
+  config file and drop bundled skills (if any) into the agent home.
+- Integration test: spawn the extension host, run the
+  `Enable Codex Integration` command against a tmp home, assert the
+  emitted config file matches a golden snapshot.
+
 Track G — Verification:
 
-- A `scripts/send-traces.sh` posts the bundled fixtures to a running app.
-- A `docs/m1-verification.md` checklist walks through the 10 done criteria.
+- A `scripts/send-traces.sh` posts the bundled fixtures to a running
+  consumer (either app, port-aware).
+- A `docs/m1-verification.md` checklist walks through the 11 done
+  criteria, run once against the desktop and once against the extension.
 - Performance harness: 100k-span ingest, query, scroll, waterfall layout
-  measured against the budgets in spec.md § 8.
+  measured against the budgets in [spec.md § 8](spec.md). UI budgets are
+  measured once — they cover both apps by construction.
+- Storybook + Playwright visual snapshots are the regression net for any
+  `@otelux/ui` drift between desktop and extension; both must remain
+  pixel-equal on representative stories.
 
-Exit criteria: the M1 done definition above is met, end to end, on a fresh
-Ubuntu install.
+Exit criteria: the M1 done definition above is met, end to end, on a
+fresh Ubuntu install — both for the desktop binary and for the loaded
+`.vsix`.
 
 ### Phase 2 — Structured logs (3–6 weeks)
 
@@ -240,7 +328,9 @@ Exit criteria: users answer "what changed?" for a local service in OTelux.
 
 ### Phase 5 — Ingest production-readiness (3–6 weeks)
 
-- OTLP/gRPC via `@grpc/grpc-js` for all three signals.
+- OTLP/gRPC via `@grpc/grpc-js` for all three signals — the first time
+  gRPC enters the receiver. Desktop default `4316`, extension default
+  `4317`.
 - Backpressure tuning, drop metrics surfaced in the UI.
 - Crash safety verification under power-loss simulation.
 - Optional simple auth token; CORS configurability.
@@ -272,13 +362,16 @@ Exit criteria: users answer "what changed?" for a local service in OTelux.
   GitHub Pages on every main push. Useful as a "try OTelux" link and as a
   CSP-clean test harness.
 
-### Phase 9 — VS Code extension example (2–3 weeks)
+### Phase 9 — VS Code extension marketplace publish (1–2 weeks)
 
-- `@otelux/adapter-vscode` published.
-- `apps/vscode-example`: a reference VS Code extension that runs the
-  receiver in the extension host, opens a webview, and consumes `@otelux/ui`
-  via `@otelux/adapter-vscode`.
-- `docs/integrations/vscode.md` recipe.
+The extension itself ships in M1 alongside the desktop app (see Phase 1
+Tracks H/I/J). This phase only covers the marketplace-publish work:
+
+- `@otelux/adapter-vscode` published to npm.
+- `apps/vscode-extension` published to the VS Code Marketplace and Open
+  VSX, with screenshots, GIFs, and listing copy.
+- `docs/integrations/vscode.md` recipe for users who want to embed
+  `@otelux/ui` in their own extension via `@otelux/adapter-vscode`.
 
 ### Phase 10 — Accessibility audit and localization scaffolding (3–6 weeks)
 
@@ -323,14 +416,20 @@ story. May never ship.
 
 ### 4.2 Packaging and distribution
 
-- Packages: npm, public, MIT, semver via Changesets. Publishing starts
-  after M1 ships, once contracts have shaken out.
+- During M1, every `@otelux/*` package is a private workspace package
+  consumed by `apps/desktop` and `apps/vscode-extension` via workspace
+  links. Public npm publish is gated on M1 shipping, not the other way
+  around — we only publish contracts that have shaken out against two
+  real consumers.
+- Packages: MIT, semver via Changesets. First public npm publish wave
+  happens at the start of Phase 9 (marketplace publish), once the
+  extension itself is going public.
 - Desktop app: electron-builder → `.AppImage` and `.deb` in M1, full
   `.DMG`/`.MSIX`/`.rpm` set added in Phase 7, electron-updater added
   alongside.
+- VS Code extension: `.vsix` artifact per `main` commit during M1;
+  marketplace + Open VSX publish in Phase 9.
 - Web demo: GitHub Pages, auto-deployed (Phase 8).
-- VS Code example: marketplace publish optional, recipe is the primary
-  artifact (Phase 9).
 
 ### 4.3 Documentation
 

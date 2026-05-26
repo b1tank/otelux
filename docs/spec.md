@@ -56,8 +56,11 @@ packages, tech stack, boundaries, and budgets. Delivery sequencing lives in
 │  @otelux/adapter-direct   @otelux/adapter-vscode   (later: tauri)    │
 ├──────────────────────────────────────────────────────────────────────┤
 │        @otelux/ui (React)       │       @otelux/receiver (Node)      │
-│  Waterfall, TraceList, SpanDet, │  OTLP HTTP + gRPC (Hono + grpc-js) │
+│  Waterfall, TraceList, SpanDet, │  OTLP/HTTP (Hono); gRPC in Phase 5 │
 │  LogsTable, MetricChart, ...    │  writes via the engine ingest API  │
+├──────────────────────────────────────┴──────────────────────────────────┤
+│                      @otelux/mcp-server (Node)                       │
+│  Read-only JSON-RPC dispatcher over @otelux/engine; HTTP + stdio.    │
 ├──────────────────────────────────────────────────────────────────────┤
 │                          @otelux/protocol                            │
 │  DataSource interface + { query → result } message shapes            │
@@ -89,8 +92,16 @@ interface DataSource {
 - **`adapter-direct`** — wraps an engine instance. Used by the desktop app
   (renderer talking to the main process) and the web demo.
 - **`adapter-vscode`** — postMessage round-trip between a webview and an
-  extension host that owns the engine.
+  extension host that owns the engine. Lands in M1 alongside the
+  VS Code extension; see [plan.md Phase 1](plan.md).
 - **`adapter-tauri`** (later) — Tauri IPC.
+
+`@otelux/mcp-server` is a fourth consumer of the engine: it exposes a
+read-only Model Context Protocol surface over JSON-RPC (HTTP and stdio
+transports). Both `apps/desktop` and `apps/vscode-extension` mount it on
+the same engine instance, so external coding agents (Codex, Claude Code,
+Cursor) get the same view as the local UI without ever touching the
+`DataSource` boundary.
 
 ---
 
@@ -101,23 +112,24 @@ Every package is MIT, published to npm under `@otelux/*` from this repo.
 | Package | Purpose | Runtime |
 |---|---|---|
 | `@otelux/types` | OTLP TS types. | iso |
-| `@otelux/engine` | Pure-TS query, layout, ingest. Pluggable storage. | iso |
+| `@otelux/engine` | Pure-TS query, layout, ingest, agent-run detection. Pluggable storage. | iso |
 | `@otelux/engine-node` | `node:sqlite` storage adapter. | node |
 | `@otelux/engine-wasm` | `@sqlite.org/sqlite-wasm` + OPFS storage adapter. | browser |
 | `@otelux/protocol` | `DataSource` interface + typed query/result shapes. | iso |
 | `@otelux/ui` | React components: Waterfall, TraceList, SpanDetail, LogsTable, MetricChart, ServiceMap, Toolbar, theme. | browser |
 | `@otelux/adapter-direct` | In-process `DataSource`. | iso |
-| `@otelux/adapter-vscode` | postMessage `DataSource` for VS Code webviews + `serve()` helper for extension host. | browser/node split |
+| `@otelux/adapter-vscode` | postMessage `DataSource` for VS Code webviews + `serve()` helper for extension host. Ships in M1. | browser/node split |
 | `@otelux/adapter-tauri` (later) | Tauri IPC `DataSource`. | browser |
-| `@otelux/receiver` | OTLP HTTP + gRPC server (Hono + `@grpc/grpc-js`). | node |
+| `@otelux/receiver` | OTLP/HTTP receiver (Hono) with single-instance lock and cross-process handoff. gRPC added in Phase 5. | node |
+| `@otelux/mcp-server` | Read-only Model Context Protocol dispatcher over `@otelux/engine`; HTTP and stdio transports. Consumed by desktop and extension. | node |
 
 Apps live under `apps/` and are not published to npm:
 
 | App | Purpose |
 |---|---|
-| `apps/desktop` | Electron shell hosting `@otelux/receiver` in main and `@otelux/ui` in renderer. The headline product. |
-| `apps/web-demo` | Pure-browser demo on GitHub Pages; SQLite-WASM + fixtures. |
-| `apps/vscode-example` | Reference VS Code extension consuming `@otelux/ui` via `@otelux/adapter-vscode`. |
+| `apps/desktop` | Electron shell hosting `@otelux/receiver` + `@otelux/mcp-server` in main, `@otelux/ui` in renderer. The headline product. |
+| `apps/vscode-extension` | VS Code extension hosting `@otelux/receiver` + `@otelux/mcp-server` in the extension host, `@otelux/ui` in a webview via `@otelux/adapter-vscode`, and registering VS Code Language-Model Tools that wrap `@otelux/engine` queries. Ships in M1 alongside `apps/desktop`. |
+| `apps/web-demo` | Pure-browser demo on GitHub Pages; SQLite-WASM + fixtures. Phase 8. |
 
 ---
 
@@ -147,9 +159,26 @@ Apps live under `apps/` and are not published to npm:
 | Browser SQLite | **`@sqlite.org/sqlite-wasm`** with OPFS persistence. |
 | OTLP decoders | **`@opentelemetry/otlp-transformer`** + **`@opentelemetry/proto`**. |
 | HTTP receiver | **Hono**. |
-| gRPC receiver | **`@grpc/grpc-js`**. |
+| gRPC receiver | **`@grpc/grpc-js`** (deferred to Phase 5 — M1 ships HTTP only). |
+| MCP transport | Hand-written JSON-RPC dispatcher in `@otelux/mcp-server`; HTTP via Hono, stdio via Node streams. |
 | Desktop shell | **Electron** + **electron-builder**. Tauri 2 only if size matters later. |
 | Analytical engine | None initially. DuckDB-wasm reserved as an escape hatch for metrics if SQLite query budgets slip. |
+
+### 5.1 Bundling per app
+
+Each consumer assembles the same packages with different bundlers and
+targets. The matrix is part of the contract — changing it later breaks
+either the webview CSP, the Electron sandbox, or the extension host.
+
+| App entry | Bundler | Format | Target | Notes |
+|---|---|---|---|---|
+| `apps/desktop` main process | electron-vite | CJS | Node 22 | Hosts `@otelux/receiver`, `@otelux/engine-node`, `@otelux/mcp-server`. |
+| `apps/desktop` preload | electron-vite | CJS | Node 22 | Exposes `@otelux/adapter-direct` IPC. |
+| `apps/desktop` renderer | electron-vite | ESM | Chromium | Imports `@otelux/ui`. |
+| `apps/vscode-extension` host entry | esbuild | CJS | Node 22 | `external: ['vscode']`; hosts `@otelux/receiver`, `@otelux/engine-node`, `@otelux/mcp-server`, registers Language-Model Tools. |
+| `apps/vscode-extension` webview entry | Vite | ESM | Chromium | CSP-clean; imports `@otelux/ui` + `@otelux/adapter-vscode/client`. |
+| `apps/web-demo` | Vite | ESM | Chromium | Imports `@otelux/ui` + `@otelux/engine-wasm`. |
+| `@otelux/*` libraries | tsup | ESM + CJS + dts | iso | Each library declares `"browser"` and `"default"` package exports so webview, Electron renderer, and Node consumers all resolve correctly. |
 
 ---
 
@@ -226,6 +255,45 @@ dependency (for example, a host with a strict external-dependency policy),
 the recommended pattern is to **vendor** the relevant package tarballs
 into its own source tree at a pinned version.
 
+### 7.1 Port assignments and single-instance handoff
+
+The receiver runs in whatever process owns the engine — the Electron
+main process for desktop, the extension host for the VS Code extension.
+Users may have one or both installed and may run multiple VS Code
+windows. Ports cannot collide.
+
+**Defaults:**
+
+| Consumer | OTLP/HTTP | OTLP/gRPC | UI / MCP HTTP | Rationale |
+|---|---|---|---|---|
+| `apps/desktop` | `4319` | (Phase 5) `4316` | n/a (local IPC) | Off-by-one from the OTel standard ports so the desktop app never fights a user's standalone collector. |
+| `apps/vscode-extension` | `4318` | (Phase 5) `4317` | `3000` (configurable) | Matches the OTel standard; users point any SDK at `localhost:4318` with zero config. |
+
+All defaults are overridable through settings and via
+`OTELUX_OTLP_HTTP_PORT` / `OTELUX_OTLP_GRPC_PORT` env vars. The receiver
+is a single source of truth — both desktop and extension consume it.
+
+**Single-instance handoff** is a `@otelux/receiver` concern, not a
+per-app concern. The package exposes a `claimSingleInstance({ port })`
+helper that:
+
+1. Tries to `listen` on the requested port and, on success, claims a
+   lockfile in the OS temp directory recording the listener PID, the
+   process kind (`desktop` / `vscode-extension`), and the engine RPC
+   endpoint.
+2. On `EADDRINUSE`, reads the lockfile and decides:
+   - Same process kind + healthy probe → the second instance hands its
+     work off to the first via the engine RPC endpoint and runs in
+     "client" mode (UI only, no receiver, no MCP server).
+   - Incompatible process or unreachable → surface a clear startup error
+     ("another OTelux receiver is already on `4318`") with the conflicting
+     PID.
+3. Releases the lockfile on graceful shutdown.
+
+This is the same pattern used by `vscode-otelme` and Splunk's
+`observability-studio`, reimplemented in TypeScript inside the package so
+the desktop and extension behave identically.
+
 ---
 
 ## 8. Performance budgets
@@ -256,11 +324,12 @@ Treat regressions as bugs.
 | `@otelux/engine-wasm` | `engine` test suite green against `sqlite-wasm` + OPFS. |
 | `@otelux/protocol` | All query/result shapes versioned; `DataSource` interface frozen for a major release. |
 | `@otelux/ui` | Every component has Storybook stories (loaded, empty, error, selected, dark, high-contrast). Playwright visual snapshots in CI. Keyboard nav verified per component. CSP-clean production build verified. |
-| `@otelux/adapter-vscode` | Round-trip latency budget met on demo extension. Webview CSP and theme integration verified. |
-| `@otelux/receiver` | OTLP/HTTP JSON+protobuf accepted for all signals in scope; gRPC for the same. Ingest throughput budget met. |
+| `@otelux/adapter-vscode` | Round-trip latency budget met on the M1 extension. Webview CSP and theme integration verified. |
+| `@otelux/receiver` | OTLP/HTTP JSON+protobuf accepted for all signals in scope; ingest throughput budget met; `claimSingleInstance` proven by integration tests with two competing processes. gRPC adds same coverage in Phase 5. |
+| `@otelux/mcp-server` | All MCP tools backed by `@otelux/engine` queries; HTTP + stdio transports; protocol-version negotiation; integration tests against a real Codex/Claude/Cursor MCP client. |
 | `apps/desktop` | Cold-start budget met; ships installable artifacts for Linux first, then macOS and Windows. Auto-update wired in a later phase. |
+| `apps/vscode-extension` | Loads in current VS Code stable; ingests OTLP without configuration; UI theme-correct in light/dark/high-contrast; LM Tools registered and callable from Copilot Chat; MCP server discoverable by external agents via one-click configure commands. |
 | `apps/web-demo` | Deployed to GitHub Pages on every main push. CSP-clean. |
-| `apps/vscode-example` | Loads in current VS Code, shows trace workbench from bundled fixture, theme-correct in light/dark/high-contrast. |
 
 ---
 
@@ -312,3 +381,59 @@ npm run test:e2e -w apps/vscode-example
 
 A green pipeline on Ubuntu (and later macOS and Windows) × Node 22 LTS is
 the floor.
+
+---
+
+## 12. Agent integration surfaces
+
+The viewer is consumed by two kinds of agents: the user (a human) and AI
+coding agents (Copilot in VS Code, plus external agents like Codex,
+Claude Code, Cursor). The product principle is that **anything an AI
+agent can see, the desktop app can also see**, so the agent surface is
+implemented as packages, not as VS-Code-only code.
+
+### 12.1 Surfaces and where they live
+
+| Surface | Consumer | Where it lives | Available in |
+|---|---|---|---|
+| `DataSource` queries | Human UI | `@otelux/protocol` + `@otelux/ui` | Desktop + extension |
+| MCP JSON-RPC tools | External AI agents (Codex, Claude, Cursor) | `@otelux/mcp-server` (HTTP + stdio) | Desktop + extension |
+| VS Code Language-Model Tools | Copilot in VS Code | `apps/vscode-extension` (thin wrappers over `@otelux/engine`) | Extension only — the only genuinely extension-specific surface |
+| One-click "Enable Codex / Claude Code / Cursor integration" | External AI agents | `apps/vscode-extension` first; promoted to `@otelux/agent-config` package once a second consumer needs it | Extension first, desktop later |
+
+### 12.2 Agent-run correlation
+
+Copilot agent mode and other AI coding agents already emit OTel-shaped
+traces of their own work (tool calls, model requests, retries). When a
+user instruments their app with OTel and runs it under such an agent,
+both span streams land in the same `@otelux/engine` store. The engine
+recognizes "agent runs" as a first-class derived entity and exposes
+queries to:
+
+- list agent runs in a time window,
+- fetch the user-app spans that occurred during a given agent run,
+- join an agent's tool-call span to the user-app trace it triggered,
+  using either trace-context propagation or a timestamp + run-id heuristic
+  when propagation is not present.
+
+Because this logic lives in `@otelux/engine`, the desktop app shows an
+"Agent runs" pane for free, the VS Code extension exposes the same
+lookups as LM Tools, and external MCP clients can call them as MCP tools.
+No per-consumer duplication.
+
+### 12.3 MCP tool surface
+
+The initial read-only MCP tool set, mirrored by VS Code LM Tools, covers
+the four canonical troubleshooting questions:
+
+| Tool | Question |
+|---|---|
+| `otel_find_recent_errors` | What just broke? |
+| `otel_get_slowest_spans` | What's slow? |
+| `otel_search_logs` | Why did this log fire? |
+| `otel_correlate_agent_run` | What was my app doing during this agent run? |
+| `otel_get_trace` / `otel_get_span_details` | Drill-down primitives. |
+| `otel_get_service_overview` | What services emitted telemetry? |
+
+All tools are thin wrappers over `@otelux/engine` query methods and ship
+in both `@otelux/mcp-server` and the extension's LM Tools layer.
