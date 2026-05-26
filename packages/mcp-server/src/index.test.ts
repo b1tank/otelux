@@ -1,0 +1,179 @@
+import { createEngine, createMemoryStorage } from '@otelux/engine';
+import type { Span } from '@otelux/types';
+import { SpanKind, SpanStatusCode } from '@otelux/types';
+import { describe, expect, it } from 'vitest';
+import { createMcpServer } from './server.js';
+import { JSON_RPC_VERSION, MCP_PROTOCOL_VERSIONS } from './protocol.js';
+import { httpRouter } from './transports/http.js';
+
+/**
+ * Build a small engine pre-loaded with one OK + one ERROR span across
+ * two services so every default tool has something to return.
+ */
+async function fixtureServer() {
+	const engine = createEngine({ storage: createMemoryStorage() });
+	const baseTs = BigInt(Date.UTC(2026, 4, 26, 12, 0, 0)) * 1_000_000n;
+	const spans: Span[] = [
+		{
+			traceId: 'a'.repeat(32) as never,
+			spanId: '1'.repeat(16) as never,
+			name: 'GET /ok',
+			kind: SpanKind.Server,
+			startTimeUnixNano: baseTs,
+			endTimeUnixNano: baseTs + 5_000_000n,
+			status: { code: SpanStatusCode.Ok },
+			attributes: {},
+			resource: { attributes: { 'service.name': 'frontend' } },
+			scope: { name: 'http' },
+		},
+		{
+			traceId: 'b'.repeat(32) as never,
+			spanId: '2'.repeat(16) as never,
+			name: 'POST /broken',
+			kind: SpanKind.Server,
+			startTimeUnixNano: baseTs,
+			endTimeUnixNano: baseTs + 50_000_000n,
+			status: { code: SpanStatusCode.Error, message: 'boom' },
+			attributes: {},
+			resource: { attributes: { 'service.name': 'api' } },
+			scope: { name: 'http' },
+		},
+	];
+	await engine.ingestSpans(spans);
+	return createMcpServer({ engine });
+}
+
+describe('createMcpServer', () => {
+	it('negotiates the newest mutually-supported protocol version on initialize', async () => {
+		const server = await fixtureServer();
+		const response = await server.handle({
+			jsonrpc: JSON_RPC_VERSION,
+			id: 1,
+			method: 'initialize',
+			params: { protocolVersion: MCP_PROTOCOL_VERSIONS[1], clientInfo: { name: 'test' } },
+		});
+		expect(response).toMatchObject({
+			id: 1,
+			result: {
+				protocolVersion: MCP_PROTOCOL_VERSIONS[1],
+				serverInfo: { name: '@otelux/mcp-server' },
+				capabilities: { tools: {} },
+			},
+		});
+	});
+
+	it('lists the 7 default read-only tools', async () => {
+		const server = await fixtureServer();
+		const response = await server.handle({
+			jsonrpc: JSON_RPC_VERSION,
+			id: 2,
+			method: 'tools/list',
+		});
+		const result = (response as { result: { tools: Array<{ name: string }> } }).result;
+		expect(result.tools.map((t) => t.name)).toEqual([
+			'otel_find_recent_errors',
+			'otel_get_slowest_spans',
+			'otel_search_logs',
+			'otel_correlate_agent_run',
+			'otel_get_trace',
+			'otel_get_span_details',
+			'otel_get_service_overview',
+		]);
+	});
+
+	it('returns engine-backed results for tools/call', async () => {
+		const server = await fixtureServer();
+		const response = await server.handle({
+			jsonrpc: JSON_RPC_VERSION,
+			id: 3,
+			method: 'tools/call',
+			params: { name: 'otel_get_slowest_spans', arguments: { limit: 5 } },
+		});
+		const content = (response as { result: { content: Array<{ text: string }> } }).result.content;
+		const payload = JSON.parse(content[0]!.text);
+		expect(payload.slowestTraces).toHaveLength(2);
+		expect(payload.slowestTraces[0].rootName).toBe('POST /broken');
+	});
+
+	it('reports stub tools as supported:false rather than throwing', async () => {
+		const server = await fixtureServer();
+		const response = await server.handle({
+			jsonrpc: JSON_RPC_VERSION,
+			id: 4,
+			method: 'tools/call',
+			params: { name: 'otel_search_logs', arguments: { query: 'foo' } },
+		});
+		const content = (response as { result: { content: Array<{ text: string }> } }).result.content;
+		const payload = JSON.parse(content[0]!.text);
+		expect(payload).toMatchObject({ supported: false, logs: [] });
+	});
+
+	it('returns method-not-found for unknown JSON-RPC methods', async () => {
+		const server = await fixtureServer();
+		const response = await server.handle({
+			jsonrpc: JSON_RPC_VERSION,
+			id: 5,
+			method: 'mystery',
+		});
+		expect(response).toMatchObject({ id: 5, error: { code: -32601 } });
+	});
+
+	it('returns undefined for notifications', async () => {
+		const server = await fixtureServer();
+		const response = await server.handle({
+			jsonrpc: JSON_RPC_VERSION,
+			method: 'notifications/initialized',
+		});
+		expect(response).toBeUndefined();
+	});
+});
+
+describe('httpRouter', () => {
+	it('responds to GET / with server identity', async () => {
+		const server = await fixtureServer();
+		const app = httpRouter({ server });
+		const response = await app.request('/');
+		expect(response.status).toBe(200);
+		expect(await response.json()).toMatchObject({
+			name: '@otelux/mcp-server',
+			transport: 'streamable-http',
+		});
+	});
+
+	it('round-trips a JSON-RPC tools/list POST', async () => {
+		const server = await fixtureServer();
+		const app = httpRouter({ server });
+		const response = await app.request('/', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ jsonrpc: JSON_RPC_VERSION, id: 1, method: 'tools/list' }),
+		});
+		expect(response.status).toBe(200);
+		const body = (await response.json()) as { result?: { tools?: unknown[] } };
+		expect(body.result?.tools).toBeDefined();
+	});
+
+	it('returns 204 for notifications', async () => {
+		const server = await fixtureServer();
+		const app = httpRouter({ server });
+		const response = await app.request('/', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ jsonrpc: JSON_RPC_VERSION, method: 'notifications/initialized' }),
+		});
+		expect(response.status).toBe(204);
+	});
+
+	it('returns 400 with a JSON-RPC parse error for non-JSON bodies', async () => {
+		const server = await fixtureServer();
+		const app = httpRouter({ server });
+		const response = await app.request('/', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: 'not json',
+		});
+		expect(response.status).toBe(400);
+		const body = (await response.json()) as { error?: { code?: number } };
+		expect(body.error?.code).toBe(-32700);
+	});
+});
