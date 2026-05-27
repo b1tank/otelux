@@ -1,39 +1,52 @@
 import { type JSX, useEffect, useRef, useState } from 'react';
-import { MAX_PORT, MIN_PORT, type Settings, type UpdateSettingsResult } from '../../shared/ipc.js';
+import {
+	MAX_PORT,
+	MIN_PORT,
+	type McpStatus,
+	type PartialSettings,
+	type Settings,
+	type UpdateSettingsResult,
+} from '../../shared/ipc.js';
 
 interface SettingsModalProps {
 	readonly settings: Settings;
 	/**
-	 * Port the receiver is actually bound to right now. When provided
-	 * this is the value the field is prefilled with, so users see — and
-	 * edit — what is actively in effect rather than the persisted
-	 * setting (which can drift from the live port when an env override
-	 * like `OTELUX_OTLP_PORT` is in play, or when a bind retry picked a
-	 * different port). Falls back to `settings.otlp.port` when the
-	 * receiver has not reported a port yet.
+	 * Port the OTLP receiver is actually bound to right now. See the
+	 * Phase 0 note on env overrides — same reasoning applies here.
 	 */
 	readonly currentPort?: number;
-	readonly onSave: (port: number) => Promise<UpdateSettingsResult>;
+	/**
+	 * Live MCP status so the modal can show the actual bound endpoint
+	 * inline below the toggle (no need to leave Settings to copy the
+	 * MCP URL into an external agent config).
+	 */
+	readonly mcpStatus?: McpStatus;
+	readonly onSave: (patch: PartialSettings) => Promise<UpdateSettingsResult>;
 	readonly onClose: () => void;
 }
 
 /**
- * Edit user-controllable settings. Right now that's just the OTLP/HTTP
- * port; the component is structured so adding more fields is a matter
- * of more rows, not a redesign. Validation happens on submit and bind
- * errors from the main process surface inline rather than as toasts.
+ * Edit user-controllable settings. Two sections:
+ * 1. OTLP/HTTP receiver port (existing).
+ * 2. MCP server (new) — on/off toggle + port. When MCP is on we also
+ *    show the live `http://...` endpoint so the user can copy it into
+ *    Codex CLI / Claude Code / Cursor without rummaging through logs.
+ *
+ * Validation runs on submit; bind errors from the main process surface
+ * inline rather than as toasts. We send a single combined patch so the
+ * two-phase update in `main/index.ts` can roll back atomically.
  */
 export function SettingsModal(props: SettingsModalProps): JSX.Element {
-	const { settings, currentPort, onSave, onClose } = props;
+	const { settings, currentPort, mcpStatus, onSave, onClose } = props;
 	const [portInput, setPortInput] = useState(String(currentPort ?? settings.otlp.port));
+	const [mcpEnabled, setMcpEnabled] = useState(settings.mcp.enabled);
+	const [mcpPortInput, setMcpPortInput] = useState(String(settings.mcp.port));
 	const [error, setError] = useState<string | undefined>(undefined);
 	const [saving, setSaving] = useState(false);
 	const portInputRef = useRef<HTMLInputElement>(null);
 	const dialogRef = useRef<HTMLDialogElement>(null);
 
 	useEffect(() => {
-		// Focus the first field on mount. Doing this in an effect avoids
-		// Biome's `noAutofocus` lint while still giving us a usable modal.
 		portInputRef.current?.focus();
 		portInputRef.current?.select();
 	}, []);
@@ -48,14 +61,6 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 		return () => window.removeEventListener('keydown', onKey);
 	}, [onClose, saving]);
 
-	/**
-	 * Trap Tab inside the dialog so focus cannot escape to the underlying
-	 * page, where it would land on the backdrop hit-button or workbench
-	 * controls. Native <dialog> does this automatically when shown with
-	 * `.showModal()`, but we render with the `open` attribute (so React
-	 * stays in control of mount/unmount) which leaves focus management
-	 * to us.
-	 */
 	const onDialogKeyDown = (e: React.KeyboardEvent<HTMLDialogElement>): void => {
 		if (e.key !== 'Tab') {
 			return;
@@ -89,14 +94,27 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 
 	const onSubmit = async (e: React.FormEvent): Promise<void> => {
 		e.preventDefault();
-		const parsed = Number.parseInt(portInput, 10);
-		if (!Number.isInteger(parsed) || parsed < MIN_PORT || parsed > MAX_PORT) {
-			setError(`Port must be an integer between ${MIN_PORT} and ${MAX_PORT}.`);
+		const parsedOtlp = Number.parseInt(portInput, 10);
+		if (!Number.isInteger(parsedOtlp) || parsedOtlp < MIN_PORT || parsedOtlp > MAX_PORT) {
+			setError(`OTLP port must be an integer between ${MIN_PORT} and ${MAX_PORT}.`);
+			return;
+		}
+		const parsedMcp = Number.parseInt(mcpPortInput, 10);
+		if (!Number.isInteger(parsedMcp) || parsedMcp < MIN_PORT || parsedMcp > MAX_PORT) {
+			setError(`MCP port must be an integer between ${MIN_PORT} and ${MAX_PORT}.`);
+			return;
+		}
+		if (mcpEnabled && parsedMcp === parsedOtlp) {
+			setError('MCP port must differ from OTLP port.');
 			return;
 		}
 		setError(undefined);
 		setSaving(true);
-		const result = await onSave(parsed);
+		const patch: PartialSettings = {
+			otlp: { port: parsedOtlp },
+			mcp: { enabled: mcpEnabled, port: parsedMcp },
+		};
+		const result = await onSave(patch);
 		setSaving(false);
 		if (result.ok) {
 			onClose();
@@ -113,9 +131,6 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 
 	return (
 		<div className="modal-backdrop">
-			{/* Transparent button covering the backdrop. Using a real <button>
-			    gives us keyboard-accessible "click outside to close" without
-			    tripping Biome's a11y rules for clickable <div>s. */}
 			<button
 				type="button"
 				className="modal-backdrop__hit"
@@ -158,10 +173,50 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 							disabled={saving}
 						/>
 						<span className="field__hint">
-							The OTLP/HTTP receiver listens on <code>127.0.0.1:&lt;port&gt;/v1/traces</code>. Changing it
-							restarts the receiver immediately.
+							The OTLP/HTTP receiver listens on <code>127.0.0.1:&lt;port&gt;/v1/traces</code>. Changing
+							it restarts the receiver immediately.
 						</span>
 					</label>
+
+					<fieldset className="fieldset">
+						<legend>MCP server (for GitHub Copilot, Codex, Claude, Cursor)</legend>
+						<label className="field field--inline">
+							<input
+								type="checkbox"
+								checked={mcpEnabled}
+								onChange={(e) => setMcpEnabled(e.target.checked)}
+								disabled={saving}
+							/>
+							<span>Run a local MCP server so external AI agents can query OTelux</span>
+						</label>
+						<label className="field">
+							<span className="field__label">MCP port</span>
+							<input
+								type="number"
+								min={MIN_PORT}
+								max={MAX_PORT}
+								step={1}
+								value={mcpPortInput}
+								onChange={(e) => setMcpPortInput(e.target.value)}
+								disabled={saving || !mcpEnabled}
+							/>
+							<span className="field__hint">
+								{mcpEnabled ? (
+									<>
+										Point your AI tool at{' '}
+										<code>
+											http://127.0.0.1:
+											{mcpStatus?.kind === 'running' ? mcpStatus.port : mcpPortInput}/
+										</code>
+										. {mcpStatus ? <McpStatusHint status={mcpStatus} /> : null}
+									</>
+								) : (
+									<>MCP server is off. OTLP ingest is unaffected.</>
+								)}
+							</span>
+						</label>
+					</fieldset>
+
 					{error ? <p className="modal__error">{error}</p> : null}
 					<div className="modal__actions">
 						<button type="button" onClick={onClose} disabled={saving}>
@@ -175,4 +230,17 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 			</dialog>
 		</div>
 	);
+}
+
+function McpStatusHint({ status }: { status: McpStatus }): JSX.Element | null {
+	switch (status.kind) {
+		case 'running':
+			return <em className="field__status field__status--ok">running</em>;
+		case 'starting':
+			return <em className="field__status">starting…</em>;
+		case 'disabled':
+			return null;
+		case 'error':
+			return <em className="field__status field__status--error">error: {status.message}</em>;
+	}
 }

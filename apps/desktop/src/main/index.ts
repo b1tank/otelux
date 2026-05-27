@@ -5,12 +5,14 @@ import {
 	type InvokeMessage,
 	MAX_PORT,
 	MIN_PORT,
+	type McpStatus,
 	OTELUX_EVENT_CHANNEL,
 	OTELUX_INVOKE_CHANNEL,
 	type OteluxEvent,
 	type UpdateSettingsResult,
 } from '../shared/ipc.js';
 import { ReceiverHost } from './receiverHost.js';
+import { McpHost } from './mcpHost.js';
 import { SettingsStore } from './settings.js';
 
 const isDev = !app.isPackaged;
@@ -46,6 +48,7 @@ async function startBackend(): Promise<{
 	const settingsFile = join(app.getPath('userData'), 'settings.json');
 	const settings = await SettingsStore.open(settingsFile);
 	const receiverHost = new ReceiverHost(engine, '127.0.0.1');
+	const mcpHost = new McpHost(engine, '127.0.0.1');
 
 	const broadcast = (event: OteluxEvent): void => {
 		for (const win of BrowserWindow.getAllWindows()) {
@@ -60,6 +63,9 @@ async function startBackend(): Promise<{
 	});
 	const offStatus = receiverHost.onChange((status) => {
 		broadcast({ kind: 'receiver-status-changed', status });
+	});
+	const offMcp = mcpHost.onChange((status) => {
+		broadcast({ kind: 'mcp-status-changed', status });
 	});
 	const offSettings = settings.onChange((next) => {
 		broadcast({ kind: 'settings-changed', settings: next });
@@ -79,8 +85,10 @@ async function startBackend(): Promise<{
 				return settings.get();
 			case 'getReceiverStatus':
 				return receiverHost.status;
+			case 'getMcpStatus':
+				return mcpHost.status;
 			case 'updateSettings':
-				return updateSettings(settings, receiverHost, message.patch);
+				return updateSettings(settings, receiverHost, mcpHost, message.patch);
 		}
 	});
 
@@ -96,12 +104,28 @@ async function startBackend(): Promise<{
 		);
 	}
 
+	const current = settings.get();
+	if (current.mcp.enabled) {
+		const mcpStatus = await mcpHost.start(current.mcp.port);
+		if (mcpStatus.kind === 'running') {
+			console.log(`[otelux] MCP server listening on http://${mcpStatus.host}:${mcpStatus.port}/`);
+		} else if (mcpStatus.kind === 'error') {
+			console.error(
+				`[otelux] MCP server failed to bind on ${mcpStatus.host}:${mcpStatus.port}: ${mcpStatus.message}`,
+			);
+		}
+	} else {
+		await mcpHost.disable();
+	}
+
 	return {
 		stop: async () => {
 			offEngine.dispose();
 			offStatus();
+			offMcp();
 			offSettings();
 			await receiverHost.stop();
+			await mcpHost.stop();
 			await engine.close();
 			ipcMain.removeHandler(OTELUX_INVOKE_CHANNEL);
 		},
@@ -118,10 +142,16 @@ async function startBackend(): Promise<{
  * directory. Doing the bind first means a failed save leaves both
  * disk state and the running receiver on the previous port, and the
  * renderer just shows the bind error inline.
+ *
+ * MCP follows the same recipe: try to apply the requested MCP state
+ * (start at the new port / stop entirely) before writing settings.
+ * If MCP fails, we roll back both the receiver (if its port changed)
+ * and MCP itself, and surface the error.
  */
 async function updateSettings(
 	store: SettingsStore,
 	receiverHost: ReceiverHost,
+	mcpHost: McpHost,
 	patch: Parameters<SettingsStore['update']>[0],
 ): Promise<UpdateSettingsResult> {
 	let next: Awaited<ReturnType<SettingsStore['preview']>>;
@@ -131,21 +161,55 @@ async function updateSettings(
 		return { ok: false, error: err instanceof Error ? err.message : String(err) };
 	}
 
-	const previousStatus = receiverHost.status;
-	const status = await receiverHost.start(next.otlp.port);
-	if (status.kind === 'error') {
-		// Best-effort rollback so the user is not left with a dead
-		// receiver. Use the port the receiver was actually bound to —
-		// that may differ from `store.get().otlp.port` when an env
-		// override (`OTELUX_OTLP_PORT`) is in effect, and rolling back
-		// to the persisted port would defeat the override.
-		// If even the previous port is now contended (rare — requires a
-		// third party to grab it in the gap) the host stays in
-		// `kind: 'error'` and the renderer surfaces that too.
-		if (previousStatus.kind === 'running' && previousStatus.port !== next.otlp.port) {
-			await receiverHost.start(previousStatus.port);
+	const previousReceiverStatus = receiverHost.status;
+	const previousMcpStatus = mcpHost.status;
+	const currentReceiverPort =
+		previousReceiverStatus.kind === 'running' ? previousReceiverStatus.port : undefined;
+	const currentMcpEnabled = previousMcpStatus.kind === 'running';
+	const currentMcpPort =
+		previousMcpStatus.kind === 'running' ? previousMcpStatus.port : undefined;
+
+	// Receiver: only rebind if the port actually changes. Avoids a
+	// pointless drop in OTLP ingest when the user toggles MCP.
+	let status = previousReceiverStatus;
+	if (currentReceiverPort !== next.otlp.port) {
+		status = await receiverHost.start(next.otlp.port);
+		if (status.kind === 'error') {
+			if (previousReceiverStatus.kind === 'running' && currentReceiverPort !== next.otlp.port) {
+				await receiverHost.start(previousReceiverStatus.port);
+			}
+			return { ok: false, error: status.message };
 		}
-		return { ok: false, error: status.message };
+	}
+
+	// MCP: enable/disable + restart on port change. Rollback on failure
+	// returns the user to exactly the MCP state they had before the
+	// edit, so a busted toggle never leaves orphaned listeners.
+	let mcpStatus: McpStatus = mcpHost.status;
+	const wantMcp = next.mcp.enabled;
+	const portChanged = currentMcpPort !== next.mcp.port;
+	if (!wantMcp) {
+		await mcpHost.disable();
+		mcpStatus = mcpHost.status;
+	} else if (!currentMcpEnabled || portChanged) {
+		mcpStatus = await mcpHost.start(next.mcp.port);
+		if (mcpStatus.kind === 'error') {
+			// Roll back MCP to its previous shape so the user keeps a
+			// working server when their edit was invalid.
+			if (currentMcpEnabled && currentMcpPort !== undefined) {
+				await mcpHost.start(currentMcpPort);
+			} else {
+				await mcpHost.disable();
+			}
+			// Also roll back the receiver port if we rebound it above.
+			if (
+				previousReceiverStatus.kind === 'running' &&
+				currentReceiverPort !== next.otlp.port
+			) {
+				await receiverHost.start(previousReceiverStatus.port);
+			}
+			return { ok: false, error: mcpStatus.message };
+		}
 	}
 
 	try {
@@ -153,7 +217,7 @@ async function updateSettings(
 	} catch (err) {
 		return { ok: false, error: err instanceof Error ? err.message : String(err) };
 	}
-	return { ok: true, settings: next, status };
+	return { ok: true, settings: next, status, mcpStatus };
 }
 
 function createWindow(): void {

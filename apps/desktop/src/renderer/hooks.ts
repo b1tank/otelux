@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { ReceiverStatus, Settings } from '../shared/ipc.js';
+import type { McpStatus, ReceiverStatus, Settings } from '../shared/ipc.js';
 import type { OteluxWindowBridge } from './ipcDataSource.js';
 
 /**
@@ -53,4 +53,33 @@ export function useSettings(bridge: OteluxWindowBridge): Settings | undefined {
 		};
 	}, [bridge]);
 	return settings;
+}
+
+/**
+ * Subscribe to the main process's reified MCP server status. Returns
+ * `undefined` until the first `getMcpStatus` reply arrives, then tracks
+ * every subsequent `mcp-status-changed` push. The disabled state is
+ * returned as `{ kind: 'disabled' }` rather than undefined so the UI
+ * can distinguish "user turned it off" from "still hydrating".
+ */
+export function useMcpStatus(bridge: OteluxWindowBridge): McpStatus | undefined {
+	const [status, setStatus] = useState<McpStatus>();
+	useEffect(() => {
+		let cancelled = false;
+		void bridge.invoke({ kind: 'getMcpStatus' }).then((result) => {
+			if (!cancelled) {
+				setStatus(result as McpStatus);
+			}
+		});
+		const off = bridge.onEvent((event) => {
+			if (event.kind === 'mcp-status-changed') {
+				setStatus(event.status);
+			}
+		});
+		return () => {
+			cancelled = true;
+			off();
+		};
+	}, [bridge]);
+	return status;
 }

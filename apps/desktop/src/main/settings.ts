@@ -114,6 +114,10 @@ function merge(base: Settings, patch: PartialSettings): Settings {
 		otlp: {
 			port: patch.otlp?.port ?? base.otlp.port,
 		},
+		mcp: {
+			enabled: patch.mcp?.enabled ?? base.mcp.enabled,
+			port: patch.mcp?.port ?? base.mcp.port,
+		},
 	};
 }
 
@@ -121,12 +125,23 @@ function coerce(value: unknown): Settings {
 	if (typeof value !== 'object' || value === null) {
 		return DEFAULT_SETTINGS;
 	}
-	const v = value as { version?: unknown; otlp?: { port?: unknown } };
+	const v = value as {
+		version?: unknown;
+		otlp?: { port?: unknown };
+		mcp?: { enabled?: unknown; port?: unknown };
+	};
 	if (v.version !== 1) {
 		return DEFAULT_SETTINGS;
 	}
-	const port = typeof v.otlp?.port === 'number' ? v.otlp.port : DEFAULT_SETTINGS.otlp.port;
-	const candidate: Settings = { version: 1, otlp: { port } };
+	const otlpPort = typeof v.otlp?.port === 'number' ? v.otlp.port : DEFAULT_SETTINGS.otlp.port;
+	const mcpEnabled =
+		typeof v.mcp?.enabled === 'boolean' ? v.mcp.enabled : DEFAULT_SETTINGS.mcp.enabled;
+	const mcpPort = typeof v.mcp?.port === 'number' ? v.mcp.port : DEFAULT_SETTINGS.mcp.port;
+	const candidate: Settings = {
+		version: 1,
+		otlp: { port: otlpPort },
+		mcp: { enabled: mcpEnabled, port: mcpPort },
+	};
 	try {
 		validate(candidate);
 		return candidate;
@@ -139,5 +154,17 @@ function validate(settings: Settings): void {
 	const { port } = settings.otlp;
 	if (!Number.isInteger(port) || port < MIN_PORT || port > MAX_PORT) {
 		throw new Error(`OTLP port must be an integer in [${MIN_PORT}, ${MAX_PORT}]; got ${port}`);
+	}
+	const { port: mcpPort } = settings.mcp;
+	if (!Number.isInteger(mcpPort) || mcpPort < MIN_PORT || mcpPort > MAX_PORT) {
+		throw new Error(
+			`MCP port must be an integer in [${MIN_PORT}, ${MAX_PORT}]; got ${mcpPort}`,
+		);
+	}
+	if (settings.mcp.enabled && mcpPort === port) {
+		// Two HTTP listeners on the same port would race; refuse early so
+		// the user sees a clear validation error instead of a cryptic
+		// EADDRINUSE at runtime.
+		throw new Error('MCP port must differ from OTLP port.');
 	}
 }

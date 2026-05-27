@@ -1,22 +1,27 @@
 import { CopyButton } from '@otelux/ui';
 import type { JSX } from 'react';
-import type { ReceiverStatus } from '../../shared/ipc.js';
+import type { McpStatus, ReceiverStatus } from '../../shared/ipc.js';
 
 interface EndpointBarProps {
 	readonly status: ReceiverStatus | undefined;
+	readonly mcpStatus: McpStatus | undefined;
 }
 
 /**
- * Top strip showing where the OTLP/HTTP receiver is listening. Click the
- * URL to copy. The status dot is green when the receiver is bound, amber
- * while it's restarting, and red on bind error — so the user gets a
- * single-glance answer to "is OTelux ready to receive traces?".
+ * Top strip showing where the OTLP/HTTP receiver is listening, plus —
+ * when enabled — a compact MCP pill that surfaces the MCP server's
+ * endpoint to the right of the OTLP URL. Click either URL to copy.
+ *
+ * The status dot is green when the receiver is bound, amber while it's
+ * restarting, and red on bind error. The MCP pill is hidden entirely
+ * when MCP is disabled so the bar stays compact for users who never
+ * touch agentic flows.
  *
  * The settings entry point lives on the rail (bottom of the left nav),
- * not here, so this bar stays focused on receiver state.
+ * not here, so this bar stays focused on receiver/MCP state.
  */
 export function EndpointBar(props: EndpointBarProps): JSX.Element {
-	const { status } = props;
+	const { status, mcpStatus } = props;
 	const url = endpointUrl(status);
 
 	return (
@@ -24,8 +29,6 @@ export function EndpointBar(props: EndpointBarProps): JSX.Element {
 			<StatusDot status={status} />
 			<span className="endpoint-bar__label">OTLP/HTTP</span>
 			{url ? (
-				// Shared CopyButton primitive: morphs Copy→Check (green)
-				// on success and never reflows the row width.
 				<CopyButton
 					value={url}
 					title="Click to copy"
@@ -37,6 +40,7 @@ export function EndpointBar(props: EndpointBarProps): JSX.Element {
 			) : (
 				<span className="endpoint-bar__url">{statusText(status)}</span>
 			)}
+			<McpPill status={mcpStatus} />
 		</div>
 	);
 }
@@ -49,6 +53,54 @@ function StatusDot({ status }: { status: ReceiverStatus | undefined }): JSX.Elem
 			title={statusText(status)}
 			aria-label={statusText(status)}
 		/>
+	);
+}
+
+/**
+ * Compact MCP status pill. Three visible states:
+ * - running  → green-dotted pill with copy-on-click URL, so the user
+ *              can paste it into Codex CLI / Claude Code / Cursor.
+ * - error    → red-dotted pill with the OS bind error in the tooltip.
+ * - disabled → hidden; nothing renders.
+ *
+ * `starting` and `undefined` (still hydrating) collapse into a muted
+ * dot with no copy affordance — same approach the OTLP side uses.
+ */
+function McpPill({ status }: { status: McpStatus | undefined }): JSX.Element | null {
+	if (!status || status.kind === 'disabled') {
+		return null;
+	}
+	const tooltip = mcpStatusText(status);
+	if (status.kind === 'running') {
+		const url = `http://${status.host}:${status.port}/`;
+		return (
+			<CopyButton
+				value={url}
+				title="Click to copy MCP server URL"
+				ariaLabel="Copy MCP server URL"
+				className="endpoint-bar__mcp endpoint-bar__mcp--running"
+			>
+				<span
+					className="endpoint-bar__dot endpoint-bar__dot--running endpoint-bar__dot--inline"
+					aria-hidden="true"
+				/>
+				<span>MCP</span>
+				<code>{`:${status.port}`}</code>
+			</CopyButton>
+		);
+	}
+	return (
+		<span
+			className={`endpoint-bar__mcp endpoint-bar__mcp--${status.kind}`}
+			title={tooltip}
+			aria-label={tooltip}
+		>
+			<span
+				className={`endpoint-bar__dot endpoint-bar__dot--${status.kind} endpoint-bar__dot--inline`}
+				aria-hidden="true"
+			/>
+			<span>MCP</span>
+		</span>
 	);
 }
 
@@ -70,5 +122,18 @@ function statusText(status: ReceiverStatus | undefined): string {
 			return `listening on http://${status.host}:${status.port}/v1/traces`;
 		case 'error':
 			return `failed to bind ${status.host}:${status.port}: ${status.message}`;
+	}
+}
+
+function mcpStatusText(status: McpStatus): string {
+	switch (status.kind) {
+		case 'starting':
+			return 'MCP server starting…';
+		case 'running':
+			return `MCP server listening on http://${status.host}:${status.port}/`;
+		case 'disabled':
+			return 'MCP server disabled';
+		case 'error':
+			return `MCP server failed to bind ${status.host}:${status.port}: ${status.message}`;
 	}
 }

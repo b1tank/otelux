@@ -19,9 +19,11 @@
 		"node": ">=22.0.0"
 	},
 	"dependencies": {
+		"@hono/node-server": "1.13.7",
 		"@otelux/adapter-direct": "*",
 		"@otelux/engine": "*",
 		"@otelux/engine-node": "*",
+		"@otelux/mcp-server": "*",
 		"@otelux/protocol": "*",
 		"@otelux/receiver": "*",
 		"@otelux/types": "*",

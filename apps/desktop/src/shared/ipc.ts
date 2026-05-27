@@ -31,6 +31,10 @@ export interface Settings {
 	readonly otlp: {
 		readonly port: number;
 	};
+	readonly mcp: {
+		readonly enabled: boolean;
+		readonly port: number;
+	};
 }
 
 /**
@@ -41,6 +45,10 @@ export interface PartialSettings {
 	readonly otlp?: {
 		readonly port?: number;
 	};
+	readonly mcp?: {
+		readonly enabled?: boolean;
+		readonly port?: number;
+	};
 }
 
 // Default OTLP/HTTP port. We deliberately use 4319 (one above the
@@ -48,9 +56,15 @@ export interface PartialSettings {
 // running OTel Collector or another OTLP receiver bound on 4318.
 // Users can change this in Settings; the empty-state hint and copy
 // URL always reflect the actual bound port.
+//
+// MCP defaults: enabled on, port 4320 (one above the OTLP default so
+// the two never fight). Disabling the toggle stops the HTTP listener
+// immediately without touching anything else — desktop traces still
+// flow through OTLP into the same engine.
 export const DEFAULT_SETTINGS: Settings = {
 	version: 1,
 	otlp: { port: 4319 },
+	mcp: { enabled: true, port: 4320 },
 };
 
 /** Inclusive bounds for a valid TCP port. */
@@ -73,12 +87,35 @@ export type ReceiverStatus =
 	  };
 
 /**
+ * Reified MCP server lifecycle state. Mirrors {@link ReceiverStatus}
+ * one-for-one so the renderer can render both with the same status-dot
+ * primitive. `disabled` is the steady state when the user has turned
+ * the MCP toggle off in Settings; we still report a status so the UI
+ * can say "off" explicitly rather than going blank.
+ */
+export type McpStatus =
+	| { readonly kind: 'starting' }
+	| { readonly kind: 'running'; readonly port: number; readonly host: string }
+	| { readonly kind: 'disabled' }
+	| {
+			readonly kind: 'error';
+			readonly port: number;
+			readonly host: string;
+			readonly message: string;
+	  };
+
+/**
  * Result of an `updateSettings` call. Bind failures (port in use, etc.)
  * come back as `{ ok: false, error }` rather than thrown across IPC, so
  * the renderer can render the message inline in the settings modal.
  */
 export type UpdateSettingsResult =
-	| { readonly ok: true; readonly settings: Settings; readonly status: ReceiverStatus }
+	| {
+			readonly ok: true;
+			readonly settings: Settings;
+			readonly status: ReceiverStatus;
+			readonly mcpStatus: McpStatus;
+	  }
 	| { readonly ok: false; readonly error: string };
 
 /**
@@ -91,7 +128,8 @@ export type InvokeMessage =
 	| { kind: 'getSpanDetails'; query: GetSpanDetailsQuery }
 	| { kind: 'getSettings' }
 	| { kind: 'updateSettings'; patch: PartialSettings }
-	| { kind: 'getReceiverStatus' };
+	| { kind: 'getReceiverStatus' }
+	| { kind: 'getMcpStatus' };
 
 export type InvokeResultFor<M extends InvokeMessage> = M extends { kind: 'listTraces' }
 	? ListTracesResult
@@ -105,7 +143,9 @@ export type InvokeResultFor<M extends InvokeMessage> = M extends { kind: 'listTr
 					? UpdateSettingsResult
 					: M extends { kind: 'getReceiverStatus' }
 						? ReceiverStatus
-						: never;
+						: M extends { kind: 'getMcpStatus' }
+							? McpStatus
+							: never;
 
 /**
  * Discriminated union of every main→renderer push. The existing engine
@@ -115,4 +155,5 @@ export type InvokeResultFor<M extends InvokeMessage> = M extends { kind: 'listTr
 export type OteluxEvent =
 	| ChangeEvent
 	| { readonly kind: 'settings-changed'; readonly settings: Settings }
-	| { readonly kind: 'receiver-status-changed'; readonly status: ReceiverStatus };
+	| { readonly kind: 'receiver-status-changed'; readonly status: ReceiverStatus }
+	| { readonly kind: 'mcp-status-changed'; readonly status: McpStatus };

@@ -3,13 +3,10 @@ import { type JSX, useCallback, useMemo, useState } from 'react';
 import type { PartialSettings, UpdateSettingsResult } from '../shared/ipc.js';
 import { EndpointBar } from './components/EndpointBar.js';
 import { SettingsModal } from './components/SettingsModal.js';
-import { useReceiverStatus, useSettings } from './hooks.js';
+import { useMcpStatus, useReceiverStatus, useSettings } from './hooks.js';
 import { createIpcDataSource } from './ipcDataSource.js';
 
 export function App(): JSX.Element {
-	// Build the bridge-backed DataSource once per renderer. If the bridge
-	// is missing (e.g. the preload script failed to load) we surface a
-	// loud error here instead of silently showing an empty workbench.
 	const bridge = useMemo(() => {
 		const b = window.otelux;
 		if (!b) {
@@ -20,13 +17,10 @@ export function App(): JSX.Element {
 
 	const dataSource = useMemo(() => createIpcDataSource(bridge), [bridge]);
 	const status = useReceiverStatus(bridge);
+	const mcpStatus = useMcpStatus(bridge);
 	const settings = useSettings(bridge);
 	const [settingsOpen, setSettingsOpen] = useState(false);
 
-	// Show the live receiver URL in the empty-state hint so the user
-	// copy-pastes the right thing (port may differ from the default
-	// 4319 via settings or the `OTELUX_OTLP_PORT` env override). Fall
-	// back to the persisted settings while the status is hydrating.
 	const endpointUrl = useMemo<string | undefined>(() => {
 		if (status?.kind === 'running') {
 			return `http://${status.host}:${status.port}/v1/traces`;
@@ -37,9 +31,8 @@ export function App(): JSX.Element {
 		return undefined;
 	}, [status, settings]);
 
-	const onSavePort = useCallback(
-		async (port: number): Promise<UpdateSettingsResult> => {
-			const patch: PartialSettings = { otlp: { port } };
+	const onSaveSettings = useCallback(
+		async (patch: PartialSettings): Promise<UpdateSettingsResult> => {
 			return (await bridge.invoke({ kind: 'updateSettings', patch })) as UpdateSettingsResult;
 		},
 		[bridge],
@@ -51,7 +44,7 @@ export function App(): JSX.Element {
 				dataSource={dataSource}
 				theme="dark"
 				{...(endpointUrl !== undefined ? { endpointUrl } : {})}
-				topbarEnd={<EndpointBar status={status} />}
+				topbarEnd={<EndpointBar status={status} mcpStatus={mcpStatus} />}
 				onOpenSettings={() => setSettingsOpen(true)}
 			/>
 			{settingsOpen && settings ? (
@@ -60,7 +53,8 @@ export function App(): JSX.Element {
 					{...(status?.kind === 'running' || status?.kind === 'error'
 						? { currentPort: status.port }
 						: {})}
-					onSave={onSavePort}
+					{...(mcpStatus !== undefined ? { mcpStatus } : {})}
+					onSave={onSaveSettings}
 					onClose={() => setSettingsOpen(false)}
 				/>
 			) : null}
