@@ -1,45 +1,47 @@
 # OTel Studio for VS Code
 
 - **Duration:** 12 weeks
-- **Team:** 1 engineer (intern-sized; reusable for any junior IC)
-- **Status:** Phase 0 scaffold complete on `main`; ready for Phase 1 kickoff
+- **Team:** 1 engineer
 
 🔭 **Make OpenTelemetry a first-class surface inside VS Code.** Today VS Code
 stops at "configure your SDK." We will ship **OTel Studio**, a VS Code
 extension that (a) receives OTLP locally with zero config, (b) renders a
-polished trace/log/metric explorer in a webview, and (c) exposes that
-telemetry to Copilot via Language-Model Tools and to external agents
+trace / log / metric explorer in a webview, and (c) exposes that telemetry
+to Copilot via Language-Model Tools and to external agents
 (Codex / Claude / Cursor) via MCP — so the agent grounds its answers in
-real spans instead of guessing. Built on top of **[`otelux`][otelux]**, my
-existing TypeScript monorepo whose engine, receiver, UI, and MCP server
-were designed from day one to embed in a webview. Splunk's
-[`observability-studio`][obstudio] and Harald's
-[`vscode-otelme`][otelme] are **reference only** — studied, not forked.
+real spans instead of guessing. The scope is deliberately not
+Copilot-only: the same pipeline ingests **VS Code's own multi-process
+traces and audit signals**, so the workbench doubles as a perf-tracing
+and DFIR surface (see [Why now](#why-now)).
 
-[otelme]: https://marketplace.visualstudio.com/items?itemName=digitarald.vscode-otelme
-[obstudio]: https://marketplace.visualstudio.com/items?itemName=Splunk.observability-studio
-[otelux]: https://github.com/b1tank/otelux
+## Why now
+
+1. **Copilot agent mode already emits OTel-shaped spans** of its own work — tool calls, model requests, retries — with full `gen_ai.*` attributes. Sprint verification confirmed they land in our store and Copilot can self-debug from them. What's missing is the viewer and the join with the user's app traces.
+2. **VS Code itself wants cross-process tracing.** [`microsoft/vscode#316090`](https://github.com/microsoft/vscode/issues/316090) asks for "a simple unified multi-process logging and tracing service that can correlate events across [renderer / ext host / AHP] boundaries" and explicitly calls out OTel trace / span IDs as the option to evaluate. Our receiver + store + waterfall is that service — we just need a thin emitter in core.
+3. **General VS Code OTel unlocks IR and auditing.** Per Ross Wollman's DFIR note, VS Code logs are already a goldmine for investigating extension-supply-chain attacks (MaliciousCorgi, prettier-vscode-plus, TigerJack, recent Checkmarx OpenVSX compromises). Structured OTel signals for **extension installs, auth events, settings-sync, remote-dev sessions** turn that goldmine into queryable, exportable forensic data — collectible by enterprise IR pipelines, debuggable by the developer through Copilot Chat against the same store.
+4. **Vendors are racing to own this surface.** Splunk shipped `observability-studio`; Harald shipped `vscode-otelme`. If we don't ship a first-party experience an ISV will define what "OTel in VS Code" looks like for us.
+
+## References
+
+- **[`otelux`](https://github.com/b1tank/otelux)** — prototype monorepo we are building on. Engine, receiver, webview UI, and MCP server already shipped in a desktop app; architecture was designed from day one to embed in a webview, with no remaining technical blockers.
+- **[`microsoft/vscode#316090`](https://github.com/microsoft/vscode/issues/316090)** — the in-flight ask for unified multi-process logging / perf tracing in core; assigned to me + @roblourens + @sandy081.
+- **[`vscode-otelme`](https://marketplace.visualstudio.com/items?itemName=digitarald.vscode-otelme)** — receives OTel from VS Code agents into local SQLite. No UI, no MCP. Reference only.
+- **[`observability-studio`](https://marketplace.visualstudio.com/items?itemName=Splunk.observability-studio)** — traces / logs / metrics explorer + MCP but no Copilot integration and no agent-run correlation. Reference only.
 
 ## Expectation
 
 - [ ] Zero-config OTLP/HTTP receiver activates with the extension; SDKs see traces in ≤ 1 s.
-- [ ] Webview explorer renders traces, logs, and (minimum-viable) metrics with VS Code theming.
+- [ ] Webview explorer renders traces, logs, and (minimum-viable) metrics in real time.
 - [ ] Copilot Chat answers "what broke?", "what's slow?", "what was my app doing during this agent run?" with citations to local span IDs.
-- [ ] Codex / Claude / Cursor consume the same store over MCP via one-click setup.
-- [ ] Multi-window safe: two VS Code windows + the desktop app coexist on one box, one owner per port.
-- [ ] Performance budgets in [`otelux/docs/spec.md` § 8](docs/spec.md) met; internal preview published.
-
-## Why now
-
-1. **Copilot agent mode already emits OTel-shaped spans** of its own work — tool calls, model requests, retries. Sprint verification confirmed they land in our store with full `gen_ai.*` attributes. The data is sitting there; what's missing is the viewer and the join with the user's app traces.
-2. **Vendors are racing to own this surface.** Splunk shipped `observability-studio` and Harald shipped `vscode-otelme`. If we don't ship a first-party experience an ISV will define what "OTel in VS Code" looks like for us.
-3. **`otelux` is already half the deliverable** — the receiver, engine, SQLite store, waterfall UI, and MCP dispatcher all exist and ship today in a desktop app that is dogfooding live (see § Current State).
+- [ ] VS Code's own renderer / ext-host / AHP emit correlated spans (resolves #316090); waterfall renders them like any other trace.
+- [ ] Audit-grade signals — extension install / update, auth, settings-sync, remote-dev session start — emitted as structured OTel events suitable for IR collection.
 
 ## Work Streams
 
-- **Stream A — Extension shell.** Wire `@otelux/receiver` + `@otelux/engine-node` into the extension host; mount `@otelux/ui` in a webview through `@otelux/adapter-vscode`; multi-window port handoff via `claimSingleInstance`; status-bar + settings.
+- **Stream A — Extension shell.** Wire `@otelux/receiver` + `@otelux/engine-node` into the extension host; mount `@otelux/ui` in a webview through `@otelux/adapter-vscode`; multi-window port handoff via `claimSingleInstance`; status bar + settings.
 - **Stream B — Copilot integration.** Promote the 5 existing tool registrations to first-class LM Tools (`vscode.lm.registerTool`) with `traceLink` round-trip; flip the two stubs (`searchLogs`, `correlateAgentRun`) to real once their engine work lands.
 - **Stream C — External-agent integration.** Mount `@otelux/mcp-server`'s HTTP transport on `localhost:4319`; one-click commands that write Codex / Claude / Cursor config files.
+- **Stream D — Core VS Code instrumentation.** Add an `IOTelService` in core (renderer + ext host + AHP) that emits spans for cross-process perf (#316090) and structured events for the audit signals in expectation #5. Ships behind a setting, exports OTLP to the same `localhost:4318` the extension owns, so the developer and the SOC look at the same data.
 
 ## Timeline & Milestones
 
@@ -50,7 +52,7 @@ were designed from day one to embed in a webview. Splunk's
 | 5–6 | Logs path: OTLP/HTTP `/v1/logs`, FTS5-backed `searchLogs`, severity-aware table with trace pivot. |
 | 7–8 | Copilot LM Tools end-to-end: `findRecentErrors`, `getTrace`, `searchLogs`, `getSlowestSpans`, `getServiceOverview` + `#otel` chat reference. |
 | 9–10 | Agent-run correlation engine — the differentiator. Index `gen_ai.agent.run_id`, expose `correlateAgentRun(runId)`. UI rail "Agent runs". |
-| 11 | External-agent integration: one-click Codex / Claude / Cursor config writers. |
+| 11 | External-agent integration (Codex / Claude / Cursor config writers) **and** Stream D landing in core: multi-process perf spans + first audit events (extension install / update, auth). |
 | 12 | Perf, a11y, README + GIFs, internal preview release. |
 
 ## Current State (Phase 0 sprint, week 0)
@@ -93,8 +95,10 @@ One shared store; the webview and every agent surface read from the same engine.
 | LM Tools API still proposed | Thin wrapper around the current shape; MCP path is the fallback and already works today. |
 | Two windows fight for port 4318 | `claimSingleInstance` (spec § 7.1); already passing 5 tests, integration matrix scheduled for weeks 3–4. |
 | Webview perf at 10k+ spans | `@otelux/ui` already virtualizes; perf budgets locked in spec § 8. |
+| Stream D core changes block on review | Land behind an off-by-default setting; ship the extension independently and turn on core emission incrementally. |
+| Audit signals leak PII | Allow-listed attribute schema reviewed with the security team before any event ships; off by default in stable. |
 | Scope creep into a metrics dashboard | Hard stop at "table + simple chart"; full dashboard out of scope. |
-| Splunk ships agent integration first | Our differentiator is **Copilot agent-run correlation**, which they can't ship without being in the chat path. |
+| Splunk ships agent integration first | Our differentiator is **Copilot agent-run correlation** plus **first-party core instrumentation** — neither is reachable from outside the chat path or outside the editor. |
 
 ## Out of scope
 
