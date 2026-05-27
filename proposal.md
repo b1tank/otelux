@@ -1,7 +1,7 @@
 # OTel Studio for VS Code
 
 - **Duration:** 12 weeks
-- **Team:** 1 engineer + 1 PM (Harald Kirschner)
+- **Team:** 1 engineer
 
 🔭 **Make OpenTelemetry a first-class surface inside VS Code so humans and
 agents can troubleshoot and monitor together.** Two parts, one closed loop:
