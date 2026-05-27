@@ -3,7 +3,7 @@
 **Author:** Zhichao Li
 **Team size:** 1 engineer (intern-sized scope; suitable as an intern project)
 **Duration:** 12 weeks
-**Status:** Draft for sign-off
+**Status:** Phase 0 scaffold complete — ready for sign-off and Phase 1 kickoff
 
 ---
 
@@ -169,19 +169,22 @@ A single shared store, queried by both the webview and the agent tools:
 Because we are **not** starting from zero. The entire deliverable lives
 in the `otelux` monorepo and reuses `@otelux/*` packages we already own.
 
-**Code we own and consume directly:**
+**Code we own and consume directly:** (status as of Phase 0 sprint complete — see [docs/sprint.plan.md](docs/sprint.plan.md))
 
 | Asset | Origin | Status |
 |---|---|---|
-| OTLP/HTTP receiver | `@otelux/receiver` | M1 |
+| OTLP/HTTP receiver | `@otelux/receiver` | ✅ Shipping (desktop on `:4319`) |
 | OTLP/gRPC receiver | `@otelux/receiver` | Phase 5 |
-| In-memory + SQLite engine | `@otelux/engine` + `@otelux/engine-node` | M1 |
-| Waterfall, trace list, span detail React components | `@otelux/ui` | M1 |
-| `DataSource` protocol | `@otelux/protocol` | M1 |
-| `@otelux/adapter-vscode` (postMessage bridge) | Designed in [otelux/docs/spec.md § 7](otelux/docs/spec.md) | M1 — built in this project, shared with the desktop |
-| `@otelux/mcp-server` (JSON-RPC dispatcher + HTTP/stdio) | Designed in [otelux/docs/spec.md § 12](otelux/docs/spec.md) | M1 — built in this project, shared with the desktop |
-| Agent-run correlation engine | `@otelux/engine` | M1 — lives in the engine, both apps benefit |
-| OTLP fixtures | `otelux/fixtures/` | Done |
+| In-memory + SQLite engine | `@otelux/engine` + `@otelux/engine-node` | ✅ Shipping |
+| Waterfall, trace list, span detail React components | `@otelux/ui` | ✅ Shipping (95 unit tests passing) |
+| `DataSource` protocol | `@otelux/protocol` | ✅ Shipping |
+| `@otelux/adapter-vscode` (postMessage bridge) | [otelux/docs/spec.md § 7](docs/spec.md) | ✅ Scaffolded (4 tests passing) — shared with the desktop |
+| `@otelux/mcp-server` (JSON-RPC dispatcher + HTTP/stdio) | [otelux/docs/spec.md § 12](docs/spec.md) | ✅ Scaffolded — 7 tools (5 functional, 2 stub) — shared with desktop & extension |
+| `claimSingleInstance` (multi-window port handoff) | `@otelux/receiver` | ✅ Scaffolded (lockfile + healthz + atomic O_EXCL, 5 tests) |
+| `--vscode-*` token fallbacks in workbench CSS | `@otelux/ui` | ✅ Shipping |
+| Agent-run correlation engine | `@otelux/engine` | 🚧 Stub returns `supported:false` — engine work in Phase 1 Track B |
+| Log full-text search | `@otelux/engine-node` | 🚧 Stub returns `supported:false` — Phase 2 |
+| OTLP fixtures | `otelux/fixtures/` | ✅ Shipping |
 
 **Code we look at but do not consume:**
 
@@ -201,96 +204,159 @@ between packages we already own.
 
 ---
 
+## 4.5 Current state (Phase 0 sprint, week 0)
+
+A one-week scaffolding sprint preceding the 12 weeks landed every
+package boundary the plan depends on, so the intern starts on Phase 1
+feature work — not on monorepo plumbing. Concretely, on `main`:
+
+- **Desktop app is feature-complete for M1 and dogfooding live.** It
+  receives OTLP at `127.0.0.1:4319/v1/traces`, persists to SQLite,
+  renders the trace list + per-service-colored waterfall + span detail
+  drawer, and exposes its MCP server at `127.0.0.1:4320/`. Settings
+  modal toggles the MCP server on/off; status pills in the top bar
+  show both endpoints with copy-on-click.
+- **MCP server is wire-compatible.** A GitHub Copilot Chat client
+  configured against the desktop's `:4320` successfully called
+  `otel_get_service_overview`, `otel_get_slowest_spans`,
+  `otel_get_trace`, `otel_get_span_details`, and
+  `otel_find_recent_errors` end-to-end during sprint verification —
+  the proposal author asked Copilot "what was slow in the last 2
+  hours?" and got a grounded answer citing real span IDs from this
+  conversation. `otel_search_logs` and `otel_correlate_agent_run`
+  return `supported:false` with the planned phase marker.
+- **VS Code extension scaffold builds and activates.** `npm run -w
+  apps/vscode-extension build` produces a host bundle (`out/host/`)
+  and a webview bundle (`out/webview/`); `openExplorer` opens an
+  empty webview that the `@otelux/adapter-vscode` postMessage bridge
+  is already wired into. The five `languageModelTools` are declared
+  in `package.json` and registered via `vscode.lm.registerTool` —
+  they share a single dispatcher with the MCP server so a change
+  to either surface lands in both.
+- **Repo CI is green.** Repo-wide `typecheck` (20/20), `test` (95+
+  passing), and `build` (11/11) all pass at `7cd8438` on `main`.
+
+What this means for the 12-week plan below: weeks 1–2 collapse from
+"stand up a Hello-OTel extension" to "replace the extension's empty
+webview with the real workbench bound to a live engine," and the
+intern's first PR can be a feature, not a build script. The schedule
+below is rewritten accordingly.
+
+---
+
 ## 5. Twelve-week plan
 
 Phases are effort budgets. Each ends with a demo-able artifact.
 
-### Weeks 1–2 — Onboarding + Hello-OTel extension
+### Weeks 1–2 — Onboarding + light up the real workbench
 
 - Set up dev env and walk the `otelux` monorepo end-to-end. Skim
   `vscode-otelme` and `obstudio` once for context; write a one-page
   "what each does and what we are *not* taking from them" note.
-- Stand up `apps/vscode-extension` skeleton in the `otelux` monorepo
-  using `esbuild` (standard VS Code extension pattern).
-- Activate, register a command that opens a webview pointing at a
-  hard-coded fixture. **Demo:** opens a panel, renders one waterfall.
-- Deliverable: working `.vsix` install, CI green.
+- Replace the scaffold's empty webview with the real `OTeluxWorkbench`
+  bound to a `DataSource` served from the extension host's in-process
+  engine + `@otelux/receiver`. The postMessage adapter, the
+  `--vscode-*` token bindings, and the `esbuild` + Vite builds are
+  already in place — this week is purely composition.
+- **Demo:** instrument a sample Node app, send traces to
+  `localhost:4318`, see them appear in the live VS Code webview with
+  VS Code theming.
+- Deliverable: F5 / `.vsix` install opens an explorer that actually
+  shows the user's own traces, not fixtures.
 
-### Weeks 3–4 — Wire the receiver and store
+### Weeks 3–4 — Production-grade receiver lifecycle
 
-- Run `@otelux/receiver` in the extension host (Node side), not the
-  webview.
-- Persist via `@otelux/engine-node`'s SQLite store.
-- Single-instance handoff so two VS Code windows don't both bind 4318.
-  Second window connects to the first via `@otelux/receiver`'s
-  `claimSingleInstance` helper (see
-  [otelux/docs/spec.md § 7.1](otelux/docs/spec.md)). The same helper
-  governs simultaneous desktop + extension on one machine. Design
-  constraint borrowed from `vscode-otelme`; code is ours and shared
-  across both apps.
-- Status bar entry: endpoint URL + span count.
-- **Demo:** instrument a sample Node app, send traces, see them land.
-- Deliverable: end-to-end ingest path, no UI changes required.
+- Wire `claimSingleInstance` into the extension host so two VS Code
+  windows on the same box share one receiver — the second window
+  connects to the first's HTTP store via the same engine adapter
+  used in M0. The helper is built; this week is the integration
+  test matrix (cold start, hot restart, owner crash, port conflict,
+  desktop + extension on one machine).
+- Surface receiver state in the VS Code status bar: endpoint URL,
+  rolling span count, and a click-through to the explorer. Mirror
+  the desktop's `EndpointBar` semantics so users see the same
+  vocabulary on both apps.
+- Add a `Settings` contribution (`otelux.receiver.port`,
+  `otelux.mcp.enabled`, `otelux.mcp.port`) — the manifest entries
+  exist; wire them to the runtime via the extension's settings
+  watcher.
+- **Demo:** start two VS Code windows + the desktop app at once;
+  ingest traces from a single instrumented service; confirm only
+  one process binds the port and the other two are clients.
+- Deliverable: zero-config receiver that survives multi-window and
+  multi-app coexistence on a developer's laptop.
 
-### Weeks 5–6 — Webview ↔ extension `DataSource` adapter
+### Weeks 5–6 — Logs path + harden the explorer
 
-- Implement `@otelux/adapter-vscode` as designed in
-  [otelux/docs/spec.md](otelux/docs/spec.md):
-  `serveDataSource(webview, engine)` on the host side,
-  `createPostMessageDataSource(vscodeApi)` on the webview side.
-- Drop the existing `@otelux/ui` workbench into the webview.
-- CSP-clean Vite build (already a frozen requirement in the spec).
-- **Demo:** the existing trace/log/metric explorer running inside
-  VS Code with VS Code theming.
+- Light up log ingest in `@otelux/receiver` (OTLP/HTTP `/v1/logs`)
+  and storage in `@otelux/engine-node` (a new `logs` table with an
+  FTS5 index for `otel.searchLogs`). The MCP `otel_search_logs`
+  tool flips from stub to real once this lands.
+- Logs tab in the workbench: severity-aware table, trace-link
+  column, click-to-pivot into the waterfall for that trace.
+- Metrics tab stays at the minimum-viable bar set out in the spec
+  (one simple chart per series type) — this is *not* a full metrics
+  dashboard, and the proposal explicitly scopes it out.
+- **Demo:** instrument the sample app with `@opentelemetry/api-logs`;
+  open the explorer, filter by severity, click a log line, land on
+  its trace.
 
-### Weeks 7–8 — Copilot LM Tools
+### Weeks 7–8 — Copilot LM Tools, end-to-end
 
-This is the headline week.
+This is the headline phase. The tools are *registered* (manifest
+entries shipped in Phase 0) but currently share the MCP dispatcher's
+stub semantics for two of them.
 
-- Register tools through `vscode.lm.registerTool` with proper JSON
-  schemas and confirmation messages.
-- Minimum tool set:
+- Promote the five existing tools to first-class LM Tools with
+  hand-written confirmation messages, JSON schemas, and human-grade
+  Markdown output. The dispatcher is shared with the MCP server, so
+  any quality work here also improves external agent consumption.
   - `otel.findRecentErrors`
   - `otel.getTrace`
-  - `otel.searchLogs`
+  - `otel.searchLogs` (real once weeks 5–6 logs work lands)
   - `otel.getSlowestSpans`
   - `otel.getServiceOverview`
-- Each tool reads from the same engine the webview reads from — no
-  duplication.
-- Author a `package.json` `languageModelTools` contribution so they
-  appear in `#otel` references in Copilot Chat.
-- **Demo:** ask Copilot "why is checkout slow today?" — it calls
-  `otel.getSlowestSpans`, returns a real answer with span IDs.
+- Add the `#otel` chat reference in the `package.json`
+  `languageModelTools` contribution so users get `@otel` completions
+  in Copilot Chat without having to invoke a tool by name.
+- Add `traceLink` to every tool response so a `Cmd+click` in Copilot
+  Chat opens the trace inside the webview.
+- **Demo:** ask Copilot "why is checkout slow today?" inside the
+  sample-app workspace — it calls `otel.getSlowestSpans`, returns a
+  real answer with linkable span IDs.
 
 ### Weeks 9–10 — Agent-run correlation (the killer feature)
 
 The differentiator. Copilot agent mode already emits OTel spans for its
-own runs. When the user instruments their app with OTel and runs it under
-Copilot's command, both span streams land in the same store. We can join
-them by `trace.id` propagation or by timestamp + run-id.
+own runs — we have empirical proof from sprint verification, where
+Copilot Chat in this very repo emitted spans like
+`chat claude-opus-4.7-high` and `execute_tool manage_todo_list` that
+landed in our SQLite store with full `gen_ai.*` attributes. The data
+is sitting right there; the engine work is the indexing path.
 
-- Detect Copilot agent runs in the store (look for known span attributes
-  emitted by Copilot's agent host).
-- Add `otel.correlateAgentRun(runId)` LM tool that returns the user-app
-  spans that occurred during a given agent run.
-- Add an "Agent runs" pane in the webview that lists each agent run with
-  links to (1) the agent's own trace and (2) the user app spans during
-  that run.
+- Engine: detect Copilot agent runs by indexing on `gen_ai.agent.run_id`
+  / `service.name=copilot-chat` / equivalent attributes and exposing a
+  `correlateAgentRun(runId)` query primitive.
+- MCP / LM Tool: flip `otel.correlateAgentRun` from stub to real. Both
+  surfaces get it for free because they share the same dispatcher.
+- UI: add an "Agent runs" entry to the rail in `@otelux/ui` that lists
+  each agent run with links to (1) the agent's own trace and (2) the
+  user-app spans during that run. The desktop benefits for free.
 - **Demo:** "Copilot ran my failing test. Show me what my app was doing
   at the moment the test failed." One click to the correlated view, or
   one Copilot Chat question.
 
-### Week 11 — MCP server endpoint
+### Week 11 — External-agent integration (Codex / Claude / Cursor)
 
-- Implement a TypeScript MCP dispatcher with HTTP and stdio transports,
-  mounted at `/mcp` inside the extension host. Read-only, JSON-RPC.
-  (Architecture shape — transport-agnostic dispatcher behind two
-  transports — is the same idea `obstudio` uses; the implementation is
-  fresh TypeScript, not a port.)
+- The MCP TypeScript dispatcher already ships in `@otelux/mcp-server`
+  with HTTP and stdio transports — mount the HTTP server in the
+  extension host at `localhost:4319` (the manifest default), behind
+  the same on/off setting the desktop uses.
 - One-click "Enable Codex / Claude Code / Cursor integration" commands
-  that write the MCP config file for each agent home. (UX referenced
-  from `obstudio`; the file paths and config schemas are public and the
-  code is ours.)
+  that write the MCP config file for each agent home. The commands are
+  scaffolded in `apps/vscode-extension/src/host/enableAgentIntegration.ts`
+  as toast-only stubs; this week wires them to the real config-writing
+  logic. File paths and config schemas are public.
 - **Demo:** Codex CLI in a terminal calls our MCP server and lists
   traces against the same store the webview is reading.
 
@@ -323,7 +389,9 @@ A user installs the extension and, with zero configuration:
    doing during this agent run?" and gets a grounded answer that cites
    span IDs.
 5. Optionally enables Codex / Claude / Cursor integration with one
-   command; those agents now see the same telemetry over MCP.
+   command; those agents now see the same telemetry over MCP at
+   `localhost:4319` (the desktop counterpart uses `:4320` so the two
+   coexist on one box without contention).
 6. The extension passes VS Code marketplace publishing prerequisites
    (manifest, license, screenshots, baseline a11y).
 
@@ -415,3 +483,26 @@ otherwise) because it's package-first.
    dependency — we just want lessons learned).
 4. ~30 minutes of Bhavya's time in week 6 to validate the cache-inspection
    angle is reachable from the same data model.
+
+---
+
+## 12. Verifying the current state
+
+A reviewer can reproduce the Phase 0 demo today:
+
+```bash
+git clone git@github.com:b1tank/otelux.git && cd otelux
+npm install
+./otelux.sh                       # builds + launches the desktop app
+# In a separate shell, point an OTel SDK at http://127.0.0.1:4319/v1/traces
+# or use any of the spans Copilot itself emits in the IDE.
+curl -sS http://127.0.0.1:4320/ -H 'content-type: application/json' \
+    -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+The desktop window shows live OTLP and MCP status pills; the MCP
+`tools/list` call returns 7 tool definitions; `tools/call` against
+`otel_get_service_overview` returns real data once any span has been
+ingested. The same monorepo also produces a `.vsix` for the VS Code
+extension via `npm run -w apps/vscode-extension build`, which is the
+scaffold that the 12 weeks above will harden into a shipping product.
