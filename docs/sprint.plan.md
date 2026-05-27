@@ -50,7 +50,20 @@ desktop app (which is part of this sprint).
 
 ## Hiccups & Notes
 
-(Populated during execution.)
+- Hono `c.json()` rejects `unknown` payloads; the JSON-RPC helpers cast
+  to `Record<string, unknown>` at the Hono boundary only.
+- VS Code's `Webview.postMessage` returns `Thenable<boolean>`, not
+  `Promise<boolean>`; the extension wraps with `Promise.resolve(...)`
+  before handing the webview to `serveDataSource` so the
+  `adapter-vscode` package itself stays free of any `vscode` types.
+- `claimSingleInstance` treats corrupt JSON the same as a missing
+  lockfile: unlink and retry. The OS-level `open(path, 'wx')` race
+  still picks one winner.
+- Desktop MCP default port is `4320` (OTLP + 1) so the two never
+  collide on a fresh install. `settings.validate` rejects equal ports
+  when MCP is enabled.
+- `updateSettings` runs as a true two-phase commit across receiver and
+  MCP: either both rebind or both roll back to their previous state.
 
 ## Status
 
