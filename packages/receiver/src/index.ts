@@ -20,6 +20,12 @@ import { type OtlpExportTraceServiceRequest, decodeExportTraceServiceRequest } f
 
 export type { OtlpExportTraceServiceRequest } from './otlp.js';
 export { decodeExportTraceServiceRequest } from './otlp.js';
+export type {
+	ClaimSingleInstanceOptions,
+	SingleInstanceClaim,
+	SingleInstanceEndpoint,
+} from './singleInstance.js';
+export { claimSingleInstance } from './singleInstance.js';
 
 export interface ReceiverOptions {
 	engine: Engine;
