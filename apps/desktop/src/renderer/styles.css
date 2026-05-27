@@ -235,6 +235,61 @@ body,
 	border-color: var(--otelux-accent);
 }
 
+/* Grouped settings (e.g. the MCP fieldset). A subtle bordered frame so
+ * users scan "this whole block is one feature" without us needing a
+ * second visual heading style. */
+.fieldset {
+	margin: 0;
+	padding: 12px 14px 14px;
+	border: 1px solid var(--otelux-border);
+	border-radius: 4px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.fieldset > legend {
+	padding: 0 6px;
+	font-size: 12px;
+	color: var(--otelux-fg-muted);
+}
+
+/* Checkbox row: checkbox sits next to the label rather than the
+ * default `.field` column layout, which stretches the checkbox to
+ * the full input width. */
+.field--inline {
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+}
+
+.field--inline input[type="checkbox"] {
+	width: 16px;
+	height: 16px;
+	margin: 0;
+	accent-color: var(--otelux-accent);
+	flex: 0 0 auto;
+}
+
+.field--inline > span {
+	font-size: 12px;
+	color: var(--otelux-fg);
+}
+
+.field__status {
+	font-style: normal;
+	padding: 0 4px;
+	border-radius: 2px;
+}
+
+.field__status--ok {
+	color: var(--otelux-status-ok, var(--otelux-accent));
+}
+
+.field__status--error {
+	color: var(--otelux-error);
+}
+
 .modal__error {
 	margin: 0;
 	padding: 8px 10px;
