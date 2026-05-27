@@ -1,0 +1,159 @@
+{
+	"name": "@otelux/vscode-extension",
+	"displayName": "OTelux Telemetry Explorer",
+	"description": "Open OpenTelemetry trace files and live OTLP streams inside VS Code, with Language Model tools for GitHub Copilot and an MCP server for Codex, Claude, and Cursor.",
+	"version": "0.0.1",
+	"private": true,
+	"publisher": "otelux",
+	"license": "MIT",
+	"type": "commonjs",
+	"main": "./out/host/extension.cjs",
+	"engines": {
+		"vscode": "^1.96.0",
+		"node": ">=22.0.0"
+	},
+	"activationEvents": [
+		"onStartupFinished"
+	],
+	"contributes": {
+		"commands": [
+			{
+				"command": "otelux.openExplorer",
+				"title": "OTelux: Open Telemetry Explorer"
+			},
+			{
+				"command": "otelux.enableCopilotMcp",
+				"title": "OTelux: Enable in GitHub Copilot (MCP)"
+			},
+			{
+				"command": "otelux.enableCodexMcp",
+				"title": "OTelux: Enable in OpenAI Codex CLI (MCP)"
+			},
+			{
+				"command": "otelux.enableClaudeMcp",
+				"title": "OTelux: Enable in Claude Code (MCP)"
+			},
+			{
+				"command": "otelux.enableCursorMcp",
+				"title": "OTelux: Enable in Cursor (MCP)"
+			}
+		],
+		"configuration": {
+			"title": "OTelux",
+			"properties": {
+				"otelux.receiver.port": {
+					"type": "number",
+					"default": 4318,
+					"description": "Port for the embedded OTLP/HTTP receiver. Set 0 to pick a free port."
+				},
+				"otelux.mcp.enabled": {
+					"type": "boolean",
+					"default": true,
+					"description": "Run the local MCP server so external agents (Codex CLI, Claude Code, Cursor) can query OTelux."
+				},
+				"otelux.mcp.port": {
+					"type": "number",
+					"default": 4319,
+					"description": "Port for the MCP HTTP transport."
+				}
+			}
+		},
+		"languageModelTools": [
+			{
+				"name": "otel_find_recent_errors",
+				"displayName": "Find recent errors",
+				"toolReferenceName": "otelRecentErrors",
+				"canBeReferencedInPrompt": true,
+				"modelDescription": "Return ERROR-status traces from the most recent time window. Use to triage failures.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"service": { "type": "string" },
+						"sinceMinutes": { "type": "number" },
+						"limit": { "type": "number" }
+					}
+				}
+			},
+			{
+				"name": "otel_get_slowest_spans",
+				"displayName": "Get slowest spans",
+				"toolReferenceName": "otelSlowestSpans",
+				"canBeReferencedInPrompt": true,
+				"modelDescription": "Return the slowest traces. Use to find latency outliers.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"service": { "type": "string" },
+						"limit": { "type": "number" }
+					}
+				}
+			},
+			{
+				"name": "otel_get_trace",
+				"displayName": "Get trace",
+				"toolReferenceName": "otelGetTrace",
+				"canBeReferencedInPrompt": true,
+				"modelDescription": "Return the full waterfall for a trace by trace id.",
+				"inputSchema": {
+					"type": "object",
+					"properties": { "traceId": { "type": "string" } },
+					"required": ["traceId"]
+				}
+			},
+			{
+				"name": "otel_get_span_details",
+				"displayName": "Get span details",
+				"toolReferenceName": "otelSpanDetails",
+				"canBeReferencedInPrompt": true,
+				"modelDescription": "Return attributes, events, links, and status for a single span.",
+				"inputSchema": {
+					"type": "object",
+					"properties": {
+						"traceId": { "type": "string" },
+						"spanId": { "type": "string" }
+					},
+					"required": ["traceId", "spanId"]
+				}
+			},
+			{
+				"name": "otel_get_service_overview",
+				"displayName": "Service overview",
+				"toolReferenceName": "otelServiceOverview",
+				"canBeReferencedInPrompt": true,
+				"modelDescription": "Return per-service request count, error rate, and p50/p95 latency.",
+				"inputSchema": { "type": "object", "properties": {} }
+			}
+		]
+	},
+	"scripts": {
+		"build": "node esbuild.host.mjs && vite build -c vite.webview.config.ts",
+		"build:host": "node esbuild.host.mjs",
+		"build:webview": "vite build -c vite.webview.config.ts",
+		"dev": "node esbuild.host.mjs --watch",
+		"typecheck": "tsc --noEmit -p tsconfig.host.json && tsc --noEmit -p tsconfig.webview.json",
+		"test": "vitest run --passWithNoTests",
+		"clean": "rm -rf out .turbo"
+	},
+	"dependencies": {
+		"@otelux/adapter-vscode": "*",
+		"@otelux/engine": "*",
+		"@otelux/engine-node": "*",
+		"@otelux/mcp-server": "*",
+		"@otelux/receiver": "*",
+		"@otelux/types": "*",
+		"@otelux/ui": "*",
+		"react": "18.3.1",
+		"react-dom": "18.3.1"
+	},
+	"devDependencies": {
+		"@types/node": "22.10.1",
+		"@types/react": "18.3.12",
+		"@types/react-dom": "18.3.1",
+		"@types/vscode": "1.96.0",
+		"@vitejs/plugin-react": "4.3.4",
+		"esbuild": "0.24.0",
+		"typescript": "5.7.2",
+		"vite": "5.4.11",
+		"vitest": "2.1.8"
+	}
+}
