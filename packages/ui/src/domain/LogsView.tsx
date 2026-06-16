@@ -28,6 +28,8 @@ import { formatWallClock, serviceColorVar, severityLabel, severityTone } from '.
 import {
 	Accordion,
 	type AccordionItem,
+	CopyButton,
+	CopyIcon,
 	Drawer,
 	EyeIcon,
 	IconButton,
@@ -189,7 +191,8 @@ function LogRow(props: LogRowProps): JSX.Element {
 			? ({ ['--otelux-row-svc' as string]: serviceColorVar(svc) } as CSSProperties)
 			: undefined;
 	const message = logMessage(log);
-	const traceLabel = log.traceId !== undefined ? shortTraceId(log.traceId) : '—';
+	const traceLabel = log.traceId !== undefined ? shortId(log.traceId) : '—';
+	const spanLabel = log.spanId !== undefined ? shortId(log.spanId) : '—';
 
 	return (
 		<tr
@@ -226,15 +229,65 @@ function LogRow(props: LogRowProps): JSX.Element {
 				</span>
 			</td>
 			<td>
-				<IconButton
-					className="otelux-log-row__action"
-					aria-label={`View log details: ${message}`}
-					onClick={onSelect}
-				>
-					<EyeIcon size={14} />
-				</IconButton>
+				<div className="otelux-log-row__actions">
+					<CopyButton
+						value={message}
+						title="Copy message"
+						ariaLabel={`Copy log message: ${message}`}
+						className="otelux-log-row__action otelux-log-row__copy-action"
+						iconSize={12}
+					>
+						<span className="otelux-log-row__action-label">Msg</span>
+					</CopyButton>
+					{log.traceId !== undefined ? (
+						<CopyButton
+							value={log.traceId}
+							title="Copy trace ID"
+							ariaLabel={`Copy trace ID ${traceLabel}`}
+							className="otelux-log-row__action otelux-log-row__copy-action"
+							iconSize={12}
+						>
+							<span className="otelux-log-row__action-label">Trace</span>
+						</CopyButton>
+					) : (
+						<DisabledCopyAction label="No trace ID" text="Trace" />
+					)}
+					{log.spanId !== undefined ? (
+						<CopyButton
+							value={log.spanId}
+							title="Copy span ID"
+							ariaLabel={`Copy span ID ${spanLabel}`}
+							className="otelux-log-row__action otelux-log-row__copy-action"
+							iconSize={12}
+						>
+							<span className="otelux-log-row__action-label">Span</span>
+						</CopyButton>
+					) : (
+						<DisabledCopyAction label="No span ID" text="Span" />
+					)}
+					<IconButton
+						className="otelux-log-row__action otelux-log-row__details-action"
+						aria-label={`View log details: ${message}`}
+						onClick={onSelect}
+					>
+						<EyeIcon size={14} />
+					</IconButton>
+				</div>
 			</td>
 		</tr>
+	);
+}
+
+function DisabledCopyAction(props: { label: string; text: string }): JSX.Element {
+	return (
+		<IconButton
+			className="otelux-log-row__action otelux-log-row__copy-action"
+			aria-label={props.label}
+			disabled
+		>
+			<span className="otelux-log-row__action-label">{props.text}</span>
+			<CopyIcon size={12} />
+		</IconButton>
 	);
 }
 
@@ -394,6 +447,6 @@ function logMessage(log: LogRecord): string {
 	return log.eventName ?? '(no message)';
 }
 
-function shortTraceId(traceId: string): string {
-	return traceId.length > 12 ? traceId.slice(0, 12) : traceId;
+function shortId(id: string): string {
+	return id.length > 12 ? id.slice(0, 12) : id;
 }

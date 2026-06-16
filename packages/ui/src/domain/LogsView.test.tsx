@@ -27,6 +27,7 @@ function makeLog(over: Partial<LogRecord> = {}): LogRecord {
 		severityText: 'INFO',
 		body: 'hello world',
 		traceId: '0123456789abcdef0123456789abcdef',
+		spanId: 'abcdef0123456789',
 		attributes: { 'event.name': 'codex.user_prompt', prompt: 'do the thing' },
 		resource: { attributes: { 'service.name': 'codex_exec' } },
 		scope: { name: 'codex', version: '1.0.0' },
@@ -103,8 +104,20 @@ describe('LogsView', () => {
 		expect(rows.length).toBe(2);
 		expect(container.textContent).toContain('codex_exec');
 		expect(container.textContent).toContain('0123456789ab');
+		expect(container.querySelector('[aria-label="Copy log message: hello world"]')).toBeTruthy();
+		expect(container.querySelector('[aria-label="Copy trace ID 0123456789ab"]')).toBeTruthy();
+		expect(container.querySelector('[aria-label="Copy span ID abcdef012345"]')).toBeTruthy();
 		expect(container.querySelector('[aria-label="View log details: hello world"]')).toBeTruthy();
 		expect(container.querySelector('.otelux-log-row--error')).toBeTruthy();
+	});
+
+	it('shows disabled correlation copy actions when a log has no trace context', async () => {
+		const ds = new FakeDataSource();
+		ds.rows = [makeLog({ traceId: undefined, spanId: undefined })];
+		const { findByText, getByLabelText } = render(<LogsView dataSource={ds} />);
+		await findByText('hello world');
+		expect((getByLabelText('No trace ID') as HTMLButtonElement).disabled).toBe(true);
+		expect((getByLabelText('No span ID') as HTMLButtonElement).disabled).toBe(true);
 	});
 
 	it('falls back to a prompt attribute when there is no body', async () => {
