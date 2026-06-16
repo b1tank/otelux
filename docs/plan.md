@@ -1,7 +1,7 @@
 # OTelux — Plan
 
-Version: 3.0
-Updated: 2026-05-13
+Version: 3.1
+Updated: 2026-06-15
 
 This is the execution plan for OTelux. It says **how** we get from today to
 the product defined in [spec.md](spec.md). It is intentionally slow. Phases
@@ -287,36 +287,98 @@ fresh Ubuntu install — both for the desktop binary and for the loaded
 
 ### Phase 2 — Structured logs (3–6 weeks)
 
-Engine:
-- Logs table: id, timestamp, severity, body, scope, service, trace_id,
-  span_id, attributes, resource attributes.
-- `POST /v1/logs` OTLP ingest.
-- Query: severity, service, scope, time, trace_id, free-text on body.
+**Reference workload:** the Codex CLI logs pipeline (see
+[spec.md §13](spec.md)). Codex is where the content lives — `codex.user_prompt`
+and other business events ride OTLP **logs**, not traces — so this phase is
+what first makes human-readable agent content visible in OTelux. The explorer
+feature bar mirrors the .NET Aspire dashboard `StructuredLogs` page.
 
-UI:
-- `LogsTable` (virtualized, severity row tint, severity icon column).
-- `LogsToolbar`, `LogDetail`.
-- Trace correlation: click trace_id → switch to Traces focused on that
-  trace.
-- Live tail mode.
+Types / protocol:
+- `@otelux/types`: `LogRecord` (timestamp, observed timestamp, severity
+  number/text, `eventName`, optional `body`, attributes, `traceId`/`spanId`,
+  resource, scope).
+- `@otelux/protocol`: `ListLogsQuery` / `ListLogsResult`, `listLogs` on
+  `DataSource`, `ChangeEvent` gains `{ kind: 'logsChanged' }`.
+
+Receiver:
+- `decodeExportLogsServiceRequest` reusing the `otlp.ts` `AnyValue`/attribute
+  normalizers.
+- `POST /v1/logs` route: lenient JSON, `{ partialSuccess: {} }` on success,
+  `400` on malformed JSON (parity with `/v1/traces`).
+
+Engine:
+- Logs storage: id, timestamp, severity, body, scope, service, trace_id,
+  span_id, attributes, resource attributes. Hot attributes denormalized for
+  fast filtered queries (same pattern as spans).
+- `ingestLogs` + `logsChanged` notification.
+- Query: severity (≥ level), service/resource, scope, time window, trace_id,
+  attribute equality, free-text on body **and on attribute values** (Codex
+  content lives in `prompt`, not `body`), newest-first, paginated.
+
+UI (`@otelux/ui`, features per Aspire `StructuredLogs`):
+- `LogsTable` — virtualized, sticky header, severity row tint + severity icon
+  column, sortable, resizable columns.
+- `LogsToolbar` — resource/service selector (with grouping), **log-level
+  select**, free-text message/attribute search, **structured attribute
+  filters** (field / operator / value, with an enabled-filter count badge),
+  pause/resume, clear.
+- `LogDetail` — summary/detail split pane: event name + scope, full attribute
+  list, resource attributes, context (trace/span IDs).
+- Trace correlation: click `trace_id` → switch to Traces focused on that trace.
+- Live tail mode (pause/resume), deep-linkable per-resource route.
+
+Verification:
+- Decoder unit tests over a captured Codex `ExportLogsServiceRequest` fixture.
+- End-to-end: run a real Codex turn with `log_user_prompt = true` pointed at
+  `:4319/v1/logs`; assert the `codex.user_prompt` record's `prompt` attribute
+  holds the typed text and renders in `LogDetail`.
 
 Exit criteria: a user can debug a real local crash via logs and one-click
-correlate to its trace.
+correlate to its trace, **and** can read Codex prompt/tool content captured
+from a live Codex session.
 
 ### Phase 3 — Metrics (4–8 weeks)
 
+**Reference workload:** the Codex CLI metrics pipeline (see
+[spec.md §13](spec.md)) — monotonic Sums (`codex.api_request`,
+`codex.tool.call`, `codex.turn.token_usage`) and Histograms (`*_ms` durations
+like `codex.turn.e2e_duration_ms`), delta temporality. The explorer mirrors
+the Aspire dashboard `Metrics` page (meter tree → instrument → chart).
+
+Types / protocol:
+- `@otelux/types`: `Metric` discriminated by type (`Sum` / `Gauge` /
+  `Histogram`) with `NumberDataPoint` / `HistogramDataPoint`, plus
+  `AggregationTemporality`.
+- `@otelux/protocol`: `ListMetricsQuery` / result, `listMetrics` on
+  `DataSource`, `ChangeEvent` gains `{ kind: 'metricsChanged' }`.
+
+Receiver:
+- `decodeExportMetricsServiceRequest`; `POST /v1/metrics` route (same lenient
+  JSON contract as logs/traces).
+
 Engine:
-- Metric points table; aggregation helpers (rate, percentile from
-  histograms).
-- `POST /v1/metrics` OTLP ingest.
+- Metric points storage; `ingestMetrics` + `metricsChanged`.
+- Aggregation helpers (rate from delta sums, percentile from histogram
+  buckets), grouped by meter/instrument and attribute dimensions.
 - **Decision point:** introduce DuckDB-wasm only if SQLite cannot meet the
-  100 ms chart query budget at 100k points.
+  100 ms chart query budget at 100k points (see [spec.md §10](spec.md)).
 
-UI:
-- `MeterTree`, `MetricChart` (line + histogram via visx),
-  `DimensionFilter`, exemplar markers → click jumps to trace.
+UI (`@otelux/ui`, features per Aspire `Metrics`):
+- `MeterTree` — meter → instrument tree selector with per-instrument
+  descriptions; deep-linkable routes (resource → meter → instrument).
+- `MetricChart` — per-instrument chart with **graph and table views**
+  (line for sums/gauges, histogram/heatmap for histograms via visx).
+- Duration/time-window select; `DimensionFilter` for attribute dimensions.
+- Exemplar markers → click jumps to the originating trace.
 
-Exit criteria: users answer "what changed?" for a local service in OTelux.
+Verification:
+- Decoder unit tests over a captured Codex `ExportMetricsServiceRequest`
+  fixture (one Sum, one Histogram).
+- End-to-end: drive a Codex session, assert `codex.api_request` and
+  `codex.turn.e2e_duration_ms` render in `MetricChart` via `listMetrics`.
+
+Exit criteria: users answer "what changed?" for a local service in OTelux,
+and can chart Codex turn/token/latency metrics from a live session.
 
 ### Phase 4 — Services overview (3–5 weeks)
 

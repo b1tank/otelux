@@ -1,7 +1,7 @@
 # OTelux — Specification
 
-Version: 3.0
-Updated: 2026-05-13
+Version: 3.1
+Updated: 2026-06-15
 
 OTelux is a local-first OpenTelemetry workbench. It receives traces, logs,
 metrics, and (later) profiles from local applications, stores them on disk,
@@ -42,6 +42,14 @@ packages, tech stack, boundaries, and budgets. Delivery sequencing lives in
 | Services overview | Yes | Derived from OTLP `resource.attributes.service.*`. |
 | Profiles | Later | Flame graph + correlation; defined in a later milestone. |
 | GenAI assistant | No | Optional, off by default, may never ship. |
+
+The logs and metrics explorers are specified against a concrete reference
+workload — the **Codex CLI** OTel exporter — so the minimum ingest contract is
+grounded in real wire payloads rather than a generic SDK. See [§13](#13-reference-workload--codex-cli-three-pillar-ingest).
+The explorer feature bar (severity-aware log table, attribute filters, meter
+tree, per-instrument charts) follows the prior art in the .NET Aspire dashboard
+(`StructuredLogs` and `Metrics` pages); delivery detail lives in
+[plan.md Phase 2–3](plan.md).
 
 ---
 
@@ -437,3 +445,99 @@ the four canonical troubleshooting questions:
 
 All tools are thin wrappers over `@otelux/engine` query methods and ship
 in both `@otelux/mcp-server` and the extension's LM Tools layer.
+
+---
+
+## 13. Reference workload — Codex CLI three-pillar ingest
+
+The logs and metrics work is specified against a concrete producer: the
+**Codex CLI** OpenTelemetry exporter (`codex-rs/otel`). It is the first
+real workload that exercises all three pillars, and it is the fastest way
+to dogfood OTelux against telemetry a human actually wants to read. This
+section fixes the **minimum ingest contract** OTelux must satisfy to receive
+Codex telemetry; the explorer UX that sits on top is specified in §2 and
+sequenced in [plan.md](plan.md).
+
+### 13.1 Codex emits three independent OTLP pipelines
+
+| Codex config field | OTLP signal | Carries content? |
+|---|---|---|
+| `[otel.exporter]` | **Logs** | **Yes** — `codex.user_prompt` carries the raw `prompt` text when `log_user_prompt = true`; also tool decisions and other business events. |
+| `[otel.trace_exporter]` | **Traces** | No — content-redacted by design (only `prompt_length`, counts). |
+| `[otel.metrics_exporter]` | **Metrics** | No — counters/histograms with low-cardinality attributes. |
+
+**Consequence that drives scope:** user-visible content (prompts, tool
+arguments) rides the **logs** pipeline only. A traces-only viewer can never
+show it. This is the load-bearing reason logs ingest is a core signal, not a
+nice-to-have.
+
+### 13.2 Wire facts OTelux must honor
+
+- **Transport:** OTLP/HTTP, protobuf-JSON encoding (camelCase keys, fixed64
+  as strings, `AnyValue`-wrapped attributes) — the same shape the existing
+  trace decoder normalizes. M1 ships JSON; protobuf and gRPC are deferred
+  (see §5, Phase 5).
+- **Endpoint paths:** Codex (opentelemetry-otlp 0.31) sends a programmatic
+  endpoint **as-is and does not append `/v1/...`**. Each Codex exporter is
+  therefore configured with the full path, so OTelux must serve the standard
+  signal routes: `POST /v1/logs` and `POST /v1/metrics` alongside the existing
+  `POST /v1/traces`.
+- **Logs payload:** OTLP `ExportLogsServiceRequest`
+  (`resourceLogs[].scopeLogs[].logRecords[]`). Codex records are INFO
+  (`severityNumber = 9`); the payload lives in **attributes**
+  (`event.name`, `conversation.id`, `model`, `slug`, `prompt`, …), not the
+  `body`.
+- **Metrics payload:** OTLP `ExportMetricsServiceRequest`
+  (`resourceMetrics[].scopeMetrics[].metrics[]`). Codex instruments are
+  predominantly monotonic **Sums** (`codex.api_request`, `codex.tool.call`,
+  `codex.turn.token_usage`, …) and **Histograms** (`*_ms` durations such as
+  `codex.api_request.duration_ms`, `codex.turn.e2e_duration_ms`), plus a few
+  gauges; **delta** temporality.
+
+### 13.3 Minimum ingest contract
+
+The bar for "OTelux can ingest Codex" mirrors the existing trace path across
+the same layers:
+
+| Layer | Add |
+|---|---|
+| `@otelux/types` | `LogRecord` model; `Metric` model (`Sum` / `Gauge` / `Histogram` + data points, `AggregationTemporality`). Reuses `AttributeMap`, `Resource`, `InstrumentationScope`. |
+| `@otelux/receiver` | `decodeExportLogsServiceRequest`, `decodeExportMetricsServiceRequest` (reuse the `otlp.ts` attribute normalizers); routes `POST /v1/logs`, `POST /v1/metrics`, lenient JSON, `{ partialSuccess: {} }` on success, `400` on malformed JSON. |
+| `@otelux/engine` | `ingestLogs` / `ingestMetrics`; `listLogs` / `listMetrics` queries; `logsChanged` / `metricsChanged` subscription events. |
+| storage | `writeLogs` / `getLogs`, `writeMetrics` / `getMetrics` (in-memory is sufficient for first landing; SQLite per Phase 2/3). |
+| `@otelux/protocol` | `ChangeEvent` additions; `ListLogsQuery` / `ListMetricsQuery`; `listLogs` / `listMetrics` on `DataSource`. |
+
+### 13.4 Driving config (Codex side)
+
+`~/.codex/config.toml` — JSON protocol is required (OTelux decodes JSON, not
+protobuf); Statsig metrics export is disabled so everything stays local.
+
+```toml
+[otel]
+environment = "dev"
+log_user_prompt = true            # include real prompt text on the logs pipeline
+
+[otel.exporter.otlp-http]         # LOGS → content
+endpoint = "http://localhost:4319/v1/logs"
+protocol = "json"
+
+[otel.trace_exporter.otlp-http]   # TRACES
+endpoint = "http://localhost:4319/v1/traces"
+protocol = "json"
+
+[otel.metrics_exporter.otlp-http] # METRICS
+endpoint = "http://localhost:4319/v1/metrics"
+protocol = "json"
+```
+
+### 13.5 Acceptance (folds into existing per-package DoD in §9)
+
+1. `POST /v1/logs` and `POST /v1/metrics` accept Codex's JSON bodies and
+   return `{ partialSuccess: {} }`; malformed JSON → `400` (parity with traces).
+2. A real Codex turn with `log_user_prompt = true` produces a
+   `codex.user_prompt` log record whose `prompt` attribute holds the typed
+   text, retrievable via `engine.listLogs`.
+3. Codex turn metrics (e.g. `codex.api_request`,
+   `codex.turn.e2e_duration_ms`) land via `engine.listMetrics`.
+4. Subscribers receive `logsChanged` / `metricsChanged` on ingest.
+5. Existing trace ingest and tests are unaffected.
