@@ -123,6 +123,24 @@ export function ListIcon(props: IconProps): JSX.Element {
 	);
 }
 
+export function MonitorIcon(props: IconProps): JSX.Element {
+	return (
+		<Icon {...props}>
+			<rect width="18" height="12" x="3" y="4" rx="2" />
+			<path d="M8 20h8" />
+			<path d="M12 16v4" />
+		</Icon>
+	);
+}
+
+export function MoonIcon(props: IconProps): JSX.Element {
+	return (
+		<Icon {...props}>
+			<path d="M12 3a6.5 6.5 0 0 0 8.7 8.7A8 8 0 1 1 12 3Z" />
+		</Icon>
+	);
+}
+
 export function PanelLeftIcon(props: IconProps): JSX.Element {
 	return (
 		<Icon {...props}>
@@ -146,6 +164,22 @@ export function SearchIcon(props: IconProps): JSX.Element {
 		<Icon {...props}>
 			<circle cx="11" cy="11" r="8" />
 			<path d="m21 21-4.3-4.3" />
+		</Icon>
+	);
+}
+
+export function SunIcon(props: IconProps): JSX.Element {
+	return (
+		<Icon {...props}>
+			<circle cx="12" cy="12" r="4" />
+			<path d="M12 2v2" />
+			<path d="M12 20v2" />
+			<path d="m4.93 4.93 1.41 1.41" />
+			<path d="m17.66 17.66 1.41 1.41" />
+			<path d="M2 12h2" />
+			<path d="M20 12h2" />
+			<path d="m6.34 17.66-1.41 1.41" />
+			<path d="m19.07 4.93-1.41 1.41" />
 		</Icon>
 	);
 }

@@ -36,7 +36,7 @@ cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-us
 
 ### 1.2 Initial UI
 - **Visible chrome (top → bottom, left → right)**
-  1. Left **Rail** — narrow icon strip with the **Traces** tab active, enabled **Metrics** and **Logs** tabs below it, and a footer with **GitHub** (external link) and the **Settings** cog (opens the settings modal).
+  1. Left **Rail** — narrow icon strip with the **Traces** tab active, enabled **Metrics** and **Logs** tabs below it, and a footer with the **Theme** switch above **GitHub** (external link) and the **Settings** cog (opens the settings modal).
   2. **Topbar** — `Traces` heading on the left, **EndpointBar** on the right (status dot, `OTLP/HTTP` label, URL `http://127.0.0.1:4319` as a click-to-copy pill). The copied URL is the receiver base URL; traces, logs, and metrics use the same host and port at `/v1/traces`, `/v1/logs`, and `/v1/metrics`. The settings cog lives on the rail, not in the topbar.
   3. **FilterBar** — hidden on cold start for Traces; it appears once at least one trace has been received and exposes a Service dropdown, an `Errors only` toggle chip, and a search field. Logs and Metrics expose their own filter controls when those tabs are active.
   4. **Workbench** body — right pane is collapsed (no waterfall yet); the left pane fills the width and shows the trace list with the `Traces` header, count `0`, and "Waiting for traces…" empty-state copy (or "No traces match. Point an OTel exporter at http://127.0.0.1:4319/v1/traces" once the first probe completes).
@@ -70,6 +70,10 @@ cat /tmp/otelux-userdata/settings.json 2>/dev/null
 ### 2.4 Settings cog opens settings
 - Click the **Settings** cog at the bottom of the **rail** (not the topbar — the cog moved there in the redesign).
 - **Expected**: backdrop dims, settings dialog appears centered, OTLP/HTTP port input focused with value selected (cursor highlights `4319`).
+
+### 2.5 Theme switch
+- Click the **Theme** button above **GitHub** in the left rail.
+- **Expected**: the title cycles `Theme: Auto (...)` → `Theme: Light` → `Theme: Dark` → `Theme: Auto (...)`. Light mode uses a bright workbench surface, dark mode returns to the dark surface, and muted labels/timestamps stay readable in both themes.
 
 ---
 

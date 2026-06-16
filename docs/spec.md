@@ -174,6 +174,7 @@ Queries should be bounded by limit and filters. Results should include counts wh
 - Long values use the full value viewer wherever messages, attributes, JSON, XML, Markdown, or multiline text exceed the pane.
 - Footer and empty states communicate result scope, live/paused state, and the expected table shape.
 - Endpoint state is explicit: listening port, health, paused/live state, and local trust posture are visible to the user.
+- Theme mode is user-switchable from the left rail: Auto follows the OS color scheme, while Light and Dark force a specific token set. Text contrast must stay readable in both explicit themes.
 
 ### Logs Requirements
 

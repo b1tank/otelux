@@ -3,7 +3,7 @@
  *
  * Single source of truth for theme values: color, spacing, sizing, radii,
  * z-index. Hosts can override any token by setting it on the
- * `.otelux-workbench` root (or any ancestor). Never hard-code a hex
+ * `.otelux-workbench-root` / `.otelux-workbench` root (or any ancestor). Never hard-code a hex
  * outside this file.
  *
  * Naming: every token is prefixed `--otelux-*` to keep the workbench
@@ -20,8 +20,8 @@
 	--otelux-bg-panel: #1f2335; /* panel / list / sidebar (mockup --bg-1) */
 	--otelux-bg-elevated: #24283b; /* selected row / pill chip (mockup --bg-2) */
 	--otelux-bg-hover: #292e42; /* hover bg on rows / icon buttons */
-	--otelux-border: #2b3050;
-	--otelux-border-strong: #3b4261;
+	--otelux-border: #343b60;
+	--otelux-border-strong: #4a5380;
 
 	/* ------------------------------------------------------------------
 	 * Foreground — three tones matching the mockup's --fg / --fg-1 /
@@ -31,10 +31,10 @@
 	 * `--otelux-fg-faint` alias remains pointing at the same value so
 	 * existing call-sites keep working until they migrate.
 	 * ----------------------------------------------------------------*/
-	--otelux-fg: #c0caf5;
-	--otelux-fg-secondary: #a9b1d6;
-	--otelux-fg-muted: #565f89;
-	--otelux-fg-faint: #565f89;
+	--otelux-fg: #d6ddff;
+	--otelux-fg-secondary: #bbc4ee;
+	--otelux-fg-muted: #8f9bd0;
+	--otelux-fg-faint: #8f9bd0;
 
 	/* ------------------------------------------------------------------
 	 * Accents
@@ -97,7 +97,9 @@
 /* Light theme override. Keep the structure identical to dark — only the
  * surface and foreground tokens swap. Service palette and accents are
  * tuned for AA contrast against the lighter surfaces. */
+.otelux-workbench-root[data-theme="light"],
 .otelux-workbench[data-theme="light"] {
+	color-scheme: light;
 	--otelux-bg: #f7f7fb;
 	--otelux-bg-panel: #ffffff;
 	--otelux-bg-elevated: #eef0f7;
@@ -147,18 +149,24 @@
  * remapped: services need their hash-stable hue family across hosts, and
  * layout sizes are deliberate design constants.
  * --------------------------------------------------------------------*/
+.otelux-workbench-root[data-theme="dark"],
+.otelux-workbench[data-theme="dark"] {
+	color-scheme: dark;
+}
+
+.otelux-workbench-root[data-host="vscode"],
 .otelux-workbench[data-host="vscode"] {
 	--otelux-bg: var(--vscode-editor-background, #1a1b26);
 	--otelux-bg-panel: var(--vscode-sideBar-background, #1f2335);
 	--otelux-bg-elevated: var(--vscode-list-activeSelectionBackground, #24283b);
 	--otelux-bg-hover: var(--vscode-list-hoverBackground, #292e42);
-	--otelux-border: var(--vscode-panel-border, #2b3050);
-	--otelux-border-strong: var(--vscode-editorWidget-border, #3b4261);
+	--otelux-border: var(--vscode-panel-border, #343b60);
+	--otelux-border-strong: var(--vscode-editorWidget-border, #4a5380);
 
-	--otelux-fg: var(--vscode-foreground, #c0caf5);
-	--otelux-fg-secondary: var(--vscode-descriptionForeground, #a9b1d6);
-	--otelux-fg-muted: var(--vscode-disabledForeground, #565f89);
-	--otelux-fg-faint: var(--vscode-disabledForeground, #565f89);
+	--otelux-fg: var(--vscode-foreground, #d6ddff);
+	--otelux-fg-secondary: var(--vscode-descriptionForeground, #bbc4ee);
+	--otelux-fg-muted: var(--vscode-disabledForeground, #8f9bd0);
+	--otelux-fg-faint: var(--vscode-disabledForeground, #8f9bd0);
 
 	--otelux-accent: var(--vscode-focusBorder, #7aa2f7);
 	--otelux-accent-2: var(--vscode-textLink-foreground, #bb9af7);

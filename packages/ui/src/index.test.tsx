@@ -197,6 +197,28 @@ describe('OTeluxWorkbench', () => {
 		expect(OTELUX_UI_VERSION).toBe('0.1.0');
 	});
 
+	it('cycles theme mode from the rail', async () => {
+		const engine = createEngine({ storage: createMemoryStorage() });
+		const { container } = render(<OTeluxWorkbench dataSource={engine} />);
+		const root = container.querySelector('.otelux-workbench-root');
+		expect(root?.getAttribute('data-theme-mode')).toBe('auto');
+		expect(root?.getAttribute('data-theme')).toBe('dark');
+
+		fireEvent.click(screen.getByLabelText('Theme: Auto (Dark)'));
+		expect(root?.getAttribute('data-theme-mode')).toBe('light');
+		expect(root?.getAttribute('data-theme')).toBe('light');
+
+		fireEvent.click(screen.getByLabelText('Theme: Light'));
+		expect(root?.getAttribute('data-theme-mode')).toBe('dark');
+		expect(root?.getAttribute('data-theme')).toBe('dark');
+
+		fireEvent.click(screen.getByLabelText('Theme: Dark'));
+		expect(root?.getAttribute('data-theme-mode')).toBe('auto');
+		expect(root?.getAttribute('data-theme')).toBe('dark');
+
+		await engine.close();
+	});
+
 	it('errors-only chip filters out healthy traces', async () => {
 		const engine = createEngine({ storage: createMemoryStorage() });
 

@@ -43,7 +43,7 @@ The current repository already has a working foundation:
 - `apps/vscode-extension` shell with webview, embedded receiver, MCP server, and VS Code Language Model Tool registration.
 - `@otelux/receiver` with OTLP/HTTP JSON routes for `/v1/traces`, `/v1/logs`, `/v1/metrics`, and `/healthz`.
 - `@otelux/engine` with in-memory ingest/query/subscription support for traces, logs, and metrics.
-- `@otelux/ui` with live Traces, Logs, and Metrics rail surfaces, including Logs row actions/pivots and a Metrics meter/instrument explorer with summaries/actions/details.
+- `@otelux/ui` with live Traces, Logs, and Metrics rail surfaces, Auto/Light/Dark theme switching, Logs row actions/pivots, and a Metrics meter/instrument explorer with summaries/actions/details.
 - `@otelux/mcp-server` with read-only JSON-RPC tools for error triage, slow spans, trace drill-down, span details, and log search.
 - `@otelux/adapter-direct` and `@otelux/adapter-vscode` for embedding the same UI over different host boundaries.
 

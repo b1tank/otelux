@@ -14,7 +14,7 @@
 import type { DataSource } from '@otelux/protocol';
 import type { AttributeValue, Span, SpanId, Trace, TraceId } from '@otelux/types';
 import { SpanKind } from '@otelux/types';
-import { type JSX, useMemo, useState } from 'react';
+import { type JSX, useEffect, useMemo, useState } from 'react';
 import { LogsView, MetricsView, SpanDetail, TraceList, Waterfall } from './domain/index.js';
 import { serviceColorVar, serviceIndex } from './format.js';
 import { AppShell, FilterBar, Rail, type RailItem, Topbar, Workbench } from './layout/index.js';
@@ -25,9 +25,12 @@ import {
 	type DropdownOption,
 	GithubIcon,
 	LogsIcon,
+	MonitorIcon,
+	MoonIcon,
 	OTeluxLogo,
 	SearchField,
 	SettingsIcon,
+	SunIcon,
 	ToggleChip,
 	ValueViewer,
 	WaterfallIcon,
@@ -50,7 +53,8 @@ export {
 
 export interface OTeluxWorkbenchProps {
 	dataSource: DataSource;
-	theme?: 'dark' | 'light';
+	/** Initial theme mode. `auto` follows the OS color scheme. */
+	theme?: ThemeMode;
 	/**
 	 * OTLP/HTTP traces endpoint shown in the empty-state hint. Hosts
 	 * that know the live bind (desktop app with a configurable port,
@@ -72,6 +76,11 @@ export interface OTeluxWorkbenchProps {
 	 */
 	onOpenSettings?: () => void;
 }
+
+export type ThemeMode = 'auto' | 'dark' | 'light';
+type ResolvedTheme = 'dark' | 'light';
+
+const THEME_MODE_ORDER: readonly ThemeMode[] = ['auto', 'light', 'dark'];
 
 // The rail's three pillars (Traces / Metrics / Logs) are all live. The
 // icon bar stays anchored at three so the layout never reflows as
@@ -122,7 +131,10 @@ interface ViewValueTarget {
 }
 
 export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
-	const { dataSource, theme = 'dark', endpointUrl, topbarEnd, onOpenSettings } = props;
+	const { dataSource, theme = 'auto', endpointUrl, topbarEnd, onOpenSettings } = props;
+	const [themeMode, setThemeMode] = useState<ThemeMode>(theme);
+	const systemTheme = useSystemTheme();
+	const resolvedTheme = themeMode === 'auto' ? systemTheme : themeMode;
 	const [activeView, setActiveView] = useState<'traces' | 'logs' | 'metrics'>('traces');
 	const [selectedTraceId, setSelectedTraceIdRaw] = useState<TraceId | undefined>(undefined);
 	const [selectedSpanId, setSelectedSpanId] = useState<SpanId | undefined>(undefined);
@@ -359,14 +371,41 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		...(wfCollapsed && trace ? { onRestoreWaterfall: () => setWfCollapsed(false) } : {}),
 	};
 
+	const cycleThemeMode = (): void => {
+		const currentIndex = THEME_MODE_ORDER.indexOf(themeMode);
+		setThemeMode(THEME_MODE_ORDER[(currentIndex + 1) % THEME_MODE_ORDER.length] ?? 'auto');
+	};
+
+	const themeLabel =
+		themeMode === 'auto'
+			? `Theme: Auto (${formatThemeName(systemTheme)})`
+			: `Theme: ${formatThemeName(themeMode)}`;
+	const themeIcon =
+		themeMode === 'auto' ? (
+			<MonitorIcon size={18} />
+		) : themeMode === 'light' ? (
+			<SunIcon size={18} />
+		) : (
+			<MoonIcon size={18} />
+		);
+
 	return (
-		<div className="otelux-workbench-root" data-theme={theme} data-source={dataSource.kind}>
+		<div
+			className="otelux-workbench-root"
+			data-theme={resolvedTheme}
+			data-theme-mode={themeMode}
+			data-source={dataSource.kind}
+		>
 			<AppShell
 				rail={
 					<Rail
 						items={RAIL_ITEMS}
 						activeId={activeView}
 						onActivate={(id) => {
+							if (id === 'theme') {
+								cycleThemeMode();
+								return;
+							}
 							if (id === 'settings' && onOpenSettings) {
 								onOpenSettings();
 								return;
@@ -379,6 +418,11 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 							}
 						}}
 						footerItems={[
+							{
+								id: 'theme',
+								label: themeLabel,
+								icon: themeIcon,
+							},
 							{
 								id: 'github',
 								label: 'GitHub',
@@ -602,6 +646,34 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 			/>
 		</div>
 	);
+}
+
+function useSystemTheme(): ResolvedTheme {
+	const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() => getSystemTheme());
+
+	useEffect(() => {
+		if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+			return;
+		}
+		const query = window.matchMedia('(prefers-color-scheme: light)');
+		const update = (): void => setSystemTheme(query.matches ? 'light' : 'dark');
+		update();
+		query.addEventListener('change', update);
+		return () => query.removeEventListener('change', update);
+	}, []);
+
+	return systemTheme;
+}
+
+function getSystemTheme(): ResolvedTheme {
+	if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+		return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+	}
+	return 'dark';
+}
+
+function formatThemeName(theme: ResolvedTheme): string {
+	return theme === 'light' ? 'Light' : 'Dark';
 }
 
 export const OTELUX_UI_VERSION = '0.1.0' as const;

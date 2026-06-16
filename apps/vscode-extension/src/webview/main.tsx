@@ -9,9 +9,9 @@
 
 import { OTeluxWorkbench } from '@otelux/ui';
 import '@otelux/ui/workbench.css';
+import { createPostMessageDataSource } from '@otelux/adapter-vscode';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createPostMessageDataSource } from '@otelux/adapter-vscode';
 
 interface VsCodeApi {
 	postMessage(message: unknown): void;
@@ -31,7 +31,7 @@ const container = document.getElementById('root');
 if (container) {
 	createRoot(container).render(
 		<StrictMode>
-			<div className="otelux-workbench" data-host="vscode" data-theme="dark">
+			<div className="otelux-workbench" data-host="vscode">
 				<OTeluxWorkbench dataSource={dataSource} />
 			</div>
 		</StrictMode>,

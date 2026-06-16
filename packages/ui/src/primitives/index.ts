@@ -35,10 +35,13 @@ export {
 	GithubIcon,
 	ListIcon,
 	LogsIcon,
+	MonitorIcon,
+	MoonIcon,
 	PanelLeftIcon,
 	PanelRightIcon,
 	SearchIcon,
 	SettingsIcon,
+	SunIcon,
 	WaterfallIcon,
 	XIcon,
 } from './icons.js';

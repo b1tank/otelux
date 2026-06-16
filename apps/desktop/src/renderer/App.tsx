@@ -42,7 +42,6 @@ export function App(): JSX.Element {
 		<main className="app">
 			<OTeluxWorkbench
 				dataSource={dataSource}
-				theme="dark"
 				{...(endpointUrl !== undefined ? { endpointUrl } : {})}
 				topbarEnd={<EndpointBar status={status} mcpStatus={mcpStatus} />}
 				onOpenSettings={() => setSettingsOpen(true)}

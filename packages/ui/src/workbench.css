@@ -3,7 +3,7 @@
  *
  * Theme tokens live in `tokens.css` and are imported here so consumers
  * get one stylesheet (`@otelux/ui/workbench.css`). Override by setting
- * any `--otelux-*` token on `.otelux-workbench` or above; replace any
+ * any `--otelux-*` token on `.otelux-workbench-root` / `.otelux-workbench` or above; replace any
  * rule by loading your own CSS after this file — the entire surface is
  * namespaced under `.otelux-*`.
  */
