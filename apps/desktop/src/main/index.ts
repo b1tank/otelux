@@ -81,6 +81,8 @@ async function startBackend(): Promise<{
 				return engine.getTrace(message.query);
 			case 'getSpanDetails':
 				return engine.getSpanDetails(message.query);
+			case 'listLogs':
+				return engine.listLogs(message.query);
 			case 'getSettings':
 				return settings.get();
 			case 'getReceiverStatus':

@@ -4,7 +4,7 @@
  * implement the same interface so the UI is unaware of where data lives.
  */
 
-import type { Span, SpanId, Trace, TraceId } from '@otelux/types';
+import type { LogRecord, Span, SpanId, Trace, TraceId } from '@otelux/types';
 
 export interface Disposable {
 	dispose(): void;
@@ -56,6 +56,36 @@ export interface GetSpanDetailsQuery {
 	spanId: SpanId;
 }
 
+export type LogListSort = 'time' | 'severity';
+
+/**
+ * Query for the structured-logs page.
+ *
+ * Time windows are inclusive on `from`, exclusive on `to`. `minSeverity`
+ * filters by OTLP severity number (>=). Free-text `search` matches the
+ * body **and attribute values** — the Codex workload puts its content
+ * (prompt text, tool args) in attributes, not the body. Filters compose
+ * with AND; values inside an array compose with OR.
+ */
+export interface ListLogsQuery {
+	limit?: number;
+	offset?: number;
+	sortBy?: LogListSort;
+	sortDirection?: SortDirection;
+	timeFromUnixNano?: bigint;
+	timeToUnixNano?: bigint;
+	minSeverity?: number;
+	services?: readonly string[];
+	scopes?: readonly string[];
+	traceId?: TraceId;
+	search?: string;
+}
+
+export interface ListLogsResult {
+	rows: readonly LogRecord[];
+	totalCount: number;
+}
+
 /**
  * Span detail view. Engines may return a richer object than `Span` here
  * if they have additional, denormalized info to surface (e.g. peer
@@ -65,19 +95,19 @@ export type SpanDetails = Span;
 
 /**
  * Subscription event payload. Engines call `subscribe` with a handler
- * that fires whenever new spans land. UI uses this to refresh the list
- * without polling. `traceIds` may be empty if many traces were affected.
+ * that fires whenever new data lands. UI uses this to refresh lists
+ * without polling. ID arrays may be empty if many items were affected.
  */
-export interface ChangeEvent {
-	kind: 'tracesChanged';
-	traceIds: readonly TraceId[];
-}
+export type ChangeEvent =
+	| { kind: 'tracesChanged'; traceIds: readonly TraceId[] }
+	| { kind: 'logsChanged'; count: number };
 
 export interface DataSource {
 	readonly kind: 'otelux/datasource';
 	listTraces(query: ListTracesQuery): Promise<ListTracesResult>;
 	getTrace(query: GetTraceQuery): Promise<Trace>;
 	getSpanDetails(query: GetSpanDetailsQuery): Promise<SpanDetails>;
+	listLogs(query: ListLogsQuery): Promise<ListLogsResult>;
 	subscribe(handler: (event: ChangeEvent) => void): Disposable;
 }
 

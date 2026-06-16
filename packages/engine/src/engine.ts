@@ -4,11 +4,13 @@ import type {
 	Disposable,
 	GetSpanDetailsQuery,
 	GetTraceQuery,
+	ListLogsQuery,
+	ListLogsResult,
 	ListTracesQuery,
 	ListTracesResult,
 	SpanDetails,
 } from '@otelux/protocol';
-import type { Span, Trace } from '@otelux/types';
+import type { LogRecord, Span, Trace } from '@otelux/types';
 import type { Storage } from './storage.js';
 import { traceFromSpans } from './trace.js';
 
@@ -18,6 +20,7 @@ export interface EngineOptions {
 
 export interface Engine extends DataSource {
 	ingestSpans(spans: readonly Span[]): Promise<void>;
+	ingestLogs(logs: readonly LogRecord[]): Promise<void>;
 	close(): Promise<void>;
 }
 
@@ -54,6 +57,14 @@ export function createEngine(options: EngineOptions): Engine {
 			notify({ kind: 'tracesChanged', traceIds });
 		},
 
+		async ingestLogs(logs: readonly LogRecord[]): Promise<void> {
+			if (logs.length === 0) {
+				return;
+			}
+			await storage.writeLogs(logs);
+			notify({ kind: 'logsChanged', count: logs.length });
+		},
+
 		async listTraces(query: ListTracesQuery): Promise<ListTracesResult> {
 			return await storage.listTraces(query);
 		},
@@ -84,6 +95,10 @@ export function createEngine(options: EngineOptions): Engine {
 				throw new Error(`OTelux engine: span ${query.spanId} not found`);
 			}
 			return span;
+		},
+
+		async listLogs(query: ListLogsQuery): Promise<ListLogsResult> {
+			return await storage.listLogs(query);
 		},
 
 		subscribe(handler: (event: ChangeEvent) => void): Disposable {

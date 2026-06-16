@@ -3,8 +3,8 @@
  *
  * These mirror the OTLP wire format
  * (https://opentelemetry.io/docs/specs/otlp/) and serve as the canonical
- * in-memory representation across `@otelux/*`. Trace types ship first in
- * Milestone 1; logs/metrics/profiles land in later phases.
+ * in-memory representation across `@otelux/*`. Trace types shipped in
+ * Milestone 1; log records land in Phase 2; metrics/profiles follow.
  */
 
 /** Wire times are unsigned-fixed64 nanoseconds since Unix epoch. */
@@ -118,6 +118,52 @@ export interface Trace {
 	services: readonly string[];
 	spanCount: number;
 	errorCount: number;
+}
+
+/**
+ * Mirrors OTLP `LogRecord.SeverityNumber`
+ * (https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-severitynumber).
+ * Numeric values match the proto enum so decoding stays trivial. Codex
+ * emits its business events (including `codex.user_prompt`, which carries
+ * the raw prompt text) at INFO = 9.
+ */
+export const SeverityNumber = {
+	Unspecified: 0,
+	Trace: 1,
+	Debug: 5,
+	Info: 9,
+	Warn: 13,
+	Error: 17,
+	Fatal: 21,
+} as const;
+
+export type SeverityNumber = number;
+
+/**
+ * Canonical in-memory log record. Like {@link Span}, attributes are kept on
+ * the record and resource/scope are carried alongside so the UI can render
+ * a row without joining.
+ *
+ * Note for the Codex workload: the human-readable payload rides
+ * `attributes` (e.g. `event.name`, `prompt`, `model`), not `body` — so log
+ * queries must be able to free-text search attribute values, not just body.
+ */
+export interface LogRecord {
+	timeUnixNano: Nanoseconds;
+	observedTimeUnixNano?: Nanoseconds;
+	severityNumber: SeverityNumber;
+	severityText?: string;
+	/** OTLP 1.x `event_name`. Codex also mirrors this as the `event.name` attribute. */
+	eventName?: string;
+	/** OTLP `body` AnyValue, normalized. Usually a string; absent for attribute-only events. */
+	body?: AttributeValue;
+	attributes: AttributeMap;
+	droppedAttributesCount?: number;
+	flags?: number;
+	traceId?: TraceId;
+	spanId?: SpanId;
+	resource: Resource;
+	scope: InstrumentationScope;
 }
 
 export const OTELUX_TYPES_VERSION = '0.0.0' as const;

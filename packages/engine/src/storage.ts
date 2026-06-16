@@ -1,10 +1,12 @@
 import type {
 	GetSpanDetailsQuery,
 	GetTraceQuery,
+	ListLogsQuery,
+	ListLogsResult,
 	ListTracesQuery,
 	ListTracesResult,
 } from '@otelux/protocol';
-import type { Span, SpanId, TraceId } from '@otelux/types';
+import type { AttributeValue, LogRecord, Span, SpanId, TraceId } from '@otelux/types';
 
 /**
  * Pluggable storage backend. The engine is the only consumer; engine
@@ -22,7 +24,39 @@ export interface Storage {
 	listTraces(query: ListTracesQuery): Promise<ListTracesResult> | ListTracesResult;
 	getTraceSpans(traceId: TraceId): Promise<readonly Span[]> | readonly Span[];
 	getSpan(spanId: SpanId): Promise<Span | undefined> | Span | undefined;
+	writeLogs(logs: readonly LogRecord[]): Promise<void> | void;
+	listLogs(query: ListLogsQuery): Promise<ListLogsResult> | ListLogsResult;
 	close(): Promise<void> | void;
+}
+
+function attributeValueIncludes(value: AttributeValue, needle: string): boolean {
+	if (Array.isArray(value)) {
+		return value.some((v) => String(v).toLowerCase().includes(needle));
+	}
+	return String(value).toLowerCase().includes(needle);
+}
+
+/**
+ * Free-text match over a log record. Searches body, event name, severity
+ * text, and both attribute keys and values — the Codex workload carries
+ * its content (prompt text, tool args) in attributes, not the body.
+ */
+function logMatchesText(log: LogRecord, needle: string): boolean {
+	if (log.body !== undefined && attributeValueIncludes(log.body, needle)) {
+		return true;
+	}
+	if (log.eventName?.toLowerCase().includes(needle)) {
+		return true;
+	}
+	if (log.severityText?.toLowerCase().includes(needle)) {
+		return true;
+	}
+	for (const [key, value] of Object.entries(log.attributes)) {
+		if (key.toLowerCase().includes(needle) || attributeValueIncludes(value, needle)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /**
@@ -36,6 +70,9 @@ export function createMemoryStorage(): Storage {
 	const byTrace = new Map<TraceId, Span[]>();
 	// Index by spanId for direct span detail lookup.
 	const bySpan = new Map<SpanId, Span>();
+	// Logs are a flat append-only list; filtering/sorting is an O(n) walk,
+	// matching the span path. The production backend pushes this into SQL.
+	const logs: LogRecord[] = [];
 
 	function rowFromTrace(spans: readonly Span[]):
 		| {
@@ -201,9 +238,72 @@ export function createMemoryStorage(): Storage {
 			return bySpan.get(spanId);
 		},
 
+		writeLogs(records: readonly LogRecord[]): void {
+			for (const record of records) {
+				logs.push(record);
+			}
+		},
+
+		listLogs(query: ListLogsQuery): ListLogsResult {
+			const filtered = logs.filter((log) => {
+				if (query.timeFromUnixNano !== undefined && log.timeUnixNano < query.timeFromUnixNano) {
+					return false;
+				}
+				if (query.timeToUnixNano !== undefined && log.timeUnixNano >= query.timeToUnixNano) {
+					return false;
+				}
+				if (query.minSeverity !== undefined && log.severityNumber < query.minSeverity) {
+					return false;
+				}
+				if (query.traceId !== undefined && log.traceId !== query.traceId) {
+					return false;
+				}
+				if (query.services && query.services.length > 0) {
+					const svc = log.resource.attributes['service.name'];
+					if (typeof svc !== 'string' || !query.services.includes(svc)) {
+						return false;
+					}
+				}
+				if (query.scopes && query.scopes.length > 0 && !query.scopes.includes(log.scope.name)) {
+					return false;
+				}
+				if (query.search) {
+					// Search body AND attribute values — Codex content (prompt,
+					// tool args) lives in attributes, not the body.
+					const needle = query.search.toLowerCase();
+					if (!logMatchesText(log, needle)) {
+						return false;
+					}
+				}
+				return true;
+			});
+
+			// Sort. Default: time desc (most recent first).
+			const sortBy = query.sortBy ?? 'time';
+			const direction = query.sortDirection ?? 'desc';
+			const cmpDir = direction === 'asc' ? 1 : -1;
+			filtered.sort((a, b) => {
+				let cmp = 0;
+				if (sortBy === 'severity') {
+					cmp = a.severityNumber - b.severityNumber;
+				} else {
+					cmp = a.timeUnixNano < b.timeUnixNano ? -1 : a.timeUnixNano > b.timeUnixNano ? 1 : 0;
+				}
+				return cmp * cmpDir;
+			});
+
+			const totalCount = filtered.length;
+			const offset = query.offset ?? 0;
+			const limit = query.limit ?? 100;
+			const page = filtered.slice(offset, offset + limit);
+
+			return { rows: page, totalCount };
+		},
+
 		close(): void {
 			byTrace.clear();
 			bySpan.clear();
+			logs.length = 0;
 		},
 	};
 }
