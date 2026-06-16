@@ -8,12 +8,24 @@ npm packages. npm workspaces + Turborepo, TypeScript, Biome, vitest.
 Repo-local skills live in `.agents/skills/`. Prefer them over ad-hoc tooling:
 
 - **self-verify** (`.agents/skills/self-verify/SKILL.md`) — verify the desktop app,
-  whether a full `test.md` regression **or a quick smoke-check of one feature you
+  whether a full `docs/test.md` regression **or a quick smoke-check of one feature you
   just changed** ("does the Logs tab render?"). Drives the app through **deskpal**
   (OCR + virtual mouse/keyboard) exactly like a real user. Use it for ANY
   user-visible verification.
 - **design** (`.agents/skills/design/SKILL.md`) — iterate on the UI design mockup
   before implementing in React.
+
+## Docs home — keep these in sync with code
+
+Canonical project docs live in `docs/` (not the repo root). When behavior
+changes, update the relevant doc in the **same** change:
+
+- `docs/spec.md` — product/architecture spec (source of truth for scope).
+- `docs/plan.md` — phased delivery plan; mark phases shipped as they land.
+- `docs/proposal.md` — the longer-form product proposal.
+- `docs/test.md` — canonical manual regression plan (mirrored by self-verify).
+
+New plan/spec/proposal/test material belongs under `docs/`, never the root.
 
 ## Verifying your work
 

@@ -43,8 +43,8 @@ cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-us
 ### 1.2 Initial UI
 - **Visible chrome (top → bottom, left → right)**
   1. Left **Rail** — narrow icon strip with the **Traces** tab active,
-     disabled **Metrics (coming soon)** and **Logs (coming soon)** items
-     below it, and a footer with **GitHub** (external link) and the
+     an enabled **Logs** tab below it, a disabled **Metrics (coming
+     soon)** item, and a footer with **GitHub** (external link) and the
      **Settings** cog (opens the settings modal).
   2. **Topbar** — `Traces` heading on the left, **EndpointBar** on the
      right (status dot, `OTLP/HTTP` label, URL
@@ -304,9 +304,10 @@ curl -s -X POST -H 'Content-Type: application/json' --data '' http://127.0.0.1:1
 ### 10.4 Wrong path
 ```bash
 curl -s http://127.0.0.1:14320/ -w '%{http_code}\n'
-curl -s http://127.0.0.1:14320/v1/logs -X POST -H 'Content-Type: application/json' --data '{}' -w '%{http_code}\n'
+curl -s http://127.0.0.1:14320/v1/nope -X POST -H 'Content-Type: application/json' --data '{}' -w '%{http_code}\n'
 ```
-- **Expected**: 404 (or 405 for logs).
+- **Expected**: 404 for unknown paths. (`/v1/logs` and `/v1/metrics`
+  are real ingest endpoints — exercised in §14 and §15.)
 
 ### 10.5 Oversize payload *(optional, will be slow)*
 - Generate a 10 MB JSON body and POST. Confirm no OOM and either a 200 or controlled 4xx (depends on Hono limits).
@@ -363,7 +364,79 @@ curl -sf http://127.0.0.1:14320/v1/traces -X POST -H 'Content-Type: application/
 
 ---
 
-## 14. Cleanup
+## 14. Logs ingest
+
+The receiver accepts OTLP/HTTP logs at `/v1/logs`. Send the captured Codex
+log fixture and open the **Logs** tab.
+
+### 14.1 Ingest the fixture
+```bash
+curl -s -X POST -H 'Content-Type: application/json' \
+  --data-binary '@fixtures/sample_codex_logs.json' \
+  http://127.0.0.1:14320/v1/logs -o /dev/null -w '%{http_code}\n'   # 2xx
+```
+- **Expected**: `{"partialSuccess":{}}`, HTTP 2xx. The **Logs** rail tab
+  count increments from 0.
+
+### 14.2 Rows render with a real timestamp
+- Click the **Logs** tab.
+- **Expected**: rows render with a **real wall-clock time**, not the Unix
+  epoch. Codex emits `timeUnixNano: "0"` and carries the true emit time
+  only in `observedTimeUnixNano`; the receiver must fall back to it.
+  Each row shows a severity badge, the service chip (`codex_exec`), and
+  the log body (or an attribute fallback like `event.name` when there is
+  no body).
+
+### 14.3 Detail drawer
+- Click a row.
+- **Expected**: the detail drawer opens showing the log body and the
+  full attribute set (e.g. the user `prompt` content rides the logs
+  pipeline in attributes, not traces).
+
+### 14.4 Filters
+- Use the FilterBar service dropdown / severity / search.
+- **Expected**: the row set narrows; the query is forwarded to the data
+  source (count in the header reflects the filtered result).
+
+---
+
+## 15. Metrics ingest
+
+The receiver accepts OTLP/HTTP metrics at `/v1/metrics`. Send the captured
+Codex metrics fixture and open the **Metrics** tab.
+
+### 15.1 Ingest the fixture
+```bash
+curl -s -X POST -H 'Content-Type: application/json' \
+  --data-binary '@fixtures/sample_codex_metrics.json' \
+  http://127.0.0.1:14320/v1/metrics -o /dev/null -w '%{http_code}\n'  # 2xx
+```
+- **Expected**: `{"partialSuccess":{}}`, HTTP 2xx. The **Metrics** rail
+  tab count increments.
+
+### 15.2 Meter → instrument tree
+- Click the **Metrics** tab.
+- **Expected**: instruments are grouped by meter (scope) name. Codex
+  emits monotonic Sums (`codex.api_request`, `codex.tool.call`,
+  `codex.turn.token_usage`) and Histograms (`*_ms` durations like
+  `codex.turn.e2e_duration_ms`, `codex.api_request.duration_ms`). Each
+  instrument shows its name, type (sum / gauge / histogram), and unit.
+
+### 15.3 Instrument chart + table toggle
+- Select an instrument.
+- **Expected**: a chart renders its data points over time. A
+  **graph / table** toggle switches between the chart and a raw
+  data-point table (timestamp, value, attributes). Histograms render
+  their bucket distribution.
+
+### 15.4 Live update
+- Re-send the fixture (or run a live Codex turn, see §E2E).
+- **Expected**: the instrument list and selected chart update without a
+  manual refresh (engine `metricsChanged` subscription).
+
+---
+
+## 16. Cleanup
 
 After running the suite:
 ```bash

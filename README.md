@@ -13,6 +13,7 @@ beats every general-purpose OTel viewer for local development.
 
 - [docs/spec.md](docs/spec.md) — what OTelux is.
 - [docs/plan.md](docs/plan.md) — how it ships.
+- [docs/proposal.md](docs/proposal.md) — the longer-form product proposal.
 - [docs/test.md](docs/test.md) — the manual end-to-end test plan for the desktop app.
 - [design/README.md](design/README.md) — UI redesign philosophy and the
   [`design/redesign-mockup.html`](design/redesign-mockup.html) reference.
@@ -32,7 +33,7 @@ otelux/
     adapter-direct/          # In-process DataSource
     ui/                      # React components
   fixtures/                  # OTLP JSON fixtures for tests + stories
-  docs/                      # spec.md, plan.md
+  docs/                      # spec.md, plan.md, proposal.md, test.md
 ```
 
 ## Develop

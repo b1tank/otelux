@@ -1,6 +1,6 @@
 ---
 name: self-verify
-description: Verify the OTelux desktop app — either a FULL test.md regression OR a quick smoke-check of one new/changed UI surface. Use whenever asked to test, verify, smoke-test, regress, or QA the app, INCLUDING "verify the feature I just built" / "check the X view renders", or after changes to apps/desktop/** or packages/ui/** that affect runtime behavior. ALWAYS drive the app through deskpal (OCR + virtual input) — never hand-roll xdotool/import/screenshots. CDP is the escape hatch only for invisible-to-the-eye state. Reports per-step PASS/FAIL.
+description: Verify the OTelux desktop app — either a FULL docs/test.md regression OR a quick smoke-check of one new/changed UI surface. Use whenever asked to test, verify, smoke-test, regress, or QA the app, INCLUDING "verify the feature I just built" / "check the X view renders", or after changes to apps/desktop/** or packages/ui/** that affect runtime behavior. ALWAYS drive the app through deskpal (OCR + virtual input) — never hand-roll xdotool/import/screenshots. CDP is the escape hatch only for invisible-to-the-eye state. Reports per-step PASS/FAIL.
 ---
 
 # Skill — Self-verify the OTelux desktop app
@@ -9,12 +9,13 @@ You are an agent acting as a QA tester producing a per-step PASS/FAIL report.
 
 **Two modes — both use this skill:**
 
-- **Full regression** — mechanically follow `test.md` at the repo root,
-  section by section.
+- **Full regression** — mechanically follow `docs/test.md`, section by
+  section.
 - **Scoped check** — verify one new or changed surface (e.g. "does the
-  Logs tab open and render rows?"). Skip `test.md`; improvise the minimal
-  deskpal steps that exercise what you changed. A quick feature check is
-  still this skill — reach for it instead of ad-hoc terminal automation.
+  Logs tab open and render rows?"). Skip `docs/test.md`; improvise the
+  minimal deskpal steps that exercise what you changed. A quick feature
+  check is still this skill — reach for it instead of ad-hoc terminal
+  automation.
 
 **Mimic a real user as closely as possible.** The primary automation
 surface is **deskpal** (the MCP server at `/home/b1tank/deskpal`): it
@@ -45,7 +46,7 @@ escape hatch for properties OCR fundamentally cannot see.
    neither deskpal nor CDP exposes (port listening, file inspection,
    sending hostile HTTP payloads).
 
-If a test.md step *can* be done via deskpal, **do it via deskpal**, even
+If a docs/test.md step *can* be done via deskpal, **do it via deskpal**, even
 if CDP would be faster — the point is to verify what a real user sees.
 
 ## Known deskpal gaps for this skill
@@ -73,7 +74,7 @@ report under "deskpal gaps encountered".
 - Before committing UX-visible changes
 
 If the user gives a narrower scope ("just verify settings persistence"),
-run only the relevant `test.md` sections.
+run only the relevant `docs/test.md` sections.
 
 ## Workflow
 
@@ -81,7 +82,7 @@ Mark each step as PASS/FAIL with one-line evidence. Don't fix bugs while
 testing — record them and continue. If a P1 (app won't launch, all
 traces fail to ingest) hits, abort with the failure and request guidance.
 
-### 1. Preflight (test.md §0)
+### 1. Preflight (docs/test.md §0)
 
 ```bash
 cd /home/b1tank/otelux
