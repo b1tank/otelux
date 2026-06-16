@@ -52,8 +52,24 @@ async function startBackend(): Promise<{
 
 	const broadcast = (event: OteluxEvent): void => {
 		for (const win of BrowserWindow.getAllWindows()) {
-			if (!win.isDestroyed()) {
-				win.webContents.send(OTELUX_EVENT_CHANNEL, event);
+			if (win.isDestroyed()) {
+				continue;
+			}
+			const { webContents } = win;
+			// During dev HMR reloads (and the brief window between a renderer
+			// navigating and its new frame committing) the window is not yet
+			// destroyed but its render frame is disposed, so `send` throws
+			// "Render frame was disposed before WebFrameMain could be
+			// accessed". Skip frames that are gone/still loading and swallow
+			// the residual race so a high-rate ingest stream can't flood the
+			// console with unactionable errors.
+			if (webContents.isDestroyed() || webContents.isLoading()) {
+				continue;
+			}
+			try {
+				webContents.send(OTELUX_EVENT_CHANNEL, event);
+			} catch {
+				// Renderer frame went away between the guard and the send.
 			}
 		}
 	};
