@@ -1,18 +1,35 @@
 ---
 name: self-verify
-description: Self-verify OTelux desktop app end-to-end by following test.md. Use when asked to test, verify, smoke-test, regress, or QA the app, OR after making changes to apps/desktop/** or packages/ui/** that could affect runtime behavior. Drives the app like a real user via deskpal (OCR + virtual input), with a CDP escape hatch only for invisible-to-the-eye state, and reports per-step PASS/FAIL.
+description: Verify the OTelux desktop app — either a FULL test.md regression OR a quick smoke-check of one new/changed UI surface. Use whenever asked to test, verify, smoke-test, regress, or QA the app, INCLUDING "verify the feature I just built" / "check the X view renders", or after changes to apps/desktop/** or packages/ui/** that affect runtime behavior. ALWAYS drive the app through deskpal (OCR + virtual input) — never hand-roll xdotool/import/screenshots. CDP is the escape hatch only for invisible-to-the-eye state. Reports per-step PASS/FAIL.
 ---
 
 # Skill — Self-verify the OTelux desktop app
 
-You are an agent acting as a QA tester. Your job is to mechanically follow
-`test.md` at the repo root and produce a per-step PASS/FAIL report.
+You are an agent acting as a QA tester producing a per-step PASS/FAIL report.
+
+**Two modes — both use this skill:**
+
+- **Full regression** — mechanically follow `test.md` at the repo root,
+  section by section.
+- **Scoped check** — verify one new or changed surface (e.g. "does the
+  Logs tab open and render rows?"). Skip `test.md`; improvise the minimal
+  deskpal steps that exercise what you changed. A quick feature check is
+  still this skill — reach for it instead of ad-hoc terminal automation.
 
 **Mimic a real user as closely as possible.** The primary automation
 surface is **deskpal** (the MCP server at `/home/b1tank/deskpal`): it
 clicks via virtual mouse, types via `/dev/uinput`, screenshots, and reads
 the screen with OCR — exactly what a person does. CDP is only the
 escape hatch for properties OCR fundamentally cannot see.
+
+> **Never hand-roll `xdotool` / `import` / `xwininfo` for UI checks.** They
+> reinvent a worse deskpal and hit two traps deskpal handles for you:
+> (1) icon-only buttons need pixel-offset guessing; (2) a raw `click x y`
+> lands on whatever window is *stacked* on top (e.g. VS Code overlapping
+> OTelux) even though `import -window <id>` still shows the target's own
+> buffer — yielding false "the click did nothing" readings. If you must
+> drop to raw X11, `xdotool windowactivate --sync <id>` first, and know
+> that input focus ≠ stacking order without a real window manager.
 
 ## Tool choice (in priority order)
 
@@ -41,7 +58,8 @@ report under "deskpal gaps encountered".
 | Gap | What we want | Workaround today |
 |-----|--------------|------------------|
 | **clipboard** | `get_clipboard` / `set_clipboard` to verify URL copy | shell `xclip -selection clipboard -o` (X11) or `wl-paste` (Wayland) |
-| **icon click** | `click_image` / `click_aria_label` / `click_at_window_coords` for icon-only buttons like ⚙ and ✕ that OCR misreads | `get_window_geometry` + manual offset, then `click x y`; or fall back to keyboard shortcut |
+| **icon click** | `click_image` / `click_aria_label` / `click_at_window_coords` for icon-only buttons like ⚙ and ✕ that OCR misreads | `get_window_geometry` + manual offset, then `click x y`; or fall back to keyboard shortcut. Crop the icon region (`read_screen_text` positions / a cropped screenshot) to measure the offset — do not eyeball a full-window screenshot, which mis-scales under HiDPI |
+| **window stacking** | raise/activate the target so virtual clicks land on it, not an overlapping window | deskpal's window-aware click handles this; if dropping to raw X11, `xdotool windowactivate --sync <id>` first — note `import -window` reads the buffer regardless of stacking, so a correct-looking screenshot does NOT prove the click reached the app |
 | **filesystem read** | `read_file` to inspect `settings.json` | shell `cat` |
 | **shell exec** | `exec` for `curl`/`ss`/`pkill` from inside deskpal | shell calls outside deskpal |
 | **hover for tooltip** | `hover_text(text, ms)` that moves over an OCR'd element and waits for the tooltip | `mouse_move` then `sleep 1` then `screenshot` + `read_screen_text` |
