@@ -10,7 +10,7 @@ OTelux today is a runnable local OpenTelemetry workbench with:
 - VS Code extension shell with webview, receiver, MCP server, and LM Tool wiring.
 - OTLP/HTTP JSON ingest for traces, logs, and metrics.
 - In-memory engine/storage with live subscriptions.
-- Traces, Logs, and Metrics rail surfaces in `@otelux/ui`, including Logs headers/actions/pivots and Metrics summaries/actions/details.
+- Traces, Logs, and Metrics rail surfaces in `@otelux/ui`, including Logs headers/actions/pivots and a Metrics meter/instrument explorer with summaries/actions/details.
 - MCP tools for trace queries and log search, plus schema-stable stubs for agent-run correlation and service overview.
 
 The major gaps are durability, remaining detail polish, production ingest formats, packaging, and deeper correlation.
@@ -23,7 +23,7 @@ Tasks:
 
 - Add detail-pane search for span and log details.
 - Normalize section count badges and action menus across span and log details.
-- Add metric grouping controls for Meter, Service, and Type without losing the current meter-first scan layout.
+- Add metric grouping controls for Service and Type without losing the current meter-first explorer layout.
 - Improve histogram labels with clearer bucket boundaries, count/sum context, and table parity.
 - Add pause/resume, clear data, and result footer state across traces, logs, and metrics.
 - Add dense trace-list headers and sort controls when the trace list owns enough horizontal space.
@@ -32,7 +32,7 @@ Tasks:
 Done when:
 
 - A user can inspect a log or span, search inside details, copy useful values, and close the pane without losing list context.
-- A user can compare metric instruments by service, type, latest value, update time, and details without losing meter context.
+- A user can navigate metrics by meter, compare instruments by service, type, latest value, update time, and details, then focus one instrument without losing meter context.
 - Streaming data can be paused, cleared with confirmation, and understood from visible footer/status state.
 
 ## Phase 2 — Durable Local Storage

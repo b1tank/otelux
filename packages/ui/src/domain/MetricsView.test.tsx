@@ -99,23 +99,39 @@ describe('MetricsView', () => {
 		await findByText(/No metrics match/i);
 	});
 
-	it('groups instruments under their meter with a kind badge', async () => {
+	it('groups instruments in a meter tree with a focused instrument', async () => {
 		const ds = new FakeDataSource();
 		ds.rows = [makeSum(), makeHistogram()];
-		const { findByText, container } = render(<MetricsView dataSource={ds} />);
-		await findByText('codex.api_request');
-		expect(container.querySelector('.otelux-meter')).toBeTruthy();
-		const cards = container.querySelectorAll('.otelux-metric');
-		expect(cards.length).toBe(2);
+		const { findAllByText, container } = render(<MetricsView dataSource={ds} />);
+		await findAllByText('codex.api_request');
+		expect(container.querySelector('.otelux-metrics-nav')).toBeTruthy();
+		expect(container.querySelectorAll('.otelux-metrics-tree__instrument').length).toBe(2);
+		expect(container.querySelectorAll('.otelux-metric').length).toBe(1);
 		expect(container.textContent).toContain('Counter');
 		expect(container.textContent).toContain('Histogram');
+	});
+
+	it('shows a meter instrument table when selecting a meter', async () => {
+		const ds = new FakeDataSource();
+		ds.rows = [makeSum(), makeHistogram()];
+		const { findAllByText, container } = render(<MetricsView dataSource={ds} />);
+		await findAllByText('codex.api_request');
+		const meterButton = container.querySelector<HTMLButtonElement>('.otelux-metrics-tree__meter');
+		if (!meterButton) {
+			throw new Error('expected a meter button');
+		}
+		fireEvent.click(meterButton);
+		expect(container.querySelector('.otelux-meter-overview__table')).toBeTruthy();
+		expect(container.textContent).toContain('Name');
+		expect(container.textContent).toContain('Latest');
+		expect(container.textContent).toContain('Updated');
 	});
 
 	it('renders scan summary fields and metric actions', async () => {
 		const ds = new FakeDataSource();
 		ds.rows = [makeSum()];
-		const { findByText, getByLabelText, container } = render(<MetricsView dataSource={ds} />);
-		await findByText('codex.api_request');
+		const { findAllByText, getByLabelText, container } = render(<MetricsView dataSource={ds} />);
+		await findAllByText('codex.api_request');
 		expect(container.textContent).toContain('Latest');
 		expect(container.textContent).toContain('Updated');
 		expect(container.textContent).toContain('Points');
@@ -127,8 +143,8 @@ describe('MetricsView', () => {
 	it('opens a metric details drawer', async () => {
 		const ds = new FakeDataSource();
 		ds.rows = [makeSum()];
-		const { findByText, getByLabelText, getByRole } = render(<MetricsView dataSource={ds} />);
-		await findByText('codex.api_request');
+		const { findAllByText, getByLabelText, getByRole } = render(<MetricsView dataSource={ds} />);
+		await findAllByText('codex.api_request');
 		fireEvent.click(getByLabelText('View metric details codex.api_request'));
 		const dialog = getByRole('dialog');
 		expect(dialog.textContent).toContain('Instrument');
@@ -138,20 +154,21 @@ describe('MetricsView', () => {
 		expect(dialog.textContent).toContain('service.name');
 	});
 
-	it('renders a line chart for scalar instruments and a histogram for distributions', async () => {
+	it('renders focused line and histogram charts from tree selection', async () => {
 		const ds = new FakeDataSource();
 		ds.rows = [makeSum(), makeHistogram()];
-		const { findByText, container } = render(<MetricsView dataSource={ds} />);
-		await findByText('codex.api_request');
+		const { findAllByText, getByText, container } = render(<MetricsView dataSource={ds} />);
+		await findAllByText('codex.api_request');
 		expect(container.querySelector('.otelux-linechart')).toBeTruthy();
+		fireEvent.click(getByText('codex.turn.e2e_duration_ms'));
 		expect(container.querySelector('.otelux-histogram')).toBeTruthy();
 	});
 
 	it('flips an instrument to the table view', async () => {
 		const ds = new FakeDataSource();
 		ds.rows = [makeSum()];
-		const { findByText, getAllByRole, container } = render(<MetricsView dataSource={ds} />);
-		await findByText('codex.api_request');
+		const { findAllByText, getAllByRole, container } = render(<MetricsView dataSource={ds} />);
+		await findAllByText('codex.api_request');
 		const tableButton = getAllByRole('button', { name: 'Table' })[0];
 		if (!tableButton) {
 			throw new Error('expected a Table toggle');

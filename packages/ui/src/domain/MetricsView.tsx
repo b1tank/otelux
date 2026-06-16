@@ -4,11 +4,11 @@
  * Traces answer "what happened", logs answer "what was said"; metrics
  * answer "how much / how often / how long". The Codex workload emits a
  * handful of instruments per meter (counters like `codex.api_request`,
- * token-usage sums, and `*_ms` duration histograms), so this surface
- * groups instruments by **meter** (the instrumentation scope) and renders
- * each one inline: scalar Sums/Gauges as a dependency-free SVG line chart,
- * Histograms as bucket bars. Every instrument can flip to a raw data-point
- * table for exact values.
+ * token-usage sums, and `*_ms` duration histograms), so this surface uses
+ * a meter/instrument explorer: select a meter on the left, then inspect a
+ * focused instrument on the right. Scalar Sums/Gauges render as a
+ * dependency-free SVG line chart, Histograms as bucket bars. Every focused
+ * instrument can flip to a raw data-point table for exact values.
  *
  * Filtering is delegated to the data source via `ListMetricsQuery`:
  *   - `services` -> resource `service.name`
@@ -70,7 +70,10 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 		limit = DEFAULT_LIMIT,
 		endpointUrl = DEFAULT_ENDPOINT,
 	} = props;
-	const [selected, setSelected] = useState<Metric | null>(null);
+	const [selectedMeter, setSelectedMeter] = useState<string | null>(null);
+	const [selectedMetricKey, setSelectedMetricKey] = useState<string | null>(null);
+	const [detailsMetric, setDetailsMetric] = useState<Metric | null>(null);
+	const [mode, setMode] = useState<ViewMode>('chart');
 	const [viewValue, setViewValue] = useState<{ key: string; value: AttributeValue } | null>(null);
 
 	// The serialization key must include every input that changes the
@@ -96,6 +99,7 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 
 	const rows = query.value?.rows ?? [];
 	const groups = groupByMeter(rows);
+	const selection = resolveMetricSelection(groups, selectedMeter, selectedMetricKey);
 
 	return (
 		<>
@@ -114,41 +118,58 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 							<code>{endpointUrl}</code>
 						</div>
 					) : (
-						<div className="otelux-metrics__meters">
-							{groups.map((group) => (
-								<section key={group.meter} className="otelux-meter" aria-label={`Meter ${group.meter}`}>
-									<header className="otelux-meter__header">
-										<span className="otelux-meter__name">{group.meter}</span>
-										<span className="otelux-meter__count">{group.metrics.length}</span>
-									</header>
-									<div className="otelux-meter__instruments">
-										{group.metrics.map((metric) => (
-											<MetricCard
-												key={`${metric.name}:${metric.type}`}
-												metric={metric}
-												onSelect={() => setSelected(metric)}
-											/>
-										))}
-									</div>
-								</section>
-							))}
+						<div className="otelux-metrics__explorer">
+							<MetricTree
+								groups={groups}
+								activeMeter={selection.activeMeter}
+								activeMetricKey={selection.activeMetric ? metricKey(selection.activeMetric) : undefined}
+								onSelectMeter={(meter) => {
+									setSelectedMeter(meter);
+									setSelectedMetricKey(null);
+								}}
+								onSelectMetric={(metric) => {
+									setSelectedMeter(meterName(metric));
+									setSelectedMetricKey(metricKey(metric));
+								}}
+							/>
+							<div className="otelux-metrics__workspace">
+								{selection.activeMetric ? (
+									<MetricWorkspace
+										metric={selection.activeMetric}
+										mode={mode}
+										onModeChange={setMode}
+										onShowDetails={() => setDetailsMetric(selection.activeMetric ?? null)}
+									/>
+								) : selection.activeGroup ? (
+									<MeterInstrumentTable
+										group={selection.activeGroup}
+										onSelectMetric={(metric) => {
+											setSelectedMeter(meterName(metric));
+											setSelectedMetricKey(metricKey(metric));
+										}}
+									/>
+								) : null}
+							</div>
 						</div>
 					)}
 				</div>
 			</section>
 			<Drawer
-				open={selected !== null}
-				onClose={() => setSelected(null)}
-				{...(selected
+				open={detailsMetric !== null}
+				onClose={() => setDetailsMetric(null)}
+				{...(detailsMetric
 					? {
-							title: selected.name,
-							accentVar: serviceColorVar(metricService(selected) ?? selected.name),
-							kindLabel: kindLabel(selected),
+							title: detailsMetric.name,
+							accentVar: serviceColorVar(metricService(detailsMetric) ?? detailsMetric.name),
+							kindLabel: kindLabel(detailsMetric),
 						}
 					: {})}
 			>
-				{selected ? (
-					<MetricDetail metric={selected} onViewValue={(key, value) => setViewValue({ key, value })} />
+				{detailsMetric ? (
+					<MetricDetail
+						metric={detailsMetric}
+						onViewValue={(key, value) => setViewValue({ key, value })}
+					/>
 				) : null}
 			</Drawer>
 			<ValueViewer
@@ -163,6 +184,12 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 interface MeterGroup {
 	meter: string;
 	metrics: Metric[];
+}
+
+interface MetricSelection {
+	activeGroup: MeterGroup | undefined;
+	activeMetric: Metric | undefined;
+	activeMeter: string | undefined;
 }
 
 // Group instruments by meter (instrumentation scope name). The engine
@@ -180,21 +207,177 @@ function groupByMeter(rows: readonly Metric[]): MeterGroup[] {
 	}
 	return Array.from(byMeter.entries())
 		.sort((a, b) => a[0].localeCompare(b[0]))
-		.map(([meter, metrics]) => ({ meter, metrics }));
+		.map(([meter, metrics]) => ({
+			meter,
+			metrics: metrics.sort((a, b) => a.name.localeCompare(b.name)),
+		}));
 }
 
 type ViewMode = 'chart' | 'table';
 
-function MetricCard(props: { metric: Metric; onSelect(): void }): JSX.Element {
-	const { metric, onSelect } = props;
-	const [mode, setMode] = useState<ViewMode>('chart');
+function resolveMetricSelection(
+	groups: readonly MeterGroup[],
+	selectedMeter: string | null,
+	selectedMetricKey: string | null,
+): MetricSelection {
+	if (selectedMetricKey !== null) {
+		for (const group of groups) {
+			const metric = group.metrics.find((candidate) => metricKey(candidate) === selectedMetricKey);
+			if (metric !== undefined) {
+				return { activeGroup: group, activeMetric: metric, activeMeter: group.meter };
+			}
+		}
+	}
+
+	if (selectedMeter !== null) {
+		const group = groups.find((candidate) => candidate.meter === selectedMeter);
+		if (group !== undefined) {
+			return { activeGroup: group, activeMetric: undefined, activeMeter: group.meter };
+		}
+	}
+
+	const firstGroup = groups[0];
+	const firstMetric = firstGroup?.metrics[0];
+	return { activeGroup: firstGroup, activeMetric: firstMetric, activeMeter: firstGroup?.meter };
+}
+
+function MetricTree(props: {
+	groups: readonly MeterGroup[];
+	activeMeter: string | undefined;
+	activeMetricKey: string | undefined;
+	onSelectMeter(meter: string): void;
+	onSelectMetric(metric: Metric): void;
+}): JSX.Element {
+	return (
+		<aside className="otelux-metrics-nav" aria-label="Metric instruments">
+			<header className="otelux-metrics-nav__header">
+				<span className="otelux-metrics-nav__title">Instruments</span>
+				<span className="otelux-metrics-nav__count">
+					{props.groups.reduce((count, group) => count + group.metrics.length, 0)}
+				</span>
+			</header>
+			<div className="otelux-metrics-tree">
+				{props.groups.map((group) => {
+					const meterIsActive = props.activeMetricKey === undefined && props.activeMeter === group.meter;
+					return (
+						<div key={group.meter} className="otelux-metrics-tree__group">
+							<button
+								type="button"
+								className={`otelux-metrics-tree__meter${meterIsActive ? ' is-active' : ''}`}
+								onClick={() => props.onSelectMeter(group.meter)}
+								aria-pressed={meterIsActive}
+							>
+								<span className="otelux-metrics-tree__meter-name" title={group.meter}>
+									{group.meter}
+								</span>
+								<span className="otelux-metrics-tree__meter-count">{group.metrics.length}</span>
+							</button>
+							<div className="otelux-metrics-tree__instruments">
+								{group.metrics.map((metric) => {
+									const key = metricKey(metric);
+									return (
+										<button
+											type="button"
+											key={key}
+											className={`otelux-metrics-tree__instrument${
+												props.activeMetricKey === key ? ' is-active' : ''
+											}`}
+											onClick={() => props.onSelectMetric(metric)}
+											aria-pressed={props.activeMetricKey === key}
+										>
+											<span className="otelux-metrics-tree__instrument-name" title={metric.name}>
+												{metric.name}
+											</span>
+											<span className="otelux-metrics-tree__instrument-meta">
+												{kindLabel(metric)}
+												{metric.unit ? ` · ${metric.unit}` : ''}
+											</span>
+										</button>
+									);
+								})}
+							</div>
+						</div>
+					);
+				})}
+			</div>
+		</aside>
+	);
+}
+
+function MeterInstrumentTable(props: {
+	group: MeterGroup;
+	onSelectMetric(metric: Metric): void;
+}): JSX.Element {
+	return (
+		<section className="otelux-meter-overview" aria-label={`Meter ${props.group.meter}`}>
+			<header className="otelux-meter-overview__header">
+				<div className="otelux-meter-overview__title-block">
+					<span className="otelux-meter-overview__eyebrow">Meter</span>
+					<h3 className="otelux-meter-overview__title" title={props.group.meter}>
+						{props.group.meter}
+					</h3>
+				</div>
+				<span className="otelux-meter-overview__count">{props.group.metrics.length}</span>
+			</header>
+			<table className="otelux-metric-table otelux-meter-overview__table">
+				<thead>
+					<tr>
+						<th>Name</th>
+						<th>Type</th>
+						<th>Service</th>
+						<th>Latest</th>
+						<th>Unit</th>
+						<th>Updated</th>
+						<th>Points</th>
+					</tr>
+				</thead>
+				<tbody>
+					{props.group.metrics.map((metric) => {
+						const service = metricService(metric);
+						const updated = latestMetricTime(metric);
+						return (
+							<tr key={metricKey(metric)}>
+								<td>
+									<button
+										type="button"
+										className="otelux-meter-overview__link"
+										onClick={() => props.onSelectMetric(metric)}
+									>
+										{metric.name}
+									</button>
+								</td>
+								<td>{kindLabel(metric)}</td>
+								<td>{service ?? '—'}</td>
+								<td className="otelux-metric-table__num">{latestMetricSummary(metric)}</td>
+								<td>{metric.unit || '—'}</td>
+								<td>{updated !== undefined ? formatWallClock(updated) : '—'}</td>
+								<td className="otelux-metric-table__num">{metricPointCount(metric)}</td>
+							</tr>
+						);
+					})}
+				</tbody>
+			</table>
+		</section>
+	);
+}
+
+function MetricWorkspace(props: {
+	metric: Metric;
+	mode: ViewMode;
+	onModeChange(mode: ViewMode): void;
+	onShowDetails(): void;
+}): JSX.Element {
+	const { metric, mode, onModeChange, onShowDetails } = props;
 	const service = metricService(metric);
 	const latest = latestMetricSummary(metric);
 	const updated = latestMetricTime(metric);
 	const unit = metric.unit || '—';
 
 	return (
-		<article className="otelux-metric" aria-label={`Instrument ${metric.name}`}>
+		<article
+			className="otelux-metric otelux-metric--focused"
+			aria-label={`Instrument ${metric.name}`}
+		>
 			<header className="otelux-metric__header">
 				<div className="otelux-metric__id">
 					<span className="otelux-metric__name" title={metric.name}>
@@ -241,7 +424,7 @@ function MetricCard(props: { metric: Metric; onSelect(): void }): JSX.Element {
 						<IconButton
 							className="otelux-metric__action otelux-metric__details-action"
 							aria-label={`View metric details ${metric.name}`}
-							onClick={onSelect}
+							onClick={onShowDetails}
 						>
 							<EyeIcon size={14} />
 						</IconButton>
@@ -251,7 +434,7 @@ function MetricCard(props: { metric: Metric; onSelect(): void }): JSX.Element {
 							type="button"
 							className={`otelux-metric__toggle-btn${mode === 'chart' ? ' is-active' : ''}`}
 							aria-pressed={mode === 'chart'}
-							onClick={() => setMode('chart')}
+							onClick={() => onModeChange('chart')}
 						>
 							Graph
 						</button>
@@ -259,7 +442,7 @@ function MetricCard(props: { metric: Metric; onSelect(): void }): JSX.Element {
 							type="button"
 							className={`otelux-metric__toggle-btn${mode === 'table' ? ' is-active' : ''}`}
 							aria-pressed={mode === 'table'}
-							onClick={() => setMode('table')}
+							onClick={() => onModeChange('table')}
 						>
 							Table
 						</button>
@@ -293,6 +476,14 @@ function MetricCard(props: { metric: Metric; onSelect(): void }): JSX.Element {
 			</div>
 		</article>
 	);
+}
+
+function metricKey(metric: Metric): string {
+	return `${meterName(metric)}\u0000${metric.name}\u0000${metric.type}`;
+}
+
+function meterName(metric: Metric): string {
+	return metric.scope.name || '(default)';
 }
 
 function MetricSummaryCell(props: { label: string; value: string; strong?: boolean }): JSX.Element {

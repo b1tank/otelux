@@ -385,14 +385,14 @@ curl -s -X POST -H 'Content-Type: application/json' \
 
 ### 15.2 Meter → instrument tree
 - Click the **Metrics** tab.
-- **Expected**: instruments are grouped by meter (scope) name. Codex emits monotonic Sums (`codex.api_request`, `codex.tool.call`, `codex.turn.token_usage`) and Histograms (`*_ms` durations like `codex.turn.e2e_duration_ms`, `codex.api_request.duration_ms`). Each instrument shows its name, type badge, unit, service, and a scan summary with Type, Service, Latest, Unit, Updated, and Points.
+- **Expected**: the view uses a split explorer. The left pane groups instruments by meter (scope) name and lists instruments below each meter. The right pane focuses the selected instrument. Codex emits monotonic Sums (`codex.api_request`, `codex.tool.call`, `codex.turn.token_usage`) and Histograms (`*_ms` durations like `codex.turn.e2e_duration_ms`, `codex.api_request.duration_ms`). The focused instrument shows name, type badge, unit, service, and a scan summary with Type, Service, Latest, Unit, Updated, and Points.
 
 ### 15.3 Instrument actions
-- On an instrument card, use the `Name`, `Data`, and details actions.
+- On the focused instrument, use the `Name`, `Data`, and details actions.
 - **Expected**: `Name` copies the metric name, `Data` copies serialized metric data, and the details action opens a drawer with Instrument facts, Data points, Resource, and Scope sections.
 
 ### 15.4 Instrument chart + table toggle
-- Select an instrument.
+- Select an instrument from the left pane.
 - **Expected**: a chart renders its data points over time. A **graph / table** toggle switches between the chart and a raw data-point table (timestamp, value, attributes). Histograms render their bucket distribution.
 
 ### 15.5 Live update
