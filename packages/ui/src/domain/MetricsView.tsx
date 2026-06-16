@@ -155,6 +155,16 @@ function MetricCard(props: { metric: Metric }): JSX.Element {
 						{metric.name}
 					</span>
 					{metric.unit ? <span className="otelux-metric__unit">{metric.unit}</span> : null}
+					{service !== undefined ? (
+						<span className="otelux-metric__svc">
+							<span
+								className="otelux-metric__svc-dot"
+								style={{ background: serviceColorVar(service) }}
+								aria-hidden
+							/>
+							{service}
+						</span>
+					) : null}
 				</div>
 				<div className="otelux-metric__badges">
 					<span className={`otelux-metric__kind otelux-metric__kind--${metric.type}`}>

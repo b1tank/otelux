@@ -2440,6 +2440,21 @@
 	color: var(--otelux-fg-muted);
 }
 
+.otelux-metric__svc {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 10px;
+	color: var(--otelux-fg-muted);
+}
+
+.otelux-metric__svc-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	flex: 0 0 auto;
+}
+
 .otelux-metric__badges {
 	display: flex;
 	align-items: center;
