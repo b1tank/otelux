@@ -2085,3 +2085,205 @@
 .otelux-value-viewer__btn--primary:hover {
 	background: color-mix(in srgb, var(--otelux-accent) 85%, #ffffff);
 }
+
+/* ============================================================ *
+ *                      DOMAIN: LogsView                         *
+ * ============================================================ */
+
+/*
+ * Logs surface — a single scrolling pane of severity-toned rows. Unlike
+ * the traces workbench (two panes: list + waterfall) the logs view is a
+ * flat stream; the detail drawer slides over the top on row click. Rows
+ * borrow the trace-row rhythm (fixed height, left service stripe) so the
+ * two telemetry surfaces feel like siblings.
+ */
+.otelux-logs {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+	background: var(--otelux-bg);
+}
+
+.otelux-logs__header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 16px;
+	border-bottom: 1px solid var(--otelux-border);
+	flex: 0 0 auto;
+}
+
+.otelux-logs__title {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--otelux-fg);
+}
+
+.otelux-logs__count {
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	color: var(--otelux-fg-muted);
+	background: var(--otelux-bg-elevated);
+	padding: 1px 7px;
+	border-radius: 9px;
+}
+
+.otelux-logs__body {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.otelux-logs__empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	padding: 40px;
+	gap: 6px;
+	font-size: 12px;
+	line-height: 1.6;
+	color: var(--otelux-fg-muted);
+	text-align: center;
+}
+
+.otelux-logs__empty code {
+	font-family: var(--otelux-font-mono);
+	font-size: 11px;
+	color: var(--otelux-accent-2);
+}
+
+.otelux-logs__rows {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+/*
+ * A log row carries a 3px left stripe whose color comes from the
+ * emitting service (`--otelux-row-svc`), matching the trace-row stripe
+ * so a service reads consistently across surfaces. Severity is conveyed
+ * by the badge tint, not the stripe.
+ */
+.otelux-log-row {
+	position: relative;
+	border-bottom: 1px solid var(--otelux-border);
+}
+
+.otelux-log-row::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: 3px;
+	background: var(--otelux-row-svc, transparent);
+}
+
+.otelux-log-row__hit {
+	display: grid;
+	grid-template-columns: 64px 84px 140px 1fr;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	padding: 7px 16px 7px 16px;
+	background: transparent;
+	border: 0;
+	text-align: left;
+	font: inherit;
+	color: var(--otelux-fg);
+	cursor: pointer;
+}
+
+.otelux-log-row__hit:hover {
+	background: var(--otelux-bg-panel);
+}
+
+.otelux-log-row.is-selected .otelux-log-row__hit {
+	background: var(--otelux-bg-elevated);
+}
+
+.otelux-log-row__hit:focus-visible {
+	outline: none;
+	box-shadow: inset 0 0 0 1px var(--otelux-accent);
+}
+
+/*
+ * Severity badge. Tones map to OTLP severity buckets; trace/debug stay
+ * muted, info is neutral, warn/error/fatal escalate. Color comes from
+ * the shared warn/error tokens so it tracks the active theme.
+ */
+.otelux-log-row__sev {
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	text-align: center;
+	padding: 2px 0;
+	border-radius: 5px;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.otelux-log-row__sev--trace,
+.otelux-log-row__sev--debug {
+	color: var(--otelux-fg-muted);
+	background: var(--otelux-bg-elevated);
+}
+
+.otelux-log-row__sev--info {
+	color: var(--otelux-accent);
+	background: color-mix(in srgb, var(--otelux-accent) 16%, transparent);
+}
+
+.otelux-log-row__sev--warn {
+	color: var(--otelux-warn);
+	background: color-mix(in srgb, var(--otelux-warn) 18%, transparent);
+}
+
+.otelux-log-row__sev--error,
+.otelux-log-row__sev--fatal {
+	color: var(--otelux-error);
+	background: color-mix(in srgb, var(--otelux-error) 18%, transparent);
+}
+
+.otelux-log-row__time {
+	font-family: var(--otelux-font-mono);
+	font-size: 11px;
+	color: var(--otelux-fg-muted);
+	white-space: nowrap;
+}
+
+.otelux-log-row__svc {
+	font-size: 11px;
+	color: var(--otelux-fg-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.otelux-log-row__msg {
+	font-size: 12px;
+	color: var(--otelux-fg);
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Error/fatal rows get a faint warm wash so they pop in a long stream. */
+.otelux-log-row--error,
+.otelux-log-row--fatal {
+	background: color-mix(in srgb, var(--otelux-error) 6%, transparent);
+}
+
+.otelux-log-detail {
+	padding: 0;
+	overflow-y: auto;
+	height: 100%;
+	box-sizing: border-box;
+}

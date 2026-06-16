@@ -165,3 +165,43 @@ export function serviceColorVar(name: string): string {
 export function nanosToNumber(n: bigint): number {
 	return Number(n);
 }
+
+/**
+ * Severity tone bucket for a log's OTLP severity number. Maps the
+ * 1..24 proto range onto the six named levels (the proto reserves four
+ * numeric steps per level for INFO2/INFO3/etc.; we collapse those onto
+ * the base level). Drives the row's left stripe and badge color.
+ * See https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-severitynumber.
+ */
+export type SeverityTone = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
+
+export function severityTone(severityNumber: number): SeverityTone {
+	if (severityNumber >= 21) {
+		return 'fatal';
+	}
+	if (severityNumber >= 17) {
+		return 'error';
+	}
+	if (severityNumber >= 13) {
+		return 'warn';
+	}
+	if (severityNumber >= 9) {
+		return 'info';
+	}
+	if (severityNumber >= 5) {
+		return 'debug';
+	}
+	return 'trace';
+}
+
+/**
+ * Short uppercase label for a log severity. Prefers the SDK-provided
+ * `severityText` when present (it can carry sub-levels like `INFO2`),
+ * otherwise derives from the numeric tone.
+ */
+export function severityLabel(severityNumber: number, severityText?: string): string {
+	if (severityText !== undefined && severityText !== '') {
+		return severityText.toUpperCase();
+	}
+	return severityTone(severityNumber).toUpperCase();
+}

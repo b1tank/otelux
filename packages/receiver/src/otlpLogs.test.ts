@@ -49,6 +49,50 @@ describe('@otelux/receiver logs', () => {
 		expect(logs).toHaveLength(0);
 	});
 
+	it('falls back to the observed time when the explicit timestamp is "0"', () => {
+		// Codex emits `timeUnixNano: "0"` and carries the real emit time in
+		// `observedTimeUnixNano`; the record must land on the observed time,
+		// not the Unix epoch.
+		const logs = decodeExportLogsServiceRequest({
+			resourceLogs: [
+				{
+					resource: { attributes: [] },
+					scopeLogs: [
+						{
+							scope: { name: 's' },
+							logRecords: [
+								{
+									severityNumber: 9,
+									timeUnixNano: '0',
+									observedTimeUnixNano: '1781569401660143310',
+								},
+							],
+						},
+					],
+				},
+			],
+		});
+		expect(logs).toHaveLength(1);
+		expect(logs[0]?.timeUnixNano).toBe(1781569401660143310n);
+	});
+
+	it('drops records whose only timestamps are "0"', () => {
+		const logs = decodeExportLogsServiceRequest({
+			resourceLogs: [
+				{
+					resource: { attributes: [] },
+					scopeLogs: [
+						{
+							scope: { name: 's' },
+							logRecords: [{ severityNumber: 9, timeUnixNano: '0', observedTimeUnixNano: '0' }],
+						},
+					],
+				},
+			],
+		});
+		expect(logs).toHaveLength(0);
+	});
+
 	describe('HTTP server', () => {
 		let engine: ReturnType<typeof createEngine>;
 		let receiver: ReturnType<typeof createReceiver>;

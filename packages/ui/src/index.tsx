@@ -15,7 +15,7 @@ import type { DataSource } from '@otelux/protocol';
 import type { AttributeValue, Span, SpanId, Trace, TraceId } from '@otelux/types';
 import { SpanKind } from '@otelux/types';
 import { type JSX, useMemo, useState } from 'react';
-import { SpanDetail, TraceList, Waterfall } from './domain/index.js';
+import { LogsView, SpanDetail, TraceList, Waterfall } from './domain/index.js';
 import { serviceColorVar, serviceIndex } from './format.js';
 import { AppShell, FilterBar, Rail, type RailItem, Topbar, Workbench } from './layout/index.js';
 import {
@@ -73,10 +73,11 @@ export interface OTeluxWorkbenchProps {
 	onOpenSettings?: () => void;
 }
 
-// The rail's "Metrics" and "Logs" pillars are intentional placeholders
-// for future telemetry surfaces — they exist in the rail so the icon
-// bar stays anchored at three pillars (Traces / Metrics / Logs) even
-// before those views ship. They are disabled until the surfaces land.
+// The rail's "Metrics" pillar is an intentional placeholder for a
+// future telemetry surface — it exists in the rail so the icon bar
+// stays anchored at three pillars (Traces / Metrics / Logs) even before
+// that view ships, and is disabled until it lands. Traces and Logs are
+// live.
 const RAIL_ITEMS: readonly RailItem[] = [
 	{ id: 'traces', label: 'Traces', icon: <WaterfallIcon size={18} /> },
 	{
@@ -85,7 +86,25 @@ const RAIL_ITEMS: readonly RailItem[] = [
 		icon: <BarChart3Icon size={18} />,
 		disabled: true,
 	},
-	{ id: 'logs', label: 'Logs (coming soon)', icon: <LogsIcon size={18} />, disabled: true },
+	{ id: 'logs', label: 'Logs', icon: <LogsIcon size={18} /> },
+];
+
+// Severity-floor options for the logs filter. Values are OTLP severity
+// numbers; "All" clears the floor. See
+// https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-severitynumber.
+const LOG_SEVERITY_LABELS: Readonly<Record<string, string>> = {
+	all: 'All levels',
+	'5': 'Debug+',
+	'9': 'Info+',
+	'13': 'Warn+',
+	'17': 'Error+',
+};
+const LOG_SEVERITY_OPTIONS: readonly DropdownOption[] = [
+	{ value: 'all', label: 'All levels' },
+	{ value: '5', label: 'Debug+' },
+	{ value: '9', label: 'Info+' },
+	{ value: '13', label: 'Warn+' },
+	{ value: '17', label: 'Error+' },
 ];
 
 // Shown in the span-detail drawer header to the right of the span name.
@@ -107,11 +126,17 @@ interface ViewValueTarget {
 
 export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 	const { dataSource, theme = 'dark', endpointUrl, topbarEnd, onOpenSettings } = props;
+	const [activeView, setActiveView] = useState<'traces' | 'logs'>('traces');
 	const [selectedTraceId, setSelectedTraceIdRaw] = useState<TraceId | undefined>(undefined);
 	const [selectedSpanId, setSelectedSpanId] = useState<SpanId | undefined>(undefined);
 	const [errorsOnly, setErrorsOnly] = useState(false);
 	const [selectedService, setSelectedService] = useState<string>('all');
 	const [searchQuery, setSearchQuery] = useState<string>('');
+	// Logs-view filters. Kept separate from the trace filters so switching
+	// views doesn't carry one surface's filter state onto the other.
+	const [logsSeverity, setLogsSeverity] = useState<string>('all');
+	const [logsService, setLogsService] = useState<string>('all');
+	const [logsSearch, setLogsSearch] = useState<string>('');
 	// Pane collapse state. Mutually exclusive (collapsing one side
 	// auto-uncollapses the other) so the workbench never ends up with
 	// nothing visible. The Workbench layout's invariant requires at most
@@ -210,6 +235,50 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 	const serviceTriggerCount =
 		selectedService === 'all' ? sortedServices.length : serviceCounts.get(selectedService);
 
+	// Logs service dropdown: probe an unfiltered sample to learn which
+	// services emit logs and how many records each contributes. Mirrors
+	// the trace summary probe; good enough for milestone 1 (a future
+	// iteration can move this to a dedicated `listServices()`).
+	const logsProbe = useDataSourceQuery(
+		dataSource,
+		(ds) => ds.listLogs({ limit: 500, sortBy: 'time', sortDirection: 'desc' }),
+		'workbench:logs-service-probe',
+	);
+	const logsRows = logsProbe.value?.rows ?? [];
+
+	const { logsServiceCounts, sortedLogServices } = useMemo(() => {
+		const counts = new Map<string, number>();
+		for (const row of logsRows) {
+			const svc = row.resource.attributes['service.name'];
+			if (typeof svc === 'string') {
+				counts.set(svc, (counts.get(svc) ?? 0) + 1);
+			}
+		}
+		const sorted = Array.from(counts.entries())
+			.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+			.map(([name]) => name);
+		return { logsServiceCounts: counts, sortedLogServices: sorted };
+	}, [logsRows]);
+
+	const logsServiceOptions = useMemo<readonly DropdownOption[]>(() => {
+		const opts: DropdownOption[] = [];
+		if (logsService !== 'all') {
+			opts.push({ value: 'all', label: 'All services', count: sortedLogServices.length });
+		}
+		for (const name of sortedLogServices) {
+			opts.push({
+				value: name,
+				label: name,
+				count: logsServiceCounts.get(name) ?? 0,
+				colorIndex: serviceIndex(name),
+			});
+		}
+		return opts;
+	}, [sortedLogServices, logsServiceCounts, logsService]);
+
+	const logsServiceTriggerCount =
+		logsService === 'all' ? sortedLogServices.length : logsServiceCounts.get(logsService);
+
 	// The detail drawer is opened explicitly by the user clicking a span
 	// row in the Waterfall — not auto-opened when a trace is selected.
 	// Auto-opening covered the waterfall the moment a trace was clicked
@@ -243,10 +312,14 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 				rail={
 					<Rail
 						items={RAIL_ITEMS}
-						activeId="traces"
+						activeId={activeView}
 						onActivate={(id) => {
 							if (id === 'settings' && onOpenSettings) {
 								onOpenSettings();
+								return;
+							}
+							if (id === 'traces' || id === 'logs') {
+								setActiveView(id);
 							}
 						}}
 						footerItems={[
@@ -269,79 +342,135 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 				}
 			>
 				<Topbar
-					start={<h1 className="otelux-topbar__title">Traces</h1>}
+					start={<h1 className="otelux-topbar__title">{activeView === 'logs' ? 'Logs' : 'Traces'}</h1>}
 					{...(topbarEnd !== undefined ? { end: topbarEnd } : {})}
 				/>
-				{hasAnyTrace ? (
-					<FilterBar
-						filters={
-							<>
-								<Dropdown
-									aria-label="Filter by service"
-									triggerSlotLabel="Service"
-									triggerLabel={selectedService === 'all' ? 'All services' : selectedService}
-									triggerIcon={
-										selectedService === 'all' ? undefined : (
-											<span
-												className="otelux-dropdown__color-dot"
-												style={{
-													background: `var(--otelux-svc-${serviceIndex(selectedService)})`,
-												}}
-												aria-hidden
-											/>
-										)
-									}
-									{...(serviceTriggerCount !== undefined ? { triggerCount: serviceTriggerCount } : {})}
-									value={selectedService}
-									onChange={setSelectedService}
-									options={serviceOptions}
-								/>
-								<ToggleChip pressed={errorsOnly} onPressedChange={setErrorsOnly} pressedTone="error">
-									Errors only
-								</ToggleChip>
-								<SearchField
-									value={searchQuery}
-									onChange={setSearchQuery}
-									placeholder="Search traces or spans by name, attribute, or trace ID…"
-									aria-label="Search traces"
-								/>
-							</>
-						}
-					/>
-				) : null}
-				<Workbench
-					left={<TraceList {...traceListProps} />}
-					leftCollapsed={listCollapsed}
-					rightCollapsed={!hasAnyTrace || wfCollapsed}
-					right={
-						trace && trace.spans.length > 0 ? (
-							<Waterfall
-								trace={trace}
-								onSpanSelect={setSelectedSpanId}
-								{...(selectedSpanId !== undefined ? { selectedSpanId } : {})}
-								onCollapse={() => {
-									setListCollapsed(false);
-									setWfCollapsed(true);
-								}}
-								{...(listCollapsed ? { onRestoreList: () => setListCollapsed(false) } : {})}
+				{activeView === 'logs' ? (
+					<>
+						<FilterBar
+							filters={
+								<>
+									<Dropdown
+										aria-label="Filter by severity"
+										triggerSlotLabel="Level"
+										triggerLabel={LOG_SEVERITY_LABELS[logsSeverity] ?? 'All levels'}
+										value={logsSeverity}
+										onChange={setLogsSeverity}
+										options={LOG_SEVERITY_OPTIONS}
+									/>
+									<Dropdown
+										aria-label="Filter logs by service"
+										triggerSlotLabel="Service"
+										triggerLabel={logsService === 'all' ? 'All services' : logsService}
+										triggerIcon={
+											logsService === 'all' ? undefined : (
+												<span
+													className="otelux-dropdown__color-dot"
+													style={{ background: `var(--otelux-svc-${serviceIndex(logsService)})` }}
+													aria-hidden
+												/>
+											)
+										}
+										{...(logsServiceTriggerCount !== undefined
+											? { triggerCount: logsServiceTriggerCount }
+											: {})}
+										value={logsService}
+										onChange={setLogsService}
+										options={logsServiceOptions}
+									/>
+									<SearchField
+										value={logsSearch}
+										onChange={setLogsSearch}
+										placeholder="Search logs by message, attribute, or value…"
+										aria-label="Search logs"
+									/>
+								</>
+							}
+						/>
+						<LogsView
+							dataSource={dataSource}
+							{...(logsSeverity !== 'all' ? { minSeverity: Number(logsSeverity) } : {})}
+							{...(logsService !== 'all' ? { services: [logsService] } : {})}
+							{...(logsSearch ? { search: logsSearch } : {})}
+							{...(endpointUrl !== undefined
+								? { endpointUrl: endpointUrl.replace('/v1/traces', '/v1/logs') }
+								: {})}
+						/>
+					</>
+				) : (
+					<>
+						{hasAnyTrace ? (
+							<FilterBar
+								filters={
+									<>
+										<Dropdown
+											aria-label="Filter by service"
+											triggerSlotLabel="Service"
+											triggerLabel={selectedService === 'all' ? 'All services' : selectedService}
+											triggerIcon={
+												selectedService === 'all' ? undefined : (
+													<span
+														className="otelux-dropdown__color-dot"
+														style={{
+															background: `var(--otelux-svc-${serviceIndex(selectedService)})`,
+														}}
+														aria-hidden
+													/>
+												)
+											}
+											{...(serviceTriggerCount !== undefined ? { triggerCount: serviceTriggerCount } : {})}
+											value={selectedService}
+											onChange={setSelectedService}
+											options={serviceOptions}
+										/>
+										<ToggleChip pressed={errorsOnly} onPressedChange={setErrorsOnly} pressedTone="error">
+											Errors only
+										</ToggleChip>
+										<SearchField
+											value={searchQuery}
+											onChange={setSearchQuery}
+											placeholder="Search traces or spans by name, attribute, or trace ID…"
+											aria-label="Search traces"
+										/>
+									</>
+								}
 							/>
-						) : (
-							<div className="otelux-empty-state">
-								<div className="otelux-empty-state__icon" aria-hidden>
-									<WaterfallIcon size={28} />
-								</div>
-								<h2 className="otelux-empty-state__title">
-									{selectedTraceId ? 'Loading trace…' : 'Select a trace to inspect its spans'}
-								</h2>
-								<p className="otelux-empty-state__body">
-									{selectedTraceId
-										? 'Fetching spans for the selected trace.'
-										: 'Pick a trace from the list to view its waterfall and drill into spans.'}
-								</p>
-							</div>
-						)
-					}
-				/>
+						) : null}
+						<Workbench
+							left={<TraceList {...traceListProps} />}
+							leftCollapsed={listCollapsed}
+							rightCollapsed={!hasAnyTrace || wfCollapsed}
+							right={
+								trace && trace.spans.length > 0 ? (
+									<Waterfall
+										trace={trace}
+										onSpanSelect={setSelectedSpanId}
+										{...(selectedSpanId !== undefined ? { selectedSpanId } : {})}
+										onCollapse={() => {
+											setListCollapsed(false);
+											setWfCollapsed(true);
+										}}
+										{...(listCollapsed ? { onRestoreList: () => setListCollapsed(false) } : {})}
+									/>
+								) : (
+									<div className="otelux-empty-state">
+										<div className="otelux-empty-state__icon" aria-hidden>
+											<WaterfallIcon size={28} />
+										</div>
+										<h2 className="otelux-empty-state__title">
+											{selectedTraceId ? 'Loading trace…' : 'Select a trace to inspect its spans'}
+										</h2>
+										<p className="otelux-empty-state__body">
+											{selectedTraceId
+												? 'Fetching spans for the selected trace.'
+												: 'Pick a trace from the list to view its waterfall and drill into spans.'}
+										</p>
+									</div>
+								)
+							}
+						/>
+					</>
+				)}
 			</AppShell>
 			<Drawer
 				open={selectedSpan !== undefined}

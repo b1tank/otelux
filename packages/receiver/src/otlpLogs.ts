@@ -79,9 +79,14 @@ function decodeLogRecord(
 	scope: InstrumentationScope,
 ): LogRecord | undefined {
 	// A record with neither an explicit nor an observed timestamp can't be
-	// placed on a timeline — drop it rather than invent a time.
-	const time = r.timeUnixNano ?? r.observedTimeUnixNano;
-	if (!time) {
+	// placed on a timeline — drop it rather than invent a time. Codex emits
+	// `timeUnixNano: "0"` (the explicit timestamp is unset) and carries the
+	// real emit time only in `observedTimeUnixNano`, so a zero/empty explicit
+	// value is treated as absent and we fall back to the observed time
+	// instead of pinning the record to the Unix epoch.
+	const explicitTime = r.timeUnixNano && r.timeUnixNano !== '0' ? r.timeUnixNano : undefined;
+	const time = explicitTime ?? r.observedTimeUnixNano;
+	if (!time || time === '0') {
 		return undefined;
 	}
 	const body: AttributeValue | undefined = decodeAnyValue(r.body);
