@@ -9,6 +9,8 @@ import type {
 	GetTraceQuery,
 	ListLogsQuery,
 	ListLogsResult,
+	ListMetricsQuery,
+	ListMetricsResult,
 	ListTracesQuery,
 	ListTracesResult,
 	SpanDetails,
@@ -48,6 +50,9 @@ class FakeDataSource implements DataSource {
 	listLogs(query: ListLogsQuery): Promise<ListLogsResult> {
 		this.calls.push(query);
 		return Promise.resolve({ rows: this.rows, totalCount: this.rows.length });
+	}
+	listMetrics(_query: ListMetricsQuery): Promise<ListMetricsResult> {
+		return Promise.resolve({ rows: [], totalCount: 0 });
 	}
 	subscribe(_handler: (e: ChangeEvent) => void): { dispose(): void } {
 		return { dispose: () => {} };

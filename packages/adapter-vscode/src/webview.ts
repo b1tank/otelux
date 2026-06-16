@@ -11,6 +11,8 @@ import type {
 	GetTraceQuery,
 	ListLogsQuery,
 	ListLogsResult,
+	ListMetricsQuery,
+	ListMetricsResult,
 	ListTracesQuery,
 	ListTracesResult,
 	SpanDetails,
@@ -124,6 +126,9 @@ export function createPostMessageDataSource(
 		},
 		listLogs(query: ListLogsQuery): Promise<ListLogsResult> {
 			return request<ListLogsResult>((id) => ({ id, kind: 'listLogs', query }));
+		},
+		listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult> {
+			return request<ListMetricsResult>((id) => ({ id, kind: 'listMetrics', query }));
 		},
 		subscribe(handler: (event: ChangeEvent) => void): Disposable {
 			subscribers.add(handler);

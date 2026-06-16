@@ -6,6 +6,8 @@ import type {
 	GetTraceQuery,
 	ListLogsQuery,
 	ListLogsResult,
+	ListMetricsQuery,
+	ListMetricsResult,
 	ListTracesQuery,
 	ListTracesResult,
 	SpanDetails,
@@ -74,6 +76,9 @@ function fakeDataSource(): { ds: DataSource; emit: (event: ChangeEvent) => void 
 			throw new Error(`span ${query.spanId} not found`);
 		},
 		async listLogs(_query: ListLogsQuery): Promise<ListLogsResult> {
+			return { rows: [], totalCount: 0 };
+		},
+		async listMetrics(_query: ListMetricsQuery): Promise<ListMetricsResult> {
 			return { rows: [], totalCount: 0 };
 		},
 		subscribe(handler) {

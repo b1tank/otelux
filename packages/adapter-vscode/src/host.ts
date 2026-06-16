@@ -69,7 +69,8 @@ export function serveDataSource(options: ServeDataSourceOptions): Disposable {
 			message.kind !== 'listTraces' &&
 			message.kind !== 'getTrace' &&
 			message.kind !== 'getSpanDetails' &&
-			message.kind !== 'listLogs'
+			message.kind !== 'listLogs' &&
+			message.kind !== 'listMetrics'
 		) {
 			return;
 		}
@@ -105,6 +106,10 @@ async function dispatch(request: BridgeRequest, ds: DataSource): Promise<BridgeM
 			}
 			case 'listLogs': {
 				const result = await ds.listLogs(request.query);
+				return { id: request.id, kind: 'result', payload: result };
+			}
+			case 'listMetrics': {
+				const result = await ds.listMetrics(request.query);
 				return { id: request.id, kind: 'result', payload: result };
 			}
 		}

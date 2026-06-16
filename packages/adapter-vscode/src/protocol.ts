@@ -19,6 +19,8 @@ import type {
 	GetTraceQuery,
 	ListLogsQuery,
 	ListLogsResult,
+	ListMetricsQuery,
+	ListMetricsResult,
 	ListTracesQuery,
 	ListTracesResult,
 	SpanDetails,
@@ -29,10 +31,15 @@ export type BridgeRequest =
 	| { id: number; kind: 'listTraces'; query: ListTracesQuery }
 	| { id: number; kind: 'getTrace'; query: GetTraceQuery }
 	| { id: number; kind: 'getSpanDetails'; query: GetSpanDetailsQuery }
-	| { id: number; kind: 'listLogs'; query: ListLogsQuery };
+	| { id: number; kind: 'listLogs'; query: ListLogsQuery }
+	| { id: number; kind: 'listMetrics'; query: ListMetricsQuery };
 
 export type BridgeResponse =
-	| { id: number; kind: 'result'; payload: ListTracesResult | Trace | SpanDetails | ListLogsResult }
+	| {
+			id: number;
+			kind: 'result';
+			payload: ListTracesResult | Trace | SpanDetails | ListLogsResult | ListMetricsResult;
+	  }
 	| { id: number; kind: 'error'; message: string };
 
 export type BridgeEvent = { kind: 'event'; event: ChangeEvent };

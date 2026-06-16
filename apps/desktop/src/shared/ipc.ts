@@ -4,6 +4,8 @@ import type {
 	GetTraceQuery,
 	ListLogsQuery,
 	ListLogsResult,
+	ListMetricsQuery,
+	ListMetricsResult,
 	ListTracesQuery,
 	ListTracesResult,
 	SpanDetails,
@@ -129,6 +131,7 @@ export type InvokeMessage =
 	| { kind: 'getTrace'; query: GetTraceQuery }
 	| { kind: 'getSpanDetails'; query: GetSpanDetailsQuery }
 	| { kind: 'listLogs'; query: ListLogsQuery }
+	| { kind: 'listMetrics'; query: ListMetricsQuery }
 	| { kind: 'getSettings' }
 	| { kind: 'updateSettings'; patch: PartialSettings }
 	| { kind: 'getReceiverStatus' }
@@ -142,15 +145,17 @@ export type InvokeResultFor<M extends InvokeMessage> = M extends { kind: 'listTr
 			? SpanDetails
 			: M extends { kind: 'listLogs' }
 				? ListLogsResult
-				: M extends { kind: 'getSettings' }
-					? Settings
-					: M extends { kind: 'updateSettings' }
-						? UpdateSettingsResult
-						: M extends { kind: 'getReceiverStatus' }
-							? ReceiverStatus
-							: M extends { kind: 'getMcpStatus' }
-								? McpStatus
-								: never;
+				: M extends { kind: 'listMetrics' }
+					? ListMetricsResult
+					: M extends { kind: 'getSettings' }
+						? Settings
+						: M extends { kind: 'updateSettings' }
+							? UpdateSettingsResult
+							: M extends { kind: 'getReceiverStatus' }
+								? ReceiverStatus
+								: M extends { kind: 'getMcpStatus' }
+									? McpStatus
+									: never;
 
 /**
  * Discriminated union of every main→renderer push. The existing engine

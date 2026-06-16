@@ -5,6 +5,8 @@ import type {
 	GetTraceQuery,
 	ListLogsQuery,
 	ListLogsResult,
+	ListMetricsQuery,
+	ListMetricsResult,
 	ListTracesQuery,
 	ListTracesResult,
 	SpanDetails,
@@ -49,13 +51,20 @@ export function createIpcDataSource(bridge: OteluxWindowBridge): DataSource {
 		async listLogs(query: ListLogsQuery): Promise<ListLogsResult> {
 			return (await bridge.invoke({ kind: 'listLogs', query })) as ListLogsResult;
 		},
+		async listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult> {
+			return (await bridge.invoke({ kind: 'listMetrics', query })) as ListMetricsResult;
+		},
 		subscribe(handler): Disposable {
 			// The bridge surface delivers a wider event union (settings and
 			// receiver-status pushes share the same channel). The workbench
 			// only cares about engine ChangeEvents, so filter here — keeps the
 			// engine subscription contract narrow.
 			const unsubscribe = bridge.onEvent((event) => {
-				if (event.kind === 'tracesChanged' || event.kind === 'logsChanged') {
+				if (
+					event.kind === 'tracesChanged' ||
+					event.kind === 'logsChanged' ||
+					event.kind === 'metricsChanged'
+				) {
 					handler(event);
 				}
 			});
