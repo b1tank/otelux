@@ -22,7 +22,7 @@ interface EndpointBarProps {
  */
 export function EndpointBar(props: EndpointBarProps): JSX.Element {
 	const { status, mcpStatus } = props;
-	const url = endpointUrl(status);
+	const url = receiverBaseUrl(status);
 
 	return (
 		<div className="endpoint-bar">
@@ -104,11 +104,11 @@ function McpPill({ status }: { status: McpStatus | undefined }): JSX.Element | n
 	);
 }
 
-function endpointUrl(status: ReceiverStatus | undefined): string | undefined {
+function receiverBaseUrl(status: ReceiverStatus | undefined): string | undefined {
 	if (!status || status.kind !== 'running') {
 		return undefined;
 	}
-	return `http://${status.host}:${status.port}/v1/traces`;
+	return `http://${status.host}:${status.port}`;
 }
 
 function statusText(status: ReceiverStatus | undefined): string {
@@ -119,7 +119,7 @@ function statusText(status: ReceiverStatus | undefined): string {
 		case 'starting':
 			return 'starting…';
 		case 'running':
-			return `listening on http://${status.host}:${status.port}/v1/traces`;
+			return `listening on http://${status.host}:${status.port}`;
 		case 'error':
 			return `failed to bind ${status.host}:${status.port}: ${status.message}`;
 	}

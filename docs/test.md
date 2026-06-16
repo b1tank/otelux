@@ -37,7 +37,7 @@ cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-us
 ### 1.2 Initial UI
 - **Visible chrome (top → bottom, left → right)**
   1. Left **Rail** — narrow icon strip with the **Traces** tab active, enabled **Metrics** and **Logs** tabs below it, and a footer with **GitHub** (external link) and the **Settings** cog (opens the settings modal).
-  2. **Topbar** — `Traces` heading on the left, **EndpointBar** on the right (status dot, `OTLP/HTTP` label, URL `http://127.0.0.1:4319/v1/traces` as a click-to-copy pill). The copied URL is the trace endpoint; logs and metrics use the same host and port at `/v1/logs` and `/v1/metrics`. The settings cog lives on the rail, not in the topbar.
+  2. **Topbar** — `Traces` heading on the left, **EndpointBar** on the right (status dot, `OTLP/HTTP` label, URL `http://127.0.0.1:4319` as a click-to-copy pill). The copied URL is the receiver base URL; traces, logs, and metrics use the same host and port at `/v1/traces`, `/v1/logs`, and `/v1/metrics`. The settings cog lives on the rail, not in the topbar.
   3. **FilterBar** — hidden on cold start for Traces; it appears once at least one trace has been received and exposes a Service dropdown, an `Errors only` toggle chip, and a search field. Logs and Metrics expose their own filter controls when those tabs are active.
   4. **Workbench** body — right pane is collapsed (no waterfall yet); the left pane fills the width and shows the trace list with the `Traces` header, count `0`, and "Waiting for traces…" empty-state copy (or "No traces match. Point an OTel exporter at http://127.0.0.1:4319/v1/traces" once the first probe completes).
   5. No drawer / value-viewer modal is visible.
@@ -55,13 +55,13 @@ cat /tmp/otelux-userdata/settings.json 2>/dev/null
 
 ### 2.1 Status dot tooltip
 - Hover the dot.
-- **Expected**: tooltip reads `listening on http://127.0.0.1:4319/v1/traces`.
+- **Expected**: tooltip reads `listening on http://127.0.0.1:4319`.
 
 ### 2.2 URL copy
 - Click the URL pill once.
 - **Expected**:
   - The tooltip (button `title`) flips from `Click to copy` → `Copied` and the trailing icon morphs from the copy glyph to a green check for ~1.2 s, then both revert.
-  - System clipboard now contains exactly `http://127.0.0.1:4319/v1/traces` — verify with `xclip -selection clipboard -o` or paste into a textbox.
+  - System clipboard now contains exactly `http://127.0.0.1:4319` — verify with `xclip -selection clipboard -o` or paste into a textbox.
 
 ### 2.3 URL copy spamming
 - Click the URL 5 times rapidly.
@@ -101,7 +101,7 @@ Open settings (rail → Settings cog) before each row. After each row hit Cancel
 | 4.5 | `abc` | Save | `<input type=number>` may reject; if value reaches submit, same inline error |
 | 4.6 | `99999` | Save | same inline error |
 | 4.7 | `12.5` | Save | parses as `12`, see 4.8 outcome (success) — confirm coercion is intentional |
-| 4.8 | `14320` | Save | modal closes; receiver dot transitions starting→running; URL updates to `http://127.0.0.1:14320/v1/traces`; `cat /tmp/otelux-userdata/settings.json` shows `{"version":1,"otlp":{"port":14320}}` |
+| 4.8 | `14320` | Save | modal closes; receiver dot transitions starting→running; URL updates to `http://127.0.0.1:14320`; `cat /tmp/otelux-userdata/settings.json` shows `{"version":1,"otlp":{"port":14320}}` |
 | 4.9 | `14320` again | Save | no-op rebind (still running on 14320), modal closes |
 | 4.10 | `22` (privileged, on Linux not allowed for non-root) | Save | inline error like `failed to bind 127.0.0.1:22: EACCES` (or EADDRINUSE if something runs there); EndpointBar dot turns **red**; URL replaced by status text. Reopen settings from the rail, enter `14320`, Save → recovers to green. |
 | 4.11 | While 4.10 is in error state, click URL area | no copy (URL is hidden in error state); status-text span is plain text |
