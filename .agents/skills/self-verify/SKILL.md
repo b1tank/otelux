@@ -69,7 +69,7 @@ report under "deskpal gaps encountered".
 
 - User says "verify", "test the app", "self-check", "smoke", "QA", "regress"
 - Right after a non-trivial change under `apps/desktop/**`, `packages/ui/**`,
-  `packages/engine-node/**`, or `packages/receiver-node/**`
+  `packages/engine-node/**`, or `packages/receiver/**`
 - Before committing UX-visible changes
 
 If the user gives a narrower scope ("just verify settings persistence"),
@@ -305,6 +305,21 @@ deskpal.read_screen_text → "Elements" / "Console" tabs visible
 deskpal.key_press("ctrl+shift+i")    # closes
 deskpal.key_press("alt+F4")          # closes window
 shell: sleep 1; ss -ltnp | grep -E ':4319|143[0-9][0-9]' → empty
+```
+
+#### §13 Log ingest
+`send-traces.sh` only POSTs `/v1/traces`, so push logs with raw curl:
+```text
+shell: curl -s -X POST -H 'Content-Type: application/json' \
+         --data-binary '@fixtures/sample_codex_logs.json' \
+         http://127.0.0.1:4319/v1/logs -o /dev/null -w '%{http_code}\n'   # 2xx
+deskpal.click_text("Logs")                 // switch to the Logs tab
+deskpal.read_screen_text → rows appear; timestamps are real dates, NOT
+  1970/epoch (codex sends timeUnixNano "0"; receiver falls back to
+  observedTimeUnixNano)
+deskpal.click_text("<log-body-text>")      // open the detail drawer
+deskpal.read_screen_text → drawer shows the log body + attributes
+deskpal.screenshot for evidence
 ```
 
 ### 5. Cleanup
