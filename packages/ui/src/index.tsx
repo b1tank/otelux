@@ -154,6 +154,14 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		setSelectedSpanId(undefined);
 	};
 
+	const openTraceFromLog = (traceId: TraceId, spanId?: SpanId): void => {
+		setActiveView('traces');
+		setSelectedTraceIdRaw(traceId);
+		setSelectedSpanId(spanId);
+		setListCollapsed(false);
+		setWfCollapsed(false);
+	};
+
 	const traceQuery = useDataSourceQuery<Trace | undefined>(
 		dataSource,
 		async (ds) => {
@@ -441,6 +449,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 						/>
 						<LogsView
 							dataSource={dataSource}
+							onOpenTrace={openTraceFromLog}
 							{...(logsSeverity !== 'all' ? { minSeverity: Number(logsSeverity) } : {})}
 							{...(logsService !== 'all' ? { services: [logsService] } : {})}
 							{...(logsSearch ? { search: logsSearch } : {})}

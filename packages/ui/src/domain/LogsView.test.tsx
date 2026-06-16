@@ -17,7 +17,7 @@ import type {
 } from '@otelux/protocol';
 import type { LogRecord, Trace } from '@otelux/types';
 import { fireEvent, render, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { LogsView } from './LogsView.js';
 
 function makeLog(over: Partial<LogRecord> = {}): LogRecord {
@@ -111,6 +111,22 @@ describe('LogsView', () => {
 		expect(container.querySelector('.otelux-log-row--error')).toBeTruthy();
 	});
 
+	it('opens correlated traces and spans when a pivot callback is provided', async () => {
+		const ds = new FakeDataSource();
+		ds.rows = [makeLog()];
+		const onOpenTrace = vi.fn();
+		const { findByLabelText } = render(<LogsView dataSource={ds} onOpenTrace={onOpenTrace} />);
+
+		fireEvent.click(await findByLabelText('Open trace 0123456789ab'));
+		expect(onOpenTrace).toHaveBeenLastCalledWith('0123456789abcdef0123456789abcdef');
+
+		fireEvent.click(await findByLabelText('Open span abcdef012345 in trace 0123456789ab'));
+		expect(onOpenTrace).toHaveBeenLastCalledWith(
+			'0123456789abcdef0123456789abcdef',
+			'abcdef0123456789',
+		);
+	});
+
 	it('shows disabled correlation copy actions when a log has no trace context', async () => {
 		const ds = new FakeDataSource();
 		ds.rows = [makeLog({ traceId: undefined, spanId: undefined })];
@@ -118,6 +134,7 @@ describe('LogsView', () => {
 		await findByText('hello world');
 		expect((getByLabelText('No trace ID') as HTMLButtonElement).disabled).toBe(true);
 		expect((getByLabelText('No span ID') as HTMLButtonElement).disabled).toBe(true);
+		expect((getByLabelText('No trace to open') as HTMLButtonElement).disabled).toBe(true);
 	});
 
 	it('falls back to a prompt attribute when there is no body', async () => {

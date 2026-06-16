@@ -3,7 +3,7 @@
  */
 
 import { createEngine, createMemoryStorage } from '@otelux/engine';
-import type { Span } from '@otelux/types';
+import type { LogRecord, Span } from '@otelux/types';
 import { SpanKind, SpanStatusCode } from '@otelux/types';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
@@ -32,6 +32,21 @@ function makeSpan(overrides: Partial<Span> & Pick<Span, 'spanId' | 'name'>): Spa
 		scope: { name: 'http' },
 		...overrides,
 	} as Span;
+}
+
+function makeLog(overrides: Partial<LogRecord> = {}): LogRecord {
+	return {
+		timeUnixNano: 1_700_000_000_010_000_000n,
+		severityNumber: 9,
+		severityText: 'INFO',
+		body: 'child log',
+		traceId: TRACE_ID,
+		spanId: 'c'.repeat(16),
+		attributes: { 'event.name': 'codex.tool_result' },
+		resource: { attributes: { 'service.name': 'api' } },
+		scope: { name: 'codex' },
+		...overrides,
+	} as LogRecord;
 }
 
 describe('formatDuration', () => {
@@ -151,6 +166,29 @@ describe('OTeluxWorkbench', () => {
 		await waitFor(() => {
 			expect(screen.getByRole('dialog')).not.toBeNull();
 		});
+
+		await engine.close();
+	});
+
+	it('pivots from a correlated log row to the trace span', async () => {
+		const engine = createEngine({ storage: createMemoryStorage() });
+		await engine.ingestSpans([
+			makeSpan({ spanId: 'r'.repeat(16), name: 'root' }),
+			makeSpan({ spanId: 'c'.repeat(16), parentSpanId: 'r'.repeat(16), name: 'child' }),
+		]);
+		await engine.ingestLogs([makeLog()]);
+
+		render(<OTeluxWorkbench dataSource={engine} />);
+		fireEvent.click(await screen.findByRole('tab', { name: 'Logs' }));
+		await screen.findByText('child log');
+
+		fireEvent.click(await screen.findByLabelText('Open span cccccccccccc in trace aaaaaaaaaaaa'));
+
+		await waitFor(() => {
+			expect(screen.getByRole('heading', { name: 'Traces' })).not.toBeNull();
+			expect(screen.getByRole('dialog')).not.toBeNull();
+		});
+		expect(screen.getByRole('dialog').textContent).toContain('child');
 
 		await engine.close();
 	});

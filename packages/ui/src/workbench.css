@@ -2137,7 +2137,7 @@
 
 .otelux-logs__table {
 	width: 100%;
-	min-width: 940px;
+	min-width: 980px;
 	border-collapse: collapse;
 	table-layout: fixed;
 }
@@ -2159,7 +2159,7 @@
 }
 
 .otelux-logs__col-actions {
-	width: 220px;
+	width: 248px;
 }
 
 .otelux-logs__table thead {
@@ -2333,12 +2333,34 @@
 }
 
 .otelux-log-row__trace {
+	display: inline-block;
+	max-width: 100%;
 	font-family: var(--otelux-font-mono);
 	font-size: 11px;
 	color: var(--otelux-fg-muted);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+
+.otelux-log-row__trace-button {
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: var(--otelux-accent);
+	cursor: pointer;
+	text-align: left;
+}
+
+.otelux-log-row__trace-button:hover,
+.otelux-log-row__trace-button:focus-visible {
+	color: var(--otelux-fg);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.otelux-log-row__trace-button:focus-visible {
+	outline: none;
 }
 
 .otelux-log-row__action {
@@ -2353,6 +2375,7 @@
 }
 
 .otelux-log-row__copy-action,
+.otelux-log-row__pivot-action,
 .otelux-log-row__details-action {
 	height: 24px;
 	min-width: 0;
@@ -2369,6 +2392,7 @@
 	gap: 4px;
 }
 
+.otelux-log-row__pivot-action,
 .otelux-log-row__details-action {
 	width: 24px;
 	padding: 0;
@@ -2376,6 +2400,8 @@
 
 .otelux-log-row__copy-action:hover:not(:disabled),
 .otelux-log-row__copy-action:focus-visible,
+.otelux-log-row__pivot-action:hover:not(:disabled),
+.otelux-log-row__pivot-action:focus-visible,
 .otelux-log-row__details-action:hover:not(:disabled),
 .otelux-log-row__details-action:focus-visible {
 	background: var(--otelux-bg-elevated);
@@ -2387,7 +2413,8 @@
 	color: var(--otelux-ok);
 }
 
-.otelux-log-row__copy-action:disabled {
+.otelux-log-row__copy-action:disabled,
+.otelux-log-row__pivot-action:disabled {
 	opacity: 0.4;
 	cursor: not-allowed;
 }

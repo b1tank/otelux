@@ -22,7 +22,7 @@
  */
 
 import type { DataSource, ListLogsResult } from '@otelux/protocol';
-import type { AttributeValue, LogRecord } from '@otelux/types';
+import type { AttributeValue, LogRecord, SpanId, TraceId } from '@otelux/types';
 import { type CSSProperties, type JSX, useState } from 'react';
 import { formatWallClock, serviceColorVar, severityLabel, severityTone } from '../format.js';
 import {
@@ -34,6 +34,7 @@ import {
 	EyeIcon,
 	IconButton,
 	ValueViewer,
+	WaterfallIcon,
 } from '../primitives/index.js';
 import { useDataSourceQuery } from '../useDataSourceQuery.js';
 
@@ -49,6 +50,8 @@ export interface LogsViewProps {
 	limit?: number;
 	/** Hint text shown in the empty state. */
 	endpointUrl?: string;
+	/** Opens the trace surface for a correlated log record. */
+	onOpenTrace?: (traceId: TraceId, spanId?: SpanId) => void;
 }
 
 const DEFAULT_LIMIT = 500;
@@ -63,6 +66,7 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 		search,
 		limit = DEFAULT_LIMIT,
 		endpointUrl = DEFAULT_ENDPOINT,
+		onOpenTrace,
 	} = props;
 
 	const [selected, setSelected] = useState<LogRecord | null>(null);
@@ -145,6 +149,7 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 									log={log}
 									selected={selected === log}
 									onSelect={() => setSelected(log)}
+									{...(onOpenTrace !== undefined ? { onOpenTrace } : {})}
 								/>
 							))
 						)}
@@ -180,10 +185,11 @@ interface LogRowProps {
 	log: LogRecord;
 	selected: boolean;
 	onSelect(): void;
+	onOpenTrace?: (traceId: TraceId, spanId?: SpanId) => void;
 }
 
 function LogRow(props: LogRowProps): JSX.Element {
-	const { log, selected, onSelect } = props;
+	const { log, selected, onSelect, onOpenTrace } = props;
 	const tone = severityTone(log.severityNumber);
 	const svc = serviceName(log);
 	const rowStyle =
@@ -191,8 +197,11 @@ function LogRow(props: LogRowProps): JSX.Element {
 			? ({ ['--otelux-row-svc' as string]: serviceColorVar(svc) } as CSSProperties)
 			: undefined;
 	const message = logMessage(log);
-	const traceLabel = log.traceId !== undefined ? shortId(log.traceId) : '—';
-	const spanLabel = log.spanId !== undefined ? shortId(log.spanId) : '—';
+	const traceId = log.traceId;
+	const spanId = log.spanId;
+	const traceLabel = traceId !== undefined ? shortId(traceId) : '—';
+	const spanLabel = spanId !== undefined ? shortId(spanId) : '—';
+	const canOpenTrace = traceId !== undefined && onOpenTrace !== undefined;
 
 	return (
 		<tr
@@ -224,9 +233,21 @@ function LogRow(props: LogRowProps): JSX.Element {
 				</button>
 			</td>
 			<td>
-				<span className="otelux-log-row__trace" title={log.traceId ?? 'No trace'}>
-					{traceLabel}
-				</span>
+				{canOpenTrace ? (
+					<button
+						type="button"
+						className="otelux-log-row__trace otelux-log-row__trace-button"
+						onClick={() => onOpenTrace(traceId)}
+						aria-label={`Open trace ${traceLabel}`}
+						title={`Open trace ${traceId}`}
+					>
+						{traceLabel}
+					</button>
+				) : (
+					<span className="otelux-log-row__trace" title={traceId ?? 'No trace'}>
+						{traceLabel}
+					</span>
+				)}
 			</td>
 			<td>
 				<div className="otelux-log-row__actions">
@@ -239,9 +260,9 @@ function LogRow(props: LogRowProps): JSX.Element {
 					>
 						<span className="otelux-log-row__action-label">Msg</span>
 					</CopyButton>
-					{log.traceId !== undefined ? (
+					{traceId !== undefined ? (
 						<CopyButton
-							value={log.traceId}
+							value={traceId}
 							title="Copy trace ID"
 							ariaLabel={`Copy trace ID ${traceLabel}`}
 							className="otelux-log-row__action otelux-log-row__copy-action"
@@ -252,9 +273,9 @@ function LogRow(props: LogRowProps): JSX.Element {
 					) : (
 						<DisabledCopyAction label="No trace ID" text="Trace" />
 					)}
-					{log.spanId !== undefined ? (
+					{spanId !== undefined ? (
 						<CopyButton
-							value={log.spanId}
+							value={spanId}
 							title="Copy span ID"
 							ariaLabel={`Copy span ID ${spanLabel}`}
 							className="otelux-log-row__action otelux-log-row__copy-action"
@@ -264,6 +285,28 @@ function LogRow(props: LogRowProps): JSX.Element {
 						</CopyButton>
 					) : (
 						<DisabledCopyAction label="No span ID" text="Span" />
+					)}
+					{canOpenTrace ? (
+						<IconButton
+							className="otelux-log-row__action otelux-log-row__pivot-action"
+							aria-label={
+								spanId !== undefined
+									? `Open span ${spanLabel} in trace ${traceLabel}`
+									: `Open trace ${traceLabel}`
+							}
+							title={spanId !== undefined ? 'Open span in trace' : 'Open trace'}
+							onClick={() => onOpenTrace(traceId, spanId)}
+						>
+							<WaterfallIcon size={14} />
+						</IconButton>
+					) : (
+						<IconButton
+							className="otelux-log-row__action otelux-log-row__pivot-action"
+							aria-label="No trace to open"
+							disabled
+						>
+							<WaterfallIcon size={14} />
+						</IconButton>
 					)}
 					<IconButton
 						className="otelux-log-row__action otelux-log-row__details-action"
