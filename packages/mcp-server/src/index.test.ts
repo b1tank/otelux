@@ -2,8 +2,8 @@ import { createEngine, createMemoryStorage } from '@otelux/engine';
 import type { Span } from '@otelux/types';
 import { SpanKind, SpanStatusCode } from '@otelux/types';
 import { describe, expect, it } from 'vitest';
-import { createMcpServer } from './server.js';
 import { JSON_RPC_VERSION, MCP_PROTOCOL_VERSIONS } from './protocol.js';
+import { createMcpServer } from './server.js';
 import { httpRouter } from './transports/http.js';
 
 /**
@@ -40,6 +40,19 @@ async function fixtureServer() {
 		},
 	];
 	await engine.ingestSpans(spans);
+	// One structured log carrying agent content in an attribute, mirroring
+	// the way Codex logs ride prompts on the logs pipeline.
+	await engine.ingestLogs([
+		{
+			timeUnixNano: baseTs,
+			severityNumber: 9,
+			severityText: 'INFO',
+			eventName: 'codex.user_prompt',
+			attributes: { prompt: 'find the otelux-needle' },
+			resource: { attributes: { 'service.name': 'codex_exec' } },
+			scope: { name: 'codex_otel.log_only' },
+		},
+	]);
 	return createMcpServer({ engine });
 }
 
@@ -101,11 +114,27 @@ describe('createMcpServer', () => {
 			jsonrpc: JSON_RPC_VERSION,
 			id: 4,
 			method: 'tools/call',
-			params: { name: 'otel_search_logs', arguments: { query: 'foo' } },
+			params: { name: 'otel_correlate_agent_run', arguments: { runId: 'foo' } },
 		});
 		const content = (response as { result: { content: Array<{ text: string }> } }).result.content;
 		const payload = JSON.parse(content[0]!.text);
-		expect(payload).toMatchObject({ supported: false, logs: [] });
+		expect(payload).toMatchObject({ supported: false });
+	});
+
+	it('searches structured logs by free text, including attribute values', async () => {
+		const server = await fixtureServer();
+		const response = await server.handle({
+			jsonrpc: JSON_RPC_VERSION,
+			id: 6,
+			method: 'tools/call',
+			params: { name: 'otel_search_logs', arguments: { query: 'otelux-needle' } },
+		});
+		const content = (response as { result: { content: Array<{ text: string }> } }).result.content;
+		const payload = JSON.parse(content[0]!.text);
+		expect(payload.supported).toBe(true);
+		expect(payload.totalCount).toBe(1);
+		expect(payload.logs[0].service).toBe('codex_exec');
+		expect(payload.logs[0].attributes.prompt).toBe('find the otelux-needle');
 	});
 
 	it('returns method-not-found for unknown JSON-RPC methods', async () => {
