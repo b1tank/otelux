@@ -1,15 +1,14 @@
 import type { ToolDefinition } from '../server.js';
 
 /**
- * Agent-run correlation is the headline integration (`docs/proposal.md`
- * Surface C). The engine-side detection lands in Phase 1 Track B; until
- * then this tool returns an empty result with `supported: false` so
- * clients can integrate against the frozen schema today.
+ * Agent-run correlation waits on engine-side detection. Until then this tool
+ * returns an empty result with `supported: false` so clients can integrate
+ * against the frozen schema today.
  */
 export const correlateAgentRunTool: ToolDefinition = {
 	name: 'otel_correlate_agent_run',
 	description:
-		'Return user-app spans that occurred during a specific Copilot / Codex / Claude agent run. Joins by trace context propagation when available, falling back to time window + agent-host attributes. Stub in M1; engine detection lands in Phase 1 Track B.',
+		'Return user-app spans that occurred during a specific Copilot / Codex / Claude agent run. Joins by trace context propagation when available, falling back to time window + agent-host attributes. Schema-stable stub until engine detection lands.',
 	inputSchema: {
 		type: 'object',
 		properties: {
@@ -25,8 +24,7 @@ export const correlateAgentRunTool: ToolDefinition = {
 		const input = (raw ?? {}) as { agentRunId?: string };
 		return {
 			supported: false,
-			reason:
-				'agent-run detection lands in @otelux/engine in Phase 1 Track B; see docs/plan.md',
+			reason: 'agent-run detection is planned in @otelux/engine; see docs/plan.md',
 			agentRunId: input.agentRunId,
 			spans: [] as readonly unknown[],
 		};

@@ -7,5 +7,5 @@
 	"access": "public",
 	"baseBranch": "main",
 	"updateInternalDependencies": "patch",
-	"ignore": ["@otelux/desktop", "@otelux/web-demo", "@otelux/vscode-example"]
+	"ignore": ["@otelux/desktop", "@otelux/vscode-extension"]
 }

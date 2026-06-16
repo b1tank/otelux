@@ -7,8 +7,8 @@
  * Single endpoint that accepts `POST` JSON-RPC requests and returns a
  * synchronous JSON-RPC response. Notifications (`id` missing) receive a
  * `204 No Content` per spec. Streaming responses (SSE) are intentionally
- * not implemented in M1 — every OTelux tool is fast and synchronous, so
- * there is nothing to stream.
+ * not implemented yet — every current OTelux tool is fast and synchronous,
+ * so there is nothing to stream.
  */
 
 import { Hono } from 'hono';

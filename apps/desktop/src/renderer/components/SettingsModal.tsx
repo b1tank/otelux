@@ -11,8 +11,8 @@ import {
 interface SettingsModalProps {
 	readonly settings: Settings;
 	/**
-	 * Port the OTLP receiver is actually bound to right now. See the
-	 * Phase 0 note on env overrides — same reasoning applies here.
+	 * Port the OTLP receiver is actually bound to right now. Env overrides can
+	 * make this differ from the persisted setting.
 	 */
 	readonly currentPort?: number;
 	/**
@@ -173,8 +173,9 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 							disabled={saving}
 						/>
 						<span className="field__hint">
-							The OTLP/HTTP receiver listens on <code>127.0.0.1:&lt;port&gt;/v1/traces</code>. Changing
-							it restarts the receiver immediately.
+							The OTLP/HTTP receiver listens on{' '}
+							<code>127.0.0.1:&lt;port&gt;/v1/&#123;traces,logs,metrics&#125;</code>. Changing it restarts
+							the receiver immediately.
 						</span>
 					</label>
 

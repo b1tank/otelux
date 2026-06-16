@@ -1,7 +1,6 @@
 # OTelux UI redesign
 
-Companion notes for [`redesign-mockup.html`](./redesign-mockup.html).
-The HTML is the source of truth; this file captures **why** and **what's deferred**.
+Companion notes for [`redesign-mockup.html`](./redesign-mockup.html). The HTML is the source of truth; this file captures **why** and **what's deferred**.
 
 ## Philosophy
 
@@ -56,6 +55,7 @@ Min widths: list ≥ 280 px, waterfall ≥ 480 px. Splitter is 6 px wide with a 
 
 | Decision | Why |
 |---|---|
+| **Treat telemetry views as a workbench** | The product requirements are tracked in [`docs/spec.md`](../docs/spec.md), especially the Telemetry Workbench UX Requirements section. Table headers, details search, row actions, and trace/log correlation should feel native to OTelux's Service vocabulary and local-first visual tone. |
 | **Service**, not Resource | Universal across Jaeger/SigNoz/Tempo. "Resource" is OTel spec jargon — only people who've read the SDK reference know it means `service.name`. |
 | **Errors only** as a single chip toggle (not a Status dropdown) | One press, one of the top-three diagnostic actions. A 4-state dropdown would cost real estate for marginal benefit. Expand later only if needed. |
 | **Search is one input** (not two) | The waterfall's "find-in-trace" overlapped with the global filter. One search is simpler and good enough until traces are very large. Find-in-trace returns in v2. |
@@ -93,17 +93,12 @@ These should be enforced in code, not in CSS.
 
 ## Brand mark
 
-The name **OTelux** = OTel + flux. The brand mark is three horizontal
-arrows pointing right, with tails indenting from the left and tips
-cascading slightly down-right. The shape reads as both:
+The name **OTelux** = OTel + flux. The brand mark is three horizontal arrows pointing right, with tails indenting from the left and tips cascading slightly down-right. The shape reads as both:
 
 - **flux** — smooth right-pointing flow (the data the app receives), and
-- **a trace waterfall** — root span on top, child spans indenting and
-  getting shorter top-to-bottom (the same visual contract the workbench
-  waterfall uses).
+- **a trace waterfall** — root span on top, child spans indenting and getting shorter top-to-bottom (the same visual contract the workbench waterfall uses).
 
-A violet → blue gradient anchored to `--accent-2` (#bb9af7) → `--accent`
-(#7aa2f7) ties the mark to the rest of the UI.
+A violet → blue gradient anchored to `--accent-2` (#bb9af7) → `--accent` (#7aa2f7) ties the mark to the rest of the UI.
 
 - **Master SVG:** [`apps/desktop/build/icon.svg`](../apps/desktop/build/icon.svg) — single source of truth for the geometry.
 - **In-app component:** [`OTeluxLogo`](../packages/ui/src/primitives/OTeluxLogo.tsx) — same paths inlined as React, no `<rect>` background (the rail provides the surface).
@@ -169,6 +164,9 @@ See the previous chat or the original recommendation for the full pros/cons.
 
 Not because they're bad — because shipping fewer well-built features beats shipping more half-built ones.
 
+- **Resizable summary/details pane**. The fixed drawer remains simpler until logs/traces have richer table interactions that need more horizontal room.
+- **Waterfall log markers**. Add when `DataSource` can efficiently fetch logs by trace/span and the UI can open log details from a span timeline marker.
+- **Resizable/sortable columns for all dense tables**. Logs need headers immediately; full column management can wait until logs routinely exceed a few hundred rows or users need to compare wide services/messages.
 - **Duration filter** (min / max or quick chips `>1s`, `>10s`). Add when the list regularly exceeds 50 traces.
 - **Time range / lookback**. Live tail + pause is sufficient for now.
 - **Find-in-trace** inside the waterfall (with `quoted phrases` and `-negation`, Jaeger-style). Add when single traces routinely have >50 spans.
@@ -177,7 +175,6 @@ Not because they're bad — because shipping fewer well-built features beats shi
 - **Service flame chart** / multi-service grouped view. Defer until we have multi-service traces in common workflows.
 - **Virtualization** in the trace list and waterfall. Add as a swap-in once we hit ~200 rows; not before.
 - **URL state** (sharable view via querystring). Wait for the second user.
-- **Metrics tab, Logs tab**. Greyed out in the rail today.
 
 ---
 

@@ -112,7 +112,7 @@ export interface ListMetricsResult {
 /**
  * Span detail view. Engines may return a richer object than `Span` here
  * if they have additional, denormalized info to surface (e.g. peer
- * resolution, derived metrics). For Milestone 1 it is just the span.
+ * resolution, derived metrics). Today it is just the span.
  */
 export type SpanDetails = Span;
 

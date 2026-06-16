@@ -1,8 +1,5 @@
 {
 	"servers": {
-		"deskpal": {
-			"command": "/home/b1tank/deskpal/build/deskpal"
-		},
 		"otelux": {
 			"url": "http://localhost:4320",
 			"type": "http"

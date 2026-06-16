@@ -14,9 +14,9 @@
  *   - `search`      -> free-text over body, event name, severity text,
  *                      and attribute keys/values
  *
- * Re-fetches when the DataSource notifies. No virtualization yet — the
- * Milestone 1 desktop workload (hundreds of logs) scrolls fine; revisit
- * when a heavier load arrives. Layered import discipline: lives in
+ * Re-fetches when the DataSource notifies. No virtualization yet — current
+ * local workloads (hundreds of logs) scroll fine; revisit when a heavier load
+ * arrives. Layered import discipline: lives in
  * `src/domain/` and depends on `primitives` + `format.ts` + types only;
  * it MUST NOT import other domain components.
  */

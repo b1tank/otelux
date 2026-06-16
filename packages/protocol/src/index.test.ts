@@ -3,7 +3,7 @@ import type { ChangeEvent, DataSource, ListTracesQuery, ListTracesResult } from 
 import { OTELUX_PROTOCOL_VERSION } from './index.js';
 
 describe('@otelux/protocol', () => {
-	it('DataSource exposes the full Milestone 1 surface', () => {
+	it('DataSource exposes the current core surface', () => {
 		expectTypeOf<DataSource>().toHaveProperty('listTraces');
 		expectTypeOf<DataSource>().toHaveProperty('getTrace');
 		expectTypeOf<DataSource>().toHaveProperty('getSpanDetails');
@@ -25,7 +25,7 @@ describe('@otelux/protocol', () => {
 		expect(r.totalCount).toBe(0);
 	});
 
-	it('exports a 0.1.0 protocol version (Milestone 1 baseline)', () => {
+	it('exports a 0.1.0 protocol version', () => {
 		expect(OTELUX_PROTOCOL_VERSION).toBe('0.1.0');
 	});
 });

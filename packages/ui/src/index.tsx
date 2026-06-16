@@ -172,7 +172,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 	//      and collapse the right pane before any data arrives.
 	//   2. populate the Service dropdown with available services and
 	//      per-service counts. Counts are derived from the row sample;
-	//      good enough for milestone 1 — a future iteration can move
+	//      good enough for current local workloads — a future iteration can move
 	//      this to a dedicated `listServices()` data source method.
 	//
 	// limit=500 caps the work; trace counts above that round down in
@@ -239,8 +239,8 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 
 	// Logs service dropdown: probe an unfiltered sample to learn which
 	// services emit logs and how many records each contributes. Mirrors
-	// the trace summary probe; good enough for milestone 1 (a future
-	// iteration can move this to a dedicated `listServices()`).
+	// the trace summary probe; good enough for current local workloads (a
+	// future iteration can move this to a dedicated `listServices()`).
 	const logsProbe = useDataSourceQuery(
 		dataSource,
 		(ds) => ds.listLogs({ limit: 500, sortBy: 'time', sortDirection: 'desc' }),

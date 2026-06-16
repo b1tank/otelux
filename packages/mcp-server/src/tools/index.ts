@@ -4,12 +4,9 @@
  * Each tool is a thin wrapper over `@otelux/engine` so the LM Tools in
  * `apps/vscode-extension` and these MCP tools return identical results.
  *
- * Two tools (`otel_correlate_agent_run`, `otel_get_service_overview`)
- * have stub implementations in M1 — the engine surface they need lands
- * later (agent-run detection in Phase 1 Track B, services overview in
- * Phase 6). `otel_search_logs` is live as of Phase 2. The input schemas
- * are frozen here so clients can integrate today and pick up real data
- * when the engine catches up.
+ * `otel_correlate_agent_run` is schema-stable but waits on engine-side
+ * agent-run detection. `otel_get_service_overview` is backed by recent trace
+ * summaries today; richer cross-signal service rollups land later.
  */
 
 import type { ToolDefinition } from '../server.js';

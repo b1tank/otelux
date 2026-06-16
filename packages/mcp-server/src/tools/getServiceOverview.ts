@@ -2,9 +2,9 @@ import type { ToolDefinition } from '../server.js';
 
 /**
  * Service overview aggregates `listTraces` results from the engine. A
- * dedicated `Engine.listServices` query lands later — for M1 we
- * approximate by paging through recent traces, which gives correct
- * service identity but not per-service span counts.
+ * dedicated cross-signal service query lands later; for now we approximate by
+ * paging through recent traces, which gives correct service identity and local
+ * trace/error/span rollups.
  */
 export const getServiceOverviewTool: ToolDefinition = {
 	name: 'otel_get_service_overview',
@@ -22,9 +22,9 @@ export const getServiceOverviewTool: ToolDefinition = {
 		const nowNs = BigInt(Date.now()) * 1_000_000n;
 		const fromNs = nowNs - BigInt(sinceMinutes) * 60n * 1_000_000_000n;
 
-		// Engine doesn't expose listServices in M1; we approximate by
-		// scanning the most recent batch of traces. 200 is plenty for a
-		// local desktop install.
+		// Engine doesn't expose a dedicated service overview yet; approximate by
+		// scanning the most recent batch of traces. 200 is plenty for a local
+		// desktop install.
 		const result = await engine.listTraces({
 			limit: 200,
 			sortBy: 'startTime',

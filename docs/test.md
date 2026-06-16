@@ -1,16 +1,10 @@
 # OTelux — Manual Test Plan
 
-A human-friendly, exhaustive walk-through for verifying the desktop app
-end-to-end. Designed to be executed verbatim by a person clicking the UI,
-*and* mirrored by an agent doing self-verification via CDP/IPC.
+A human-friendly, exhaustive walk-through for verifying the desktop app end-to-end. Designed to be executed verbatim by a person clicking the UI, *and* mirrored by an agent doing self-verification through the repo's self-verify workflow.
 
-Scope: the Electron app (`apps/desktop`) + the OTLP/HTTP receiver +
-`@otelux/ui` workbench rendered inside it. Not a unit/integration test
-plan — those live next to source.
+Scope: the Electron app (`apps/desktop`) + the OTLP/HTTP receiver + `@otelux/ui` workbench rendered inside it. Not a unit/integration test plan — those live next to source.
 
-> Throughout, **PASS** = behavior exactly matches the "Expected" line.
-> Any deviation is a **FAIL** with a one-line note (what you saw vs. what
-> was expected). Don't fix bugs while testing — log them.
+> Throughout, **PASS** = behavior exactly matches the "Expected" line. Any deviation is a **FAIL** with a one-line note (what you saw vs. what was expected). Don't fix bugs while testing — log them.
 
 ---
 
@@ -18,7 +12,7 @@ plan — those live next to source.
 
 | Step | Action | Expected |
 |------|--------|----------|
-| 0.1 | `cd /home/b1tank/otelux` | shell at repo root |
+| 0.1 | `cd <repo-root>` | shell at repo root |
 | 0.2 | `node --version` | `v22.x` (matches `.nvmrc`) |
 | 0.3 | `npm run lint && npm run typecheck` | both exit 0, no errors |
 | 0.4 | `npm run test` | all packages green (currently no `desktop` tests, fine) |
@@ -35,32 +29,19 @@ plan — those live next to source.
 cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-userdata
 ```
 - **Expected**:
-  - main-process log line: `[otelux] OTLP/HTTP receiver listening on http://127.0.0.1:4319/v1/traces`
+  - main-process log line: `[otelux] OTLP/HTTP receiver listening on http://127.0.0.1:4319/v1/{traces,logs,metrics}`
   - Electron window opens within ~3 s
   - Window title: contains "OTelux" or "Electron"
   - `ss -ltnp | grep 4319` shows electron listening
 
 ### 1.2 Initial UI
 - **Visible chrome (top → bottom, left → right)**
-  1. Left **Rail** — narrow icon strip with the **Traces** tab active,
-     an enabled **Logs** tab below it, a disabled **Metrics (coming
-     soon)** item, and a footer with **GitHub** (external link) and the
-     **Settings** cog (opens the settings modal).
-  2. **Topbar** — `Traces` heading on the left, **EndpointBar** on the
-     right (status dot, `OTLP/HTTP` label, URL
-     `http://127.0.0.1:4319/v1/traces` as a click-to-copy pill). The
-     settings cog lives on the rail, not in the topbar.
-  3. **FilterBar** — hidden on cold start (no traces yet); it appears
-     once at least one trace has been received and exposes a Service
-     dropdown, an `Errors only` toggle chip, and a search field.
-  4. **Workbench** body — right pane is collapsed (no waterfall yet);
-     the left pane fills the width and shows the trace list with the
-     `Traces` header, count `0`, and "Waiting for traces…" empty-state
-     copy (or "No traces match. Point an OTel exporter at
-     http://127.0.0.1:4319/v1/traces" once the first probe completes).
+  1. Left **Rail** — narrow icon strip with the **Traces** tab active, enabled **Metrics** and **Logs** tabs below it, and a footer with **GitHub** (external link) and the **Settings** cog (opens the settings modal).
+  2. **Topbar** — `Traces` heading on the left, **EndpointBar** on the right (status dot, `OTLP/HTTP` label, URL `http://127.0.0.1:4319/v1/traces` as a click-to-copy pill). The copied URL is the trace endpoint; logs and metrics use the same host and port at `/v1/logs` and `/v1/metrics`. The settings cog lives on the rail, not in the topbar.
+  3. **FilterBar** — hidden on cold start for Traces; it appears once at least one trace has been received and exposes a Service dropdown, an `Errors only` toggle chip, and a search field. Logs and Metrics expose their own filter controls when those tabs are active.
+  4. **Workbench** body — right pane is collapsed (no waterfall yet); the left pane fills the width and shows the trace list with the `Traces` header, count `0`, and "Waiting for traces…" empty-state copy (or "No traces match. Point an OTel exporter at http://127.0.0.1:4319/v1/traces" once the first probe completes).
   5. No drawer / value-viewer modal is visible.
-- **PASS** if the dot is green and the URL renders inside the topbar
-  (no separate header strip above the workbench).
+- **PASS** if the dot is green and the URL renders inside the topbar (no separate header strip above the workbench).
 
 ### 1.3 Persisted settings file
 ```bash
@@ -79,9 +60,7 @@ cat /tmp/otelux-userdata/settings.json 2>/dev/null
 ### 2.2 URL copy
 - Click the URL pill once.
 - **Expected**:
-  - The tooltip (button `title`) flips from `Click to copy` → `Copied`
-    and the trailing icon morphs from the copy glyph to a green check
-    for ~1.2 s, then both revert.
+  - The tooltip (button `title`) flips from `Click to copy` → `Copied` and the trailing icon morphs from the copy glyph to a green check for ~1.2 s, then both revert.
   - System clipboard now contains exactly `http://127.0.0.1:4319/v1/traces` — verify with `xclip -selection clipboard -o` or paste into a textbox.
 
 ### 2.3 URL copy spamming
@@ -89,8 +68,7 @@ cat /tmp/otelux-userdata/settings.json 2>/dev/null
 - **Expected**: no crash, no JS error in DevTools console (Ctrl+Shift+I), the `Copied` tooltip + check icon reset cleanly each time without the row reflowing.
 
 ### 2.4 Settings cog opens settings
-- Click the **Settings** cog at the bottom of the **rail** (not the
-  topbar — the cog moved there in the redesign).
+- Click the **Settings** cog at the bottom of the **rail** (not the topbar — the cog moved there in the redesign).
 - **Expected**: backdrop dims, settings dialog appears centered, OTLP/HTTP port input focused with value selected (cursor highlights `4319`).
 
 ---
@@ -145,13 +123,13 @@ Then settings → set `14321` → Save.
 1. Quit Electron (window close).
 2. Confirm port released: `ss -ltnp | grep 14320` → empty.
 3. Relaunch without env override: `cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-userdata`
-- **Expected**: log shows `listening on http://127.0.0.1:14320/v1/traces` (loaded from settings.json), EndpointBar URL reflects 14320.
+- **Expected**: log shows `listening on http://127.0.0.1:14320/v1/{traces,logs,metrics}` (loaded from settings.json), EndpointBar URL reflects 14320.
 
 ### 5.2 Env override is one-shot
 1. Quit Electron.
 2. Relaunch with `OTELUX_OTLP_PORT=14999 npx electron out/main/index.js --user-data-dir=/tmp/otelux-userdata`
 - **Expected**:
-  - log shows `listening on http://127.0.0.1:14999/v1/traces`
+  - log shows `listening on http://127.0.0.1:14999/v1/{traces,logs,metrics}`
   - `cat /tmp/otelux-userdata/settings.json` still shows `{"otlp":{"port":14320}}` — **env did NOT mutate file**
   - Open settings modal → input shows persisted `14320` (matches file, not the env port)
   - Quit + relaunch without env → returns to 14320
@@ -160,7 +138,7 @@ Then settings → set `14321` → Save.
 1. Quit.
 2. `echo 'this is not json' > /tmp/otelux-userdata/settings.json`
 3. Relaunch.
-- **Expected**: no crash, log shows `listening on http://127.0.0.1:4319/v1/traces` (default), settings modal shows `4319`.
+- **Expected**: no crash, log shows `listening on http://127.0.0.1:4319/v1/{traces,logs,metrics}` (default), settings modal shows `4319`.
 4. Save `14320` from the modal — `settings.json` is rewritten as valid JSON.
 
 ### 5.4 Invalid-shape settings tolerated
@@ -224,7 +202,7 @@ for i in {1..20}; do PORT=14320 ./scripts/send-traces.sh >/dev/null; done
 
 ### 7.2 Select different row
 - Click second row.
-- **Expected**: previous row deselects, new row selects, waterfall updates, inspector resets to "Select a span to inspect its attributes." or "No span selected." depending on data.
+- **Expected**: previous row deselects, new row selects, waterfall updates, span detail drawer resets to "Select a span to inspect its attributes." or "No span selected." depending on data.
 
 ### 7.3 Keyboard navigation
 - Tab to a row's button, press Enter.
@@ -252,29 +230,29 @@ Select a distributed_trace.json row (multi-service, multiple spans).
 
 ### 8.3 Span selection
 - Click a non-root bar.
-- **Expected**: row gets `--selected` styling; inspector pane fills with attribute key/value pairs.
+- **Expected**: row gets `--selected` styling; span detail drawer fills with attribute key/value pairs.
 
 ### 8.4 Select root then leaf
 - Click root, then a leaf.
-- **Expected**: inspector swaps content, no stale attributes from previous span.
+- **Expected**: span detail drawer swaps content, no stale attributes from previous span.
 
 ### 8.5 Span label truncation
 - If a span name is long, hover/inspect to confirm overflow handled (ellipsis or truncate, no horizontal scroll explosion).
 
 ### 8.6 Change trace
 - Click a different trace row in the sidebar.
-- **Expected**: waterfall replaces; inspector resets (no leftover span from the previous trace).
+- **Expected**: waterfall replaces; span detail drawer resets (no leftover span from the previous trace).
 
 ---
 
-## 9. Inspector
+## 9. Span detail drawer
 
 ### 9.1 Attribute rows
 - Select a span with attributes (distributed_trace.json `frontend` root).
 - **Expected**: rows like `http.method = GET`, `http.target = /api/...` — keys monospace, values readable.
 
 ### 9.2 Span without attributes
-- If a fixture span has no attributes, inspector shows empty-state copy ("No attributes." or similar) — confirm no JS error.
+- If a fixture span has no attributes, the span detail drawer shows empty-state copy ("No attributes." or similar) — confirm no JS error.
 
 ### 9.3 Click-through
 - Click the trace name in the waterfall header (if it's a button) — confirm it doesn't crash.
@@ -306,8 +284,7 @@ curl -s -X POST -H 'Content-Type: application/json' --data '' http://127.0.0.1:1
 curl -s http://127.0.0.1:14320/ -w '%{http_code}\n'
 curl -s http://127.0.0.1:14320/v1/nope -X POST -H 'Content-Type: application/json' --data '{}' -w '%{http_code}\n'
 ```
-- **Expected**: 404 for unknown paths. (`/v1/logs` and `/v1/metrics`
-  are real ingest endpoints — exercised in §14 and §15.)
+- **Expected**: 404 for unknown paths. (`/v1/logs` and `/v1/metrics` are real ingest endpoints — exercised in §14 and §15.)
 
 ### 10.5 Oversize payload *(optional, will be slow)*
 - Generate a 10 MB JSON body and POST. Confirm no OOM and either a 200 or controlled 4xx (depends on Hono limits).
@@ -366,8 +343,7 @@ curl -sf http://127.0.0.1:14320/v1/traces -X POST -H 'Content-Type: application/
 
 ## 14. Logs ingest
 
-The receiver accepts OTLP/HTTP logs at `/v1/logs`. Send the captured Codex
-log fixture and open the **Logs** tab.
+The receiver accepts OTLP/HTTP logs at `/v1/logs`. Send the captured Codex log fixture and open the **Logs** tab.
 
 ### 14.1 Ingest the fixture
 ```bash
@@ -375,35 +351,25 @@ curl -s -X POST -H 'Content-Type: application/json' \
   --data-binary '@fixtures/sample_codex_logs.json' \
   http://127.0.0.1:14320/v1/logs -o /dev/null -w '%{http_code}\n'   # 2xx
 ```
-- **Expected**: `{"partialSuccess":{}}`, HTTP 2xx. The **Logs** rail tab
-  count increments from 0.
+- **Expected**: `{"partialSuccess":{}}`, HTTP 2xx. The **Logs** rail tab count increments from 0.
 
 ### 14.2 Rows render with a real timestamp
 - Click the **Logs** tab.
-- **Expected**: rows render with a **real wall-clock time**, not the Unix
-  epoch. Codex emits `timeUnixNano: "0"` and carries the true emit time
-  only in `observedTimeUnixNano`; the receiver must fall back to it.
-  Each row shows a severity badge, the service chip (`codex_exec`), and
-  the log body (or an attribute fallback like `event.name` when there is
-  no body).
+- **Expected**: rows render with a **real wall-clock time**, not the Unix epoch. Codex emits `timeUnixNano: "0"` and carries the true emit time only in `observedTimeUnixNano`; the receiver must fall back to it. Each row shows a severity badge, the service chip (`codex_exec`), and the log body (or an attribute fallback like `event.name` when there is no body).
 
 ### 14.3 Detail drawer
 - Click a row.
-- **Expected**: the detail drawer opens showing the log body and the
-  full attribute set (e.g. the user `prompt` content rides the logs
-  pipeline in attributes, not traces).
+- **Expected**: the detail drawer opens showing the log body and the full attribute set (e.g. the user `prompt` content rides the logs pipeline in attributes, not traces).
 
 ### 14.4 Filters
 - Use the FilterBar service dropdown / severity / search.
-- **Expected**: the row set narrows; the query is forwarded to the data
-  source (count in the header reflects the filtered result).
+- **Expected**: the row set narrows; the query is forwarded to the data source (count in the header reflects the filtered result).
 
 ---
 
 ## 15. Metrics ingest
 
-The receiver accepts OTLP/HTTP metrics at `/v1/metrics`. Send the captured
-Codex metrics fixture and open the **Metrics** tab.
+The receiver accepts OTLP/HTTP metrics at `/v1/metrics`. Send the captured Codex metrics fixture and open the **Metrics** tab.
 
 ### 15.1 Ingest the fixture
 ```bash
@@ -411,28 +377,19 @@ curl -s -X POST -H 'Content-Type: application/json' \
   --data-binary '@fixtures/sample_codex_metrics.json' \
   http://127.0.0.1:14320/v1/metrics -o /dev/null -w '%{http_code}\n'  # 2xx
 ```
-- **Expected**: `{"partialSuccess":{}}`, HTTP 2xx. The **Metrics** rail
-  tab count increments.
+- **Expected**: `{"partialSuccess":{}}`, HTTP 2xx. The **Metrics** rail tab count increments.
 
 ### 15.2 Meter → instrument tree
 - Click the **Metrics** tab.
-- **Expected**: instruments are grouped by meter (scope) name. Codex
-  emits monotonic Sums (`codex.api_request`, `codex.tool.call`,
-  `codex.turn.token_usage`) and Histograms (`*_ms` durations like
-  `codex.turn.e2e_duration_ms`, `codex.api_request.duration_ms`). Each
-  instrument shows its name, type (sum / gauge / histogram), and unit.
+- **Expected**: instruments are grouped by meter (scope) name. Codex emits monotonic Sums (`codex.api_request`, `codex.tool.call`, `codex.turn.token_usage`) and Histograms (`*_ms` durations like `codex.turn.e2e_duration_ms`, `codex.api_request.duration_ms`). Each instrument shows its name, type (sum / gauge / histogram), and unit.
 
 ### 15.3 Instrument chart + table toggle
 - Select an instrument.
-- **Expected**: a chart renders its data points over time. A
-  **graph / table** toggle switches between the chart and a raw
-  data-point table (timestamp, value, attributes). Histograms render
-  their bucket distribution.
+- **Expected**: a chart renders its data points over time. A **graph / table** toggle switches between the chart and a raw data-point table (timestamp, value, attributes). Histograms render their bucket distribution.
 
 ### 15.4 Live update
 - Re-send the fixture (or run a live Codex turn, see §E2E).
-- **Expected**: the instrument list and selected chart update without a
-  manual refresh (engine `metricsChanged` subscription).
+- **Expected**: the instrument list and selected chart update without a manual refresh (engine `metricsChanged` subscription).
 
 ---
 
@@ -470,14 +427,12 @@ When you only have a minute (e.g. post-commit gate):
 1. Build: `npm run lint && npm run typecheck && npm run build`
 2. Launch: `cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-smoke &`
 3. `sleep 3 && PORT=4319 ./scripts/send-traces.sh`
-4. Click the trace, click any span — confirm waterfall + inspector populate.
+4. Click the trace, click any span — confirm waterfall + span detail drawer populate.
 5. Rail → Settings cog → change port to a different one (e.g. `4399`) → Save → confirm green dot + new URL, then change back to `4319`.
 6. Close window. `pkill -9 -f out/main/index.js`. Done.
 
 ---
 
-## Agent self-verification (deterministic, no clicks)
+## Agent self-verification
 
-Mirror of section 1–6 over Chrome DevTools Protocol, suitable for an agent.
-See `.agents/skills/self-verify/SKILL.md` for the runnable steps and the
-CDP probe helper.
+Mirror the relevant manual steps through `.agents/skills/self-verify/SKILL.md`. Use deskpal for visible UI checks; reserve CDP for invisible state such as IPC results, settings JSON, or focused element assertions.

@@ -130,7 +130,7 @@ async function startBackend(): Promise<{
 	const status = await receiverHost.start(initialPort);
 	if (status.kind === 'running') {
 		console.log(
-			`[otelux] OTLP/HTTP receiver listening on http://${status.host}:${status.port}/v1/{traces,logs}`,
+			`[otelux] OTLP/HTTP receiver listening on http://${status.host}:${status.port}/v1/{traces,logs,metrics}`,
 		);
 	} else if (status.kind === 'error') {
 		console.error(

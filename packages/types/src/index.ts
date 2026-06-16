@@ -3,9 +3,8 @@
  *
  * These mirror the OTLP wire format
  * (https://opentelemetry.io/docs/specs/otlp/) and serve as the canonical
- * in-memory representation across `@otelux/*`. Trace types shipped in
- * Milestone 1; log records landed in Phase 2; metric types land in Phase 3;
- * profiles follow.
+ * in-memory representation across `@otelux/*`. Trace, log, and metric types
+ * are live; profile types are planned for later.
  */
 
 /** Wire times are unsigned-fixed64 nanoseconds since Unix epoch. */

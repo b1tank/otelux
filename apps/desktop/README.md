@@ -1,7 +1,6 @@
 # @otelux/desktop
 
-The OTelux desktop app. Electron shell hosting `@otelux/receiver` and
-`@otelux/engine` in the main process, and `@otelux/ui` in the renderer.
+The OTelux desktop app. Electron shell hosting `@otelux/receiver` and `@otelux/engine` in the main process, and `@otelux/ui` in the renderer.
 
 ## Develop
 
@@ -17,8 +16,7 @@ Opens an Electron window pointing at the Vite dev server with hot reload.
 npm run -w apps/desktop build
 ```
 
-Produces `out/main/*.js`, `out/preload/*.js`, and `out/renderer/*` ready to
-be packaged.
+Produces `out/main/*.js`, `out/preload/*.js`, and `out/renderer/*` ready to be packaged.
 
 ## Run the locally built app
 
@@ -29,10 +27,7 @@ be packaged.
 ./otelux.sh --install-desktop # add a ~/.local entry so the app can be pinned
 ```
 
-`otelux.sh` lives at the repo root. Unlike the VS Code launch.json
-("OTelux: Main + Renderer"), it does **not** attach a debugger and uses a
-dedicated user-data dir (`~/.config/otelux/local`) so settings persist
-across runs and don't collide with the debug session.
+`otelux.sh` lives at the repo root. Unlike the VS Code launch.json ("OTelux: Main + Renderer"), it does **not** attach a debugger and uses a dedicated user-data dir (`~/.config/otelux/local`) so settings persist across runs and don't collide with the debug session.
 
 ## Package for Linux
 

@@ -2,7 +2,7 @@
 	"name": "@otelux/receiver",
 	"version": "0.0.0",
 	"private": true,
-	"description": "OTLP/HTTP and OTLP/gRPC receiver. Ingests into an @otelux/engine instance.",
+	"description": "OTLP/HTTP JSON receiver. Ingests into an @otelux/engine instance.",
 	"license": "MIT",
 	"type": "module",
 	"main": "./dist/index.cjs",

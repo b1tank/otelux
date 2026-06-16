@@ -1,7 +1,7 @@
 /**
  * @otelux/receiver — OTLP/HTTP receiver wired to an @otelux/engine.
  *
- * For Milestone 1 we accept the OTLP/HTTP JSON encoding only. Spec:
+ * We accept the OTLP/HTTP JSON encoding today. Spec:
  * https://opentelemetry.io/docs/specs/otlp/#otlphttp
  *
  * - POST /v1/traces  — `ExportTraceServiceRequest` JSON body.

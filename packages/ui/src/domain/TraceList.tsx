@@ -13,9 +13,9 @@
  *  - `services`  -> services
  *  - `search`    -> search
  *
- * Re-fetches when the DataSource notifies. No virtualization yet — for
- * the Milestone 1 desktop workload (hundreds of traces) a native scroll
- * container performs well; revisit when a heavier load arrives.
+ * Re-fetches when the DataSource notifies. No virtualization yet — for current
+ * local workloads (hundreds of traces) a native scroll container performs
+ * well; revisit when a heavier load arrives.
  */
 
 import type { DataSource, ListTracesResultRow } from '@otelux/protocol';

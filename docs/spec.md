@@ -1,543 +1,296 @@
 # OTelux — Specification
 
-Version: 3.1
 Updated: 2026-06-16
 
-OTelux is a local-first OpenTelemetry workbench. It receives traces, logs,
-metrics, and (later) profiles from local applications, stores them on disk,
-and presents them through a fast, embeddable viewer.
+OTelux is a local-first OpenTelemetry workbench. It receives local telemetry, keeps it on the user's machine, renders it in a dense debugging UI, and exposes read-only query tools to local coding agents.
 
-The shipping vehicle is a **cross-platform desktop app**, starting with Linux.
-The viewer itself is built as a set of **reusable npm packages** so it can
-also be embedded in other surfaces (for example, a VS Code extension webview
-that watches local agent telemetry) without forking the codebase.
+This document defines what the product is. Delivery sequencing lives in [plan.md](plan.md). The project pitch lives in [proposal.md](proposal.md).
 
-This document fixes **what** OTelux is: principles, scope, signals,
-packages, tech stack, boundaries, and budgets. Delivery sequencing lives in
-[plan.md](plan.md).
+## Product Principles
 
----
-
-## 1. Product principles
-
-| Principle | Direction |
+| Principle | Meaning |
 |---|---|
-| Local-first, single-user | No cloud, no auth, no multi-tenant in the core. Embedders can layer that on. |
-| One codebase, many surfaces | Desktop app, VS Code-style webview embeds, and pure-browser demos all consume the same packages. |
-| Package-first, app-second | Every feature lives in a package; apps are thin assemblies. |
-| Embed-friendly | Webview-safe: CSP-clean, postMessage-friendly, themable through CSS variables. |
-| Slow is fine | Best product eventually, not fastest demo. One signal at a time, end to end. |
-| A11y is part of done | Keyboard nav, ARIA, focus rings, roving tabindex from day one. |
-| Performance budgets bind | Treat regressions as bugs. |
+| Local-first | No cloud account, no backend dependency, no multi-tenant core. |
+| Workbench, not dashboard | Dense comparison where users scan rows; spacious detail where users inspect one item. |
+| One engine, many hosts | Desktop, VS Code, and agent tools query the same engine data. |
+| Package-first | Shared behavior belongs in `packages/*`; apps assemble packages. |
+| Embed-friendly | UI is browser-safe, themeable through CSS variables, and usable inside webviews. |
+| A11y is part of done | Keyboard access, focus states, labels, and readable high-contrast states are required. |
+| Performance budgets bind | Slow query, layout, or ingest regressions are product bugs. |
 
----
+## Current Baseline
 
-## 2. Signals in scope
+The repository currently contains:
 
-| Signal | In core? | Notes |
+- `apps/desktop`: Electron app hosting the receiver, engine, MCP server, IPC, settings, and React renderer.
+- `apps/vscode-extension`: VS Code extension shell with embedded receiver, MCP server, webview workbench, and LM Tool registration.
+- OTLP/HTTP JSON ingest for traces, logs, and metrics.
+- In-memory storage for all signals.
+- Live Traces, Logs, and Metrics rail surfaces in `@otelux/ui`.
+- Direct and VS Code postMessage `DataSource` adapters.
+- MCP and LM tool plumbing over the same query layer.
+
+Important current limits:
+
+- `@otelux/engine-node` currently forwards to memory storage. Durable `node:sqlite` storage is planned, not shipped.
+- Protobuf and gRPC ingest are planned, not shipped.
+- Logs and dense trace modes need real grid polish.
+- Agent-run correlation and service overview tools are schema-stable but not fully implemented.
+
+## Signals In Scope
+
+| Signal | Status | Product surface |
 |---|---|---|
-| Traces | Yes | Trace list, waterfall, span detail, search, filters. |
-| Structured logs | Yes | Severity-aware table, log detail, trace correlation. |
-| Metrics | Yes | Gauges, sums, histograms; charts and meter browser. |
-| Services overview | Yes | Derived from OTLP `resource.attributes.service.*`. |
-| Profiles | Later | Flame graph + correlation; defined in a later milestone. |
-| GenAI assistant | No | Optional, off by default, may never ship. |
+| Traces | Live | Trace list, waterfall, span details, filters. |
+| Structured logs | Live | Severity-aware rows, search, details, attributes. Needs grid polish. |
+| Metrics | Live | Meter grouping, instrument cards, graph/table views. |
+| Services overview | Planned | Derived service rollups across traces, logs, and metrics. |
+| Profiles | Later | Flame graph and trace/profile correlation. |
 
-The logs and metrics explorers are specified against a concrete reference
-workload — the **Codex CLI** OTel exporter — so the minimum ingest contract is
-grounded in real wire payloads rather than a generic SDK. See [§13](#13-reference-workload--codex-cli-three-pillar-ingest).
-The explorer feature bar (severity-aware log table, attribute filters, meter
-tree, per-instrument charts) follows the prior art in the .NET Aspire dashboard
-(`StructuredLogs` and `Metrics` pages); delivery detail lives in
-[plan.md Phase 2–3](plan.md).
+The reference dogfood workload is Codex CLI telemetry. Its user-visible content rides the logs pipeline, while latency and token information ride metrics and traces. That is why OTelux treats logs and metrics as core signals rather than follow-on decoration.
 
----
-
-## 3. Architecture
+## Architecture
 
 ```text
-┌──────────────────────────────────────────────────────────────────────┐
-│                                Apps                                  │
-│  apps/desktop (Electron)   apps/web-demo   apps/vscode-example       │
-├──────────────────────────────────────────────────────────────────────┤
-│                            Adapters                                  │
-│  @otelux/adapter-direct   @otelux/adapter-vscode   (later: tauri)    │
-├──────────────────────────────────────────────────────────────────────┤
-│        @otelux/ui (React)       │       @otelux/receiver (Node)      │
-│  Waterfall, TraceList, SpanDet, │  OTLP/HTTP (Hono); gRPC in Phase 5 │
-│  LogsTable, MetricChart, ...    │  writes via the engine ingest API  │
-├──────────────────────────────────────┴──────────────────────────────────┤
-│                      @otelux/mcp-server (Node)                       │
-│  Read-only JSON-RPC dispatcher over @otelux/engine; HTTP + stdio.    │
-├──────────────────────────────────────────────────────────────────────┤
-│                          @otelux/protocol                            │
-│  DataSource interface + { query → result } message shapes            │
-├──────────────────────────────────────────────────────────────────────┤
-│                          @otelux/engine                              │
-│  ingest │ query │ layout │ live subscription (pure TS, no I/O)       │
-│         │       │        │                                           │
-│  @otelux/engine-node (node:sqlite)    @otelux/engine-wasm (OPFS)     │
-├──────────────────────────────────────────────────────────────────────┤
-│                          @otelux/types                               │
-│  OTLP types (Trace, Span, Log, Metric, Resource)                     │
-└──────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│ Apps                                                         │
+│   apps/desktop            apps/vscode-extension              │
+├──────────────────────────────────────────────────────────────┤
+│ UI adapters                                                  │
+│   @otelux/adapter-direct  @otelux/adapter-vscode             │
+├──────────────────────────────────────────────────────────────┤
+│ @otelux/ui                                                   │
+│   Traces, Logs, Metrics, details, primitives, theme tokens    │
+├──────────────────────────────────────────────────────────────┤
+│ @otelux/protocol                                             │
+│   DataSource interface and query/result shapes                │
+├──────────────────────────────────────────────────────────────┤
+│ @otelux/engine                                               │
+│   ingest, query, layout, live subscription, storage boundary   │
+├──────────────────────────────────────────────────────────────┤
+│ Storage                                                      │
+│   memory today; @otelux/engine-node SQLite planned            │
+├──────────────────────────────────────────────────────────────┤
+│ Ingest and agent tools                                       │
+│   @otelux/receiver      @otelux/mcp-server      VS Code tools │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-The load-bearing decision is the `DataSource` interface in `@otelux/protocol`:
+The load-bearing boundary is `DataSource` from `@otelux/protocol`. The UI asks for telemetry through this interface. Hosts decide whether the request is served directly, over Electron IPC, or over VS Code postMessage.
 
-```ts
-interface DataSource {
-  listTraces(q: ListTracesQuery): Promise<ListTracesResult>;
-  getTrace(traceId: string): Promise<TraceWithSpans>;
-  getSpanDetails(spanId: string): Promise<SpanDetails>;
-  // …same shape for logs, metrics, services…
-  subscribe?(handler: (event: ChangeEvent) => void): Disposable;
-}
-```
+The engine is the source of truth for ingest, query, layout, and subscriptions. The receiver writes into it. The UI and agent tools read from it.
 
-`@otelux/ui` consumes a `DataSource`. Three adapters fulfill it identically:
+## Packages
 
-- **`adapter-direct`** — wraps an engine instance. Used by the desktop app
-  (renderer talking to the main process) and the web demo.
-- **`adapter-vscode`** — postMessage round-trip between a webview and an
-  extension host that owns the engine. Lands in M1 alongside the
-  VS Code extension; see [plan.md Phase 1](plan.md).
-- **`adapter-tauri`** (later) — Tauri IPC.
-
-`@otelux/mcp-server` is a fourth consumer of the engine: it exposes a
-read-only Model Context Protocol surface over JSON-RPC (HTTP and stdio
-transports). Both `apps/desktop` and `apps/vscode-extension` mount it on
-the same engine instance, so external coding agents (Codex, Claude Code,
-Cursor) get the same view as the local UI without ever touching the
-`DataSource` boundary.
-
----
-
-## 4. Packages (frozen contracts)
-
-Every package is MIT, published to npm under `@otelux/*` from this repo.
-
-| Package | Purpose | Runtime |
+| Package | Purpose | Current state |
 |---|---|---|
-| `@otelux/types` | OTLP TS types. | iso |
-| `@otelux/engine` | Pure-TS query, layout, ingest, agent-run detection. Pluggable storage. | iso |
-| `@otelux/engine-node` | `node:sqlite` storage adapter. | node |
-| `@otelux/engine-wasm` | `@sqlite.org/sqlite-wasm` + OPFS storage adapter. | browser |
-| `@otelux/protocol` | `DataSource` interface + typed query/result shapes. | iso |
-| `@otelux/ui` | React components: Waterfall, TraceList, SpanDetail, LogsTable, MetricChart, ServiceMap, Toolbar, theme. | browser |
-| `@otelux/adapter-direct` | In-process `DataSource`. | iso |
-| `@otelux/adapter-vscode` | postMessage `DataSource` for VS Code webviews + `serve()` helper for extension host. Ships in M1. | browser/node split |
-| `@otelux/adapter-tauri` (later) | Tauri IPC `DataSource`. | browser |
-| `@otelux/receiver` | OTLP/HTTP receiver (Hono) with single-instance lock and cross-process handoff. gRPC added in Phase 5. | node |
-| `@otelux/mcp-server` | Read-only Model Context Protocol dispatcher over `@otelux/engine`; HTTP and stdio transports. Consumed by desktop and extension. | node |
-
-Apps live under `apps/` and are not published to npm:
-
-| App | Purpose |
-|---|---|
-| `apps/desktop` | Electron shell hosting `@otelux/receiver` + `@otelux/mcp-server` in main, `@otelux/ui` in renderer. The headline product. |
-| `apps/vscode-extension` | VS Code extension hosting `@otelux/receiver` + `@otelux/mcp-server` in the extension host, `@otelux/ui` in a webview via `@otelux/adapter-vscode`, and registering VS Code Language-Model Tools that wrap `@otelux/engine` queries. Ships in M1 alongside `apps/desktop`. |
-| `apps/web-demo` | Pure-browser demo on GitHub Pages; SQLite-WASM + fixtures. Phase 8. |
-
----
-
-## 5. Tech stack (frozen)
-
-| Layer | Pick |
-|---|---|
-| Language | **TypeScript** everywhere, strict mode. |
-| Package manager | **npm** workspaces. |
-| Monorepo orchestration | **Turborepo**. |
-| Library bundling | **tsup** (ESM + CJS + types). |
-| App bundling | **Vite**. |
-| Test runner | **Vitest**. |
-| Component workshop | **Storybook 8** (React-Vite framework). _Planned; not yet adopted — see [plan.md](plan.md)._ |
-| E2E / visual regression | **Playwright**. |
-| Lint + format | **Biome**, fall back to ESLint+Prettier only if Biome blocks. |
-| Versioning + releases | **Changesets**. |
-| UI framework | **React 18**. |
-| UI styling | **CSS Modules + CSS variables**. Theme tokens map to `--vscode-*` when present, with `--otelux-*` fallbacks. |
-| UI primitives | **Radix UI Primitives**. |
-| Tables + virtualization | **TanStack Table + TanStack Virtual**. |
-| Charts | **visx**. Waterfall: SVG below ~5k spans, Canvas above. |
-| State | **Zustand**. |
-| Async data | **TanStack Query**. |
-| Icons | **Lucide React**, swappable via icon-slot prop (so VS Code can use codicons). |
-| Node SQLite | **`node:sqlite`** (Node 22+ built-in, no native compile). |
-| Browser SQLite | **`@sqlite.org/sqlite-wasm`** with OPFS persistence. |
-| OTLP decoders | **`@opentelemetry/otlp-transformer`** + **`@opentelemetry/proto`**. |
-| HTTP receiver | **Hono**. |
-| gRPC receiver | **`@grpc/grpc-js`** (deferred to Phase 5 — M1 ships HTTP only). |
-| MCP transport | Hand-written JSON-RPC dispatcher in `@otelux/mcp-server`; HTTP via Hono, stdio via Node streams. |
-| Desktop shell | **Electron** + **electron-builder**. Tauri 2 only if size matters later. |
-| Analytical engine | None initially. DuckDB-wasm reserved as an escape hatch for metrics if SQLite query budgets slip. |
-
-### 5.1 Bundling per app
-
-Each consumer assembles the same packages with different bundlers and
-targets. The matrix is part of the contract — changing it later breaks
-either the webview CSP, the Electron sandbox, or the extension host.
-
-| App entry | Bundler | Format | Target | Notes |
-|---|---|---|---|---|
-| `apps/desktop` main process | electron-vite | CJS | Node 22 | Hosts `@otelux/receiver`, `@otelux/engine-node`, `@otelux/mcp-server`. |
-| `apps/desktop` preload | electron-vite | CJS | Node 22 | Exposes `@otelux/adapter-direct` IPC. |
-| `apps/desktop` renderer | electron-vite | ESM | Chromium | Imports `@otelux/ui`. |
-| `apps/vscode-extension` host entry | esbuild | CJS | Node 22 | `external: ['vscode']`; hosts `@otelux/receiver`, `@otelux/engine-node`, `@otelux/mcp-server`, registers Language-Model Tools. |
-| `apps/vscode-extension` webview entry | Vite | ESM | Chromium | CSP-clean; imports `@otelux/ui` + `@otelux/adapter-vscode/client`. |
-| `apps/web-demo` | Vite | ESM | Chromium | Imports `@otelux/ui` + `@otelux/engine-wasm`. |
-| `@otelux/*` libraries | tsup | ESM + CJS + dts | iso | Each library declares `"browser"` and `"default"` package exports so webview, Electron renderer, and Node consumers all resolve correctly. |
-
----
-
-## 6. Boundaries (non-negotiable)
-
-1. **`@otelux/ui` never imports `@otelux/engine`.** It accepts a `DataSource`.
-2. **`@otelux/engine` knows nothing about React or DOM.** Pure TS, runs in
-   browser, Node, and Web Workers.
-3. **`@otelux/protocol` is the single source of truth** for query/result
-   shapes. Every adapter implements it identically.
-4. **No native modules** in any published package. `node:sqlite` is built-in
-   to Node 22+, not a native dependency.
-5. **No CSP-hostile dependencies.** No `eval`, no `new Function`, no
-   inline-style injection by libraries. Production Vite builds must pass
-   under a strict `script-src 'nonce-*'` CSP. Lint enforces this.
-6. **Theme is a CSS-variable contract**, not a JS theme object. Consumers
-   override `--otelux-*` tokens. Webview embedders that expose `--vscode-*`
-   variables get correct theming automatically through the default mapping.
-7. **A11y is part of every UI PR.** Keyboard nav, ARIA roles, focus rings,
-   roving tabindex. Not deferred to a polish phase.
-8. **Tests are non-negotiable.** Engine: unit + fixture parity. UI: Storybook
-   stories + Playwright visual snapshots. Apps: smoke E2E.
-
----
-
-## 7. Embedding consumers
-
-The viewer is designed to live inside other host applications. The first
-external embedder we plan for is a VS Code extension that monitors local
-agent telemetry — but nothing in the package architecture is VS Code-specific.
-
-A typical embedder splits work across two runtimes:
-
-```ts
-// host process (Node) — runs the engine
-import { createEngine } from '@otelux/engine';
-import { createNodeSqliteStorage } from '@otelux/engine-node';
-import { serveDataSource } from '@otelux/adapter-vscode/server';
-
-const engine = createEngine({
-  storage: createNodeSqliteStorage({ path: dbPath }),
-});
-
-hostSpanSource.onSpan(span => engine.ingestSpan(span));
-
-const panel = host.createWebview(/* … */);
-serveDataSource(panel.webview, engine);
-```
-
-```tsx
-// embedded webview (browser) — renders the UI
-import { OTeluxWorkbench } from '@otelux/ui';
-import { createPostMessageDataSource } from '@otelux/adapter-vscode/client';
-
-const ds = createPostMessageDataSource(acquireHostApi());
-root.render(<OTeluxWorkbench dataSource={ds} theme="host" />);
-```
-
-Constraints honored by design (informed by VS Code webview rules, which are
-the strictest case we plan for):
-
-- Sandboxed webview → UI is plain browser code, no Node, no fs.
-- Host ↔ webview is postMessage only → async `DataSource` over serializable
-  messages.
-- CSP forbids `eval` → no eval-using deps; Vite production build is
-  CSP-clean. Lint enforces this.
-- Asset loading is gated → UI ships as a self-contained bundle.
-- Theming via host CSS variables → default theme maps `--otelux-*` onto
-  whatever variables the host exposes (e.g. `--vscode-*`).
-- Bundle size matters → tree-shakeable per-component imports.
-
-When an external project wants to consume `@otelux/*` without a direct npm
-dependency (for example, a host with a strict external-dependency policy),
-the recommended pattern is to **vendor** the relevant package tarballs
-into its own source tree at a pinned version.
-
-### 7.1 Port assignments and single-instance handoff
-
-The receiver runs in whatever process owns the engine — the Electron
-main process for desktop, the extension host for the VS Code extension.
-Users may have one or both installed and may run multiple VS Code
-windows. Ports cannot collide.
-
-**Defaults:**
-
-| Consumer | OTLP/HTTP | OTLP/gRPC | UI / MCP HTTP | Rationale |
-|---|---|---|---|---|
-| `apps/desktop` | `4319` | (Phase 5) `4316` | n/a (local IPC) | Off-by-one from the OTel standard ports so the desktop app never fights a user's standalone collector. |
-| `apps/vscode-extension` | `4318` | (Phase 5) `4317` | `3000` (configurable) | Matches the OTel standard; users point any SDK at `localhost:4318` with zero config. |
-
-All defaults are overridable through settings and via
-`OTELUX_OTLP_HTTP_PORT` / `OTELUX_OTLP_GRPC_PORT` env vars. The receiver
-is a single source of truth — both desktop and extension consume it.
-
-**Single-instance handoff** is a `@otelux/receiver` concern, not a
-per-app concern. The package exposes a `claimSingleInstance({ port })`
-helper that:
-
-1. Tries to `listen` on the requested port and, on success, claims a
-   lockfile in the OS temp directory recording the listener PID, the
-   process kind (`desktop` / `vscode-extension`), and the engine RPC
-   endpoint.
-2. On `EADDRINUSE`, reads the lockfile and decides:
-   - Same process kind + healthy probe → the second instance hands its
-     work off to the first via the engine RPC endpoint and runs in
-     "client" mode (UI only, no receiver, no MCP server).
-   - Incompatible process or unreachable → surface a clear startup error
-     ("another OTelux receiver is already on `4318`") with the conflicting
-     PID.
-3. Releases the lockfile on graceful shutdown.
-
-This is the same pattern used by `vscode-otelme` and Splunk's
-`observability-studio`, reimplemented in TypeScript inside the package so
-the desktop and extension behave identically.
-
----
-
-## 8. Performance budgets
-
-Treat regressions as bugs.
-
-| Surface | Budget |
-|---|---|
-| Cold start to first paint | < 300 ms warm cache |
-| Trace list page query | < 50 ms at 100k spans |
-| Waterfall layout | < 16 ms at 10k visible rows |
-| Log table query | < 100 ms at 1M rows with index hits |
-| Metric chart query | < 100 ms at 100k points |
-| Sustained ingest | > 10k spans/sec on a developer laptop |
-| `@otelux/ui` gzipped (no charts) | < 80 kB |
-| `@otelux/ui` gzipped (with charts) | < 200 kB |
-| Memory | Idle UI memory dominated by data, not framework. |
-
----
-
-## 9. Acceptance per package (definition of done)
-
-| Package | Done when |
-|---|---|
-| `@otelux/types` | All OTLP signal types covered, `tsd` type tests green, no runtime exports. |
-| `@otelux/engine` | Ingest, query, layout, subscribe APIs stable. Storage interface fully abstracted. Fixture parity tests pass. |
-| `@otelux/engine-node` | `engine` test suite green against `node:sqlite`. WAL pragma + schema versioning + retention proven. |
-| `@otelux/engine-wasm` | `engine` test suite green against `sqlite-wasm` + OPFS. |
-| `@otelux/protocol` | All query/result shapes versioned; `DataSource` interface frozen for a major release. |
-| `@otelux/ui` | Every component has Storybook stories (loaded, empty, error, selected, dark, high-contrast). Playwright visual snapshots in CI. Keyboard nav verified per component. CSP-clean production build verified. |
-| `@otelux/adapter-vscode` | Round-trip latency budget met on the M1 extension. Webview CSP and theme integration verified. |
-| `@otelux/receiver` | OTLP/HTTP JSON+protobuf accepted for all signals in scope; ingest throughput budget met; `claimSingleInstance` proven by integration tests with two competing processes. gRPC adds same coverage in Phase 5. |
-| `@otelux/mcp-server` | All MCP tools backed by `@otelux/engine` queries; HTTP + stdio transports; protocol-version negotiation; integration tests against a real Codex/Claude/Cursor MCP client. |
-| `apps/desktop` | Cold-start budget met; ships installable artifacts for Linux first, then macOS and Windows. Auto-update wired in a later phase. |
-| `apps/vscode-extension` | Loads in current VS Code stable; ingests OTLP without configuration; UI theme-correct in light/dark/high-contrast; LM Tools registered and callable from Copilot Chat; MCP server discoverable by external agents via one-click configure commands. |
-| `apps/web-demo` | Deployed to GitHub Pages on every main push. CSP-clean. |
-
----
-
-## 10. Open questions (re-evaluate as we go)
-
-1. **DuckDB for metrics** — decide at the metrics-phase boundary based on
-   observed SQLite query times against 100k–1M metric points.
-2. **Tauri swap** — decide later based on Electron binary size complaints
-   and any blocking limitation.
-3. **Public docs site stack** — VitePress vs Docusaurus vs Astro Starlight;
-   decide when a docs site becomes useful.
-4. **GenAI assistant** — strictly optional, may never ship. Default: no.
-
----
-
-## 11. Verification loop
-
-Every change runs:
-
-```sh
-npm install
-npm run typecheck
-npm run lint
-npm test
-npm run build
-```
-
-Each command goes through Turborepo so only affected packages rebuild.
-
-> The commands below are forward-looking — the corresponding scripts and
-> apps (`web-demo`, `vscode-example`, Storybook, Playwright) land
-> alongside the matching phases in `plan.md` and are not yet present in
-> the workspace.
-
-UI changes additionally pass:
-
-```sh
-npm run storybook -- --ci          # build static Storybook
-npm run test:visual                # Playwright visual snapshots
-```
-
-App changes additionally pass:
-
-```sh
-npm run test:e2e -w apps/desktop
-npm run test:e2e -w apps/web-demo
-npm run test:e2e -w apps/vscode-example
-```
-
-A green pipeline on Ubuntu (and later macOS and Windows) × Node 22 LTS is
-the floor.
-
----
-
-## 12. Agent integration surfaces
-
-The viewer is consumed by two kinds of agents: the user (a human) and AI
-coding agents (Copilot in VS Code, plus external agents like Codex,
-Claude Code, Cursor). The product principle is that **anything an AI
-agent can see, the desktop app can also see**, so the agent surface is
-implemented as packages, not as VS-Code-only code.
-
-### 12.1 Surfaces and where they live
-
-| Surface | Consumer | Where it lives | Available in |
-|---|---|---|---|
-| `DataSource` queries | Human UI | `@otelux/protocol` + `@otelux/ui` | Desktop + extension |
-| MCP JSON-RPC tools | External AI agents (Codex, Claude, Cursor) | `@otelux/mcp-server` (HTTP + stdio) | Desktop + extension |
-| VS Code Language-Model Tools | Copilot in VS Code | `apps/vscode-extension` (thin wrappers over `@otelux/engine`) | Extension only — the only genuinely extension-specific surface |
-| One-click "Enable Codex / Claude Code / Cursor integration" | External AI agents | `apps/vscode-extension` first; promoted to `@otelux/agent-config` package once a second consumer needs it | Extension first, desktop later |
-
-### 12.2 Agent-run correlation
-
-Copilot agent mode and other AI coding agents already emit OTel-shaped
-traces of their own work (tool calls, model requests, retries). When a
-user instruments their app with OTel and runs it under such an agent,
-both span streams land in the same `@otelux/engine` store. The engine
-recognizes "agent runs" as a first-class derived entity and exposes
-queries to:
-
-- list agent runs in a time window,
-- fetch the user-app spans that occurred during a given agent run,
-- join an agent's tool-call span to the user-app trace it triggered,
-  using either trace-context propagation or a timestamp + run-id heuristic
-  when propagation is not present.
-
-Because this logic lives in `@otelux/engine`, the desktop app shows an
-"Agent runs" pane for free, the VS Code extension exposes the same
-lookups as LM Tools, and external MCP clients can call them as MCP tools.
-No per-consumer duplication.
-
-### 12.3 MCP tool surface
-
-The initial read-only MCP tool set, mirrored by VS Code LM Tools, covers
-the four canonical troubleshooting questions:
-
-| Tool | Question |
-|---|---|
-| `otel_find_recent_errors` | What just broke? |
-| `otel_get_slowest_spans` | What's slow? |
-| `otel_search_logs` | Why did this log fire? |
-| `otel_correlate_agent_run` | What was my app doing during this agent run? |
-| `otel_get_trace` / `otel_get_span_details` | Drill-down primitives. |
-| `otel_get_service_overview` | What services emitted telemetry? |
-
-All tools are thin wrappers over `@otelux/engine` query methods and ship
-in both `@otelux/mcp-server` and the extension's LM Tools layer.
-
----
-
-## 13. Reference workload — Codex CLI three-pillar ingest
-
-The logs and metrics work is specified against a concrete producer: the
-**Codex CLI** OpenTelemetry exporter (`codex-rs/otel`). It is the first
-real workload that exercises all three pillars, and it is the fastest way
-to dogfood OTelux against telemetry a human actually wants to read. This
-section fixes the **minimum ingest contract** OTelux must satisfy to receive
-Codex telemetry; the explorer UX that sits on top is specified in §2 and
-sequenced in [plan.md](plan.md).
-
-### 13.1 Codex emits three independent OTLP pipelines
-
-| Codex config field | OTLP signal | Carries content? |
+| `@otelux/types` | Shared trace, log, metric, resource, scope, and attribute types. | Live. |
+| `@otelux/protocol` | `DataSource` interface and query/result contracts. | Live for traces/logs/metrics. |
+| `@otelux/engine` | Pure TypeScript ingest, query, layout, subscriptions, memory storage. | Live. |
+| `@otelux/engine-node` | Node storage package. | Placeholder that currently uses memory storage; SQLite planned. |
+| `@otelux/receiver` | OTLP/HTTP receiver and single-instance helper. | JSON routes live for traces/logs/metrics. |
+| `@otelux/ui` | React workbench and primitives. | Traces/logs/metrics live; polish ongoing. |
+| `@otelux/adapter-direct` | In-process `DataSource` wrapper. | Live. |
+| `@otelux/adapter-vscode` | VS Code webview postMessage `DataSource` bridge. | Live. |
+| `@otelux/mcp-server` | Read-only MCP JSON-RPC dispatcher. | Live with some stubbed tools. |
+
+Apps are not published packages:
+
+| App | Purpose | Current state |
 |---|---|---|
-| `[otel.exporter]` | **Logs** | **Yes** — `codex.user_prompt` carries the raw `prompt` text when `log_user_prompt = true`; also tool decisions and other business events. |
-| `[otel.trace_exporter]` | **Traces** | No — content-redacted by design (only `prompt_length`, counts). |
-| `[otel.metrics_exporter]` | **Metrics** | No — counters/histograms with low-cardinality attributes. |
+| `apps/desktop` | Main Electron workbench. | Runnable Linux-focused pre-release. |
+| `apps/vscode-extension` | VS Code-hosted workbench plus MCP/LM tools. | Shell implemented; needs hardening and packaging. |
 
-**Consequence that drives scope:** user-visible content (prompts, tool
-arguments) rides the **logs** pipeline only. A traces-only viewer can never
-show it. This is the load-bearing reason logs ingest is a core signal, not a
-nice-to-have.
+Future packages or apps, such as a WASM storage adapter or web demo, should be added to this spec when they enter active implementation.
 
-### 13.2 Wire facts OTelux must honor
+## Technology
 
-- **Transport:** OTLP/HTTP, protobuf-JSON encoding (camelCase keys, fixed64
-  as strings, `AnyValue`-wrapped attributes) — the same shape the existing
-  trace decoder normalizes. M1 ships JSON; protobuf and gRPC are deferred
-  (see §5, Phase 5).
-- **Endpoint paths:** Codex (opentelemetry-otlp 0.31) sends a programmatic
-  endpoint **as-is and does not append `/v1/...`**. Each Codex exporter is
-  therefore configured with the full path, so OTelux must serve the standard
-  signal routes: `POST /v1/logs` and `POST /v1/metrics` alongside the existing
-  `POST /v1/traces`.
-- **Logs payload:** OTLP `ExportLogsServiceRequest`
-  (`resourceLogs[].scopeLogs[].logRecords[]`). Codex records are INFO
-  (`severityNumber = 9`); the payload lives in **attributes**
-  (`event.name`, `conversation.id`, `model`, `slug`, `prompt`, …), not the
-  `body`.
-- **Metrics payload:** OTLP `ExportMetricsServiceRequest`
-  (`resourceMetrics[].scopeMetrics[].metrics[]`). Codex instruments are
-  predominantly monotonic **Sums** (`codex.api_request`, `codex.tool.call`,
-  `codex.turn.token_usage`, …) and **Histograms** (`*_ms` durations such as
-  `codex.api_request.duration_ms`, `codex.turn.e2e_duration_ms`), plus a few
-  gauges; **delta** temporality.
-
-### 13.3 Minimum ingest contract
-
-The bar for "OTelux can ingest Codex" mirrors the existing trace path across
-the same layers:
-
-| Layer | Add |
+| Layer | Choice |
 |---|---|
-| `@otelux/types` | `LogRecord` model; `Metric` model (`Sum` / `Gauge` / `Histogram` + data points, `AggregationTemporality`). Reuses `AttributeMap`, `Resource`, `InstrumentationScope`. |
-| `@otelux/receiver` | `decodeExportLogsServiceRequest`, `decodeExportMetricsServiceRequest` (reuse the `otlp.ts` attribute normalizers); routes `POST /v1/logs`, `POST /v1/metrics`, lenient JSON, `{ partialSuccess: {} }` on success, `400` on malformed JSON. |
-| `@otelux/engine` | `ingestLogs` / `ingestMetrics`; `listLogs` / `listMetrics` queries; `logsChanged` / `metricsChanged` subscription events. |
-| storage | `writeLogs` / `getLogs`, `writeMetrics` / `getMetrics` (in-memory is sufficient for first landing; SQLite per Phase 2/3). |
-| `@otelux/protocol` | `ChangeEvent` additions; `ListLogsQuery` / `ListMetricsQuery`; `listLogs` / `listMetrics` on `DataSource`. |
+| Language | TypeScript strict mode. |
+| Package manager | npm workspaces. |
+| Monorepo orchestration | Turborepo. |
+| Lint/format | Biome. |
+| Tests | Vitest. |
+| Desktop | Electron, electron-vite, electron-builder. |
+| VS Code extension | esbuild host bundle, Vite webview bundle. |
+| UI | React 18, CSS variables, hand-rolled primitives where small. |
+| Receiver | Hono over Node. |
+| Agent protocol | Hand-written MCP JSON-RPC dispatcher with HTTP and stdio transports. |
+| Storage | Memory today; Node 22 `node:sqlite` planned. |
 
-### 13.4 Driving config (Codex side)
+Do not document dependencies as adopted until they are present in manifests and used by code. Storybook, Playwright visual snapshots, TanStack, Radix, visx, Zustand, SQLite-WASM, protobuf, and gRPC remain future decisions unless added by implementation.
 
-`~/.codex/config.toml` — JSON protocol is required (OTelux decodes JSON, not
-protobuf); Statsig metrics export is disabled so everything stays local.
+## Receiver Contract
+
+The receiver accepts OTLP/HTTP JSON today:
+
+| Route | Body | Result |
+|---|---|---|
+| `POST /v1/traces` | `ExportTraceServiceRequest` JSON | `{ "partialSuccess": {} }` on success. |
+| `POST /v1/logs` | `ExportLogsServiceRequest` JSON | `{ "partialSuccess": {} }` on success. |
+| `POST /v1/metrics` | `ExportMetricsServiceRequest` JSON | `{ "partialSuccess": {} }` on success. |
+| `GET /healthz` | none | `ok`. |
+
+Malformed JSON returns `400`. Unknown routes return `404`. The default host is `127.0.0.1` so a desktop install is not exposed on the LAN unless explicitly configured by a host.
+
+Planned receiver work:
+
+- OTLP/HTTP protobuf.
+- OTLP/gRPC.
+- Backpressure and dropped-record counters.
+- Optional local auth token and configurable CORS.
+
+## Port Defaults
+
+| Consumer | OTLP/HTTP | MCP HTTP | Notes |
+|---|---:|---:|---|
+| Desktop | `4319` | host-controlled | Avoids colliding with a user's standard collector on `4318`. |
+| VS Code extension | `4318` | `4319` by default | Standard OTLP endpoint for editor-local ingest. |
+
+Ports are host settings. The receiver package also exposes single-instance claiming so hosts can handle collisions deliberately.
+
+## Data Model And Query Contracts
+
+The `DataSource` contract covers:
+
+- `listTraces`, `getTrace`, `getSpanDetails`.
+- `listLogs`.
+- `listMetrics`.
+- `subscribe` for trace/log/metric change events.
+
+Queries should be bounded by limit and filters. Results should include counts where the UI needs to show scope. Optional fields should not be passed as explicit `undefined` in TypeScript code because `exactOptionalPropertyTypes` is enabled.
+
+## Telemetry Workbench UX Requirements
+
+### Workbench Principles
+
+- Every dense signal needs real grid behavior: sticky column headers, visible sort state, keyboardable headers, and predictable column widths.
+- Toolbars are operational controls, not decoration. Search, service filters, severity/status filters, pause/resume, and clear should be direct and visible.
+- Summary/detail is reusable. Selecting a trace, span, log, or metric preserves list context and opens a predictable details area.
+- Details panes are searchable. Span and log details need internal search over property names and values.
+- Property sections expose counts before expansion.
+- Rows expose actions consistently: details, copy, value viewer, and pivots.
+- Long values use the full value viewer wherever messages, attributes, JSON, XML, Markdown, or multiline text exceed the pane.
+- Footer and empty states communicate result scope, live/paused state, and the expected table shape.
+- Endpoint state is explicit: listening port, health, paused/live state, and local trust posture are visible to the user.
+
+### Logs Requirements
+
+- Logs must have visible and semantic column headers for Level, Time, Service, Message, Trace, and Actions.
+- Logs with trace/span IDs expose a shortened trace pivot in the row.
+- Row actions include View details, Copy message, Copy trace/span IDs, and Open value viewer.
+- Empty and loading states keep the table header and column layout visible.
+- The details pane shows log facts, attributes, resource, and scope, with section counts and internal search.
+
+### Trace Requirements
+
+- The narrow trace list can stay card-like for scannability.
+- Full-width or dense trace-list mode should expose table-like headers and sort affordances.
+- Sort options should include timestamp, duration, span count, error count, and name when backed by the data source.
+- Waterfall rows should support selection, copy/detail actions, and later log markers for logs emitted inside spans.
+- Closing span details must not lose the selected span unexpectedly.
+
+### Metrics Requirements
+
+- Metrics are grouped by meter/scope and instrument.
+- Instruments show type, unit, description when present, and current service context when known.
+- Graph and table modes are both first-class. The table is the exact-value fallback when charts are not enough.
+- Future exemplar markers should pivot to the originating trace.
+
+### Cross-Signal Requirements
+
+- Pause/resume and clear data apply across traces, logs, and metrics.
+- Result footers show `Showing N ...` and live/paused state outside the scroll region.
+- Active filters show a count and a clear affordance.
+- Service is the user-facing label. Raw OTel resource attributes belong in details.
+- OTelux keeps its own visual language. Interaction patterns can be borrowed; brand chrome should not be copied from other tools.
+- AI explain buttons are not a core feature. Hosts may layer assistance on top of deterministic local data.
+
+## Agent Tool Surface
+
+Initial MCP tools, mirrored where useful by VS Code LM Tools:
+
+| Tool | Status | Question |
+|---|---|---|
+| `otel_find_recent_errors` | Live | What just broke? |
+| `otel_get_slowest_spans` | Live | What is slow? |
+| `otel_search_logs` | Live | Why did this log fire? |
+| `otel_get_trace` | Live | Show this trace. |
+| `otel_get_span_details` | Live | Show this span. |
+| `otel_correlate_agent_run` | Stub | What was my app doing during this agent run? |
+| `otel_get_service_overview` | Live, approximate | What services emitted telemetry? |
+
+All tools are read-only. Tool handlers should stay thin wrappers over engine queries so desktop, extension, MCP, and LM tools do not fork behavior. Service overview currently derives recent service stats from trace summaries; richer cross-signal service rollups are planned.
+
+## Reference Workload: Codex CLI
+
+Codex CLI is the first concrete three-signal workload:
+
+| Codex exporter | OTLP signal | Carries |
+|---|---|---|
+| logs exporter | Logs | Human-readable events, prompts when enabled, tool context. |
+| trace exporter | Traces | Operation shape, spans, timing, status. |
+| metrics exporter | Metrics | Request counts, tool counts, token usage, duration histograms. |
+
+OTelux must support Codex by accepting full-path JSON endpoints:
 
 ```toml
 [otel]
 environment = "dev"
-log_user_prompt = true            # include real prompt text on the logs pipeline
+log_user_prompt = true
 
-[otel.exporter.otlp-http]         # LOGS → content
+[otel.exporter.otlp-http]
 endpoint = "http://localhost:4319/v1/logs"
 protocol = "json"
 
-[otel.trace_exporter.otlp-http]   # TRACES
+[otel.trace_exporter.otlp-http]
 endpoint = "http://localhost:4319/v1/traces"
 protocol = "json"
 
-[otel.metrics_exporter.otlp-http] # METRICS
+[otel.metrics_exporter.otlp-http]
 endpoint = "http://localhost:4319/v1/metrics"
 protocol = "json"
 ```
 
-### 13.5 Acceptance (folds into existing per-package DoD in §9)
+Acceptance for this workload:
 
-1. `POST /v1/logs` and `POST /v1/metrics` accept Codex's JSON bodies and
-   return `{ partialSuccess: {} }`; malformed JSON → `400` (parity with traces).
-2. A real Codex turn with `log_user_prompt = true` produces a
-   `codex.user_prompt` log record whose `prompt` attribute holds the typed
-   text, retrievable via `engine.listLogs`.
-3. Codex turn metrics (e.g. `codex.api_request`,
-   `codex.turn.e2e_duration_ms`) land via `engine.listMetrics`.
-4. Subscribers receive `logsChanged` / `metricsChanged` on ingest.
-5. Existing trace ingest and tests are unaffected.
+- Logs, traces, and metrics ingest return OTLP partial-success responses.
+- `codex.user_prompt` content is searchable through logs when enabled.
+- Codex duration/token metrics appear in the Metrics view.
+- Trace ingest remains unaffected by logs and metrics ingest.
+
+## Performance Budgets
+
+Treat these as targets until benchmark coverage exists:
+
+| Surface | Budget |
+|---|---:|
+| Cold start to first paint | < 3 seconds in development, tighter for packaged builds. |
+| Trace list query | < 100 ms for common local workloads. |
+| Log search | < 150 ms for indexed local workloads after SQLite lands. |
+| Metric chart query | < 150 ms for common local workloads after SQLite lands. |
+| Waterfall layout | One frame for visible rows in typical traces. |
+| UI interaction | No intentional blocking over one frame. |
+
+Budgets should become stricter after durable storage and performance harnesses land.
+
+## Verification
+
+Routine verification:
+
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+Manual desktop verification lives in [test.md](test.md). UI/runtime smoke checks should use the repo's self-verification workflow.
+
+## Open Questions
+
+- When does the workbench need a separate Services surface versus compact service overview panels in existing views?
+- How much column management is needed before durable storage makes row counts large enough to justify full data-grid behavior?
+- Does a browser demo matter before desktop and VS Code are both hard enough for daily local use?
+- Should MCP config writers live in the extension only, or graduate into a shared package after desktop needs them too?

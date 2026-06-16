@@ -8,11 +8,8 @@ When a change affects a published `@otelux/*` package, add a changeset:
 npx changeset
 ```
 
-Pick the affected packages, the bump type (`patch`/`minor`/`major`), and
-write a short note. Commit the resulting markdown file alongside your code
-change.
+Pick the affected packages, the bump type (`patch`/`minor`/`major`), and write a short note. Commit the resulting markdown file alongside your code change.
 
 A CI job will collect pending changesets and open a release PR.
 
-Note: publishing starts after Milestone 1 ships. Until then, packages live
-as workspace dependencies of `apps/desktop` and are not pushed to npm.
+Note: publishing has not started yet. Until then, packages live as workspace dependencies of the local apps and are not pushed to npm.

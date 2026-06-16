@@ -1,5 +1,5 @@
 /**
- * `SpanDetail` — read-only inspector for a selected `Span`.
+ * `SpanDetail` — read-only details for a selected `Span`.
  *
  * Structure: a single `Accordion` whose first item ("Span") holds the
  * span's identity facts (kind, status, duration, ids, timestamps),

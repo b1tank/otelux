@@ -1,96 +1,123 @@
-# OTel Studio for VS Code
+# OTelux — Project Proposal
 
-- **Duration:** 12 weeks
-- **Team:** 1–2 engineers
+Updated: 2026-06-16
 
-🔭 **OpenTelemetry has become the de-facto data layer for agent observability — Copilot agent mode, Codex, Claude, and every credible competing agent product all emit it.** The data layer is solved. What is missing is the *post-configuration* story: once a user wires OTel up, where do they *see* the data, and how do humans and agents *use* it? This proposal closes that gap in two streams.
+## Summary
 
-1. **A local-first, VS Code-native OTel experience** — an extension that lets humans and agents inside VS Code consume the OTel a user's apps and agent runs already emit.
-2. **Cross-process OTel inside VS Code as the dogfood demo** — extend OTel emission into the rest of the VS Code stack so the team can use Stream 1 on its own perf and security telemetry and extrapolate the same story to customers.
+OTelux is a local-first OpenTelemetry workbench for developers and coding agents. It receives telemetry from local applications, stores and queries it locally, shows it in a focused desktop workbench, and exposes the same data to VS Code and MCP-compatible agents.
 
-The week-12 demo is the loop closing on itself, on two surfaces: (1) a Microsoft sample app like Contoso emits OTel and an agent inside VS Code uses the extension to diagnose a customer-shaped perf issue; (2) an Insiders VS Code build emits its own OTel and an agent in that same window uses the extension to diagnose a VS Code-internal perf or agent-session issue. Both fixes are proposed by the agent.
+The bet is simple: developers already have useful telemetry nearby, but local inspection is fragmented. OTelux makes traces, logs, and metrics immediately visible without requiring a cloud backend, a hosted account, or a production observability stack.
 
-## Why now
+## Why Now
 
-1. **OTel is the agent-observability standard.** The data layer is solved; the viewer + agent-grounding layer is not.
-2. **Vendors are racing to own the viewer.** Splunk shipped [`observability-studio`](https://marketplace.visualstudio.com/items?itemName=Splunk.observability-studio) and [`vscode-otelme`](https://marketplace.visualstudio.com/items?itemName=digitarald.vscode-otelme) shipped as a community extension. Both prove demand; neither closes the loop between humans, agents, and VS Code's own internals.
-3. **VS Code core already wants this.** [`microsoft/vscode#316090`](https://github.com/microsoft/vscode/issues/316090) asks for a unified multi-process tracing service across renderer / ext host / AHP and explicitly nominates OTel trace / span IDs. Stream 2 lands that service.
-4. **We have a runnable head start.** [`otelux`](https://github.com/b1tank/otelux) is a desktop prototype with a working OTLP receiver, local store, trace explorer UI, and MCP server already factored into reusable packages, with the VS Code adapter scoped in from day one. The 12 weeks fill the remaining gaps, not greenfield.
+OpenTelemetry has become the common data shape for applications, developer tools, and agent runtimes. Local SDKs can emit traces, logs, and metrics today, but after configuration there is still a gap: where does a developer inspect that data while iterating locally, and how can an agent ground its debugging in the same facts the human sees?
 
-## Expectation
+OTelux fills that gap as a local tool first. The desktop app is the primary experience. The reusable package architecture lets the same workbench appear in VS Code and lets MCP/LM tools query the same engine data.
 
-- [ ] A developer can investigate any agent run or app trace from inside VS Code without leaving the editor.
-- [ ] Copilot Chat can answer "why did this fail?", "why was it slow?", "summarize my recent agent sessions", and "how could I have prompted this better?" grounded in the user's own OTel data.
-- [ ] VS Code itself nudges users to install the extension at the four moments it pays off, off by default in Stable.
-- [ ] An Insiders VS Code build emits its own cross-process perf and security-audit OTel behind an off-by-default setting, rendered by the same extension.
-- [ ] The VS Code team has dogfooded both streams together for a week and the findings are written up.
-- [ ] The extension is published to the VS Code Marketplace and the week-12 demo recording ships with it.
+## Product Shape
 
-## Work Streams & Deliverables
+OTelux has four product surfaces:
 
-### Stream 1 — Local-first VS Code experience
+| Surface | Role |
+|---|---|
+| Desktop app | Main local workbench for traces, logs, metrics, settings, and ingest status. |
+| VS Code extension | Editor-hosted workbench that reuses the same UI, receiver, engine, and MCP tools. |
+| MCP server | Read-only tool surface for local coding agents such as Codex CLI, Claude Code, and Cursor. |
+| VS Code LM Tools | Thin wrappers over the same MCP/engine queries for Copilot inside VS Code. |
 
-- Embed the existing receiver, engine, and webview UI into a VS Code extension shell via the existing adapter.
-- Port the trace explorer; build the events and metrics explorers that the desktop prototype is missing.
-- Stabilize and document an MCP tool surface covering trace, log / event, and metric queries plus agent-run correlation and session summary.
-- Register the MCP tools as VS Code LM Tools and bundle four extension-provided skills wiring them into the normal agent flow.
-- Add a small opt-in hook in VS Code core that surfaces an install tip at four trigger points: a failed agent session, a slow or token-heavy run, a session-summary request, and prompting-quality help.
-- Publish to the VS Code Marketplace (internal preview channel first).
+The core user workflows are:
 
-### Stream 2 — Cross-process OTel inside VS Code
+- Point a local OTel exporter at OTelux and see data arrive live.
+- Triage recent errors from traces and logs.
+- Inspect a trace waterfall and span details.
+- Search structured logs, including agent/user-prompt content carried in log attributes.
+- Inspect metrics by meter and instrument, switching between graph and table.
+- Let an agent ask read-only questions over the same local store.
 
-- Land an `IOTelService` skeleton in core across renderer / ext host / AHP behind an off-by-default setting, exporting OTLP to the local endpoint Stream 1 owns.
-- Instrument the cross-process perf signals called out in [#316090](https://github.com/microsoft/vscode/issues/316090): command execution, file watcher, extension lifecycle, ext-host RPC. Each area lands as its own small PR with an area-owner-reviewed spec.
-- Optionally extend the same path to agent-mode spans for richer first-party data.
-- Emit structured security-audit events for extension install / update, auth, settings-sync, and remote-dev session, behind a PII-reviewed allow-list with security sign-off.
-- Run an internal dogfood week on an Insiders build with both streams on, then write up findings.
+## Already Done
 
-## Timeline & Milestones
+The current repository already has a working foundation:
 
-### Weeks 1–4 — Foundations
-- Stream 1: extension shell live, trace explorer rendering real spans; events and metrics explorers in flight.
-- Stream 2: `IOTelService` RFC on [#316090](https://github.com/microsoft/vscode/issues/316090); skeleton in core behind a setting; first perf instrumentation lands.
+- npm workspace monorepo with TypeScript, Turborepo, Biome, and Vitest.
+- `apps/desktop` Electron shell with receiver, engine, IPC, settings, and renderer workbench.
+- `apps/vscode-extension` shell with webview, embedded receiver, MCP server, and VS Code Language Model Tool registration.
+- `@otelux/receiver` with OTLP/HTTP JSON routes for `/v1/traces`, `/v1/logs`, `/v1/metrics`, and `/healthz`.
+- `@otelux/engine` with in-memory ingest/query/subscription support for traces, logs, and metrics.
+- `@otelux/ui` with live Traces, Logs, and Metrics rail surfaces.
+- `@otelux/mcp-server` with read-only JSON-RPC tools for error triage, slow spans, trace drill-down, span details, and log search.
+- `@otelux/adapter-direct` and `@otelux/adapter-vscode` for embedding the same UI over different host boundaries.
 
-### Weeks 5–8 — Depth
-- Stream 1: events and metrics explorers at parity with traces; MCP tool surface stabilized and wired into the in-VS Code agent flow as LM Tool skills.
-- Stream 2: cross-process perf passes land ([#316090](https://github.com/microsoft/vscode/issues/316090) signals); cross-process ↔ agent-run correlation working in the explorer.
+## Important Gaps
 
-### Weeks 9–11 — Dogfood + nudges
-- Stream 1: in-core install nudges land at the four trigger points.
-- Stream 2: security-audit events land behind a PII-reviewed allow-list; team dogfoods an Insiders build with both streams on for a week and writes up findings.
+The product is not release-ready yet. The most important gaps are:
 
-### Week 12 — Release + demo
-- Marketplace publish (internal preview channel first).
-- Record and ship the closing-the-loop demo on two surfaces: a Microsoft sample app like Contoso (customer-shaped perf issue) and an Insiders VS Code build (one VS Code-internal perf or agent-session issue), both diagnosed and fixed by an agent inside VS Code.
+- Storage is still memory-backed; `@otelux/engine-node` is a placeholder for a future `node:sqlite` implementation.
+- The receiver accepts OTLP/HTTP JSON only; protobuf and gRPC are planned.
+- Logs need professional table headers, trace pivots, row actions, and better empty/loading structure.
+- Detail panes need internal search, consistent actions, and selection behavior across spans and logs.
+- Agent-run correlation has a stable schema but is not backed by engine intelligence yet; service overview exists as a trace-summary approximation and needs richer cross-signal rollups.
+- Desktop and VS Code extension packaging need hardening before handoff to broader users.
+
+## Roadmap
+
+The next work is intentionally scoped. The plan in [plan.md](plan.md) is the source of truth, summarized here:
+
+1. Polish the three-pillar workbench: logs grid headers, row actions, trace pivots, details search, pause/resume, clear, and result footers.
+2. Add durable local storage with `node:sqlite`, schema versioning, WAL mode, retention, and migration tests.
+3. Harden the VS Code extension as a real second consumer of the shared packages.
+4. Back agent-run correlation with real engine queries and upgrade service overview with cross-signal rollups.
+5. Add OTLP protobuf/gRPC and receiver pressure visibility.
+6. Finish installation and platform packaging.
 
 ## Architecture
 
+```text
+Local apps / agents / SDKs
+        |
+        | OTLP/HTTP JSON today; protobuf/gRPC planned
+        v
+@otelux/receiver
+        |
+        v
+@otelux/engine + storage
+        |
+        +--> @otelux/ui through DataSource adapters
+        |       - desktop renderer
+        |       - VS Code webview
+        |
+        +--> @otelux/mcp-server
+        |       - HTTP and stdio MCP clients
+        |
+        +--> VS Code LM Tools
+                - Copilot tool calls
 ```
-   ┌── Stream 2: VS Code internals ──┐
-   │  renderer · ext host · AHP      │
-   │  IOTelService ──► OTLP          │
-   └────────────────┬────────────────┘
-                    │  (also: user's app + agent runs)
-                    ▼
-              Local receiver + store  ◄──── Stream 1
-                    │ (traces · events · metrics)
-              ┌─────┴─────┐
-              ▼           ▼
-         Webview UI   LM Tools + skills
-         (humans)     (in-VS Code agent flow)
-                    ▲
-                    │
-            In-core UX tips
-   (failed run · slow run · summary · prompting)
-```
 
-## Out of scope
+The `DataSource` interface is the main boundary. UI code asks for traces, logs, metrics, and details through that interface; apps decide whether those queries cross Electron IPC, VS Code postMessage, or a direct in-process engine.
 
-Cloud sync · backend export · a custom AI assistant inside the panel · public-preview turn-on of security-audit events · non-OTel telemetry formats.
+## Scope
 
-## References
+In scope:
 
-- [`otelux`](https://github.com/b1tank/otelux) — prototype monorepo we build on. Receiver, engine, webview UI, and MCP server already shipped as reusable packages.
-- [`microsoft/vscode#316090`](https://github.com/microsoft/vscode/issues/316090) — in-flight ask for unified multi-process tracing in core; Stream 2 lands the service it asks for.
-- [`vscode-otelme`](https://marketplace.visualstudio.com/items?itemName=digitarald.vscode-otelme) — receiver + single SQL tool for Copilot Chat. No explorer UI, no agent skills, no in-core nudges, no cross-process emission.
-- [`observability-studio`](https://marketplace.visualstudio.com/items?itemName=Splunk.observability-studio) — bundled Go observer with Metrics / Traces / Logs tabs and MCP config writers. No first-party Copilot integration, no in-core nudges, no VS Code internal instrumentation.
+- Local ingest, local storage, local query, local UI.
+- Traces, structured logs, metrics, and later profiles.
+- Desktop first, VS Code second, package reuse throughout.
+- Read-only agent tools over local telemetry.
+
+Out of scope for the core product:
+
+- Cloud sync or hosted backend.
+- Multi-tenant auth.
+- Non-OTel telemetry formats.
+- A built-in AI assistant that mutates data or sends telemetry elsewhere.
+
+## Success Criteria
+
+OTelux succeeds when a developer can run an app locally, point its OTel exporter at OTelux, and answer these questions quickly:
+
+- What just broke?
+- What was slow?
+- What logs explain it?
+- Which service emitted the suspicious telemetry?
+- What was my agent or tool doing at the same time?
+
+The same answers should be available to humans in the workbench and to agents through read-only local tools.

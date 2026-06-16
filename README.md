@@ -1,73 +1,74 @@
 # OTelux
 
-A local-first OpenTelemetry workbench. **Milestone 1: ship a Linux desktop
-app you can install and use** — it listens on `http://localhost:4319` for
-OTLP/HTTP traces and shows them in a fast workbench with a compact trace
-list, a per-service-colored waterfall, and a span detail drawer. Internally,
-the same React components, engine, and protocol are packaged as
-`@otelux/*` workspaces so they can later embed in VS Code webviews and a
-pure-browser demo without forking the codebase.
+OTelux is a local-first OpenTelemetry workbench. It receives OTLP/HTTP JSON traces, logs, and metrics from local apps, renders them in a desktop workbench, and exposes read-only query tools for local coding agents.
 
-The plan is intentionally slow: one signal at a time, end to end, until it
-beats every general-purpose OTel viewer for local development.
+The desktop app is the main product. The same engine, UI, receiver, adapters, and MCP tools are packaged under `@otelux/*` so they can also run inside the VS Code extension without forking the codebase.
 
-- [docs/spec.md](docs/spec.md) — what OTelux is.
-- [docs/plan.md](docs/plan.md) — how it ships.
-- [docs/proposal.md](docs/proposal.md) — the longer-form product proposal.
-- [docs/test.md](docs/test.md) — the manual end-to-end test plan for the desktop app.
-- [design/README.md](design/README.md) — UI redesign philosophy and the
-  [`design/redesign-mockup.html`](design/redesign-mockup.html) reference.
+## Docs
 
-## Repository layout
+- [docs/spec.md](docs/spec.md) — product, architecture, current state, package boundaries, and UX requirements.
+- [docs/plan.md](docs/plan.md) — work ahead only.
+- [docs/proposal.md](docs/proposal.md) — project pitch and roadmap summary.
+- [docs/test.md](docs/test.md) — manual desktop verification plan.
+- [design/README.md](design/README.md) — UI mockup philosophy and design notes.
+
+## Repository Layout
 
 ```text
 otelux/
   apps/
-    desktop/                 # Electron + Vite. The headline product.
+    desktop/            # Electron desktop workbench
+    vscode-extension/   # VS Code webview + receiver + MCP/LM tools
   packages/
-    types/                   # OpenTelemetry TS types
-    protocol/                # DataSource interface
-    engine/                  # Pure-TS query/layout/ingest
-    engine-node/             # node:sqlite storage adapter
-    receiver/                # OTLP/HTTP + gRPC server
-    adapter-direct/          # In-process DataSource
-    ui/                      # React components
-  fixtures/                  # OTLP JSON fixtures for tests + stories
-  docs/                      # spec.md, plan.md, proposal.md, test.md
+    types/              # Shared telemetry types
+    protocol/           # DataSource interface and query/result shapes
+    engine/             # Ingest, query, layout, subscriptions, memory storage
+    engine-node/        # Placeholder package for future node:sqlite storage
+    receiver/           # OTLP/HTTP JSON receiver
+    mcp-server/         # Read-only MCP JSON-RPC tools
+    adapter-direct/     # In-process DataSource adapter
+    adapter-vscode/     # VS Code postMessage DataSource adapter
+    ui/                 # React workbench and primitives
+  fixtures/             # OTLP JSON fixtures for traces, logs, and metrics
+  docs/                 # Canonical project docs
+  design/               # Single-file UI mockup and notes
 ```
 
 ## Develop
 
-Requires Node 22+ (the SQLite module is built in).
+Requires Node 22+ and npm 10.9.x.
 
-```sh
+```bash
 npm install
-npm run typecheck
 npm run lint
-npm test
+npm run typecheck
+npm run test
 npm run build
 ```
 
-To launch the desktop app in dev (hot-reloaded renderer):
+Launch the desktop app in development:
 
-```sh
+```bash
 npm run -w @otelux/desktop dev
 ```
 
-To produce a Linux AppImage and `.deb` under `apps/desktop/release/`:
+Build the desktop app:
 
-```sh
+```bash
+npm run -w @otelux/desktop build
+```
+
+Package the Linux desktop app:
+
+```bash
 npm run -w @otelux/desktop package
 ```
 
-## Status
+## Current Status
 
-Pre-release. Milestone 1 (Linux desktop trace workbench) is in progress —
-the Electron shell, OTLP/HTTP JSON receiver, in-memory engine, and the
-`@otelux/ui` workbench (trace list, waterfall, span drawer, settings) are
-shipping end-to-end against local OTel SDKs. Persistent `node:sqlite`
-storage, OTLP gRPC + protobuf, and packaging polish are still to come.
-See [docs/plan.md](docs/plan.md).
+Pre-release. The local workbench can ingest and display traces, logs, and metrics over OTLP/HTTP JSON. Storage is currently in-memory; durable `node:sqlite` storage is planned. OTLP protobuf and gRPC are planned. The VS Code extension shell and MCP/LM tool plumbing exist but still need hardening and packaging work.
+
+See [docs/plan.md](docs/plan.md) for the current work ahead.
 
 ## License
 

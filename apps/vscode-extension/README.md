@@ -24,5 +24,4 @@ Produces `out/host/extension.cjs` and `out/webview/index.html` + assets.
 
 ## Status
 
-Phase 0 scaffold. Wires modules together; needs end-to-end smoke testing,
-real disk writes for agent enablement, and packaging via `vsce`.
+Pre-release shell. The extension wires the shared receiver, engine, MCP server, webview, and LM Tool registration together; it still needs end-to-end smoke testing, hardened agent config writes, durable storage, and packaging via `vsce`.

@@ -1,6 +1,5 @@
 ---
-name: self-verify
-description: Verify the OTelux desktop app — either a FULL docs/test.md regression OR a quick smoke-check of one new/changed UI surface. Use whenever asked to test, verify, smoke-test, regress, or QA the app, INCLUDING "verify the feature I just built" / "check the X view renders", or after changes to apps/desktop/** or packages/ui/** that affect runtime behavior. ALWAYS drive the app through deskpal (OCR + virtual input) — never hand-roll xdotool/import/screenshots. CDP is the escape hatch only for invisible-to-the-eye state. Reports per-step PASS/FAIL.
+name: self-verify description: Verify the OTelux desktop app — either a FULL docs/test.md regression OR a quick smoke-check of one new/changed UI surface. Use whenever asked to test, verify, smoke-test, regress, or QA the app, INCLUDING "verify the feature I just built" / "check the X view renders", or after changes to apps/desktop/** or packages/ui/** that affect runtime behavior. ALWAYS drive the app through deskpal (OCR + virtual input) — never hand-roll xdotool/import/screenshots. CDP is the escape hatch only for invisible-to-the-eye state. Reports per-step PASS/FAIL.
 ---
 
 # Skill — Self-verify the OTelux desktop app
@@ -9,52 +8,24 @@ You are an agent acting as a QA tester producing a per-step PASS/FAIL report.
 
 **Two modes — both use this skill:**
 
-- **Full regression** — mechanically follow `docs/test.md`, section by
-  section.
-- **Scoped check** — verify one new or changed surface (e.g. "does the
-  Logs tab open and render rows?"). Skip `docs/test.md`; improvise the
-  minimal deskpal steps that exercise what you changed. A quick feature
-  check is still this skill — reach for it instead of ad-hoc terminal
-  automation.
+- **Full regression** — mechanically follow `docs/test.md`, section by section.
+- **Scoped check** — verify one new or changed surface (e.g. "does the Logs tab open and render rows?"). Skip `docs/test.md`; improvise the minimal deskpal steps that exercise what you changed. A quick feature check is still this skill — reach for it instead of ad-hoc terminal automation.
 
-**Mimic a real user as closely as possible.** The primary automation
-surface is **deskpal** (the MCP server at `/home/b1tank/deskpal`): it
-clicks via virtual mouse, types via `/dev/uinput`, screenshots, and reads
-the screen with OCR — exactly what a person does. CDP is only the
-escape hatch for properties OCR fundamentally cannot see.
+**Mimic a real user as closely as possible.** The primary automation surface is **deskpal**: it clicks via virtual mouse, types via `/dev/uinput`, screenshots, and reads the screen with OCR — exactly what a person does. CDP is only the escape hatch for properties OCR fundamentally cannot see.
 
-> **Never hand-roll `xdotool` / `import` / `xwininfo` for UI checks.** They
-> reinvent a worse deskpal and hit two traps deskpal handles for you:
-> (1) icon-only buttons need pixel-offset guessing; (2) a raw `click x y`
-> lands on whatever window is *stacked* on top (e.g. VS Code overlapping
-> OTelux) even though `import -window <id>` still shows the target's own
-> buffer — yielding false "the click did nothing" readings. If you must
-> drop to raw X11, `xdotool windowactivate --sync <id>` first, and know
-> that input focus ≠ stacking order without a real window manager.
+> **Never hand-roll `xdotool` / `import` / `xwininfo` for UI checks.** They reinvent a worse deskpal and hit two traps deskpal handles for you: (1) icon-only buttons need pixel-offset guessing; (2) a raw `click x y` lands on whatever window is *stacked* on top (e.g. VS Code overlapping OTelux) even though `import -window <id>` still shows the target's own buffer — yielding false "the click did nothing" readings. If you must drop to raw X11, `xdotool windowactivate --sync <id>` first, and know that input focus ≠ stacking order without a real window manager.
 
 ## Tool choice (in priority order)
 
-1. **deskpal** (default) — `launch_app`, `find_window`, `wait_for_window`,
-   `click_text`, `type_text`, `key_press`, `read_screen_text`, `screenshot`,
-   `mouse_move`, `scroll`, `drag`. This is what the user does. Use it first.
-2. **CDP probe** (`/tmp/otelux-cdp.mjs`, see below) — narrow escape hatch
-   for state that's *not visible on the screen*: the JSON content of
-   `window.otelux.invoke({kind:"updateSettings", …})` results, the
-   contents of `settings.json` after a write, port-listen state from
-   `ss`. **Never use CDP for "did the user see X" assertions.**
-3. **Shell** (`bash`, `curl`, `ss`, `cat`) — for OS-level probes that
-   neither deskpal nor CDP exposes (port listening, file inspection,
-   sending hostile HTTP payloads).
+1. **deskpal** (default) — `launch_app`, `find_window`, `wait_for_window`, `click_text`, `type_text`, `key_press`, `read_screen_text`, `screenshot`, `mouse_move`, `scroll`, `drag`. This is what the user does. Use it first.
+2. **CDP probe** (`/tmp/otelux-cdp.mjs`, see below) — narrow escape hatch for state that's *not visible on the screen*: the JSON content of `window.otelux.invoke({kind:"updateSettings", …})` results, the contents of `settings.json` after a write, port-listen state from `ss`. **Never use CDP for "did the user see X" assertions.**
+3. **Shell** (`bash`, `curl`, `ss`, `cat`) — for OS-level probes that neither deskpal nor CDP exposes (port listening, file inspection, sending hostile HTTP payloads).
 
-If a docs/test.md step *can* be done via deskpal, **do it via deskpal**, even
-if CDP would be faster — the point is to verify what a real user sees.
+If a docs/test.md step *can* be done via deskpal, **do it via deskpal**, even if CDP would be faster — the point is to verify what a real user sees.
 
 ## Known deskpal gaps for this skill
 
-The full list of proposed enhancements lives at
-[/home/b1tank/deskpal/docs/proposed-tools.md](/home/b1tank/deskpal/docs/proposed-tools.md).
-When the agent hits one, use the workaround inline and log it in the run
-report under "deskpal gaps encountered".
+The full list of proposed enhancements lives in the deskpal repo at `docs/proposed-tools.md`. When the agent hits one, use the workaround inline and log it in the run report under "deskpal gaps encountered".
 
 | Gap | What we want | Workaround today |
 |-----|--------------|------------------|
@@ -69,23 +40,19 @@ report under "deskpal gaps encountered".
 ## When to invoke
 
 - User says "verify", "test the app", "self-check", "smoke", "QA", "regress"
-- Right after a non-trivial change under `apps/desktop/**`, `packages/ui/**`,
-  `packages/engine-node/**`, or `packages/receiver/**`
+- Right after a non-trivial change under `apps/desktop/**`, `packages/ui/**`, `packages/engine-node/**`, or `packages/receiver/**`
 - Before committing UX-visible changes
 
-If the user gives a narrower scope ("just verify settings persistence"),
-run only the relevant `docs/test.md` sections.
+If the user gives a narrower scope ("just verify settings persistence"), run only the relevant `docs/test.md` sections.
 
 ## Workflow
 
-Mark each step as PASS/FAIL with one-line evidence. Don't fix bugs while
-testing — record them and continue. If a P1 (app won't launch, all
-traces fail to ingest) hits, abort with the failure and request guidance.
+Mark each step as PASS/FAIL with one-line evidence. Don't fix bugs while testing — record them and continue. If a P1 (app won't launch, all traces fail to ingest) hits, abort with the failure and request guidance.
 
 ### 1. Preflight (docs/test.md §0)
 
 ```bash
-cd /home/b1tank/otelux
+cd <repo-root>
 node --version          # expect v22.x
 npm run lint            # expect exit 0
 npm run typecheck       # expect exit 0
@@ -94,15 +61,16 @@ npm run build           # expect 8/8 turbo tasks ok
 
 ### 2. Drop the CDP escape-hatch probe
 
-Only used for invisible-to-the-eye state (see gaps table). Recreate every
-run since it lives in `/tmp`.
+Only used for invisible-to-the-eye state (see gaps table). Recreate every run since it lives in `/tmp`.
 
 ```bash
 pkill -9 -f "out/main/index.js" 2>/dev/null
 rm -rf /tmp/otelux-userdata
 
 cat > /tmp/otelux-cdp.mjs <<'JS'
-import WebSocket from '/home/b1tank/otelux/node_modules/ws/wrapper.mjs';
+import { pathToFileURL } from 'node:url';
+const repoRoot = process.env.OTELUX_REPO_ROOT ?? process.cwd();
+const { default: WebSocket } = await import(pathToFileURL(`${repoRoot}/node_modules/ws/wrapper.mjs`).href);
 const port = process.env.CDP_PORT ?? '19222';
 const expr = process.argv[2];
 const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
@@ -130,18 +98,16 @@ JS
 
 `probe '<js-expr>'` is the only CDP entry point. Reach for it only for:
 
-- IPC result JSON content (`window.otelux.invoke({kind:"updateSettings",…})`
-  → `{ ok:false, error:"…" }`).
+- IPC result JSON content (`window.otelux.invoke({kind:"updateSettings",…})` → `{ ok:false, error:"…" }`).
 - `document.activeElement` for focus tests.
-- Receiver status when it's hidden behind an error overlay OCR can't
-  parse cleanly.
+- Receiver status when it's hidden behind an error overlay OCR can't parse cleanly.
 
 ### 3. Launch the app via deskpal
 
 ```text
 deskpal.launch_app({
-  command: "/home/b1tank/otelux/node_modules/.bin/electron",
-  args: ["/home/b1tank/otelux/apps/desktop/out/main/index.js",
+  command: "<repo-root>/node_modules/.bin/electron",
+  args: ["<repo-root>/apps/desktop/out/main/index.js",
          "--remote-debugging-port=19222",
          "--user-data-dir=/tmp/otelux-userdata"],
   env: { OTELUX_OTLP_PORT: "" },          // empty = use persisted
@@ -150,14 +116,11 @@ deskpal.launch_app({
 })
 ```
 
-For env-override scenarios in §5, set `env.OTELUX_OTLP_PORT = "14999"`.
-For a clean profile, `rm -rf /tmp/otelux-userdata` between launches via
-shell.
+For env-override scenarios in §5, set `env.OTELUX_OTLP_PORT = "14999"`. For a clean profile, `rm -rf /tmp/otelux-userdata` between launches via shell.
 
 ### 4. Section-by-section, deskpal-first
 
-Format the final report as a `Section | Step | Tool | Result | Evidence`
-table.
+Format the final report as a `Section | Step | Tool | Result | Evidence` table.
 
 #### §1 Cold start
 - §1.1 — receiver bound. **shell.** `grep "listening on http://127.0.0.1:4319" /tmp/otelux-app.log` and `ss -ltnp | grep ':4319 '`.
@@ -184,10 +147,8 @@ table.
   shell: xclip -selection clipboard -o
     → assert exactly "http://127.0.0.1:4319/v1/traces"
   ```
-- §2.3 spam-click. **deskpal.** Loop `click_text` 5×, `screenshot`,
-  re-read — UI must still be responsive.
-- §2.4 cog opens settings. **deskpal, with icon-click gap.**
-  OCR often misses ⚙. Try `click_text("⚙")` first; if it fails:
+- §2.3 spam-click. **deskpal.** Loop `click_text` 5×, `screenshot`, re-read — UI must still be responsive.
+- §2.4 cog opens settings. **deskpal, with icon-click gap.** OCR often misses ⚙. Try `click_text("⚙")` first; if it fails:
   ```text
   read_screen_text → find position of "http://127.0.0.1"
   click at (URL.x_end + 40, URL.y)   // cog is ~40px right of the URL
@@ -198,13 +159,9 @@ table.
 - §3.1 ✕. **deskpal, icon-click gap.** Same coord fallback as cog.
 - §3.2 Cancel. **deskpal.** `click_text("Cancel")`.
 - §3.3 Escape. **deskpal.** `key_press("Escape")`.
-- §3.4 backdrop click. **deskpal.** `get_window_geometry`; click at
-  `(width - 20, height/2)` (outside the modal).
-- §3.5 body click no-propagate. **deskpal.** `click_text("Settings")`
-  on the header; modal should stay open.
-- §3.6 Tab cycle. **deskpal + CDP (focus gap).** `key_press("Tab")` ×N
-  and `probe 'document.activeElement?.className'` — focus must move
-  port→Cancel→Save→port.
+- §3.4 backdrop click. **deskpal.** `get_window_geometry`; click at `(width - 20, height/2)` (outside the modal).
+- §3.5 body click no-propagate. **deskpal.** `click_text("Settings")` on the header; modal should stay open.
+- §3.6 Tab cycle. **deskpal + CDP (focus gap).** `key_press("Tab")` ×N and `probe 'document.activeElement?.className'` — focus must move port→Cancel→Save→port.
 
 #### §4 Validation matrix
 Real-user flow via deskpal is verbose but more representative:
@@ -224,11 +181,9 @@ For port 14320:
   modal should close; read_screen_text → URL contains "14320"
 ```
 
-If OCR of the inline error is unreliable, escape-hatch:
-`probe 'document.querySelector(".modal__error")?.textContent'`.
+If OCR of the inline error is unreliable, escape-hatch: `probe 'document.querySelector(".modal__error")?.textContent'`.
 
-§4.12 (EADDRINUSE) requires a second listener (shell):
-`python3 -c "import socket,time; s=socket.socket(); s.bind(('127.0.0.1',14321)); s.listen(1); time.sleep(60)" &`.
+§4.12 (EADDRINUSE) requires a second listener (shell): `python3 -c "import socket,time; s=socket.socket(); s.bind(('127.0.0.1',14321)); s.listen(1); time.sleep(60)" &`.
 
 #### §5 Persistence
 Mostly shell + relaunch; deskpal confirms what the user sees.
@@ -266,18 +221,16 @@ deskpal.read_screen_text → count is 3; one row has "err" badge
 deskpal.screenshot for evidence
 ```
 
-#### §7 Selection + §8 Waterfall + §9 Inspector
+#### §7 Selection + §8 Waterfall + §9 Span detail drawer
 ```text
 deskpal.click_text("GET /api/users")       // click the trace row by name
 deskpal.read_screen_text → span names visible in main pane
 deskpal.click_text("<span-name>")          // click a span in the waterfall
-deskpal.read_screen_text → inspector shows "http.method" / "http.target"
+deskpal.read_screen_text → span detail drawer shows "http.method" / "http.target"
 deskpal.screenshot for visual evidence
 ```
 
-Selection styling is a CSS class — if OCR proves the text is correct
-but you want to assert "selected" styling, escape-hatch to:
-`probe '!!document.querySelector(".otelux-trace-row.is-selected")'`.
+Selection styling is a CSS class — if OCR proves the text is correct but you want to assert "selected" styling, escape-hatch to: `probe '!!document.querySelector(".otelux-trace-row.is-selected")'`.
 
 #### §10 Malformed (shell only — hostile HTTP)
 ```bash
@@ -359,25 +312,17 @@ deskpal gaps encountered:
 PASS — N/N steps passed
 ```
 
-End with either `PASS — N/N steps passed` or
-`FAIL — M of N steps failed (severity: P1/P2/P3)`.
+End with either `PASS — N/N steps passed` or `FAIL — M of N steps failed (severity: P1/P2/P3)`.
 
 ## Notes for the agent
 
 - Run preflight first; if lint/typecheck fails, abort.
 - One deskpal/CDP call per assertion. Don't bundle.
-- If OCR returns garbage, take a `screenshot` and run `tesseract` on
-  the file as a sanity check before declaring FAIL. If OCR is genuinely
-  unable to read the rendered text, escape-hatch to CDP for that one
-  step.
-- After each port change, give the receiver ~500 ms to rebind before
-  asserting on the new URL.
-- Don't run §10.5 (oversize payload) or §12.4 (release noise) unless
-  explicitly asked.
+- If OCR returns garbage, take a `screenshot` and run `tesseract` on the file as a sanity check before declaring FAIL. If OCR is genuinely unable to read the rendered text, escape-hatch to CDP for that one step.
+- After each port change, give the receiver ~500 ms to rebind before asserting on the new URL.
+- Don't run §10.5 (oversize payload) or §12.4 (release noise) unless explicitly asked.
 - If asked to "test what I just changed", scope to relevant sections.
-- **When blocked by a deskpal gap, log it in the report. If
-  `/home/b1tank/deskpal/docs/proposed-tools.md` doesn't already list
-  it, mention adding it.**
+- **When blocked by a deskpal gap, log it in the report. If the deskpal repo's `docs/proposed-tools.md` doesn't already list it, mention adding it.**
 
 ## When NOT to use
 

@@ -7,8 +7,8 @@
  * GitHub Copilot uses a different path (vscode.lm.registerTool, set up
  * in lmTools.ts) and does not need a config-file edit.
  *
- * Stubs in M1: we add the command + describe the config schema so the
- * UX is in place. Final disk-write logic ships in Phase 2.
+ * Current state: commands describe the intended config target so the UX is in
+ * place. Durable, tested disk-write logic is planned work.
  */
 
 import * as vscode from 'vscode';
@@ -49,7 +49,7 @@ export function registerAgentEnablementCommands(
 		const disposable = vscode.commands.registerCommand(agent.id, async () => {
 			await vscode.window.showInformationMessage(
 				`OTelux: connect ${agent.label} to MCP at http://127.0.0.1:${options.mcpPort}/ ` +
-					`(planned write target: ${agent.configHint}). Disk write lands in Phase 2.`,
+					`(planned write target: ${agent.configHint}). Disk write is planned work.`,
 			);
 		});
 		context.subscriptions.push(disposable);

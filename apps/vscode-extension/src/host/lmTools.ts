@@ -3,15 +3,14 @@
  * same engine queries the MCP server uses. Copilot can then invoke
  * these tools by their `toolReferenceName` in chat (e.g. `#otelRecentErrors`).
  *
- * M1 stubs: the schemas exist and the handlers return engine-backed
- * data for the three "ready" tools. Logs and agent-run correlation
- * mirror the MCP-server stubs and return supported:false until the
- * engine grows the underlying capability.
+ * The handlers return engine-backed data for the live tools. Agent-run
+ * correlation remains schema-stable but unsupported until the engine grows the
+ * underlying capability.
  */
 
-import * as vscode from 'vscode';
 import type { Engine } from '@otelux/engine';
 import { createMcpServer } from '@otelux/mcp-server';
+import * as vscode from 'vscode';
 
 export function registerLmTools(context: vscode.ExtensionContext, engine: Engine): void {
 	// Build a transient MCP server purely so we can share its tool

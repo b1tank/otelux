@@ -1,18 +1,14 @@
 # @otelux/protocol
 
-The `DataSource` interface and query/result shapes that connect
-`@otelux/ui` to any backend (in-process engine, postMessage bridge, Tauri
-IPC).
+The `DataSource` interface and query/result shapes that connect `@otelux/ui` to any backend, including an in-process engine and the VS Code postMessage bridge.
 
-Milestone 1 ships the trace surface of the contract:
+The current contract covers traces, logs, and metrics:
 
-- `listTraces(query)` — paginated trace list with sort, time-window,
-  service, error, and free-text filters.
-- `getTrace({ traceId })` — fully materialized trace with spans, root,
-  services, and timings.
+- `listTraces(query)` — paginated trace list with sort, time-window, service, error, and free-text filters.
+- `getTrace({ traceId })` — fully materialized trace with spans, root, services, and timings.
 - `getSpanDetails({ spanId })` — detail view used by the span drawer.
-- `subscribe(handler)` — live change events used by the workbench to
-  refresh as new spans arrive.
+- `listLogs(query)` — structured log search with severity, service, and free-text filters.
+- `listMetrics(query)` — meter/instrument query surface for sums, gauges, and histograms.
+- `subscribe(handler)` — live change events used by the workbench to refresh as new traces, logs, and metrics arrive.
 
-Logs, metrics, and profile queries are reserved on the interface and
-land alongside their ingest paths in later milestones.
+Profile queries are not part of the current contract.

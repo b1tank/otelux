@@ -1,12 +1,11 @@
 /**
  * node:sqlite storage adapter for @otelux/engine.
  *
- * Milestone 1 ships with the in-memory storage backend. The persistent
- * SQLite-backed store (using Node 22+ built-in `node:sqlite`
- * `DatabaseSync`, no node-gyp, no prebuilds) lands in Milestone 2.
- * Until then this package simply forwards to `createMemoryStorage` so
- * downstream code can already depend on `@otelux/engine-node` and pick
- * up the real implementation transparently.
+ * The persistent SQLite-backed store (using Node 22+ built-in `node:sqlite`
+ * `DatabaseSync`, no node-gyp, no prebuilds) is planned. Until then this
+ * package forwards to `createMemoryStorage` so downstream code can already
+ * depend on `@otelux/engine-node` and pick up the real implementation
+ * transparently.
  */
 
 import { type Storage, createMemoryStorage } from '@otelux/engine';
@@ -17,7 +16,7 @@ export interface NodeSqliteStorageOptions {
 }
 
 export function createNodeSqliteStorage(_options: NodeSqliteStorageOptions): Storage {
-	// TODO(Milestone 2): replace with DatabaseSync-backed implementation.
+	// TODO: replace with DatabaseSync-backed implementation.
 	return createMemoryStorage();
 }
 
