@@ -8,8 +8,8 @@ import {
 	type BridgeEnvelope,
 	type BridgeMessage,
 	type BridgeRequest,
-	wrap,
 	unwrap,
+	wrap,
 } from './protocol.js';
 
 /**
@@ -68,7 +68,8 @@ export function serveDataSource(options: ServeDataSourceOptions): Disposable {
 		if (
 			message.kind !== 'listTraces' &&
 			message.kind !== 'getTrace' &&
-			message.kind !== 'getSpanDetails'
+			message.kind !== 'getSpanDetails' &&
+			message.kind !== 'listLogs'
 		) {
 			return;
 		}
@@ -100,6 +101,10 @@ async function dispatch(request: BridgeRequest, ds: DataSource): Promise<BridgeM
 			}
 			case 'getSpanDetails': {
 				const result = await ds.getSpanDetails(request.query);
+				return { id: request.id, kind: 'result', payload: result };
+			}
+			case 'listLogs': {
+				const result = await ds.listLogs(request.query);
 				return { id: request.id, kind: 'result', payload: result };
 			}
 		}

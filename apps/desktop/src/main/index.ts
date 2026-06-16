@@ -11,8 +11,8 @@ import {
 	type OteluxEvent,
 	type UpdateSettingsResult,
 } from '../shared/ipc.js';
-import { ReceiverHost } from './receiverHost.js';
 import { McpHost } from './mcpHost.js';
+import { ReceiverHost } from './receiverHost.js';
 import { SettingsStore } from './settings.js';
 
 const isDev = !app.isPackaged;
@@ -98,7 +98,7 @@ async function startBackend(): Promise<{
 	const status = await receiverHost.start(initialPort);
 	if (status.kind === 'running') {
 		console.log(
-			`[otelux] OTLP/HTTP receiver listening on http://${status.host}:${status.port}/v1/traces`,
+			`[otelux] OTLP/HTTP receiver listening on http://${status.host}:${status.port}/v1/{traces,logs}`,
 		);
 	} else if (status.kind === 'error') {
 		console.error(
@@ -168,8 +168,7 @@ async function updateSettings(
 	const currentReceiverPort =
 		previousReceiverStatus.kind === 'running' ? previousReceiverStatus.port : undefined;
 	const currentMcpEnabled = previousMcpStatus.kind === 'running';
-	const currentMcpPort =
-		previousMcpStatus.kind === 'running' ? previousMcpStatus.port : undefined;
+	const currentMcpPort = previousMcpStatus.kind === 'running' ? previousMcpStatus.port : undefined;
 
 	// Receiver: only rebind if the port actually changes. Avoids a
 	// pointless drop in OTLP ingest when the user toggles MCP.
@@ -204,10 +203,7 @@ async function updateSettings(
 				await mcpHost.disable();
 			}
 			// Also roll back the receiver port if we rebound it above.
-			if (
-				previousReceiverStatus.kind === 'running' &&
-				currentReceiverPort !== next.otlp.port
-			) {
+			if (previousReceiverStatus.kind === 'running' && currentReceiverPort !== next.otlp.port) {
 				await receiverHost.start(previousReceiverStatus.port);
 			}
 			return { ok: false, error: mcpStatus.message };

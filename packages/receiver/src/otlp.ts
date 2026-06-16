@@ -44,7 +44,7 @@ import type {
 	SpanStatus,
 } from '@otelux/types';
 
-interface OtlpAnyValue {
+export interface OtlpAnyValue {
 	stringValue?: string;
 	intValue?: string | number;
 	doubleValue?: number;
@@ -52,17 +52,17 @@ interface OtlpAnyValue {
 	arrayValue?: { values?: OtlpAnyValue[] };
 }
 
-interface OtlpAttribute {
+export interface OtlpAttribute {
 	key?: string;
 	value?: OtlpAnyValue;
 }
 
-interface OtlpResource {
+export interface OtlpResource {
 	attributes?: OtlpAttribute[];
 	droppedAttributesCount?: number;
 }
 
-interface OtlpScope {
+export interface OtlpScope {
 	name?: string;
 	version?: string;
 	attributes?: OtlpAttribute[];
@@ -120,7 +120,7 @@ export interface OtlpExportTraceServiceRequest {
 	resourceSpans?: OtlpResourceSpans[];
 }
 
-function decodeAnyValue(v: OtlpAnyValue | undefined): AttributeValue | undefined {
+export function decodeAnyValue(v: OtlpAnyValue | undefined): AttributeValue | undefined {
 	if (!v) {
 		return undefined;
 	}
@@ -168,7 +168,7 @@ function decodeAnyValue(v: OtlpAnyValue | undefined): AttributeValue | undefined
 	return undefined;
 }
 
-function decodeAttributes(attrs: OtlpAttribute[] | undefined): AttributeMap {
+export function decodeAttributes(attrs: OtlpAttribute[] | undefined): AttributeMap {
 	const out: Record<string, AttributeValue> = {};
 	if (!attrs) {
 		return out;
@@ -185,7 +185,7 @@ function decodeAttributes(attrs: OtlpAttribute[] | undefined): AttributeMap {
 	return out;
 }
 
-function decodeResource(r: OtlpResource | undefined): Resource {
+export function decodeResource(r: OtlpResource | undefined): Resource {
 	return {
 		attributes: decodeAttributes(r?.attributes),
 		...(r?.droppedAttributesCount !== undefined
@@ -194,7 +194,7 @@ function decodeResource(r: OtlpResource | undefined): Resource {
 	};
 }
 
-function decodeScope(s: OtlpScope | undefined): InstrumentationScope {
+export function decodeScope(s: OtlpScope | undefined): InstrumentationScope {
 	return {
 		name: s?.name ?? '',
 		...(s?.version ? { version: s.version } : {}),

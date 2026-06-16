@@ -1,18 +1,20 @@
-import { describe, expect, it } from 'vitest';
 import type {
 	ChangeEvent,
 	DataSource,
 	Disposable,
 	GetSpanDetailsQuery,
 	GetTraceQuery,
+	ListLogsQuery,
+	ListLogsResult,
 	ListTracesQuery,
 	ListTracesResult,
 	SpanDetails,
 } from '@otelux/protocol';
 import type { Span, Trace } from '@otelux/types';
-import { serveDataSource, type WebviewHostLike } from './host.js';
-import { createPostMessageDataSource } from './webview.js';
+import { describe, expect, it } from 'vitest';
+import { type WebviewHostLike, serveDataSource } from './host.js';
 import { type BridgeEnvelope, unwrap } from './protocol.js';
+import { createPostMessageDataSource } from './webview.js';
 
 /**
  * In-memory test rig: a pair of postMessage channels that pipe envelopes
@@ -70,6 +72,9 @@ function fakeDataSource(): { ds: DataSource; emit: (event: ChangeEvent) => void 
 		},
 		async getSpanDetails(query: GetSpanDetailsQuery): Promise<SpanDetails> {
 			throw new Error(`span ${query.spanId} not found`);
+		},
+		async listLogs(_query: ListLogsQuery): Promise<ListLogsResult> {
+			return { rows: [], totalCount: 0 };
 		},
 		subscribe(handler) {
 			subscribers.add(handler);

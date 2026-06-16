@@ -9,6 +9,8 @@ import type {
 	Disposable,
 	GetSpanDetailsQuery,
 	GetTraceQuery,
+	ListLogsQuery,
+	ListLogsResult,
 	ListTracesQuery,
 	ListTracesResult,
 	SpanDetails,
@@ -18,8 +20,8 @@ import {
 	type BridgeEnvelope,
 	type BridgeMessage,
 	type BridgeResponse,
-	wrap,
 	unwrap,
+	wrap,
 } from './protocol.js';
 
 /**
@@ -95,9 +97,7 @@ export function createPostMessageDataSource(
 
 	target.addEventListener('message', onMessage as EventListener);
 
-	function request<TResult>(
-		make: (id: number) => BridgeMessage,
-	): Promise<TResult> {
+	function request<TResult>(make: (id: number) => BridgeMessage): Promise<TResult> {
 		return new Promise<TResult>((resolve, reject) => {
 			const id = nextId++;
 			pending.set(id, (response) => {
@@ -121,6 +121,9 @@ export function createPostMessageDataSource(
 		},
 		getSpanDetails(query: GetSpanDetailsQuery): Promise<SpanDetails> {
 			return request<SpanDetails>((id) => ({ id, kind: 'getSpanDetails', query }));
+		},
+		listLogs(query: ListLogsQuery): Promise<ListLogsResult> {
+			return request<ListLogsResult>((id) => ({ id, kind: 'listLogs', query }));
 		},
 		subscribe(handler: (event: ChangeEvent) => void): Disposable {
 			subscribers.add(handler);

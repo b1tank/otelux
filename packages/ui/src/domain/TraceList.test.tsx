@@ -7,6 +7,8 @@ import type {
 	DataSource,
 	GetSpanDetailsQuery,
 	GetTraceQuery,
+	ListLogsQuery,
+	ListLogsResult,
 	ListTracesQuery,
 	ListTracesResult,
 	ListTracesResultRow,
@@ -45,6 +47,9 @@ class FakeDataSource implements DataSource {
 	}
 	getSpanDetails(_query: GetSpanDetailsQuery): Promise<SpanDetails> {
 		throw new Error('not used');
+	}
+	listLogs(_query: ListLogsQuery): Promise<ListLogsResult> {
+		return Promise.resolve({ rows: [], totalCount: 0 });
 	}
 	subscribe(handler: (e: ChangeEvent) => void): { dispose(): void } {
 		this.handlers.add(handler);

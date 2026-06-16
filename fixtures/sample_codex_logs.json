@@ -1,0 +1,460 @@
+{
+	"resourceLogs": [
+		{
+			"resource": {
+				"attributes": [
+					{
+						"key": "host.name",
+						"value": {
+							"stringValue": "sl"
+						}
+					},
+					{
+						"key": "service.name",
+						"value": {
+							"stringValue": "codex_exec"
+						}
+					},
+					{
+						"key": "telemetry.sdk.version",
+						"value": {
+							"stringValue": "0.31.0"
+						}
+					},
+					{
+						"key": "service.version",
+						"value": {
+							"stringValue": "0.0.0"
+						}
+					},
+					{
+						"key": "telemetry.sdk.language",
+						"value": {
+							"stringValue": "rust"
+						}
+					},
+					{
+						"key": "env",
+						"value": {
+							"stringValue": "dev"
+						}
+					},
+					{
+						"key": "telemetry.sdk.name",
+						"value": {
+							"stringValue": "opentelemetry"
+						}
+					}
+				],
+				"droppedAttributesCount": 0,
+				"entityRefs": []
+			},
+			"scopeLogs": [
+				{
+					"scope": {
+						"name": "codex_otel.log_only",
+						"version": "",
+						"attributes": [],
+						"droppedAttributesCount": 0
+					},
+					"logRecords": [
+						{
+							"timeUnixNano": "0",
+							"observedTimeUnixNano": "1781569401660143310",
+							"severityNumber": 9,
+							"severityText": "INFO",
+							"body": null,
+							"attributes": [
+								{
+									"key": "event.name",
+									"value": {
+										"stringValue": "codex.conversation_starts"
+									}
+								},
+								{
+									"key": "provider_name",
+									"value": {
+										"stringValue": "Azure OpenAI"
+									}
+								},
+								{
+									"key": "auth.env_openai_api_key_present",
+									"value": {
+										"boolValue": true
+									}
+								},
+								{
+									"key": "auth.env_codex_api_key_present",
+									"value": {
+										"boolValue": false
+									}
+								},
+								{
+									"key": "auth.env_codex_api_key_enabled",
+									"value": {
+										"boolValue": true
+									}
+								},
+								{
+									"key": "auth.env_provider_key_name",
+									"value": {
+										"stringValue": "configured"
+									}
+								},
+								{
+									"key": "auth.env_provider_key_present",
+									"value": {
+										"boolValue": true
+									}
+								},
+								{
+									"key": "auth.env_refresh_token_url_override_present",
+									"value": {
+										"boolValue": false
+									}
+								},
+								{
+									"key": "reasoning_effort",
+									"value": {
+										"stringValue": "medium"
+									}
+								},
+								{
+									"key": "reasoning_summary",
+									"value": {
+										"stringValue": "auto"
+									}
+								},
+								{
+									"key": "approval_policy",
+									"value": {
+										"stringValue": "never"
+									}
+								},
+								{
+									"key": "sandbox_policy",
+									"value": {
+										"stringValue": "read-only"
+									}
+								},
+								{
+									"key": "mcp_servers",
+									"value": {
+										"stringValue": "github"
+									}
+								},
+								{
+									"key": "event.timestamp",
+									"value": {
+										"stringValue": "2026-06-16T00:23:21.660Z"
+									}
+								},
+								{
+									"key": "conversation.id",
+									"value": {
+										"stringValue": "019ecdcf-b32c-7613-8ff9-4b0d98d7c44d"
+									}
+								},
+								{
+									"key": "app.version",
+									"value": {
+										"stringValue": "0.0.0"
+									}
+								},
+								{
+									"key": "auth_mode",
+									"value": {
+										"stringValue": "ApiKey"
+									}
+								},
+								{
+									"key": "originator",
+									"value": {
+										"stringValue": "codex_exec"
+									}
+								},
+								{
+									"key": "terminal.type",
+									"value": {
+										"stringValue": "vscode/1.125.0-insider"
+									}
+								},
+								{
+									"key": "model",
+									"value": {
+										"stringValue": "gpt-5.3-codex"
+									}
+								},
+								{
+									"key": "slug",
+									"value": {
+										"stringValue": "gpt-5.3-codex"
+									}
+								}
+							],
+							"droppedAttributesCount": 0,
+							"flags": 1,
+							"traceId": "0271e95cf311d5abd0b65c5135dea068",
+							"spanId": "caf404e854233d25",
+							"eventName": "event otel/src/events/session_telemetry.rs:450"
+						},
+						{
+							"timeUnixNano": "0",
+							"observedTimeUnixNano": "1781569401685048596",
+							"severityNumber": 9,
+							"severityText": "INFO",
+							"body": null,
+							"attributes": [
+								{
+									"key": "event.name",
+									"value": {
+										"stringValue": "codex.startup_phase"
+									}
+								},
+								{
+									"key": "startup.phase",
+									"value": {
+										"stringValue": "thread_start_create_thread"
+									}
+								},
+								{
+									"key": "startup.status",
+									"value": {
+										"stringValue": "ready"
+									}
+								},
+								{
+									"key": "duration_ms",
+									"value": {
+										"stringValue": "41"
+									}
+								},
+								{
+									"key": "event.timestamp",
+									"value": {
+										"stringValue": "2026-06-16T00:23:21.685Z"
+									}
+								},
+								{
+									"key": "conversation.id",
+									"value": {
+										"stringValue": "019ecdcf-b32c-7613-8ff9-4b0d98d7c44d"
+									}
+								},
+								{
+									"key": "app.version",
+									"value": {
+										"stringValue": "0.0.0"
+									}
+								},
+								{
+									"key": "auth_mode",
+									"value": {
+										"stringValue": "ApiKey"
+									}
+								},
+								{
+									"key": "originator",
+									"value": {
+										"stringValue": "codex_exec"
+									}
+								},
+								{
+									"key": "terminal.type",
+									"value": {
+										"stringValue": "vscode/1.125.0-insider"
+									}
+								},
+								{
+									"key": "model",
+									"value": {
+										"stringValue": "gpt-5.3-codex"
+									}
+								},
+								{
+									"key": "slug",
+									"value": {
+										"stringValue": "gpt-5.3-codex"
+									}
+								}
+							],
+							"droppedAttributesCount": 0,
+							"flags": 1,
+							"traceId": "0271e95cf311d5abd0b65c5135dea068",
+							"spanId": "8686e85dab492736",
+							"eventName": "event otel/src/events/session_telemetry.rs:207"
+						},
+						{
+							"timeUnixNano": "0",
+							"observedTimeUnixNano": "1781569401687150826",
+							"severityNumber": 9,
+							"severityText": "INFO",
+							"body": null,
+							"attributes": [
+								{
+									"key": "event.name",
+									"value": {
+										"stringValue": "codex.startup_phase"
+									}
+								},
+								{
+									"key": "startup.phase",
+									"value": {
+										"stringValue": "thread_start_total"
+									}
+								},
+								{
+									"key": "startup.status",
+									"value": {
+										"stringValue": "ready"
+									}
+								},
+								{
+									"key": "duration_ms",
+									"value": {
+										"stringValue": "44"
+									}
+								},
+								{
+									"key": "event.timestamp",
+									"value": {
+										"stringValue": "2026-06-16T00:23:21.687Z"
+									}
+								},
+								{
+									"key": "conversation.id",
+									"value": {
+										"stringValue": "019ecdcf-b32c-7613-8ff9-4b0d98d7c44d"
+									}
+								},
+								{
+									"key": "app.version",
+									"value": {
+										"stringValue": "0.0.0"
+									}
+								},
+								{
+									"key": "auth_mode",
+									"value": {
+										"stringValue": "ApiKey"
+									}
+								},
+								{
+									"key": "originator",
+									"value": {
+										"stringValue": "codex_exec"
+									}
+								},
+								{
+									"key": "terminal.type",
+									"value": {
+										"stringValue": "vscode/1.125.0-insider"
+									}
+								},
+								{
+									"key": "model",
+									"value": {
+										"stringValue": "gpt-5.3-codex"
+									}
+								},
+								{
+									"key": "slug",
+									"value": {
+										"stringValue": "gpt-5.3-codex"
+									}
+								}
+							],
+							"droppedAttributesCount": 0,
+							"flags": 1,
+							"traceId": "0271e95cf311d5abd0b65c5135dea068",
+							"spanId": "8686e85dab492736",
+							"eventName": "event otel/src/events/session_telemetry.rs:207"
+						},
+						{
+							"timeUnixNano": "0",
+							"observedTimeUnixNano": "1781569401741860024",
+							"severityNumber": 9,
+							"severityText": "INFO",
+							"body": null,
+							"attributes": [
+								{
+									"key": "event.name",
+									"value": {
+										"stringValue": "codex.user_prompt"
+									}
+								},
+								{
+									"key": "prompt_length",
+									"value": {
+										"stringValue": "39"
+									}
+								},
+								{
+									"key": "prompt",
+									"value": {
+										"stringValue": "Reply with exactly: otelux-logs-fixture"
+									}
+								},
+								{
+									"key": "event.timestamp",
+									"value": {
+										"stringValue": "2026-06-16T00:23:21.741Z"
+									}
+								},
+								{
+									"key": "conversation.id",
+									"value": {
+										"stringValue": "019ecdcf-b32c-7613-8ff9-4b0d98d7c44d"
+									}
+								},
+								{
+									"key": "app.version",
+									"value": {
+										"stringValue": "0.0.0"
+									}
+								},
+								{
+									"key": "auth_mode",
+									"value": {
+										"stringValue": "ApiKey"
+									}
+								},
+								{
+									"key": "originator",
+									"value": {
+										"stringValue": "codex_exec"
+									}
+								},
+								{
+									"key": "terminal.type",
+									"value": {
+										"stringValue": "vscode/1.125.0-insider"
+									}
+								},
+								{
+									"key": "model",
+									"value": {
+										"stringValue": "gpt-5.3-codex"
+									}
+								},
+								{
+									"key": "slug",
+									"value": {
+										"stringValue": "gpt-5.3-codex"
+									}
+								}
+							],
+							"droppedAttributesCount": 0,
+							"flags": 1,
+							"traceId": "7680824120bf759bdb403db1ba0271be",
+							"spanId": "2c40fe2e2990dfc3",
+							"eventName": "event otel/src/events/session_telemetry.rs:968"
+						}
+					],
+					"schemaUrl": ""
+				}
+			],
+			"schemaUrl": ""
+		}
+	]
+}

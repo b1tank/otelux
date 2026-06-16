@@ -17,6 +17,8 @@ import type {
 	ChangeEvent,
 	GetSpanDetailsQuery,
 	GetTraceQuery,
+	ListLogsQuery,
+	ListLogsResult,
 	ListTracesQuery,
 	ListTracesResult,
 	SpanDetails,
@@ -26,10 +28,11 @@ import type { Trace } from '@otelux/types';
 export type BridgeRequest =
 	| { id: number; kind: 'listTraces'; query: ListTracesQuery }
 	| { id: number; kind: 'getTrace'; query: GetTraceQuery }
-	| { id: number; kind: 'getSpanDetails'; query: GetSpanDetailsQuery };
+	| { id: number; kind: 'getSpanDetails'; query: GetSpanDetailsQuery }
+	| { id: number; kind: 'listLogs'; query: ListLogsQuery };
 
 export type BridgeResponse =
-	| { id: number; kind: 'result'; payload: ListTracesResult | Trace | SpanDetails }
+	| { id: number; kind: 'result'; payload: ListTracesResult | Trace | SpanDetails | ListLogsResult }
 	| { id: number; kind: 'error'; message: string };
 
 export type BridgeEvent = { kind: 'event'; event: ChangeEvent };
