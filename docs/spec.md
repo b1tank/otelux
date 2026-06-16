@@ -1,7 +1,7 @@
 # OTelux — Specification
 
 Version: 3.1
-Updated: 2026-06-15
+Updated: 2026-06-16
 
 OTelux is a local-first OpenTelemetry workbench. It receives traces, logs,
 metrics, and (later) profiles from local applications, stores them on disk,

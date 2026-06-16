@@ -1,12 +1,16 @@
 # OTelux — Plan
 
 Version: 3.1
-Updated: 2026-06-15
+Updated: 2026-06-16
 
 This is the execution plan for OTelux. It says **how** we get from today to
 the product defined in [spec.md](spec.md). It is intentionally slow. Phases
 are effort budgets, not calendar weeks. Finish one well, breathe, start the
 next.
+
+> **Status at a glance:** Phase 0 ✅ · Phase 1 (M1 trace workbench) ✅ ·
+> Phase 2 (structured logs) ✅ shipped · Phase 3 (metrics) 🚧 in progress ·
+> Phases 4–5 not started.
 
 ---
 
@@ -285,7 +289,14 @@ Exit criteria: the M1 done definition above is met, end to end, on a
 fresh Ubuntu install — both for the desktop binary and for the loaded
 `.vsix`.
 
-### Phase 2 — Structured logs (3–6 weeks)
+### Phase 2 — Structured logs (3–6 weeks) ✅ shipped
+
+> **Shipped.** Logs ingest (`/v1/logs`), engine storage/query, the
+> `Logs` rail tab + `LogsView` (severity tint, service chips, detail
+> drawer, attribute/body search) and the Codex log fixture + decoder
+> tests are all live. Trace-correlation deep-linking and live-tail
+> pause/resume remain as follow-ups but the pillar is usable end-to-end
+> against a real `codex exec` run.
 
 **Reference workload:** the Codex CLI logs pipeline (see
 [spec.md §13](spec.md)). Codex is where the content lives — `codex.user_prompt`
@@ -337,7 +348,13 @@ Exit criteria: a user can debug a real local crash via logs and one-click
 correlate to its trace, **and** can read Codex prompt/tool content captured
 from a live Codex session.
 
-### Phase 3 — Metrics (4–8 weeks)
+### Phase 3 — Metrics (4–8 weeks) 🚧 in progress
+
+> **In progress.** Backend (types → protocol → engine/storage →
+> `/v1/metrics` decoder + route + Codex fixture/tests) lands first,
+> followed by the `Metrics` rail tab with a meter→instrument tree and a
+> per-instrument chart/table viewer. Exemplar→trace jumps and DuckDB
+> evaluation remain explicit follow-ups.
 
 **Reference workload:** the Codex CLI metrics pipeline (see
 [spec.md §13](spec.md)) — monotonic Sums (`codex.api_request`,
