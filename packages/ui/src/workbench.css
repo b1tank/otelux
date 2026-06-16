@@ -2287,3 +2287,379 @@
 	height: 100%;
 	box-sizing: border-box;
 }
+
+/* ============================================================ *
+ *                     DOMAIN: MetricsView                       *
+ * ============================================================ */
+
+/*
+ * Metrics surface — a scrolling pane of meter sections, each holding a
+ * grid of instrument cards. Unlike logs (a flat row stream) instruments
+ * are self-contained cards with an inline chart and a graph/table toggle,
+ * so the layout is a responsive card grid rather than fixed-height rows.
+ */
+.otelux-metrics {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+	background: var(--otelux-bg);
+}
+
+.otelux-metrics__header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 16px;
+	border-bottom: 1px solid var(--otelux-border);
+	flex: 0 0 auto;
+}
+
+.otelux-metrics__title {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--otelux-fg);
+}
+
+.otelux-metrics__count {
+	font-size: 11px;
+	font-variant-numeric: tabular-nums;
+	color: var(--otelux-fg-muted);
+	background: var(--otelux-bg-elevated);
+	padding: 1px 7px;
+	border-radius: 9px;
+}
+
+.otelux-metrics__body {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+}
+
+.otelux-metrics__empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	padding: 40px;
+	gap: 6px;
+	font-size: 12px;
+	line-height: 1.6;
+	color: var(--otelux-fg-muted);
+	text-align: center;
+}
+
+.otelux-metrics__empty code {
+	font-family: var(--otelux-font-mono);
+	font-size: 11px;
+	color: var(--otelux-accent-2);
+}
+
+.otelux-metrics__meters {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 12px 16px 24px;
+}
+
+/* Meter (instrumentation-scope) grouping header. */
+.otelux-meter {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	margin-bottom: 8px;
+}
+
+.otelux-meter__header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding-top: 8px;
+}
+
+.otelux-meter__name {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--otelux-fg);
+	font-family: var(--otelux-font-mono);
+}
+
+.otelux-meter__count {
+	font-size: 10px;
+	font-variant-numeric: tabular-nums;
+	color: var(--otelux-fg-muted);
+	background: var(--otelux-bg-elevated);
+	padding: 0 6px;
+	border-radius: 8px;
+}
+
+.otelux-meter__instruments {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+	gap: 12px;
+}
+
+/* A single instrument card. */
+.otelux-metric {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 12px 14px;
+	background: var(--otelux-bg-elevated);
+	border: 1px solid var(--otelux-border);
+	border-radius: 8px;
+}
+
+.otelux-metric__header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.otelux-metric__id {
+	display: flex;
+	align-items: baseline;
+	gap: 6px;
+	min-width: 0;
+}
+
+.otelux-metric__name {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--otelux-fg);
+	font-family: var(--otelux-font-mono);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.otelux-metric__unit {
+	font-size: 10px;
+	color: var(--otelux-fg-muted);
+}
+
+.otelux-metric__badges {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 0 0 auto;
+}
+
+.otelux-metric__kind {
+	font-size: 10px;
+	font-weight: 600;
+	padding: 1px 6px;
+	border-radius: 6px;
+	color: var(--otelux-fg-muted);
+	background: var(--otelux-bg);
+	border: 1px solid var(--otelux-border);
+}
+
+.otelux-metric__kind--histogram {
+	color: var(--otelux-accent-2);
+}
+
+.otelux-metric__temporality {
+	font-size: 10px;
+	color: var(--otelux-fg-muted);
+	font-variant: small-caps;
+}
+
+.otelux-metric__toggle {
+	display: inline-flex;
+	border: 1px solid var(--otelux-border);
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.otelux-metric__toggle-btn {
+	font: inherit;
+	font-size: 10px;
+	padding: 2px 8px;
+	background: var(--otelux-bg);
+	color: var(--otelux-fg-muted);
+	border: none;
+	cursor: pointer;
+}
+
+.otelux-metric__toggle-btn.is-active {
+	background: var(--otelux-accent);
+	color: #fff;
+}
+
+.otelux-metric__desc {
+	margin: 0;
+	font-size: 11px;
+	color: var(--otelux-fg-muted);
+	line-height: 1.4;
+}
+
+.otelux-metric__chart {
+	min-height: 96px;
+}
+
+.otelux-metric__nodata {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 96px;
+	font-size: 11px;
+	color: var(--otelux-fg-muted);
+}
+
+/* Inline SVG line chart for scalar instruments. */
+.otelux-linechart {
+	display: flex;
+	align-items: stretch;
+	gap: 10px;
+}
+
+.otelux-linechart__svg {
+	flex: 1 1 auto;
+	width: 100%;
+	height: 96px;
+}
+
+.otelux-linechart__axis {
+	stroke: var(--otelux-border);
+	stroke-width: 1;
+	stroke-dasharray: 3 3;
+}
+
+.otelux-linechart__line {
+	stroke-width: 1.5;
+	vector-effect: non-scaling-stroke;
+}
+
+.otelux-linechart__legend {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	justify-content: center;
+	flex: 0 0 auto;
+}
+
+.otelux-linechart__latest {
+	font-size: 16px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: var(--otelux-fg);
+}
+
+.otelux-linechart__latest-label {
+	font-size: 10px;
+	color: var(--otelux-fg-muted);
+}
+
+/* Histogram bucket bars. */
+.otelux-histogram {
+	display: flex;
+	align-items: stretch;
+	gap: 10px;
+}
+
+.otelux-histogram__bars {
+	display: flex;
+	align-items: flex-end;
+	gap: 4px;
+	flex: 1 1 auto;
+	height: 96px;
+}
+
+.otelux-histogram__col {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+	flex: 1 1 0;
+	min-width: 0;
+	height: 100%;
+}
+
+.otelux-histogram__count {
+	font-size: 9px;
+	font-variant-numeric: tabular-nums;
+	color: var(--otelux-fg-muted);
+	height: 12px;
+}
+
+.otelux-histogram__bar-track {
+	display: flex;
+	align-items: flex-end;
+	flex: 1 1 auto;
+	width: 100%;
+}
+
+.otelux-histogram__bar {
+	width: 100%;
+	min-height: 1px;
+	background: var(--otelux-accent-2);
+	border-radius: 2px 2px 0 0;
+}
+
+.otelux-histogram__label {
+	font-size: 8px;
+	color: var(--otelux-fg-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 100%;
+}
+
+.otelux-histogram__legend {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	justify-content: center;
+	flex: 0 0 auto;
+}
+
+.otelux-histogram__total {
+	font-size: 16px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: var(--otelux-fg);
+}
+
+.otelux-histogram__total-label {
+	font-size: 10px;
+	color: var(--otelux-fg-muted);
+}
+
+/* Raw data-point / bucket tables (graph→table toggle). */
+.otelux-metric-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 11px;
+}
+
+.otelux-metric-table th {
+	text-align: left;
+	font-weight: 600;
+	color: var(--otelux-fg-muted);
+	padding: 3px 6px;
+	border-bottom: 1px solid var(--otelux-border);
+}
+
+.otelux-metric-table td {
+	padding: 3px 6px;
+	border-bottom: 1px solid var(--otelux-border);
+	color: var(--otelux-fg);
+}
+
+.otelux-metric-table__num {
+	font-variant-numeric: tabular-nums;
+	text-align: right;
+}
+
+.otelux-metric-table__attrs {
+	font-family: var(--otelux-font-mono);
+	color: var(--otelux-fg-muted);
+}
+
+.otelux-metric-table__summary td {
+	font-weight: 600;
+	border-bottom: none;
+}

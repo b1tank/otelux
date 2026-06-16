@@ -15,7 +15,7 @@ import type { DataSource } from '@otelux/protocol';
 import type { AttributeValue, Span, SpanId, Trace, TraceId } from '@otelux/types';
 import { SpanKind } from '@otelux/types';
 import { type JSX, useMemo, useState } from 'react';
-import { LogsView, SpanDetail, TraceList, Waterfall } from './domain/index.js';
+import { LogsView, MetricsView, SpanDetail, TraceList, Waterfall } from './domain/index.js';
 import { serviceColorVar, serviceIndex } from './format.js';
 import { AppShell, FilterBar, Rail, type RailItem, Topbar, Workbench } from './layout/index.js';
 import {
@@ -73,18 +73,15 @@ export interface OTeluxWorkbenchProps {
 	onOpenSettings?: () => void;
 }
 
-// The rail's "Metrics" pillar is an intentional placeholder for a
-// future telemetry surface — it exists in the rail so the icon bar
-// stays anchored at three pillars (Traces / Metrics / Logs) even before
-// that view ships, and is disabled until it lands. Traces and Logs are
-// live.
+// The rail's three pillars (Traces / Metrics / Logs) are all live. The
+// icon bar stays anchored at three so the layout never reflows as
+// surfaces ship.
 const RAIL_ITEMS: readonly RailItem[] = [
 	{ id: 'traces', label: 'Traces', icon: <WaterfallIcon size={18} /> },
 	{
 		id: 'metrics',
-		label: 'Metrics (coming soon)',
+		label: 'Metrics',
 		icon: <BarChart3Icon size={18} />,
-		disabled: true,
 	},
 	{ id: 'logs', label: 'Logs', icon: <LogsIcon size={18} /> },
 ];
@@ -126,7 +123,7 @@ interface ViewValueTarget {
 
 export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 	const { dataSource, theme = 'dark', endpointUrl, topbarEnd, onOpenSettings } = props;
-	const [activeView, setActiveView] = useState<'traces' | 'logs'>('traces');
+	const [activeView, setActiveView] = useState<'traces' | 'logs' | 'metrics'>('traces');
 	const [selectedTraceId, setSelectedTraceIdRaw] = useState<TraceId | undefined>(undefined);
 	const [selectedSpanId, setSelectedSpanId] = useState<SpanId | undefined>(undefined);
 	const [errorsOnly, setErrorsOnly] = useState(false);
@@ -137,6 +134,11 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 	const [logsSeverity, setLogsSeverity] = useState<string>('all');
 	const [logsService, setLogsService] = useState<string>('all');
 	const [logsSearch, setLogsSearch] = useState<string>('');
+	// Metrics-view filters. Kept separate for the same reason as the logs
+	// filters — switching views must not bleed one surface's filter onto
+	// another.
+	const [metricsService, setMetricsService] = useState<string>('all');
+	const [metricsSearch, setMetricsSearch] = useState<string>('');
 	// Pane collapse state. Mutually exclusive (collapsing one side
 	// auto-uncollapses the other) so the workbench never ends up with
 	// nothing visible. The Workbench layout's invariant requires at most
@@ -279,6 +281,49 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 	const logsServiceTriggerCount =
 		logsService === 'all' ? sortedLogServices.length : logsServiceCounts.get(logsService);
 
+	// Metrics service dropdown: probe an unfiltered sample to learn which
+	// services emit instruments and how many each contributes. Mirrors the
+	// logs/trace summary probes.
+	const metricsProbe = useDataSourceQuery(
+		dataSource,
+		(ds) => ds.listMetrics({ limit: 500 }),
+		'workbench:metrics-service-probe',
+	);
+	const metricsRows = metricsProbe.value?.rows ?? [];
+
+	const { metricsServiceCounts, sortedMetricServices } = useMemo(() => {
+		const counts = new Map<string, number>();
+		for (const row of metricsRows) {
+			const svc = row.resource.attributes['service.name'];
+			if (typeof svc === 'string') {
+				counts.set(svc, (counts.get(svc) ?? 0) + 1);
+			}
+		}
+		const sorted = Array.from(counts.entries())
+			.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+			.map(([name]) => name);
+		return { metricsServiceCounts: counts, sortedMetricServices: sorted };
+	}, [metricsRows]);
+
+	const metricsServiceOptions = useMemo<readonly DropdownOption[]>(() => {
+		const opts: DropdownOption[] = [];
+		if (metricsService !== 'all') {
+			opts.push({ value: 'all', label: 'All services', count: sortedMetricServices.length });
+		}
+		for (const name of sortedMetricServices) {
+			opts.push({
+				value: name,
+				label: name,
+				count: metricsServiceCounts.get(name) ?? 0,
+				colorIndex: serviceIndex(name),
+			});
+		}
+		return opts;
+	}, [sortedMetricServices, metricsServiceCounts, metricsService]);
+
+	const metricsServiceTriggerCount =
+		metricsService === 'all' ? sortedMetricServices.length : metricsServiceCounts.get(metricsService);
+
 	// The detail drawer is opened explicitly by the user clicking a span
 	// row in the Waterfall — not auto-opened when a trace is selected.
 	// Auto-opening covered the waterfall the moment a trace was clicked
@@ -321,6 +366,9 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 							if (id === 'traces' || id === 'logs') {
 								setActiveView(id);
 							}
+							if (id === 'metrics') {
+								setActiveView('metrics');
+							}
 						}}
 						footerItems={[
 							{
@@ -342,7 +390,11 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 				}
 			>
 				<Topbar
-					start={<h1 className="otelux-topbar__title">{activeView === 'logs' ? 'Logs' : 'Traces'}</h1>}
+					start={
+						<h1 className="otelux-topbar__title">
+							{activeView === 'logs' ? 'Logs' : activeView === 'metrics' ? 'Metrics' : 'Traces'}
+						</h1>
+					}
 					{...(topbarEnd !== undefined ? { end: topbarEnd } : {})}
 				/>
 				{activeView === 'logs' ? (
@@ -394,6 +446,51 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 							{...(logsSearch ? { search: logsSearch } : {})}
 							{...(endpointUrl !== undefined
 								? { endpointUrl: endpointUrl.replace('/v1/traces', '/v1/logs') }
+								: {})}
+						/>
+					</>
+				) : activeView === 'metrics' ? (
+					<>
+						<FilterBar
+							filters={
+								<>
+									<Dropdown
+										aria-label="Filter metrics by service"
+										triggerSlotLabel="Service"
+										triggerLabel={metricsService === 'all' ? 'All services' : metricsService}
+										triggerIcon={
+											metricsService === 'all' ? undefined : (
+												<span
+													className="otelux-dropdown__color-dot"
+													style={{
+														background: `var(--otelux-svc-${serviceIndex(metricsService)})`,
+													}}
+													aria-hidden
+												/>
+											)
+										}
+										{...(metricsServiceTriggerCount !== undefined
+											? { triggerCount: metricsServiceTriggerCount }
+											: {})}
+										value={metricsService}
+										onChange={setMetricsService}
+										options={metricsServiceOptions}
+									/>
+									<SearchField
+										value={metricsSearch}
+										onChange={setMetricsSearch}
+										placeholder="Search instruments by name or description…"
+										aria-label="Search metrics"
+									/>
+								</>
+							}
+						/>
+						<MetricsView
+							dataSource={dataSource}
+							{...(metricsService !== 'all' ? { services: [metricsService] } : {})}
+							{...(metricsSearch ? { search: metricsSearch } : {})}
+							{...(endpointUrl !== undefined
+								? { endpointUrl: endpointUrl.replace('/v1/traces', '/v1/metrics') }
 								: {})}
 						/>
 					</>
