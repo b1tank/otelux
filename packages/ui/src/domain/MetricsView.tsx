@@ -23,10 +23,25 @@
  */
 
 import type { DataSource, ListMetricsResult } from '@otelux/protocol';
-import type { HistogramDataPoint, HistogramMetric, Metric, NumberDataPoint } from '@otelux/types';
+import type {
+	AttributeValue,
+	HistogramDataPoint,
+	HistogramMetric,
+	Metric,
+	NumberDataPoint,
+} from '@otelux/types';
 import { AggregationTemporality } from '@otelux/types';
 import { type JSX, useState } from 'react';
 import { formatWallClock, nanosToNumber, serviceColorVar } from '../format.js';
+import {
+	Accordion,
+	type AccordionItem,
+	CopyButton,
+	Drawer,
+	EyeIcon,
+	IconButton,
+	ValueViewer,
+} from '../primitives/index.js';
 import { useDataSourceQuery } from '../useDataSourceQuery.js';
 
 export interface MetricsViewProps {
@@ -55,6 +70,8 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 		limit = DEFAULT_LIMIT,
 		endpointUrl = DEFAULT_ENDPOINT,
 	} = props;
+	const [selected, setSelected] = useState<Metric | null>(null);
+	const [viewValue, setViewValue] = useState<{ key: string; value: AttributeValue } | null>(null);
 
 	// The serialization key must include every input that changes the
 	// result set; otherwise the hook reuses a stale fetch when filters change.
@@ -81,39 +98,65 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 	const groups = groupByMeter(rows);
 
 	return (
-		<section className="otelux-metrics" aria-label="Metrics">
-			<header className="otelux-metrics__header">
-				<span className="otelux-metrics__title">Metrics</span>
-				<span className="otelux-metrics__count">{query.value?.totalCount ?? 0}</span>
-			</header>
-			<div className="otelux-metrics__body">
-				{query.loading && rows.length === 0 ? (
-					<div className="otelux-metrics__empty">Waiting for metrics…</div>
-				) : rows.length === 0 ? (
-					<div className="otelux-metrics__empty">
-						No metrics match. Point an OTel metrics exporter at
-						<br />
-						<code>{endpointUrl}</code>
-					</div>
-				) : (
-					<div className="otelux-metrics__meters">
-						{groups.map((group) => (
-							<section key={group.meter} className="otelux-meter" aria-label={`Meter ${group.meter}`}>
-								<header className="otelux-meter__header">
-									<span className="otelux-meter__name">{group.meter}</span>
-									<span className="otelux-meter__count">{group.metrics.length}</span>
-								</header>
-								<div className="otelux-meter__instruments">
-									{group.metrics.map((metric) => (
-										<MetricCard key={`${metric.name}:${metric.type}`} metric={metric} />
-									))}
-								</div>
-							</section>
-						))}
-					</div>
-				)}
-			</div>
-		</section>
+		<>
+			<section className="otelux-metrics" aria-label="Metrics">
+				<header className="otelux-metrics__header">
+					<span className="otelux-metrics__title">Metrics</span>
+					<span className="otelux-metrics__count">{query.value?.totalCount ?? 0}</span>
+				</header>
+				<div className="otelux-metrics__body">
+					{query.loading && rows.length === 0 ? (
+						<div className="otelux-metrics__empty">Waiting for metrics…</div>
+					) : rows.length === 0 ? (
+						<div className="otelux-metrics__empty">
+							No metrics match. Point an OTel metrics exporter at
+							<br />
+							<code>{endpointUrl}</code>
+						</div>
+					) : (
+						<div className="otelux-metrics__meters">
+							{groups.map((group) => (
+								<section key={group.meter} className="otelux-meter" aria-label={`Meter ${group.meter}`}>
+									<header className="otelux-meter__header">
+										<span className="otelux-meter__name">{group.meter}</span>
+										<span className="otelux-meter__count">{group.metrics.length}</span>
+									</header>
+									<div className="otelux-meter__instruments">
+										{group.metrics.map((metric) => (
+											<MetricCard
+												key={`${metric.name}:${metric.type}`}
+												metric={metric}
+												onSelect={() => setSelected(metric)}
+											/>
+										))}
+									</div>
+								</section>
+							))}
+						</div>
+					)}
+				</div>
+			</section>
+			<Drawer
+				open={selected !== null}
+				onClose={() => setSelected(null)}
+				{...(selected
+					? {
+							title: selected.name,
+							accentVar: serviceColorVar(metricService(selected) ?? selected.name),
+							kindLabel: kindLabel(selected),
+						}
+					: {})}
+			>
+				{selected ? (
+					<MetricDetail metric={selected} onViewValue={(key, value) => setViewValue({ key, value })} />
+				) : null}
+			</Drawer>
+			<ValueViewer
+				open={viewValue !== null}
+				onClose={() => setViewValue(null)}
+				{...(viewValue !== null ? { title: viewValue.key, value: viewValue.value } : { value: '' })}
+			/>
+		</>
 	);
 }
 
@@ -142,10 +185,13 @@ function groupByMeter(rows: readonly Metric[]): MeterGroup[] {
 
 type ViewMode = 'chart' | 'table';
 
-function MetricCard(props: { metric: Metric }): JSX.Element {
-	const { metric } = props;
+function MetricCard(props: { metric: Metric; onSelect(): void }): JSX.Element {
+	const { metric, onSelect } = props;
 	const [mode, setMode] = useState<ViewMode>('chart');
 	const service = metricService(metric);
+	const latest = latestMetricSummary(metric);
+	const updated = latestMetricTime(metric);
+	const unit = metric.unit || '—';
 
 	return (
 		<article className="otelux-metric" aria-label={`Instrument ${metric.name}`}>
@@ -173,6 +219,33 @@ function MetricCard(props: { metric: Metric }): JSX.Element {
 					{temporalityLabel(metric) ? (
 						<span className="otelux-metric__temporality">{temporalityLabel(metric)}</span>
 					) : null}
+					<div className="otelux-metric__actions" aria-label={`Actions for ${metric.name}`}>
+						<CopyButton
+							value={metric.name}
+							title="Copy metric name"
+							ariaLabel={`Copy metric name ${metric.name}`}
+							className="otelux-metric__action otelux-metric__copy-action"
+							iconSize={12}
+						>
+							Name
+						</CopyButton>
+						<CopyButton
+							value={metricDataJson(metric)}
+							title="Copy metric data"
+							ariaLabel={`Copy metric data ${metric.name}`}
+							className="otelux-metric__action otelux-metric__copy-action"
+							iconSize={12}
+						>
+							Data
+						</CopyButton>
+						<IconButton
+							className="otelux-metric__action otelux-metric__details-action"
+							aria-label={`View metric details ${metric.name}`}
+							onClick={onSelect}
+						>
+							<EyeIcon size={14} />
+						</IconButton>
+					</div>
 					<div className="otelux-metric__toggle">
 						<button
 							type="button"
@@ -193,6 +266,17 @@ function MetricCard(props: { metric: Metric }): JSX.Element {
 					</div>
 				</div>
 			</header>
+			<div className="otelux-metric__summary" aria-label={`Summary for ${metric.name}`}>
+				<MetricSummaryCell label="Type" value={kindLabel(metric)} />
+				<MetricSummaryCell label="Service" value={service ?? '—'} />
+				<MetricSummaryCell label="Latest" value={latest} strong />
+				<MetricSummaryCell label="Unit" value={unit} />
+				<MetricSummaryCell
+					label="Updated"
+					value={updated !== undefined ? formatWallClock(updated) : '—'}
+				/>
+				<MetricSummaryCell label="Points" value={String(metricPointCount(metric))} />
+			</div>
 			{metric.description ? <p className="otelux-metric__desc">{metric.description}</p> : null}
 			<div className="otelux-metric__chart">
 				{mode === 'chart' ? (
@@ -209,6 +293,270 @@ function MetricCard(props: { metric: Metric }): JSX.Element {
 			</div>
 		</article>
 	);
+}
+
+function MetricSummaryCell(props: { label: string; value: string; strong?: boolean }): JSX.Element {
+	return (
+		<span className="otelux-metric__summary-cell">
+			<span className="otelux-metric__summary-label">{props.label}</span>
+			<span
+				className={`otelux-metric__summary-value${props.strong ? ' is-strong' : ''}`}
+				title={props.value}
+			>
+				{props.value}
+			</span>
+		</span>
+	);
+}
+
+interface MetricDetailProps {
+	metric: Metric;
+	onViewValue?: (key: string, value: AttributeValue) => void;
+}
+
+function MetricDetail(props: MetricDetailProps): JSX.Element {
+	const { metric, onViewValue } = props;
+	const items: AccordionItem[] = [
+		{
+			id: 'instrument',
+			label: 'Instrument',
+			defaultOpen: true,
+			children: <MetricFacts metric={metric} />,
+		},
+		{
+			id: 'data-points',
+			label: 'Data points',
+			badge: metricPointCount(metric),
+			defaultOpen: true,
+			children: <MetricDataPointTable metric={metric} />,
+		},
+		{
+			id: 'resource',
+			label: 'Resource',
+			badge: Object.keys(metric.resource.attributes).length,
+			children: (
+				<AttributeTable
+					attributes={metric.resource.attributes}
+					{...(onViewValue !== undefined ? { onViewValue } : {})}
+				/>
+			),
+		},
+		{
+			id: 'scope',
+			label: 'Scope',
+			children: (
+				<div className="otelux-kv">
+					<KVRow label="Name" value={metric.scope.name || '(unnamed)'} />
+					{metric.scope.version !== undefined ? (
+						<KVRow label="Version" value={metric.scope.version} />
+					) : null}
+					{metric.scope.attributes !== undefined ? (
+						<AttributeTable
+							attributes={metric.scope.attributes}
+							{...(onViewValue !== undefined ? { onViewValue } : {})}
+						/>
+					) : null}
+				</div>
+			),
+		},
+	];
+
+	return (
+		<div className="otelux-metric-detail">
+			<Accordion items={items} />
+		</div>
+	);
+}
+
+function MetricFacts(props: { metric: Metric }): JSX.Element {
+	const { metric } = props;
+	const service = metricService(metric);
+	const updated = latestMetricTime(metric);
+	const temporality = temporalityLabel(metric);
+	return (
+		<div className="otelux-kv">
+			<KVRow label="Name" value={metric.name} mono />
+			<KVRow label="Type" value={kindLabel(metric)} />
+			{temporality !== undefined ? <KVRow label="Temporality" value={temporality} /> : null}
+			<KVRow label="Service" value={service ?? '—'} />
+			<KVRow label="Unit" value={metric.unit || '—'} />
+			{metric.description !== undefined ? (
+				<KVRow label="Description" value={metric.description} />
+			) : null}
+			<KVRow label="Latest" value={latestMetricSummary(metric)} />
+			<KVRow label="Updated" value={updated !== undefined ? formatWallClock(updated) : '—'} />
+			<KVRow label="Data points" value={String(metricPointCount(metric))} />
+		</div>
+	);
+}
+
+function KVRow(props: { label: string; value: string; mono?: boolean }): JSX.Element {
+	return (
+		<div className="otelux-kv__row">
+			<span className="otelux-kv__key">{props.label}</span>
+			<span
+				className={`otelux-kv__val${props.mono ? ' otelux-kv__val--mono' : ''}`}
+				title={props.value}
+			>
+				{props.value}
+			</span>
+			<span className="otelux-kv__view" />
+		</div>
+	);
+}
+
+function AttributeTable(props: {
+	attributes: Readonly<Record<string, AttributeValue>>;
+	onViewValue?: (key: string, value: AttributeValue) => void;
+}): JSX.Element {
+	const entries = Object.entries(props.attributes).sort((a, b) => a[0].localeCompare(b[0]));
+	if (entries.length === 0) {
+		return <div className="otelux-kv__empty">none</div>;
+	}
+	return (
+		<div className="otelux-kv">
+			{entries.map(([key, value]) => {
+				const rendered = renderAttributeValue(value);
+				return (
+					<div key={key} className="otelux-kv__row">
+						<span className="otelux-kv__key">{key}</span>
+						<span className="otelux-kv__val otelux-kv__val--mono" title={rendered}>
+							{rendered}
+						</span>
+						{props.onViewValue !== undefined ? (
+							<IconButton
+								aria-label={`View value for ${key}`}
+								className="otelux-kv__view"
+								onClick={() => props.onViewValue?.(key, value)}
+							>
+								<EyeIcon size={14} />
+							</IconButton>
+						) : (
+							<span className="otelux-kv__view" aria-hidden="true" />
+						)}
+					</div>
+				);
+			})}
+		</div>
+	);
+}
+
+function MetricDataPointTable(props: { metric: Metric }): JSX.Element {
+	const { metric } = props;
+	if (metric.type === 'histogram') {
+		const sorted = [...metric.dataPoints].sort((a, b) => Number(b.timeUnixNano - a.timeUnixNano));
+		if (sorted.length === 0) {
+			return <div className="otelux-kv__empty">No data points.</div>;
+		}
+		return (
+			<table className="otelux-metric-table otelux-metric-detail__table">
+				<thead>
+					<tr>
+						<th>Time</th>
+						<th>Count</th>
+						<th>Sum</th>
+						<th>Min</th>
+						<th>Max</th>
+						<th>Attributes</th>
+					</tr>
+				</thead>
+				<tbody>
+					{sorted.map((point, i) => (
+						<tr key={`${point.timeUnixNano}:${i}`}>
+							<td>{formatWallClock(point.timeUnixNano)}</td>
+							<td className="otelux-metric-table__num">{point.count}</td>
+							<td className="otelux-metric-table__num">
+								{point.sum !== undefined ? formatNumber(point.sum) : '—'}
+							</td>
+							<td className="otelux-metric-table__num">
+								{point.min !== undefined ? formatNumber(point.min) : '—'}
+							</td>
+							<td className="otelux-metric-table__num">
+								{point.max !== undefined ? formatNumber(point.max) : '—'}
+							</td>
+							<td className="otelux-metric-table__attrs">{formatAttributes(point.attributes)}</td>
+						</tr>
+					))}
+				</tbody>
+			</table>
+		);
+	}
+
+	return <ScalarTable points={metric.dataPoints} />;
+}
+
+function latestMetricSummary(metric: Metric): string {
+	if (metric.type === 'histogram') {
+		const count = metric.dataPoints.reduce((acc, point) => acc + point.count, 0);
+		const sum = metric.dataPoints.reduce((acc, point) => acc + (point.sum ?? 0), 0);
+		return `${count} obs${sum > 0 ? ` / ${formatNumber(sum)} sum` : ''}`;
+	}
+	const latest = latestNumberPoint(metric.dataPoints);
+	return latest !== undefined ? formatNumber(latest.value) : '—';
+}
+
+function latestMetricTime(metric: Metric): bigint | undefined {
+	const points = metric.dataPoints;
+	const first = points[0];
+	if (first === undefined) {
+		return undefined;
+	}
+	return points.reduce(
+		(latest, point) => (point.timeUnixNano > latest ? point.timeUnixNano : latest),
+		first.timeUnixNano,
+	);
+}
+
+function latestNumberPoint(points: readonly NumberDataPoint[]): NumberDataPoint | undefined {
+	return points.reduce<NumberDataPoint | undefined>((latest, point) => {
+		if (latest === undefined || point.timeUnixNano > latest.timeUnixNano) {
+			return point;
+		}
+		return latest;
+	}, undefined);
+}
+
+function metricPointCount(metric: Metric): number {
+	return metric.dataPoints.length;
+}
+
+function metricDataJson(metric: Metric): string {
+	return JSON.stringify(toSerializable(metric), null, 2);
+}
+
+type JsonValue = null | boolean | number | string | JsonValue[] | { [key: string]: JsonValue };
+
+function toSerializable(value: unknown): JsonValue {
+	if (value === null || value === undefined) {
+		return null;
+	}
+	if (typeof value === 'bigint') {
+		return value.toString();
+	}
+	if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+		return value;
+	}
+	if (Array.isArray(value)) {
+		return value.map((item) => toSerializable(item));
+	}
+	if (typeof value === 'object') {
+		const result: { [key: string]: JsonValue } = {};
+		for (const [key, child] of Object.entries(value)) {
+			result[key] = toSerializable(child);
+		}
+		return result;
+	}
+	return String(value);
+}
+
+function renderAttributeValue(value: AttributeValue): string {
+	if (typeof value === 'bigint') {
+		return value.toString();
+	}
+	if (Array.isArray(value)) {
+		return value.map((v) => String(v)).join(', ');
+	}
+	return String(value);
 }
 
 const CHART_W = 320;

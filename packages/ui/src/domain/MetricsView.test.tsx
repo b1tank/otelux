@@ -17,7 +17,7 @@ import type {
 } from '@otelux/protocol';
 import type { HistogramMetric, Metric, SumMetric, Trace } from '@otelux/types';
 import { AggregationTemporality } from '@otelux/types';
-import { fireEvent, render } from '@testing-library/react';
+import { fireEvent, render, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { MetricsView } from './MetricsView.js';
 
@@ -111,6 +111,33 @@ describe('MetricsView', () => {
 		expect(container.textContent).toContain('Histogram');
 	});
 
+	it('renders scan summary fields and metric actions', async () => {
+		const ds = new FakeDataSource();
+		ds.rows = [makeSum()];
+		const { findByText, getByLabelText, container } = render(<MetricsView dataSource={ds} />);
+		await findByText('codex.api_request');
+		expect(container.textContent).toContain('Latest');
+		expect(container.textContent).toContain('Updated');
+		expect(container.textContent).toContain('Points');
+		expect(getByLabelText('Copy metric name codex.api_request')).toBeTruthy();
+		expect(getByLabelText('Copy metric data codex.api_request')).toBeTruthy();
+		expect(getByLabelText('View metric details codex.api_request')).toBeTruthy();
+	});
+
+	it('opens a metric details drawer', async () => {
+		const ds = new FakeDataSource();
+		ds.rows = [makeSum()];
+		const { findByText, getByLabelText, getByRole } = render(<MetricsView dataSource={ds} />);
+		await findByText('codex.api_request');
+		fireEvent.click(getByLabelText('View metric details codex.api_request'));
+		const dialog = getByRole('dialog');
+		expect(dialog.textContent).toContain('Instrument');
+		expect(dialog.textContent).toContain('Data points');
+		expect(dialog.textContent).toContain('Counter');
+		fireEvent.click(getByRole('button', { name: /Resource/i }));
+		expect(dialog.textContent).toContain('service.name');
+	});
+
 	it('renders a line chart for scalar instruments and a histogram for distributions', async () => {
 		const ds = new FakeDataSource();
 		ds.rows = [makeSum(), makeHistogram()];
@@ -137,12 +164,12 @@ describe('MetricsView', () => {
 	it('forwards filters to the data source query', async () => {
 		const ds = new FakeDataSource();
 		render(<MetricsView dataSource={ds} services={['codex']} search="request" limit={50} />);
-		await Promise.resolve();
-		const q = ds.calls.at(-1);
-		expect(q).toMatchObject({
-			limit: 50,
-			services: ['codex'],
-			search: 'request',
+		await waitFor(() => {
+			expect(ds.calls.at(-1)).toMatchObject({
+				limit: 50,
+				services: ['codex'],
+				search: 'request',
+			});
 		});
 	});
 });

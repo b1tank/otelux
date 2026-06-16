@@ -355,13 +355,17 @@ curl -s -X POST -H 'Content-Type: application/json' \
 
 ### 14.2 Rows render with a real timestamp
 - Click the **Logs** tab.
-- **Expected**: rows render with a **real wall-clock time**, not the Unix epoch. Codex emits `timeUnixNano: "0"` and carries the true emit time only in `observedTimeUnixNano`; the receiver must fall back to it. Each row shows a severity badge, the service chip (`codex_exec`), and the log body (or an attribute fallback like `event.name` when there is no body).
+- **Expected**: the table keeps visible headers for Level, Time, Service, Message, Trace, and Actions. Rows render with a **real wall-clock time**, not the Unix epoch. Codex emits `timeUnixNano: "0"` and carries the true emit time only in `observedTimeUnixNano`; the receiver must fall back to it. Each row shows a severity badge, the service chip (`codex_exec`), and the log body (or an attribute fallback like `event.name` when there is no body).
 
 ### 14.3 Detail drawer
 - Click a row.
 - **Expected**: the detail drawer opens showing the log body and the full attribute set (e.g. the user `prompt` content rides the logs pipeline in attributes, not traces).
 
-### 14.4 Filters
+### 14.4 Row actions and pivots
+- On a correlated log row, click the action buttons.
+- **Expected**: `Msg`, `Trace`, and `Span` copy actions copy the message and full IDs without opening the drawer. The waterfall pivot action switches to Traces and opens the matching span drawer when trace data for that ID is present. Rows without trace context show disabled trace/span/pivot affordances.
+
+### 14.5 Filters
 - Use the FilterBar service dropdown / severity / search.
 - **Expected**: the row set narrows; the query is forwarded to the data source (count in the header reflects the filtered result).
 
@@ -381,13 +385,17 @@ curl -s -X POST -H 'Content-Type: application/json' \
 
 ### 15.2 Meter → instrument tree
 - Click the **Metrics** tab.
-- **Expected**: instruments are grouped by meter (scope) name. Codex emits monotonic Sums (`codex.api_request`, `codex.tool.call`, `codex.turn.token_usage`) and Histograms (`*_ms` durations like `codex.turn.e2e_duration_ms`, `codex.api_request.duration_ms`). Each instrument shows its name, type (sum / gauge / histogram), and unit.
+- **Expected**: instruments are grouped by meter (scope) name. Codex emits monotonic Sums (`codex.api_request`, `codex.tool.call`, `codex.turn.token_usage`) and Histograms (`*_ms` durations like `codex.turn.e2e_duration_ms`, `codex.api_request.duration_ms`). Each instrument shows its name, type badge, unit, service, and a scan summary with Type, Service, Latest, Unit, Updated, and Points.
 
-### 15.3 Instrument chart + table toggle
+### 15.3 Instrument actions
+- On an instrument card, use the `Name`, `Data`, and details actions.
+- **Expected**: `Name` copies the metric name, `Data` copies serialized metric data, and the details action opens a drawer with Instrument facts, Data points, Resource, and Scope sections.
+
+### 15.4 Instrument chart + table toggle
 - Select an instrument.
 - **Expected**: a chart renders its data points over time. A **graph / table** toggle switches between the chart and a raw data-point table (timestamp, value, attributes). Histograms render their bucket distribution.
 
-### 15.4 Live update
+### 15.5 Live update
 - Re-send the fixture (or run a live Codex turn, see §E2E).
 - **Expected**: the instrument list and selected chart update without a manual refresh (engine `metricsChanged` subscription).
 

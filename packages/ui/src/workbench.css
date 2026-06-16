@@ -2609,6 +2609,8 @@
 	align-items: center;
 	gap: 6px;
 	flex: 0 0 auto;
+	flex-wrap: wrap;
+	justify-content: flex-end;
 }
 
 .otelux-metric__kind {
@@ -2631,6 +2633,46 @@
 	font-variant: small-caps;
 }
 
+.otelux-metric__actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.otelux-metric__action {
+	height: 24px;
+	min-width: 0;
+	margin: 0;
+	padding: 0 6px;
+	border: 1px solid transparent;
+	border-radius: var(--otelux-r-1);
+	background: transparent;
+	color: var(--otelux-fg-muted);
+	font-size: 10px;
+	font-weight: 600;
+	line-height: 1;
+}
+
+.otelux-metric__copy-action {
+	gap: 4px;
+}
+
+.otelux-metric__details-action {
+	width: 24px;
+	padding: 0;
+}
+
+.otelux-metric__action:hover:not(:disabled),
+.otelux-metric__action:focus-visible {
+	background: var(--otelux-bg);
+	color: var(--otelux-fg);
+	border-color: var(--otelux-border-strong);
+}
+
+.otelux-metric__copy-action.is-copied {
+	color: var(--otelux-ok);
+}
+
 .otelux-metric__toggle {
 	display: inline-flex;
 	border: 1px solid var(--otelux-border);
@@ -2651,6 +2693,49 @@
 .otelux-metric__toggle-btn.is-active {
 	background: var(--otelux-accent);
 	color: #fff;
+}
+
+.otelux-metric__summary {
+	display: grid;
+	grid-template-columns: repeat(6, minmax(0, 1fr));
+	gap: 1px;
+	overflow: hidden;
+	border: 1px solid var(--otelux-border);
+	border-radius: var(--otelux-r-2);
+	background: var(--otelux-border);
+}
+
+.otelux-metric__summary-cell {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+	padding: 6px 8px;
+	background: color-mix(in srgb, var(--otelux-bg-panel) 52%, transparent);
+}
+
+.otelux-metric__summary-label {
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--otelux-fg-muted);
+}
+
+.otelux-metric__summary-value {
+	min-width: 0;
+	font-size: 11px;
+	color: var(--otelux-fg-secondary);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.otelux-metric__summary-value.is-strong {
+	font-size: 12px;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+	color: var(--otelux-fg);
 }
 
 .otelux-metric__desc {
@@ -2826,4 +2911,16 @@
 .otelux-metric-table__summary td {
 	font-weight: 600;
 	border-bottom: none;
+}
+
+.otelux-metric-detail {
+	padding: 0;
+	overflow-y: auto;
+	height: 100%;
+	box-sizing: border-box;
+}
+
+.otelux-metric-detail__table {
+	margin: 0 16px 12px;
+	width: calc(100% - 32px);
 }

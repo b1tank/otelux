@@ -18,6 +18,8 @@ Canonical project docs live in `docs/` (not the repo root). When behavior change
 - `docs/proposal.md` — the longer-form product proposal.
 - `docs/test.md` — canonical manual regression plan (mirrored by self-verify).
 
+Whenever you change code, check every doc under `docs/` and update any affected spec, plan, proposal, or test material in the same change. If a doc does not need edits, leave it alone, but do not finish a code change without making that pass.
+
 New plan/spec/proposal/test material belongs under `docs/`, never the root.
 
 ## Verifying your work

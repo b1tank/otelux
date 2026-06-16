@@ -34,7 +34,7 @@ Important current limits:
 
 - `@otelux/engine-node` currently forwards to memory storage. Durable `node:sqlite` storage is planned, not shipped.
 - Protobuf and gRPC ingest are planned, not shipped.
-- Logs and dense trace modes need real grid polish.
+- Dense trace modes, detail search, result footers, and live/paused controls need polish.
 - Agent-run correlation and service overview tools are schema-stable but not fully implemented.
 
 ## Signals In Scope
@@ -42,8 +42,8 @@ Important current limits:
 | Signal | Status | Product surface |
 |---|---|---|
 | Traces | Live | Trace list, waterfall, span details, filters. |
-| Structured logs | Live | Severity-aware rows, search, details, attributes. Needs grid polish. |
-| Metrics | Live | Meter grouping, instrument cards, graph/table views. |
+| Structured logs | Live | Headered rows, search, details, attributes, copy actions, trace/span pivots. |
+| Metrics | Live | Meter grouping, instrument cards, scan summaries, graph/table views, details, copy actions. |
 | Services overview | Planned | Derived service rollups across traces, logs, and metrics. |
 | Profiles | Later | Flame graph and trace/profile correlation. |
 
@@ -89,7 +89,7 @@ The engine is the source of truth for ingest, query, layout, and subscriptions. 
 | `@otelux/engine` | Pure TypeScript ingest, query, layout, subscriptions, memory storage. | Live. |
 | `@otelux/engine-node` | Node storage package. | Placeholder that currently uses memory storage; SQLite planned. |
 | `@otelux/receiver` | OTLP/HTTP receiver and single-instance helper. | JSON routes live for traces/logs/metrics. |
-| `@otelux/ui` | React workbench and primitives. | Traces/logs/metrics live; polish ongoing. |
+| `@otelux/ui` | React workbench and primitives. | Traces/logs/metrics live; polish ongoing around details, grouping, and footer controls. |
 | `@otelux/adapter-direct` | In-process `DataSource` wrapper. | Live. |
 | `@otelux/adapter-vscode` | VS Code webview postMessage `DataSource` bridge. | Live. |
 | `@otelux/mcp-server` | Read-only MCP JSON-RPC dispatcher. | Live with some stubbed tools. |
@@ -195,6 +195,9 @@ Queries should be bounded by limit and filters. Results should include counts wh
 
 - Metrics are grouped by meter/scope and instrument.
 - Instruments show type, unit, description when present, and current service context when known.
+- Instrument cards expose scan summary fields for Type, Service, Latest, Unit, Updated, and Points.
+- Row actions include Copy metric name, Copy metric data, and View metric details.
+- Metric details show instrument facts, data points, resource attributes, and scope information.
 - Graph and table modes are both first-class. The table is the exact-value fallback when charts are not enough.
 - Future exemplar markers should pivot to the originating trace.
 
@@ -257,7 +260,7 @@ Acceptance for this workload:
 
 - Logs, traces, and metrics ingest return OTLP partial-success responses.
 - `codex.user_prompt` content is searchable through logs when enabled.
-- Codex duration/token metrics appear in the Metrics view.
+- Codex duration/token metrics appear in the Metrics view with scan summaries, copy actions, and details.
 - Trace ingest remains unaffected by logs and metrics ingest.
 
 ## Performance Budgets
