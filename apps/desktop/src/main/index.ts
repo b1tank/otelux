@@ -17,6 +17,34 @@ import { SettingsStore } from './settings.js';
 
 const isDev = !app.isPackaged;
 
+// Renderers that have finished loading and haven't started navigating away.
+// `webContents.send` does NOT throw when the underlying render frame is
+// disposed — it logs "Render frame was disposed before WebFrameMain could be
+// accessed" to stderr and drops the message. A try/catch around `.send` is
+// therefore useless. The only reliable fix is to never call `send` for a
+// frame that isn't ready, which we track via lifecycle events and verify by
+// checking the current main frame before each broadcast.
+const readyReceivers = new Set<Electron.WebContents>();
+
+function registerReceiver(wc: Electron.WebContents): void {
+	const add = (): void => {
+		readyReceivers.add(wc);
+	};
+	const drop = (): void => {
+		readyReceivers.delete(wc);
+	};
+	wc.on('did-finish-load', add);
+	wc.on('did-start-loading', drop);
+	wc.on('render-process-gone', drop);
+	wc.on('destroyed', drop);
+}
+
+function isReceiverReady(wc: Electron.WebContents): boolean {
+	return (
+		!wc.isDestroyed() && !wc.isCrashed() && !wc.isLoadingMainFrame() && !wc.mainFrame.isDestroyed()
+	);
+}
+
 /**
  * Resolve the OTLP port to bind at startup. Precedence:
  *   1. `OTELUX_OTLP_PORT` env var (one-shot dev/CI override; does NOT
@@ -51,26 +79,12 @@ async function startBackend(): Promise<{
 	const mcpHost = new McpHost(engine, '127.0.0.1');
 
 	const broadcast = (event: OteluxEvent): void => {
-		for (const win of BrowserWindow.getAllWindows()) {
-			if (win.isDestroyed()) {
+		for (const wc of readyReceivers) {
+			if (!isReceiverReady(wc)) {
+				readyReceivers.delete(wc);
 				continue;
 			}
-			const { webContents } = win;
-			// During dev HMR reloads (and the brief window between a renderer
-			// navigating and its new frame committing) the window is not yet
-			// destroyed but its render frame is disposed, so `send` throws
-			// "Render frame was disposed before WebFrameMain could be
-			// accessed". Skip frames that are gone/still loading and swallow
-			// the residual race so a high-rate ingest stream can't flood the
-			// console with unactionable errors.
-			if (webContents.isDestroyed() || webContents.isLoading()) {
-				continue;
-			}
-			try {
-				webContents.send(OTELUX_EVENT_CHANNEL, event);
-			} catch {
-				// Renderer frame went away between the guard and the send.
-			}
+			wc.send(OTELUX_EVENT_CHANNEL, event);
 		}
 	};
 
@@ -269,6 +283,8 @@ function createWindow(): void {
 	win.once('ready-to-show', () => {
 		win.show();
 	});
+
+	registerReceiver(win.webContents);
 
 	// DevTools accelerators: F12 and Ctrl/Cmd+Shift+I. `autoHideMenuBar`
 	// suppresses the default Electron menu (which would otherwise bind
