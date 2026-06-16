@@ -23,7 +23,7 @@
 
 import type { DataSource, ListLogsResult } from '@otelux/protocol';
 import type { AttributeValue, LogRecord } from '@otelux/types';
-import { type JSX, useState } from 'react';
+import { type CSSProperties, type JSX, useState } from 'react';
 import { formatWallClock, serviceColorVar, severityLabel, severityTone } from '../format.js';
 import {
 	Accordion,
@@ -51,6 +51,7 @@ export interface LogsViewProps {
 
 const DEFAULT_LIMIT = 500;
 const DEFAULT_ENDPOINT = 'http://localhost:4319/v1/logs';
+const LOG_COLUMNS = ['Level', 'Time', 'Service', 'Message', 'Trace', 'Actions'] as const;
 
 export function LogsView(props: LogsViewProps): JSX.Element {
 	const {
@@ -99,27 +100,54 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 				<span className="otelux-logs__count">{query.value?.totalCount ?? 0}</span>
 			</header>
 			<div className="otelux-logs__body">
-				{query.loading && rows.length === 0 ? (
-					<div className="otelux-logs__empty">Waiting for logs…</div>
-				) : rows.length === 0 ? (
-					<div className="otelux-logs__empty">
-						No logs match. Point an OTel logs exporter at
-						<br />
-						<code>{endpointUrl}</code>
-					</div>
-				) : (
-					<ul className="otelux-logs__rows">
-						{rows.map((log, i) => (
-							<LogRow
-								// Logs have no stable id; pair time + index for a stable key.
-								key={`${log.timeUnixNano}:${i}`}
-								log={log}
-								selected={selected === log}
-								onSelect={() => setSelected(log)}
-							/>
-						))}
-					</ul>
-				)}
+				<table className="otelux-logs__table" aria-label="Structured logs">
+					<colgroup>
+						<col className="otelux-logs__col-level" />
+						<col className="otelux-logs__col-time" />
+						<col className="otelux-logs__col-service" />
+						<col className="otelux-logs__col-message" />
+						<col className="otelux-logs__col-trace" />
+						<col className="otelux-logs__col-actions" />
+					</colgroup>
+					<thead>
+						<tr>
+							{LOG_COLUMNS.map((column) => (
+								<th key={column} scope="col" className="otelux-logs__column">
+									{column}
+								</th>
+							))}
+						</tr>
+					</thead>
+					<tbody>
+						{query.loading && rows.length === 0 ? (
+							<tr className="otelux-logs__empty-row">
+								<td colSpan={LOG_COLUMNS.length}>
+									<div className="otelux-logs__empty">Waiting for logs…</div>
+								</td>
+							</tr>
+						) : rows.length === 0 ? (
+							<tr className="otelux-logs__empty-row">
+								<td colSpan={LOG_COLUMNS.length}>
+									<div className="otelux-logs__empty">
+										No logs match. Point an OTel logs exporter at
+										<br />
+										<code>{endpointUrl}</code>
+									</div>
+								</td>
+							</tr>
+						) : (
+							rows.map((log, i) => (
+								<LogRow
+									// Logs have no stable id; pair time + index for a stable key.
+									key={`${log.timeUnixNano}:${i}`}
+									log={log}
+									selected={selected === log}
+									onSelect={() => setSelected(log)}
+								/>
+							))
+						)}
+					</tbody>
+				</table>
 			</div>
 
 			<Drawer
@@ -158,25 +186,55 @@ function LogRow(props: LogRowProps): JSX.Element {
 	const svc = serviceName(log);
 	const rowStyle =
 		svc !== undefined
-			? ({ ['--otelux-row-svc' as string]: serviceColorVar(svc) } as React.CSSProperties)
+			? ({ ['--otelux-row-svc' as string]: serviceColorVar(svc) } as CSSProperties)
 			: undefined;
+	const message = logMessage(log);
+	const traceLabel = log.traceId !== undefined ? shortTraceId(log.traceId) : '—';
 
 	return (
-		<li
+		<tr
 			className={`otelux-log-row otelux-log-row--${tone}${selected ? ' is-selected' : ''}`}
 			{...(rowStyle ? { style: rowStyle } : {})}
 		>
-			<button type="button" className="otelux-log-row__hit" onClick={onSelect}>
+			<td>
 				<span className={`otelux-log-row__sev otelux-log-row__sev--${tone}`}>
 					{severityLabel(log.severityNumber, log.severityText)}
 				</span>
+			</td>
+			<td>
 				<time className="otelux-log-row__time">{formatWallClock(log.timeUnixNano)}</time>
-				{svc !== undefined ? <span className="otelux-log-row__svc">{svc}</span> : null}
-				<span className="otelux-log-row__msg" title={logMessage(log)}>
-					{logMessage(log)}
+			</td>
+			<td>
+				<span className="otelux-log-row__svc" title={svc ?? 'No service'}>
+					{svc ?? '—'}
 				</span>
-			</button>
-		</li>
+			</td>
+			<td>
+				<button
+					type="button"
+					className="otelux-log-row__msg"
+					onClick={onSelect}
+					aria-label={`View log details: ${message}`}
+					title={message}
+				>
+					<span>{message}</span>
+				</button>
+			</td>
+			<td>
+				<span className="otelux-log-row__trace" title={log.traceId ?? 'No trace'}>
+					{traceLabel}
+				</span>
+			</td>
+			<td>
+				<IconButton
+					className="otelux-log-row__action"
+					aria-label={`View log details: ${message}`}
+					onClick={onSelect}
+				>
+					<EyeIcon size={14} />
+				</IconButton>
+			</td>
+		</tr>
 	);
 }
 
@@ -334,4 +392,8 @@ function logMessage(log: LogRecord): string {
 		return renderAttributeValue(msg);
 	}
 	return log.eventName ?? '(no message)';
+}
+
+function shortTraceId(traceId: string): string {
+	return traceId.length > 12 ? traceId.slice(0, 12) : traceId;
 }

@@ -16,7 +16,7 @@ import type {
 	SpanDetails,
 } from '@otelux/protocol';
 import type { LogRecord, Trace } from '@otelux/types';
-import { fireEvent, render } from '@testing-library/react';
+import { fireEvent, render, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { LogsView } from './LogsView.js';
 
@@ -26,6 +26,7 @@ function makeLog(over: Partial<LogRecord> = {}): LogRecord {
 		severityNumber: 9,
 		severityText: 'INFO',
 		body: 'hello world',
+		traceId: '0123456789abcdef0123456789abcdef',
 		attributes: { 'event.name': 'codex.user_prompt', prompt: 'do the thing' },
 		resource: { attributes: { 'service.name': 'codex_exec' } },
 		scope: { name: 'codex', version: '1.0.0' },
@@ -59,10 +60,36 @@ class FakeDataSource implements DataSource {
 	}
 }
 
+class PendingDataSource extends FakeDataSource {
+	listLogs(query: ListLogsQuery): Promise<ListLogsResult> {
+		this.calls.push(query);
+		return new Promise<ListLogsResult>(() => {});
+	}
+}
+
+function expectLogHeaders(container: HTMLElement): void {
+	expect(Array.from(container.querySelectorAll('th')).map((header) => header.textContent)).toEqual([
+		'Level',
+		'Time',
+		'Service',
+		'Message',
+		'Trace',
+		'Actions',
+	]);
+}
+
 describe('LogsView', () => {
+	it('keeps column headers visible while logs are loading', () => {
+		const ds = new PendingDataSource();
+		const { getByText, container } = render(<LogsView dataSource={ds} />);
+		expectLogHeaders(container);
+		expect(getByText('Waiting for logs…')).toBeTruthy();
+	});
+
 	it('renders the empty state when there are no logs', async () => {
 		const ds = new FakeDataSource();
-		const { findByText } = render(<LogsView dataSource={ds} />);
+		const { findByText, container } = render(<LogsView dataSource={ds} />);
+		expectLogHeaders(container);
 		await findByText(/No logs match/i);
 	});
 
@@ -71,9 +98,12 @@ describe('LogsView', () => {
 		ds.rows = [makeLog(), makeLog({ severityNumber: 17, severityText: 'ERROR', body: 'boom' })];
 		const { findByText, container } = render(<LogsView dataSource={ds} />);
 		await findByText('hello world');
+		expectLogHeaders(container);
 		const rows = container.querySelectorAll('.otelux-log-row');
 		expect(rows.length).toBe(2);
 		expect(container.textContent).toContain('codex_exec');
+		expect(container.textContent).toContain('0123456789ab');
+		expect(container.querySelector('[aria-label="View log details: hello world"]')).toBeTruthy();
 		expect(container.querySelector('.otelux-log-row--error')).toBeTruthy();
 	});
 
@@ -92,15 +122,15 @@ describe('LogsView', () => {
 		render(
 			<LogsView dataSource={ds} minSeverity={13} services={['codex_exec']} search="boom" limit={50} />,
 		);
-		await Promise.resolve();
-		const q = ds.calls.at(-1);
-		expect(q).toMatchObject({
-			limit: 50,
-			minSeverity: 13,
-			services: ['codex_exec'],
-			search: 'boom',
-			sortBy: 'time',
-			sortDirection: 'desc',
+		await waitFor(() => {
+			expect(ds.calls.at(-1)).toMatchObject({
+				limit: 50,
+				minSeverity: 13,
+				services: ['codex_exec'],
+				search: 'boom',
+				sortBy: 'time',
+				sortDirection: 'desc',
+			});
 		});
 	});
 
