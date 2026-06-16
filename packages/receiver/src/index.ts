@@ -4,8 +4,9 @@
  * For Milestone 1 we accept the OTLP/HTTP JSON encoding only. Spec:
  * https://opentelemetry.io/docs/specs/otlp/#otlphttp
  *
- * - POST /v1/traces — `ExportTraceServiceRequest` JSON body.
- * - POST /v1/logs   — `ExportLogsServiceRequest` JSON body.
+ * - POST /v1/traces  — `ExportTraceServiceRequest` JSON body.
+ * - POST /v1/logs    — `ExportLogsServiceRequest` JSON body.
+ * - POST /v1/metrics — `ExportMetricsServiceRequest` JSON body.
  * - GET /healthz — 200 OK probe used by the desktop app to know when the
  *   server is ready to accept connections.
  *
@@ -19,11 +20,17 @@ import type { Engine } from '@otelux/engine';
 import { Hono } from 'hono';
 import { type OtlpExportTraceServiceRequest, decodeExportTraceServiceRequest } from './otlp.js';
 import { type OtlpExportLogsServiceRequest, decodeExportLogsServiceRequest } from './otlpLogs.js';
+import {
+	type OtlpExportMetricsServiceRequest,
+	decodeExportMetricsServiceRequest,
+} from './otlpMetrics.js';
 
 export type { OtlpExportTraceServiceRequest } from './otlp.js';
 export { decodeExportTraceServiceRequest } from './otlp.js';
 export type { OtlpExportLogsServiceRequest } from './otlpLogs.js';
 export { decodeExportLogsServiceRequest } from './otlpLogs.js';
+export type { OtlpExportMetricsServiceRequest } from './otlpMetrics.js';
+export { decodeExportMetricsServiceRequest } from './otlpMetrics.js';
 export type {
 	ClaimSingleInstanceOptions,
 	SingleInstanceClaim,
@@ -81,6 +88,18 @@ export function createReceiver(options: ReceiverOptions): Receiver {
 		}
 		const logs = decodeExportLogsServiceRequest(payload);
 		await options.engine.ingestLogs(logs);
+		return c.json({ partialSuccess: {} });
+	});
+
+	app.post('/v1/metrics', async (c) => {
+		let payload: OtlpExportMetricsServiceRequest;
+		try {
+			payload = (await c.req.json()) as OtlpExportMetricsServiceRequest;
+		} catch {
+			return c.json({ error: 'invalid_json' }, 400);
+		}
+		const metrics = decodeExportMetricsServiceRequest(payload);
+		await options.engine.ingestMetrics(metrics);
 		return c.json({ partialSuccess: {} });
 	});
 

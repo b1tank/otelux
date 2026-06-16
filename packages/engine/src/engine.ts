@@ -6,11 +6,13 @@ import type {
 	GetTraceQuery,
 	ListLogsQuery,
 	ListLogsResult,
+	ListMetricsQuery,
+	ListMetricsResult,
 	ListTracesQuery,
 	ListTracesResult,
 	SpanDetails,
 } from '@otelux/protocol';
-import type { LogRecord, Span, Trace } from '@otelux/types';
+import type { LogRecord, Metric, Span, Trace } from '@otelux/types';
 import type { Storage } from './storage.js';
 import { traceFromSpans } from './trace.js';
 
@@ -21,6 +23,7 @@ export interface EngineOptions {
 export interface Engine extends DataSource {
 	ingestSpans(spans: readonly Span[]): Promise<void>;
 	ingestLogs(logs: readonly LogRecord[]): Promise<void>;
+	ingestMetrics(metrics: readonly Metric[]): Promise<void>;
 	close(): Promise<void>;
 }
 
@@ -65,6 +68,14 @@ export function createEngine(options: EngineOptions): Engine {
 			notify({ kind: 'logsChanged', count: logs.length });
 		},
 
+		async ingestMetrics(metrics: readonly Metric[]): Promise<void> {
+			if (metrics.length === 0) {
+				return;
+			}
+			await storage.writeMetrics(metrics);
+			notify({ kind: 'metricsChanged', count: metrics.length });
+		},
+
 		async listTraces(query: ListTracesQuery): Promise<ListTracesResult> {
 			return await storage.listTraces(query);
 		},
@@ -99,6 +110,10 @@ export function createEngine(options: EngineOptions): Engine {
 
 		async listLogs(query: ListLogsQuery): Promise<ListLogsResult> {
 			return await storage.listLogs(query);
+		},
+
+		async listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult> {
+			return await storage.listMetrics(query);
 		},
 
 		subscribe(handler: (event: ChangeEvent) => void): Disposable {

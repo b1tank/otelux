@@ -4,7 +4,7 @@
  * implement the same interface so the UI is unaware of where data lives.
  */
 
-import type { LogRecord, Span, SpanId, Trace, TraceId } from '@otelux/types';
+import type { LogRecord, Metric, Span, SpanId, Trace, TraceId } from '@otelux/types';
 
 export interface Disposable {
 	dispose(): void;
@@ -87,6 +87,29 @@ export interface ListLogsResult {
 }
 
 /**
+ * Query for the metrics page.
+ *
+ * Filters compose with AND; values inside an array compose with OR.
+ * `services` filters by resource `service.name`; `meters` filters by
+ * instrumentation-scope (meter) name; `search` matches the instrument
+ * name/description. Unlike traces/logs there is no time window here yet —
+ * the engine returns whole instruments (with all their buffered data
+ * points) and the UI windows them client-side when charting.
+ */
+export interface ListMetricsQuery {
+	limit?: number;
+	offset?: number;
+	services?: readonly string[];
+	meters?: readonly string[];
+	search?: string;
+}
+
+export interface ListMetricsResult {
+	rows: readonly Metric[];
+	totalCount: number;
+}
+
+/**
  * Span detail view. Engines may return a richer object than `Span` here
  * if they have additional, denormalized info to surface (e.g. peer
  * resolution, derived metrics). For Milestone 1 it is just the span.
@@ -100,7 +123,8 @@ export type SpanDetails = Span;
  */
 export type ChangeEvent =
 	| { kind: 'tracesChanged'; traceIds: readonly TraceId[] }
-	| { kind: 'logsChanged'; count: number };
+	| { kind: 'logsChanged'; count: number }
+	| { kind: 'metricsChanged'; count: number };
 
 export interface DataSource {
 	readonly kind: 'otelux/datasource';
@@ -108,6 +132,7 @@ export interface DataSource {
 	getTrace(query: GetTraceQuery): Promise<Trace>;
 	getSpanDetails(query: GetSpanDetailsQuery): Promise<SpanDetails>;
 	listLogs(query: ListLogsQuery): Promise<ListLogsResult>;
+	listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult>;
 	subscribe(handler: (event: ChangeEvent) => void): Disposable;
 }
 

@@ -1,0 +1,109 @@
+{
+	"resourceMetrics": [
+		{
+			"resource": {
+				"attributes": [
+					{ "key": "host.name", "value": { "stringValue": "sl" } },
+					{ "key": "service.name", "value": { "stringValue": "codex" } },
+					{ "key": "service.version", "value": { "stringValue": "0.0.0" } },
+					{ "key": "telemetry.sdk.language", "value": { "stringValue": "rust" } },
+					{ "key": "telemetry.sdk.name", "value": { "stringValue": "opentelemetry" } },
+					{ "key": "telemetry.sdk.version", "value": { "stringValue": "0.31.0" } },
+					{ "key": "env", "value": { "stringValue": "dev" } }
+				],
+				"droppedAttributesCount": 0
+			},
+			"scopeMetrics": [
+				{
+					"scope": {
+						"name": "codex",
+						"version": "0.0.0",
+						"attributes": [],
+						"droppedAttributesCount": 0
+					},
+					"metrics": [
+						{
+							"name": "codex.api_request",
+							"description": "Number of API requests made to the model provider",
+							"unit": "{request}",
+							"sum": {
+								"isMonotonic": true,
+								"aggregationTemporality": 1,
+								"dataPoints": [
+									{
+										"startTimeUnixNano": "1781569400000000000",
+										"timeUnixNano": "1781569401000000000",
+										"asInt": "1",
+										"attributes": [
+											{
+												"key": "http.response.status_code",
+												"value": { "intValue": "200" }
+											},
+											{ "key": "model", "value": { "stringValue": "gpt-5-codex" } }
+										]
+									},
+									{
+										"startTimeUnixNano": "1781569401000000000",
+										"timeUnixNano": "1781569403000000000",
+										"asInt": "2",
+										"attributes": [
+											{
+												"key": "http.response.status_code",
+												"value": { "intValue": "200" }
+											},
+											{ "key": "model", "value": { "stringValue": "gpt-5-codex" } }
+										]
+									}
+								]
+							}
+						},
+						{
+							"name": "codex.turn.token_usage",
+							"description": "Tokens consumed per turn",
+							"unit": "{token}",
+							"sum": {
+								"isMonotonic": true,
+								"aggregationTemporality": 1,
+								"dataPoints": [
+									{
+										"startTimeUnixNano": "1781569400000000000",
+										"timeUnixNano": "1781569403000000000",
+										"asInt": "4096",
+										"attributes": [{ "key": "type", "value": { "stringValue": "input" } }]
+									},
+									{
+										"startTimeUnixNano": "1781569400000000000",
+										"timeUnixNano": "1781569403000000000",
+										"asInt": "512",
+										"attributes": [{ "key": "type", "value": { "stringValue": "output" } }]
+									}
+								]
+							}
+						},
+						{
+							"name": "codex.turn.e2e_duration_ms",
+							"description": "End-to-end turn duration in milliseconds",
+							"unit": "ms",
+							"histogram": {
+								"aggregationTemporality": 1,
+								"dataPoints": [
+									{
+										"startTimeUnixNano": "1781569400000000000",
+										"timeUnixNano": "1781569403000000000",
+										"count": "3",
+										"sum": 4821.5,
+										"min": 980.2,
+										"max": 2611.0,
+										"bucketCounts": ["0", "0", "1", "2", "0"],
+										"explicitBounds": [100, 500, 1000, 5000],
+										"attributes": [{ "key": "outcome", "value": { "stringValue": "ok" } }]
+									}
+								]
+							}
+						}
+					]
+				}
+			]
+		}
+	]
+}
