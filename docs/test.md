@@ -397,7 +397,7 @@ curl -s -X POST -H 'Content-Type: application/json' \
 
 ### 15.4 Instrument chart + table toggle
 - Select an instrument from the left pane.
-- **Expected**: a chart renders its data points over time. A **graph / table** toggle switches between the chart and a raw data-point table (timestamp, value, attributes). Histograms render their bucket distribution.
+- **Expected**: a chart renders its data points over time with visible time and value axes. Scalar charts aggregate raw attribute series that share the same export timestamp into one plotted total, avoiding vertical stacks of duplicate-time dots. A **graph / table** toggle switches between the chart and a raw data-point table (timestamp, value, attributes). Histograms render their bucket distribution.
 
 ### 15.5 Live update
 - Re-send the fixture (or run a live Codex turn, see §E2E).

@@ -682,7 +682,7 @@ function latestMetricSummary(metric: Metric): string {
 		const sum = metric.dataPoints.reduce((acc, point) => acc + (point.sum ?? 0), 0);
 		return `${count} obs${sum > 0 ? ` / ${formatNumber(sum)} sum` : ''}`;
 	}
-	const latest = latestNumberPoint(metric.dataPoints);
+	const latest = latestScalarPoint(metric.dataPoints);
 	return latest !== undefined ? formatNumber(latest.value) : '—';
 }
 
@@ -698,13 +698,8 @@ function latestMetricTime(metric: Metric): bigint | undefined {
 	);
 }
 
-function latestNumberPoint(points: readonly NumberDataPoint[]): NumberDataPoint | undefined {
-	return points.reduce<NumberDataPoint | undefined>((latest, point) => {
-		if (latest === undefined || point.timeUnixNano > latest.timeUnixNano) {
-			return point;
-		}
-		return latest;
-	}, undefined);
+function latestScalarPoint(points: readonly NumberDataPoint[]): ScalarChartPoint | undefined {
+	return aggregateScalarPointsByTime(points).at(-1);
 }
 
 function metricPointCount(metric: Metric): number {
@@ -752,73 +747,149 @@ function renderAttributeValue(value: AttributeValue): string {
 
 const CHART_W = 320;
 const CHART_H = 96;
-const CHART_PAD = 8;
+const CHART_PAD_X = 10;
+const CHART_PAD_TOP = 8;
+const CHART_PAD_BOTTOM = 12;
+
+interface ScalarChartPoint {
+	timeUnixNano: bigint;
+	time: number;
+	value: number;
+	rawCount: number;
+}
+
+function aggregateScalarPointsByTime(points: readonly NumberDataPoint[]): ScalarChartPoint[] {
+	const byTime = new Map<bigint, { value: number; rawCount: number }>();
+	for (const point of points) {
+		const bucket = byTime.get(point.timeUnixNano);
+		if (bucket !== undefined) {
+			bucket.value += point.value;
+			bucket.rawCount += 1;
+		} else {
+			byTime.set(point.timeUnixNano, { value: point.value, rawCount: 1 });
+		}
+	}
+	return Array.from(byTime.entries())
+		.map(([timeUnixNano, point]) => ({
+			timeUnixNano,
+			time: nanosToNumber(timeUnixNano),
+			value: point.value,
+			rawCount: point.rawCount,
+		}))
+		.sort((a, b) => a.time - b.time);
+}
 
 // Dependency-free line chart for scalar (Sum/Gauge) instruments. Plots value
-// against time; a single point renders as a dot. Codex's delta Sums produce
-// a step-like series — good enough to eyeball rate/trend without a chart lib.
+// against time; a single point renders as a dot. Multiple attribute series can
+// share an export timestamp, so the graph aggregates those raw points into a
+// per-timestamp total. The table keeps the unaggregated rows for inspection.
 function LineChart(props: { points: readonly NumberDataPoint[]; colorVar: string }): JSX.Element {
 	const { points, colorVar } = props;
 	if (points.length === 0) {
 		return <div className="otelux-metric__nodata">No data points</div>;
 	}
 
-	const sorted = [...points].sort((a, b) => Number(a.timeUnixNano - b.timeUnixNano));
-	const times = sorted.map((p) => nanosToNumber(p.timeUnixNano));
-	const values = sorted.map((p) => p.value);
-	const tMin = Math.min(...times);
-	const tMax = Math.max(...times);
+	const chartPoints = aggregateScalarPointsByTime(points);
+	const values = chartPoints.map((p) => p.value);
+	const tMin = chartPoints[0]?.time ?? 0;
+	const tMax = chartPoints.at(-1)?.time ?? tMin;
 	const vMin = Math.min(...values, 0);
 	const vMax = Math.max(...values, 0);
 	const tSpan = tMax - tMin || 1;
 	const vSpan = vMax - vMin || 1;
 
-	const x = (t: number): number => CHART_PAD + ((t - tMin) / tSpan) * (CHART_W - 2 * CHART_PAD);
+	const x = (t: number): number => CHART_PAD_X + ((t - tMin) / tSpan) * (CHART_W - 2 * CHART_PAD_X);
 	const y = (v: number): number =>
-		CHART_H - CHART_PAD - ((v - vMin) / vSpan) * (CHART_H - 2 * CHART_PAD);
+		CHART_H - CHART_PAD_BOTTOM - ((v - vMin) / vSpan) * (CHART_H - CHART_PAD_TOP - CHART_PAD_BOTTOM);
 
-	const coords = sorted.map((p, i) => ({ cx: x(times[i] ?? 0), cy: y(p.value), p }));
+	const coords = chartPoints.map((p) => ({ cx: x(p.time), cy: y(p.value), p }));
 	const path = coords
 		.map((c, i) => `${i === 0 ? 'M' : 'L'}${c.cx.toFixed(1)},${c.cy.toFixed(1)}`)
 		.join(' ');
-	const last = sorted[sorted.length - 1];
+	const last = chartPoints.at(-1);
+	const topGridY = y(vMax);
+	const midGridY = y(vMin + vSpan / 2);
+	const zeroY = y(0);
 
 	return (
 		<div className="otelux-linechart">
-			<svg
-				viewBox={`0 0 ${CHART_W} ${CHART_H}`}
-				role="img"
-				aria-label="Metric over time"
-				preserveAspectRatio="none"
-				className="otelux-linechart__svg"
-			>
-				<line
-					x1={CHART_PAD}
-					y1={y(0)}
-					x2={CHART_W - CHART_PAD}
-					y2={y(0)}
-					className="otelux-linechart__axis"
-				/>
-				{coords.length > 1 ? (
-					<path d={path} fill="none" stroke={colorVar} className="otelux-linechart__line" />
-				) : null}
-				{coords.map((c) => (
-					<circle
-						key={`${c.p.timeUnixNano}`}
-						cx={c.cx}
-						cy={c.cy}
-						r={2.5}
-						fill={colorVar}
-						className="otelux-linechart__dot"
+			<div className="otelux-linechart__y-axis" aria-hidden="true">
+				<span>{formatNumber(vMax)}</span>
+				<span>{formatNumber(vMin)}</span>
+			</div>
+			<div className="otelux-linechart__plot">
+				<svg
+					viewBox={`0 0 ${CHART_W} ${CHART_H}`}
+					role="img"
+					aria-label="Metric over time"
+					preserveAspectRatio="none"
+					className="otelux-linechart__svg"
+				>
+					<line
+						x1={CHART_PAD_X}
+						y1={topGridY}
+						x2={CHART_W - CHART_PAD_X}
+						y2={topGridY}
+						className="otelux-linechart__grid"
 					/>
-				))}
-			</svg>
+					<line
+						x1={CHART_PAD_X}
+						y1={midGridY}
+						x2={CHART_W - CHART_PAD_X}
+						y2={midGridY}
+						className="otelux-linechart__grid"
+					/>
+					<line
+						x1={CHART_PAD_X}
+						y1={zeroY}
+						x2={CHART_W - CHART_PAD_X}
+						y2={zeroY}
+						className="otelux-linechart__zero"
+					/>
+					<line
+						x1={CHART_PAD_X}
+						y1={CHART_PAD_TOP}
+						x2={CHART_PAD_X}
+						y2={CHART_H - CHART_PAD_BOTTOM}
+						className="otelux-linechart__axis"
+					/>
+					<line
+						x1={CHART_PAD_X}
+						y1={CHART_H - CHART_PAD_BOTTOM}
+						x2={CHART_W - CHART_PAD_X}
+						y2={CHART_H - CHART_PAD_BOTTOM}
+						className="otelux-linechart__axis"
+					/>
+					{coords.length > 1 ? (
+						<path d={path} fill="none" stroke={colorVar} className="otelux-linechart__line" />
+					) : null}
+					{coords.map((c) => (
+						<circle
+							key={`${c.p.timeUnixNano}`}
+							cx={c.cx}
+							cy={c.cy}
+							r={2.5}
+							fill={colorVar}
+							className="otelux-linechart__dot"
+						>
+							<title>
+								{formatWallClock(c.p.timeUnixNano)} · {formatNumber(c.p.value)}
+								{c.p.rawCount > 1 ? ` from ${c.p.rawCount} series` : ''}
+							</title>
+						</circle>
+					))}
+				</svg>
+			</div>
 			{last ? (
 				<div className="otelux-linechart__legend">
 					<span className="otelux-linechart__latest">{formatNumber(last.value)}</span>
 					<span className="otelux-linechart__latest-label">latest</span>
 				</div>
 			) : null}
+			<div className="otelux-linechart__x-axis" aria-hidden="true">
+				<span>{formatWallClock(chartPoints[0]?.timeUnixNano ?? 0n)}</span>
+				<span>{formatWallClock(chartPoints.at(-1)?.timeUnixNano ?? 0n)}</span>
+			</div>
 		</div>
 	);
 }

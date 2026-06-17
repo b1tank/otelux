@@ -199,7 +199,7 @@ Queries should be bounded by limit and filters. Results should include counts wh
 - The selected instrument exposes scan summary fields for Type, Service, Latest, Unit, Updated, and Points.
 - The selected instrument actions include Copy metric name, Copy metric data, and View metric details.
 - Metric details show instrument facts, data points, resource attributes, and scope information.
-- Graph and table modes are both first-class. The table is the exact-value fallback when charts are not enough.
+- Graph and table modes are both first-class. Scalar graphs show visible time/value axes and aggregate same-timestamp attribute series into one plotted total; the table remains the exact raw data-point fallback when charts are not enough.
 - Future exemplar markers should pivot to the originating trace.
 
 ### Cross-Signal Requirements

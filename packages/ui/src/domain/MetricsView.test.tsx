@@ -160,8 +160,45 @@ describe('MetricsView', () => {
 		const { findAllByText, getByText, container } = render(<MetricsView dataSource={ds} />);
 		await findAllByText('codex.api_request');
 		expect(container.querySelector('.otelux-linechart')).toBeTruthy();
+		expect(container.querySelector('.otelux-linechart__y-axis')).toBeTruthy();
+		expect(container.querySelector('.otelux-linechart__x-axis')).toBeTruthy();
 		fireEvent.click(getByText('codex.turn.e2e_duration_ms'));
 		expect(container.querySelector('.otelux-histogram')).toBeTruthy();
+	});
+
+	it('aggregates scalar chart points that share an export timestamp', async () => {
+		const ds = new FakeDataSource();
+		ds.rows = [
+			makeSum({
+				dataPoints: [
+					{
+						timeUnixNano: 1_768_000_000_000_000_000n,
+						value: 3,
+						attributes: { status: 'ok' },
+					},
+					{
+						timeUnixNano: 1_768_000_000_000_000_000n,
+						value: 4,
+						attributes: { status: 'error' },
+					},
+					{
+						timeUnixNano: 1_768_000_001_000_000_000n,
+						value: 8,
+						attributes: { status: 'ok' },
+					},
+					{
+						timeUnixNano: 1_768_000_001_000_000_000n,
+						value: 9,
+						attributes: { status: 'error' },
+					},
+				],
+			}),
+		];
+		const { findAllByText, container } = render(<MetricsView dataSource={ds} />);
+		await findAllByText('codex.api_request');
+
+		expect(container.querySelectorAll('.otelux-linechart__dot').length).toBe(2);
+		expect(container.querySelector('.otelux-linechart__latest')?.textContent).toBe('17');
 	});
 
 	it('flips an instrument to the table view', async () => {
