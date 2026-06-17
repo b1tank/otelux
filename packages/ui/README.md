@@ -4,7 +4,7 @@ React components for the OTelux viewer. Consumes a `DataSource` from `@otelux/pr
 
 ## What ships today
 
-The composed entry point is `OTeluxWorkbench` — the single component hosts mount. It owns the layout (left rail + topbar + filter bars + workbench panes + detail drawer/value viewer) and is driven by the `DataSource` it receives.
+The composed entry point is `OTeluxWorkbench` — the single component hosts mount. It owns the layout (left rail + topbar + filter bars + workbench panes + detail drawer/value viewer) and is driven by the `DataSource` it receives. The Metrics surface includes the meter/instrument explorer, scalar Sum/Gauge charts with visible axes and same-timestamp series aggregation, histogram bucket charts, and raw tables for exact data-point inspection.
 
 Building blocks exported from the package:
 

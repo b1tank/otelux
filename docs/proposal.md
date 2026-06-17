@@ -31,7 +31,7 @@ The core user workflows are:
 - Triage recent errors from traces and logs.
 - Inspect a trace waterfall and span details.
 - Search structured logs, including agent/user-prompt content carried in log attributes.
-- Inspect metrics through a meter/instrument explorer, compare scan summaries, switch the focused instrument between graph and table, copy metric data, and open details.
+- Inspect metrics through a meter/instrument explorer, compare scan summaries, switch the focused instrument between an axis-labeled graph and a raw table, copy metric data, and open details.
 - Let an agent ask read-only questions over the same local store.
 
 ## Already Done
@@ -43,7 +43,7 @@ The current repository already has a working foundation:
 - `apps/vscode-extension` shell with webview, embedded receiver, MCP server, and VS Code Language Model Tool registration.
 - `@otelux/receiver` with OTLP/HTTP JSON routes for `/v1/traces`, `/v1/logs`, `/v1/metrics`, and `/healthz`.
 - `@otelux/engine` with in-memory ingest/query/subscription support for traces, logs, and metrics.
-- `@otelux/ui` with live Traces, Logs, and Metrics rail surfaces, Auto/Light/Dark theme switching, Logs row actions/pivots, and a Metrics meter/instrument explorer with summaries/actions/details.
+- `@otelux/ui` with live Traces, Logs, and Metrics rail surfaces, Auto/Light/Dark theme switching, Logs row actions/pivots, and a Metrics meter/instrument explorer with summaries/actions/details plus scalar chart axes and same-timestamp series aggregation.
 - `@otelux/mcp-server` with read-only JSON-RPC tools for error triage, slow spans, trace drill-down, span details, and log search.
 - `@otelux/adapter-direct` and `@otelux/adapter-vscode` for embedding the same UI over different host boundaries.
 

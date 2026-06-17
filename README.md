@@ -66,7 +66,7 @@ npm run -w @otelux/desktop package
 
 ## Current Status
 
-Pre-release. The local workbench can ingest and display traces, logs, and metrics over OTLP/HTTP JSON. Storage is currently in-memory; durable `node:sqlite` storage is planned. OTLP protobuf and gRPC are planned. The VS Code extension shell and MCP/LM tool plumbing exist but still need hardening and packaging work.
+Pre-release. The local workbench can ingest and display traces, logs, and metrics over OTLP/HTTP JSON, including scalar metric graphs with visible axes and raw table fallback. Storage is currently in-memory; durable `node:sqlite` storage is planned. OTLP protobuf and gRPC are planned. The VS Code extension shell and MCP/LM tool plumbing exist but still need hardening and packaging work.
 
 See [docs/plan.md](docs/plan.md) for the current work ahead.
 

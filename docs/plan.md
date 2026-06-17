@@ -10,7 +10,7 @@ OTelux today is a runnable local OpenTelemetry workbench with:
 - VS Code extension shell with webview, receiver, MCP server, and LM Tool wiring.
 - OTLP/HTTP JSON ingest for traces, logs, and metrics.
 - In-memory engine/storage with live subscriptions.
-- Traces, Logs, and Metrics rail surfaces in `@otelux/ui`, including Logs headers/actions/pivots, a Metrics meter/instrument explorer with summaries/actions/details, and rail-driven Auto/Light/Dark theme switching.
+- Traces, Logs, and Metrics rail surfaces in `@otelux/ui`, including Logs headers/actions/pivots, a Metrics meter/instrument explorer with summaries/actions/details, scalar graph axes with same-timestamp series aggregation, and rail-driven Auto/Light/Dark theme switching.
 - MCP tools for trace queries and log search, plus schema-stable stubs for agent-run correlation and service overview.
 
 The major gaps are durability, remaining detail polish, production ingest formats, packaging, and deeper correlation.
