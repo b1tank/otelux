@@ -170,6 +170,28 @@ describe('OTeluxWorkbench', () => {
 		await engine.close();
 	});
 
+	it('closes span drawer when switching away from traces', async () => {
+		const engine = createEngine({ storage: createMemoryStorage() });
+		await engine.ingestSpans([makeSpan({ spanId: 'r'.repeat(16), name: 'root' })]);
+
+		render(<OTeluxWorkbench dataSource={engine} />);
+
+		fireEvent.click(await screen.findByText('root'));
+		fireEvent.click(await screen.findByLabelText(/^root,/));
+		await waitFor(() => {
+			expect(screen.getByRole('dialog')).not.toBeNull();
+		});
+
+		fireEvent.click(await screen.findByRole('tab', { name: 'Metrics' }));
+
+		await waitFor(() => {
+			expect(screen.getByRole('heading', { name: 'Metrics' })).not.toBeNull();
+			expect(screen.queryByRole('dialog')).toBeNull();
+		});
+
+		await engine.close();
+	});
+
 	it('pivots from a correlated log row to the trace span', async () => {
 		const engine = createEngine({ storage: createMemoryStorage() });
 		await engine.ingestSpans([

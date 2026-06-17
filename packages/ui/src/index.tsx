@@ -376,6 +376,14 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		setThemeMode(THEME_MODE_ORDER[(currentIndex + 1) % THEME_MODE_ORDER.length] ?? 'auto');
 	};
 
+	const activateSignalView = (view: 'traces' | 'logs' | 'metrics'): void => {
+		setActiveView(view);
+		if (view !== 'traces') {
+			setSelectedSpanId(undefined);
+			setViewValue(null);
+		}
+	};
+
 	const themeLabel =
 		themeMode === 'auto'
 			? `Theme: Auto (${formatThemeName(systemTheme)})`
@@ -410,11 +418,8 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 								onOpenSettings();
 								return;
 							}
-							if (id === 'traces' || id === 'logs') {
-								setActiveView(id);
-							}
-							if (id === 'metrics') {
-								setActiveView('metrics');
+							if (id === 'traces' || id === 'logs' || id === 'metrics') {
+								activateSignalView(id);
 							}
 						}}
 						footerItems={[
