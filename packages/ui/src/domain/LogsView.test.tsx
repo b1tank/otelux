@@ -16,7 +16,7 @@ import type {
 	SpanDetails,
 } from '@otelux/protocol';
 import type { LogRecord, Trace } from '@otelux/types';
-import { fireEvent, render, waitFor } from '@testing-library/react';
+import { fireEvent, render, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { LogsView } from './LogsView.js';
 
@@ -127,14 +127,23 @@ describe('LogsView', () => {
 		);
 	});
 
-	it('shows disabled correlation copy actions when a log has no trace context', async () => {
+	it('hides correlation actions when a log has no trace context', async () => {
 		const ds = new FakeDataSource();
 		ds.rows = [makeLog({ traceId: undefined, spanId: undefined })];
-		const { findByText, getByLabelText } = render(<LogsView dataSource={ds} />);
+		const { findByText, queryByLabelText, container } = render(<LogsView dataSource={ds} />);
 		await findByText('hello world');
-		expect((getByLabelText('No trace ID') as HTMLButtonElement).disabled).toBe(true);
-		expect((getByLabelText('No span ID') as HTMLButtonElement).disabled).toBe(true);
-		expect((getByLabelText('No trace to open') as HTMLButtonElement).disabled).toBe(true);
+		expect(queryByLabelText(/Copy trace ID/)).toBeNull();
+		expect(queryByLabelText(/Copy span ID/)).toBeNull();
+		expect(queryByLabelText(/Open trace|Open span/)).toBeNull();
+
+		const actions = container.querySelector('.otelux-log-row__actions');
+		expect(actions).not.toBeNull();
+		expect(
+			within(actions as HTMLElement).getByLabelText('Copy log message: hello world'),
+		).toBeTruthy();
+		expect(
+			within(actions as HTMLElement).getByLabelText('View log details: hello world'),
+		).toBeTruthy();
 	});
 
 	it('falls back to a prompt attribute when there is no body', async () => {

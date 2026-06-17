@@ -29,7 +29,6 @@ import {
 	Accordion,
 	type AccordionItem,
 	CopyButton,
-	CopyIcon,
 	Drawer,
 	EyeIcon,
 	IconButton,
@@ -270,9 +269,7 @@ function LogRow(props: LogRowProps): JSX.Element {
 						>
 							<span className="otelux-log-row__action-label">Trace</span>
 						</CopyButton>
-					) : (
-						<DisabledCopyAction label="No trace ID" text="Trace" />
-					)}
+					) : null}
 					{spanId !== undefined ? (
 						<CopyButton
 							value={spanId}
@@ -283,9 +280,7 @@ function LogRow(props: LogRowProps): JSX.Element {
 						>
 							<span className="otelux-log-row__action-label">Span</span>
 						</CopyButton>
-					) : (
-						<DisabledCopyAction label="No span ID" text="Span" />
-					)}
+					) : null}
 					{canOpenTrace ? (
 						<IconButton
 							className="otelux-log-row__action otelux-log-row__pivot-action"
@@ -299,15 +294,7 @@ function LogRow(props: LogRowProps): JSX.Element {
 						>
 							<WaterfallIcon size={14} />
 						</IconButton>
-					) : (
-						<IconButton
-							className="otelux-log-row__action otelux-log-row__pivot-action"
-							aria-label="No trace to open"
-							disabled
-						>
-							<WaterfallIcon size={14} />
-						</IconButton>
-					)}
+					) : null}
 					<IconButton
 						className="otelux-log-row__action otelux-log-row__details-action"
 						aria-label={`View log details: ${message}`}
@@ -318,19 +305,6 @@ function LogRow(props: LogRowProps): JSX.Element {
 				</div>
 			</td>
 		</tr>
-	);
-}
-
-function DisabledCopyAction(props: { label: string; text: string }): JSX.Element {
-	return (
-		<IconButton
-			className="otelux-log-row__action otelux-log-row__copy-action"
-			aria-label={props.label}
-			disabled
-		>
-			<span className="otelux-log-row__action-label">{props.text}</span>
-			<CopyIcon size={12} />
-		</IconButton>
 	);
 }
 

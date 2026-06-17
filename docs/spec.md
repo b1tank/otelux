@@ -180,7 +180,7 @@ Queries should be bounded by limit and filters. Results should include counts wh
 
 - Logs must have visible and semantic column headers for Level, Time, Service, Message, Trace, and Actions.
 - Logs with trace/span IDs expose a shortened trace pivot in the row.
-- Row actions include View details, Copy message, Copy trace/span IDs, and Open value viewer.
+- Row actions include View details and Copy message on every row; Copy trace/span IDs and trace/span pivots appear only when the row has that correlation context.
 - Empty and loading states keep the table header and column layout visible.
 - The details pane shows log facts, attributes, resource, and scope, with section counts and internal search.
 

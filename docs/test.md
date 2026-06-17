@@ -367,7 +367,7 @@ curl -s -X POST -H 'Content-Type: application/json' \
 
 ### 14.4 Row actions and pivots
 - On a correlated log row, click the action buttons.
-- **Expected**: `Msg`, `Trace`, and `Span` copy actions copy the message and full IDs without opening the drawer. The waterfall pivot action switches to Traces and opens the matching span drawer when trace data for that ID is present. Rows without trace context show disabled trace/span/pivot affordances.
+- **Expected**: `Msg`, `Trace`, and `Span` copy actions copy the message and full IDs without opening the drawer. The waterfall pivot action switches to Traces and opens the matching span drawer when trace data for that ID is present. Rows without trace context omit trace/span copy and pivot actions so the Actions cell only shows controls that can work.
 
 ### 14.5 Filters
 - Use the FilterBar service dropdown / severity / search.
