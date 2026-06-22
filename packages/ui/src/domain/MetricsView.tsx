@@ -31,7 +31,7 @@ import type {
 	NumberDataPoint,
 } from '@otelux/types';
 import { AggregationTemporality } from '@otelux/types';
-import { type JSX, useState } from 'react';
+import { type CSSProperties, type JSX, useState } from 'react';
 import { formatWallClock, nanosToNumber, serviceColorVar } from '../format.js';
 import {
 	Accordion,
@@ -745,11 +745,11 @@ function renderAttributeValue(value: AttributeValue): string {
 	return String(value);
 }
 
-const CHART_W = 320;
-const CHART_H = 96;
-const CHART_PAD_X = 10;
-const CHART_PAD_TOP = 8;
-const CHART_PAD_BOTTOM = 12;
+const CHART_W = 640;
+const CHART_H = 180;
+const CHART_PAD_X = 14;
+const CHART_PAD_TOP = 12;
+const CHART_PAD_BOTTOM = 18;
 
 interface ScalarChartPoint {
 	timeUnixNano: bigint;
@@ -803,6 +803,11 @@ function LineChart(props: { points: readonly NumberDataPoint[]; colorVar: string
 		CHART_H - CHART_PAD_BOTTOM - ((v - vMin) / vSpan) * (CHART_H - CHART_PAD_TOP - CHART_PAD_BOTTOM);
 
 	const coords = chartPoints.map((p) => ({ cx: x(p.time), cy: y(p.value), p }));
+	const dotStyle = (c: (typeof coords)[number]): CSSProperties => ({
+		left: `${(c.cx / CHART_W) * 100}%`,
+		top: `${(c.cy / CHART_H) * 100}%`,
+		backgroundColor: colorVar,
+	});
 	const path = coords
 		.map((c, i) => `${i === 0 ? 'M' : 'L'}${c.cx.toFixed(1)},${c.cy.toFixed(1)}`)
 		.join(' ');
@@ -863,22 +868,17 @@ function LineChart(props: { points: readonly NumberDataPoint[]; colorVar: string
 					{coords.length > 1 ? (
 						<path d={path} fill="none" stroke={colorVar} className="otelux-linechart__line" />
 					) : null}
-					{coords.map((c) => (
-						<circle
-							key={`${c.p.timeUnixNano}`}
-							cx={c.cx}
-							cy={c.cy}
-							r={2.5}
-							fill={colorVar}
-							className="otelux-linechart__dot"
-						>
-							<title>
-								{formatWallClock(c.p.timeUnixNano)} · {formatNumber(c.p.value)}
-								{c.p.rawCount > 1 ? ` from ${c.p.rawCount} series` : ''}
-							</title>
-						</circle>
-					))}
 				</svg>
+				{coords.map((c) => (
+					<span
+						key={`${c.p.timeUnixNano}`}
+						className="otelux-linechart__dot"
+						style={dotStyle(c)}
+						title={`${formatWallClock(c.p.timeUnixNano)} · ${formatNumber(c.p.value)}${
+							c.p.rawCount > 1 ? ` from ${c.p.rawCount} series` : ''
+						}`}
+					/>
+				))}
 			</div>
 			{last ? (
 				<div className="otelux-linechart__legend">

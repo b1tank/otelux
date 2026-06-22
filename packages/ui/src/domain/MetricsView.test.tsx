@@ -162,6 +162,7 @@ describe('MetricsView', () => {
 		expect(container.querySelector('.otelux-linechart')).toBeTruthy();
 		expect(container.querySelector('.otelux-linechart__y-axis')).toBeTruthy();
 		expect(container.querySelector('.otelux-linechart__x-axis')).toBeTruthy();
+		expect(container.querySelector('.otelux-linechart__dot')?.tagName).toBe('SPAN');
 		fireEvent.click(getByText('codex.turn.e2e_duration_ms'));
 		expect(container.querySelector('.otelux-histogram')).toBeTruthy();
 	});

@@ -2718,7 +2718,7 @@
 }
 
 .otelux-metric--focused {
-	min-height: 100%;
+	min-height: 0;
 }
 
 .otelux-metric__header {
@@ -2907,7 +2907,8 @@
 }
 
 .otelux-metric__chart {
-	min-height: 96px;
+	--otelux-metric-chart-h: clamp(180px, 28vh, 260px);
+	min-height: var(--otelux-metric-chart-h);
 }
 
 .otelux-metric__nodata {
@@ -2923,7 +2924,7 @@
 .otelux-linechart {
 	display: grid;
 	grid-template-columns: max-content minmax(0, 1fr) max-content;
-	grid-template-rows: 96px auto;
+	grid-template-rows: var(--otelux-metric-chart-h) auto;
 	column-gap: 8px;
 	row-gap: 3px;
 }
@@ -2945,12 +2946,15 @@
 .otelux-linechart__plot {
 	grid-column: 2;
 	grid-row: 1;
+	position: relative;
 	min-width: 0;
 }
 
 .otelux-linechart__svg {
 	width: 100%;
-	height: 96px;
+	height: 100%;
+	display: block;
+	overflow: visible;
 }
 
 .otelux-linechart__axis {
@@ -2974,6 +2978,17 @@
 .otelux-linechart__line {
 	stroke-width: 1.5;
 	vector-effect: non-scaling-stroke;
+}
+
+.otelux-linechart__dot {
+	position: absolute;
+	width: 8px;
+	height: 8px;
+	border: 1px solid color-mix(in srgb, var(--otelux-bg-elevated) 72%, transparent);
+	border-radius: 50%;
+	box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent);
+	transform: translate(-50%, -50%);
+	pointer-events: auto;
 }
 
 .otelux-linechart__legend {
