@@ -91,16 +91,18 @@ Done when every documented routine verification command exits zero and test outp
 
 Estimate: 3.5-6 engineer-days; 4-7 cumulative
 
-- [ ] Add the root MIT `LICENSE` file and verify GitHub license detection.
-- [ ] Add `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, and a concise support/maintainer policy.
-- [ ] Add bug and feature issue forms plus a pull request template.
-- [ ] Include an explicit warning that telemetry attached to issues may contain prompts, headers, URLs, SQL, identifiers, or customer data.
+- [x] Add the root MIT `LICENSE` file.
+- [ ] Verify GitHub detects the root license as MIT after it is pushed.
+- [x] Add `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, and a concise support/maintainer policy.
+- [ ] Before public visibility, enable and exercise GitHub private vulnerability reporting and name an independent conduct recipient with a verified confidential channel.
+- [x] Add bug and feature issue forms plus a pull request template.
+- [x] Include an explicit warning that telemetry attached to issues may contain prompts, headers, URLs, SQL, identifiers, or customer data.
 - [ ] Add user installation, privacy, security model, troubleshooting, uninstall, and known-limit documentation.
 - [ ] Replace captured fixture metadata with explicitly synthetic hosts, identifiers, providers, and timestamps while preserving test cases.
 - [ ] Run Gitleaks and TruffleHog against the complete git history.
 - [ ] Decide whether to preserve author emails and historical absolute paths, rewrite history, or publish a sanitized snapshot as the initial public history.
 - [ ] Add Dependabot and CodeQL with least-privilege workflow permissions and immutable action references.
-- [ ] Configure branch protection, required checks, secret scanning, push protection, and private vulnerability reporting.
+- [ ] Configure branch protection, required checks, secret scanning, and push protection.
 - [ ] Perform a name, trademark, package namespace, and domain availability check before broad branding.
 
 Done when a new contributor can understand, build, test, report a bug, propose a change, and privately report a vulnerability without maintainer guidance, and a history-aware scan finds no undisclosed secrets.
@@ -242,3 +244,4 @@ No product requirement, defect policy, or verification gate needs migration at r
 | 2026-07-13 | MVP quality scope | Added a bounded `v0.1.0` product contract, explicit beta limitations, P0-P3 defect policy, risk-based coverage strategy, packaged end-to-end requirements, accessibility checks, and measurable product-quality exit criteria. |
 | 2026-07-13 | Documentation lifecycle audit | Moved durable workflows and defect policy to `spec.md`, moved release qualification to `test.md`, removed status snapshots from `proposal.md` and the README, corrected stale settings/MCP test behavior, and added an explicit sprint retirement procedure. |
 | 2026-07-13 | Milestone 0 CI | GitHub Actions run 29288054196 passed install, lint, typecheck, all tests, and build for commit `17c5882`. |
+| 2026-07-13 | Milestone 1 community foundation | Drafted the MIT license, contribution and support guidance, conduct and security policies, CODEOWNERS, structured issue forms, a pull request template, and public telemetry-sanitization warnings. License detection, private vulnerability reporting, and an independent conduct channel remain publication gates. |

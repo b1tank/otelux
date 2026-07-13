@@ -1,0 +1,59 @@
+name: Feature request
+description: Propose an OTelux workflow or capability
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the debugging problem before proposing an implementation. OTelux is local-first and keeps the desktop workbench as the primary product.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or workflow
+      description: What are you trying to understand or accomplish?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the user-visible result, not only an internal API or library choice.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Likely surface
+      options:
+        - Desktop app
+        - OTLP receiver
+        - Storage and queries
+        - Traces
+        - Logs
+        - Metrics
+        - MCP tools
+        - VS Code extension (experimental)
+        - Distribution or packaging
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: privacy
+    attributes:
+      label: Local-first, privacy, and compatibility impact
+      description: Note any network access, telemetry exposure, storage migration, protocol, or platform implications.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and the current plan.
+          required: true
+        - label: This request does not require posting private telemetry or credentials.
+          required: true

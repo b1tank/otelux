@@ -1,0 +1,93 @@
+name: Bug report
+description: Report a reproducible OTelux defect
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug.
+
+        Telemetry may contain prompts, SQL, URLs, headers, identifiers, source paths, and customer data. Use synthetic data and redact diagnostics. Never post credentials or raw production telemetry. Follow SECURITY.md for vulnerability reporting.
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      options:
+        - Desktop app
+        - OTLP receiver
+        - Traces
+        - Logs
+        - Metrics
+        - MCP tools
+        - VS Code extension (experimental)
+        - Build or packaging
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: v0.1.0-beta.1 or 17c5882
+    validations:
+      required: true
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installation method
+      options:
+        - Development checkout
+        - AppImage
+        - Debian package
+        - Windows installer
+        - macOS application
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Operating system and architecture
+      placeholder: Ubuntu 24.04 x86_64
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Provide the smallest synthetic reproduction you can.
+      placeholder: |
+        1. Start OTelux...
+        2. Send this synthetic payload...
+        3. Open...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Sanitized diagnostics
+      description: Paste only the minimal redacted error text. Do not attach databases or raw telemetry exports.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues for this problem.
+          required: true
+        - label: I removed credentials, private prompts, customer data, and identifying telemetry.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true

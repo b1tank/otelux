@@ -13,6 +13,15 @@ The desktop app is the main product. The same engine, UI, receiver, adapters, an
 - [docs/test.md](docs/test.md) — manual desktop verification plan.
 - [design/README.md](design/README.md) — UI mockup philosophy and design notes.
 
+## Community
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) — development workflow and pull request expectations.
+- [SUPPORT.md](SUPPORT.md) — support scope and telemetry privacy guidance.
+- [SECURITY.md](SECURITY.md) — vulnerability reporting policy and current launch gate.
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — community standards and confidential reporting.
+
+Never post credentials or raw production telemetry in a public issue. Use synthetic fixtures or redact prompts, SQL, URLs, headers, identifiers, paths, and customer data.
+
 ## Repository Layout
 
 ```text
@@ -71,4 +80,4 @@ Pre-release. See the specification's [Current Baseline](docs/spec.md#current-bas
 
 ## License
 
-MIT.
+[MIT](LICENSE).
