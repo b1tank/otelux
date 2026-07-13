@@ -30,13 +30,7 @@
  * later).
  */
 
-import {
-	mkdir,
-	open,
-	readFile,
-	unlink,
-	type FileHandle,
-} from 'node:fs/promises';
+import { type FileHandle, mkdir, open, readFile, unlink } from 'node:fs/promises';
 import { dirname } from 'node:path';
 
 export interface SingleInstanceEndpoint {

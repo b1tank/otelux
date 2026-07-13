@@ -56,6 +56,16 @@ async function fixtureServer() {
 	return createMcpServer({ engine });
 }
 
+function parseToolResult<T>(response: unknown): T {
+	const content = (response as { result: { content: Array<{ text: string }> } }).result.content;
+	expect(content).toHaveLength(1);
+	const item = content.at(0);
+	if (!item) {
+		throw new Error('Expected one MCP tool result content item.');
+	}
+	return JSON.parse(item.text) as T;
+}
+
 describe('createMcpServer', () => {
 	it('negotiates the newest mutually-supported protocol version on initialize', async () => {
 		const server = await fixtureServer();
@@ -102,10 +112,8 @@ describe('createMcpServer', () => {
 			method: 'tools/call',
 			params: { name: 'otel_get_slowest_spans', arguments: { limit: 5 } },
 		});
-		const content = (response as { result: { content: Array<{ text: string }> } }).result.content;
-		const payload = JSON.parse(content[0]!.text);
-		expect(payload.slowestTraces).toHaveLength(2);
-		expect(payload.slowestTraces[0].rootName).toBe('POST /broken');
+		const payload = parseToolResult<{ slowestTraces: Array<{ rootName: string }> }>(response);
+		expect(payload.slowestTraces.map((trace) => trace.rootName)).toEqual(['POST /broken', 'GET /ok']);
 	});
 
 	it('reports stub tools as supported:false rather than throwing', async () => {
@@ -116,8 +124,7 @@ describe('createMcpServer', () => {
 			method: 'tools/call',
 			params: { name: 'otel_correlate_agent_run', arguments: { runId: 'foo' } },
 		});
-		const content = (response as { result: { content: Array<{ text: string }> } }).result.content;
-		const payload = JSON.parse(content[0]!.text);
+		const payload = parseToolResult<{ supported: boolean }>(response);
 		expect(payload).toMatchObject({ supported: false });
 	});
 
@@ -129,12 +136,16 @@ describe('createMcpServer', () => {
 			method: 'tools/call',
 			params: { name: 'otel_search_logs', arguments: { query: 'otelux-needle' } },
 		});
-		const content = (response as { result: { content: Array<{ text: string }> } }).result.content;
-		const payload = JSON.parse(content[0]!.text);
+		const payload = parseToolResult<{
+			supported: boolean;
+			totalCount: number;
+			logs: Array<{ service: string; attributes: Record<string, string> }>;
+		}>(response);
 		expect(payload.supported).toBe(true);
 		expect(payload.totalCount).toBe(1);
-		expect(payload.logs[0].service).toBe('codex_exec');
-		expect(payload.logs[0].attributes.prompt).toBe('find the otelux-needle');
+		expect(
+			payload.logs.map((log) => ({ service: log.service, prompt: log.attributes.prompt })),
+		).toEqual([{ service: 'codex_exec', prompt: 'find the otelux-needle' }]);
 	});
 
 	it('returns method-not-found for unknown JSON-RPC methods', async () => {

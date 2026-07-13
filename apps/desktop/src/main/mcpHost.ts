@@ -15,7 +15,7 @@
  *   trivial when the two are separate processes-of-control.
  */
 
-import { serve, type ServerType } from '@hono/node-server';
+import { type ServerType, serve } from '@hono/node-server';
 import type { Engine } from '@otelux/engine';
 import { createMcpServer, httpRouter } from '@otelux/mcp-server';
 import type { McpStatus } from '../shared/ipc.js';
@@ -57,13 +57,10 @@ export class McpHost {
 			// up unhandled; wrap in a Promise so we can settle on either
 			// `listening` (success) or `error` (EADDRINUSE / EACCES).
 			const s = await new Promise<ServerType>((resolve, reject) => {
-				const created = serve(
-					{ fetch: router.fetch, port, hostname: this.host },
-					() => {
-						created.off('error', onError);
-						resolve(created);
-					},
-				);
+				const created = serve({ fetch: router.fetch, port, hostname: this.host }, () => {
+					created.off('error', onError);
+					resolve(created);
+				});
 				const onError = (err: Error): void => {
 					created.off('error', onError);
 					reject(err);

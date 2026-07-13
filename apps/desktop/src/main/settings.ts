@@ -157,9 +157,7 @@ function validate(settings: Settings): void {
 	}
 	const { port: mcpPort } = settings.mcp;
 	if (!Number.isInteger(mcpPort) || mcpPort < MIN_PORT || mcpPort > MAX_PORT) {
-		throw new Error(
-			`MCP port must be an integer in [${MIN_PORT}, ${MAX_PORT}]; got ${mcpPort}`,
-		);
+		throw new Error(`MCP port must be an integer in [${MIN_PORT}, ${MAX_PORT}]; got ${mcpPort}`);
 	}
 	if (settings.mcp.enabled && mcpPort === port) {
 		// Two HTTP listeners on the same port would race; refuse early so

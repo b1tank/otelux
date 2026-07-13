@@ -27,9 +27,10 @@ import { defaultTools } from './tools/index.js';
  * so we can later layer auth, rate-limiting, or read-only enforcement
  * here without touching every handler.
  */
-export interface ToolHandler<TInput = unknown, TResult = unknown> {
-	(input: TInput, context: McpToolContext): Promise<TResult> | TResult;
-}
+export type ToolHandler<TInput = unknown, TResult = unknown> = (
+	input: TInput,
+	context: McpToolContext,
+) => Promise<TResult> | TResult;
 
 export interface ToolDefinition {
 	readonly name: string;

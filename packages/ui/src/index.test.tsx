@@ -5,7 +5,7 @@
 import { createEngine, createMemoryStorage } from '@otelux/engine';
 import type { LogRecord, Span } from '@otelux/types';
 import { SpanKind, SpanStatusCode } from '@otelux/types';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import {
 	OTELUX_UI_VERSION,
@@ -126,7 +126,9 @@ describe('OTeluxWorkbench', () => {
 			expect(screen.getByText(/No traces match/i)).not.toBeNull();
 		});
 
-		await engine.ingestSpans([makeSpan({ spanId: '1'.repeat(16), name: 'GET /' })]);
+		await act(async () => {
+			await engine.ingestSpans([makeSpan({ spanId: '1'.repeat(16), name: 'GET /' })]);
+		});
 
 		await waitFor(() => {
 			expect(screen.getByText('GET /')).not.toBeNull();
@@ -222,6 +224,7 @@ describe('OTeluxWorkbench', () => {
 	it('cycles theme mode from the rail', async () => {
 		const engine = createEngine({ storage: createMemoryStorage() });
 		const { container } = render(<OTeluxWorkbench dataSource={engine} />);
+		await screen.findByText(/No traces match/i);
 		const root = container.querySelector('.otelux-workbench-root');
 		expect(root?.getAttribute('data-theme-mode')).toBe('auto');
 		expect(root?.getAttribute('data-theme')).toBe('dark');

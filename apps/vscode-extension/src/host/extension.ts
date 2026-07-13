@@ -22,16 +22,16 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as vscode from 'vscode';
-import { serve, type ServerType } from '@hono/node-server';
-import { serveDataSource } from '@otelux/adapter-vscode';
+import { type ServerType, serve } from '@hono/node-server';
 import { createDirectDataSource } from '@otelux/adapter-direct';
+import { serveDataSource } from '@otelux/adapter-vscode';
 import { createEngine } from '@otelux/engine';
 import { createNodeSqliteStorage } from '@otelux/engine-node';
 import { createMcpServer, httpRouter } from '@otelux/mcp-server';
 import { claimSingleInstance, createReceiver } from '@otelux/receiver';
-import { registerLmTools } from './lmTools.js';
+import * as vscode from 'vscode';
 import { registerAgentEnablementCommands } from './enableAgentIntegration.js';
+import { registerLmTools } from './lmTools.js';
 
 let disposeReceiver: (() => Promise<void>) | undefined;
 let disposeMcp: (() => Promise<void>) | undefined;
@@ -133,8 +133,6 @@ function renderWebviewHtml(webview: vscode.Webview, webviewRoot: vscode.Uri): st
 		return `${attr}="${webview.asWebviewUri(asset).toString()}"`;
 	});
 	const cspSource = webview.cspSource;
-	const csp =
-		`<meta http-equiv="Content-Security-Policy" ` +
-		`content="default-src 'none'; script-src ${cspSource}; style-src ${cspSource} 'unsafe-inline'; font-src ${cspSource} data:; img-src ${cspSource} data:;">`;
+	const csp = `<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src ${cspSource}; style-src ${cspSource} 'unsafe-inline'; font-src ${cspSource} data:; img-src ${cspSource} data:;">`;
 	return html.replace('<head>', `<head>${csp}`);
 }

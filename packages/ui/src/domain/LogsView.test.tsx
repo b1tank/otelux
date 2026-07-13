@@ -62,7 +62,7 @@ class FakeDataSource implements DataSource {
 }
 
 class PendingDataSource extends FakeDataSource {
-	listLogs(query: ListLogsQuery): Promise<ListLogsResult> {
+	override listLogs(query: ListLogsQuery): Promise<ListLogsResult> {
 		this.calls.push(query);
 		return new Promise<ListLogsResult>(() => {});
 	}
@@ -129,7 +129,8 @@ describe('LogsView', () => {
 
 	it('hides correlation actions when a log has no trace context', async () => {
 		const ds = new FakeDataSource();
-		ds.rows = [makeLog({ traceId: undefined, spanId: undefined })];
+		const { traceId: _traceId, spanId: _spanId, ...uncorrelatedLog } = makeLog();
+		ds.rows = [uncorrelatedLog];
 		const { findByText, queryByLabelText, container } = render(<LogsView dataSource={ds} />);
 		await findByText('hello world');
 		expect(queryByLabelText(/Copy trace ID/)).toBeNull();

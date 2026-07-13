@@ -1,4 +1,4 @@
-import type { TraceId, SpanId } from '@otelux/types';
+import type { SpanId, TraceId } from '@otelux/types';
 import type { ToolDefinition } from '../server.js';
 
 export const getTraceTool: ToolDefinition = {

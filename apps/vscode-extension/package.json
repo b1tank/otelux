@@ -12,9 +12,7 @@
 		"vscode": "^1.96.0",
 		"node": ">=22.0.0"
 	},
-	"activationEvents": [
-		"onStartupFinished"
-	],
+	"activationEvents": ["onStartupFinished"],
 	"contributes": {
 		"commands": [
 			{

@@ -134,7 +134,10 @@ function decodeTemporality(value: number | undefined): AggregationTemporality {
  * fall back to `startTimeUnixNano` when the explicit value is unset/"0"
  * (mirrors the lenient handling logs need for Codex).
  */
-function pointTime(timeUnixNano: string | undefined, startTimeUnixNano: string | undefined): bigint {
+function pointTime(
+	timeUnixNano: string | undefined,
+	startTimeUnixNano: string | undefined,
+): bigint {
 	const explicit = timeUnixNano && timeUnixNano !== '0' ? timeUnixNano : undefined;
 	const time = explicit ?? startTimeUnixNano;
 	return time ? BigInt(time) : 0n;
@@ -143,11 +146,7 @@ function pointTime(timeUnixNano: string | undefined, startTimeUnixNano: string |
 function decodeNumberDataPoint(dp: OtlpNumberDataPoint): NumberDataPoint {
 	// Exactly one of asDouble/asInt is set per spec; default to 0 if neither.
 	const value =
-		typeof dp.asDouble === 'number'
-			? dp.asDouble
-			: dp.asInt !== undefined
-				? Number(dp.asInt)
-				: 0;
+		typeof dp.asDouble === 'number' ? dp.asDouble : dp.asInt !== undefined ? Number(dp.asInt) : 0;
 	return {
 		timeUnixNano: pointTime(dp.timeUnixNano, dp.startTimeUnixNano),
 		value,

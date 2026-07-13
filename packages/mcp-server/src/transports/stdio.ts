@@ -10,7 +10,7 @@
  * inject in-memory streams in lieu of `process.stdin/stdout`.
  */
 
-import { createInterface, type Interface as ReadlineInterface } from 'node:readline';
+import { type Interface as ReadlineInterface, createInterface } from 'node:readline';
 import { ERROR_CODES, JSON_RPC_VERSION, type JsonRpcRequest } from '../protocol.js';
 import type { McpServer } from '../server.js';
 
