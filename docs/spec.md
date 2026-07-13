@@ -1,10 +1,12 @@
 # OTelux — Specification
 
-Updated: 2026-06-16
+Updated: 2026-07-13
 
 OTelux is a local-first OpenTelemetry workbench. It receives local telemetry, keeps it on the user's machine, renders it in a dense debugging UI, and exposes read-only query tools to local coding agents.
 
-This document defines what the product is. Delivery sequencing lives in [plan.md](plan.md). The project pitch lives in [proposal.md](proposal.md).
+This document is the source of truth for what the product is, what is implemented now, and what behavior a supported release must provide. [plan.md](plan.md) owns future work, [test.md](test.md) owns release verification, and [proposal.md](proposal.md) owns the product rationale.
+
+The **Current Baseline** and status tables are descriptive and must match the code. Sections labeled **Requirements** are normative product targets; an item there is not shipped unless the Current Baseline says it is live. Release-specific platform and feature limitations belong in release notes.
 
 ## Product Principles
 
@@ -17,6 +19,7 @@ This document defines what the product is. Delivery sequencing lives in [plan.md
 | Embed-friendly | UI is browser-safe, themeable through CSS variables, and usable inside webviews. |
 | A11y is part of done | Keyboard access, focus states, labels, and readable high-contrast states are required. |
 | Performance budgets bind | Slow query, layout, or ingest regressions are product bugs. |
+| No unsolicited egress | OTelux does not independently transmit captured telemetry. Data leaves OTelux only through explicit user actions or configured clients such as MCP or LM tools, whose own data-handling policies apply. Any future diagnostics or reporting is explicit, documented, and opt-in. |
 
 ## Current Baseline
 
@@ -29,6 +32,7 @@ The repository currently contains:
 - Live Traces, Logs, and Metrics rail surfaces in `@otelux/ui`.
 - Direct and VS Code postMessage `DataSource` adapters.
 - MCP and LM tool plumbing over the same query layer.
+- The desktop app is the release product. The VS Code extension is an experimental second host until its hardening phase is complete.
 
 Important current limits:
 
@@ -138,17 +142,21 @@ Planned receiver work:
 
 - OTLP/HTTP protobuf.
 - OTLP/gRPC.
+- Strict request content types with `415 Unsupported Media Type` responses.
+- Configurable request limits through `ReceiverOptions.maxBodyBytes` and `HttpRouterOptions.maxBodyBytes`, with a 10 MiB default for OTLP and a 1 MiB default for MCP.
+- Desktop environment overrides `OTELUX_OTLP_MAX_BODY_BYTES` and `OTELUX_MCP_MAX_BODY_BYTES` for testing and constrained environments. Invalid overrides fail closed to the documented defaults.
 - Backpressure and dropped-record counters.
-- Optional local auth token and configurable CORS.
+- Explicit browser-origin allowlists for hosts that intentionally accept browser clients.
 
 ## Port Defaults
 
 | Consumer | OTLP/HTTP | MCP HTTP | Notes |
 |---|---:|---:|---|
-| Desktop | `4319` | host-controlled | Avoids colliding with a user's standard collector on `4318`. |
+| Desktop | `4319` | `4320` by default | Avoids colliding with a user's standard collector on `4318`; both listeners are configurable and MCP can be disabled. |
 | VS Code extension | `4318` | `4319` by default | Standard OTLP endpoint for editor-local ingest. |
 
 Ports are host settings. The receiver package also exposes single-instance claiming so hosts can handle collisions deliberately.
+OTLP and MCP listeners must use different ports. The desktop exposes a copyable OTLP base URL and, while MCP is enabled, a copyable MCP endpoint; failed listener binds leave the previous healthy listener and persisted settings intact.
 
 ## Data Model And Query Contracts
 
@@ -174,6 +182,7 @@ Queries should be bounded by limit and filters. Results should include counts wh
 - Long values use the full value viewer wherever messages, attributes, JSON, XML, Markdown, or multiline text exceed the pane.
 - Footer and empty states communicate result scope, live/paused state, and the expected table shape.
 - Endpoint state is explicit: listening port, health, paused/live state, and local trust posture are visible to the user.
+- Copyable endpoint controls reflect the listeners that are actually running and disappear or become non-actionable when their service is disabled or unavailable.
 - Theme mode is user-switchable from the left rail: Auto follows the OS color scheme, while Light and Dark force a specific token set. Text contrast must stay readable in both explicit themes.
 
 ### Logs Requirements
@@ -211,6 +220,55 @@ Queries should be bounded by limit and filters. Results should include counts wh
 - OTelux keeps its own visual language. Interaction patterns can be borrowed; brand chrome should not be copied from other tools.
 - AI explain buttons are not a core feature. Hosts may layer assistance on top of deterministic local data.
 
+## Supported Release Workflows
+
+"Feature complete" means a bounded set of supported workflows is coherent and reliable, not that every item in [plan.md](plan.md) is implemented.
+
+A supported stable desktop release must let a user:
+
+- Install and launch OTelux without a development toolchain, understand receiver state, and recover from port conflicts without editing files.
+- Follow a first-run recipe or use synthetic demo data to see useful telemetry within five minutes.
+- Receive traces, logs, and metrics through the documented OTLP encodings without restarting the app.
+- Complete the trace, log, metric, and cross-signal workflows defined above without dead controls, misleading status, or unexplained console errors.
+- Preserve telemetry and settings across restart, bound disk growth through retention, and recover safely from missing, old, or corrupt local state.
+- Use only agent tools that are implemented, bounded, read-only, and accurately described. Incomplete tools are excluded from the supported surface or explicitly marked experimental.
+- Complete core workflows with keyboard input, visible focus, readable contrast, and no pointer-only interaction.
+
+A prerelease may narrow platforms, storage durability, ingest encodings, or supported surfaces only when the limitation is visible in the app and stated in its README and release notes. It must not present an unavailable capability as working.
+
+## Distribution Requirements
+
+- Official downloads are immutable, versioned artifacts with published integrity and provenance information.
+- Installation never requires piping mutable network content into a privileged shell. Portable Linux artifacts run without root; system package installation uses the platform package manager.
+- Install, upgrade, and uninstall instructions name their filesystem and data effects and are tested on every advertised platform.
+- Update mechanisms, when added, verify publisher identity and artifact integrity before replacement.
+- Release credentials stay in protected CI environments and never appear in source, fixtures, artifacts, or logs.
+
+## Security Requirements
+
+- Desktop OTLP and MCP listeners bind to loopback unless the user explicitly configures and acknowledges broader exposure.
+- MCP access to captured telemetry requires explicit enablement or a per-install credential. Missing or invalid credentials do not reveal tool results.
+- Request bodies are bounded before parsing. Oversized OTLP and MCP requests return `413`; unsupported media types return `415`.
+- Requests carrying an `Origin` header are rejected with `403` by default. Hosts may configure exact allowed origins; wildcard origins are never combined with credentials, accepted responses vary on `Origin`, and rejected origins receive no telemetry or permissive CORS headers.
+- Electron renderers run sandboxed with context isolation and no Node.js integration. The preload exposes only the typed OTelux bridge, never raw `ipcRenderer`.
+- IPC requests are validated at runtime in the main process; TypeScript annotations are not treated as a security boundary.
+- Unexpected top-level navigation and window creation are denied. Permission requests are denied unless a documented feature has an explicit allowlist.
+- Only intentional HTTPS destinations may leave the app through the system browser. Telemetry-derived values are never opened as URLs automatically.
+- Security-sensitive behavior is covered by integration tests and re-reviewed after Electron upgrades.
+
+## Release Quality Policy
+
+"Bug free" is not a measurable release claim. OTelux uses this severity gate:
+
+| Severity | Definition | Release policy |
+|---|---|---|
+| P0 | Security compromise, unrecoverable data loss, installer damage, or failure to launch on a supported platform. | Blocks prerelease and stable releases. |
+| P1 | A supported workflow is broken without a reasonable workaround, the app repeatedly crashes or hangs, or common telemetry is silently corrupted. | Blocks prerelease and stable releases. |
+| P2 | A supported workflow is materially degraded but has a safe workaround, or accessibility or performance falls outside the documented floor. | Must be fixed or accepted with an owner, rationale, workaround, and release-note disclosure. |
+| P3 | A minor visual, copy, or interaction defect that does not impede a supported workflow. | May ship when tracked for a patch or later milestone. |
+
+Every release candidate requires zero unresolved P0 or P1 defects, explicit disposition of P2 defects, a clean install and upgrade path, and a completed release report for every supported platform and architecture. Verification details live in [test.md](test.md).
+
 ## Agent Tool Surface
 
 Initial MCP tools, mirrored where useful by VS Code LM Tools:
@@ -222,10 +280,10 @@ Initial MCP tools, mirrored where useful by VS Code LM Tools:
 | `otel_search_logs` | Live | Why did this log fire? |
 | `otel_get_trace` | Live | Show this trace. |
 | `otel_get_span_details` | Live | Show this span. |
-| `otel_correlate_agent_run` | Stub | What was my app doing during this agent run? |
-| `otel_get_service_overview` | Live, approximate | What services emitted telemetry? |
+| `otel_correlate_agent_run` | Experimental stub | What was my app doing during this agent run? |
+| `otel_get_service_overview` | Experimental, approximate | What services emitted telemetry? |
 
-All tools are read-only. Tool handlers should stay thin wrappers over engine queries so desktop, extension, MCP, and LM tools do not fork behavior. Service overview currently derives recent service stats from trace summaries; richer cross-signal service rollups are planned.
+All tools are read-only. Only tools marked Live belong to the supported release surface. Tool handlers should stay thin wrappers over engine queries so desktop, extension, MCP, and LM tools do not fork behavior. Service overview currently derives recent service stats from trace summaries; richer cross-signal service rollups are planned.
 
 ## Reference Workload: Codex CLI
 
@@ -290,7 +348,7 @@ npm run test
 npm run build
 ```
 
-Manual desktop verification lives in [test.md](test.md). UI/runtime smoke checks should use the repo's self-verification workflow.
+Manual desktop verification lives in [test.md](test.md). UI/runtime smoke checks should use the repo's self-verification workflow. The complete automated, packaged, accessibility, performance, coverage, and manual release gate is [Release Qualification](test.md#release-qualification).
 
 ## Open Questions
 

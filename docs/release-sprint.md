@@ -1,0 +1,243 @@
+# OTelux - Public Release Sprint
+
+Updated: 2026-07-13
+
+Status: Active
+
+This document is the finite execution plan for taking OTelux from a private pre-release repository to a public, installable, cross-platform product that is ready for a coordinated launch.
+
+The canonical documents keep separate responsibilities:
+
+- [spec.md](spec.md) defines the product and its behavioral requirements.
+- [plan.md](plan.md) sequences ongoing product development.
+- [proposal.md](proposal.md) explains the product bet and intended audience.
+- [test.md](test.md) defines automated and manual release qualification.
+- This document owns release-readiness work, launch gates, estimates, and validation evidence.
+
+When release work changes product behavior, update the relevant canonical document in the same change. Completed release tasks remain recorded here; completed product work belongs in git history rather than [plan.md](plan.md).
+
+## Goal
+
+The sprint is complete when:
+
+- The repository is safe and welcoming to publish as open source.
+- Linux users can install a versioned AppImage or `.deb` from an official release.
+- Windows and macOS users have signed, tested installers.
+- Release artifacts have checksums, provenance, licenses, and documented verification steps.
+- The shipped app satisfies the [supported release workflows](spec.md#supported-release-workflows), [release quality policy](spec.md#release-quality-policy), and [release qualification](test.md#release-qualification).
+- The product has survived an external beta with no unresolved launch-blocking defects.
+- The repository and product pages are ready for a coordinated Hacker News and social launch.
+
+## Release Decisions
+
+- The Electron desktop app is the first released product. The VS Code extension remains experimental and is not a `v0.1.0` launch gate.
+- Reusable `@otelux/*` packages remain private during this sprint. Publishing npm packages is a separate decision.
+- Linux x64 is the first beta platform. Windows x64 and macOS arm64/x64 follow from the same release workflow.
+- The first public binary is `v0.1.0-beta.1`. The cross-platform launch is `v0.1.0` unless beta evidence requires another prerelease.
+- GitHub Releases is the canonical artifact source. A product website may provide friendly download links but must resolve to immutable versioned artifacts.
+- The `v0.1.0` channels follow the [distribution requirements](spec.md#distribution-requirements): AppImage use is unprivileged and `.deb` installation uses the package manager after download and verification.
+- Manual updates are acceptable for `v0.1.0`. Auto-update is reconsidered after the release process is stable.
+- A Linux beta may disclose memory-only storage and JSON-only OTLP as preview limitations. Broad marketing requires durable storage and OTLP/HTTP protobuf support.
+- OTLP/gRPC, npm publication, Marketplace publication, an apt repository, Flatpak, Snap, and crash reporting are not `v0.1.0` gates.
+- `v0.1.0` makes no exception to the specification's no-unsolicited-egress principle and documents the explicit MCP/LM client boundary.
+
+## Canonical Gates
+
+This sprint does not redefine durable product or quality requirements:
+
+- [spec.md](spec.md#supported-release-workflows) owns supported workflows and [defect severity](spec.md#release-quality-policy).
+- [test.md](test.md#release-qualification) owns automated, packaged, accessibility, performance, coverage, and manual verification.
+- [plan.md](plan.md) owns the product work needed to close gaps against those requirements.
+
+This document adds only `v0.1.0` scope decisions, ordered launch work, completion evidence, and temporary risks.
+
+## Audited Starting Baseline
+
+This table preserves the state found before sprint work began. Current completion and validation evidence live in the milestone checklists and sprint log below.
+
+Evidence collected locally on 2026-07-13:
+
+| Check | Result | Release implication |
+|---|---|---|
+| `npm ci` | Pass | The lockfile restores successfully. |
+| `npm run lint` | Fail: 16 diagnostics | CI is not currently green. |
+| `npm run typecheck` | Fail: 2 UI test errors | Strict TypeScript gate is not currently green. |
+| `npm test` | Pass: 175 tests | Package and UI behavior has a useful test baseline; desktop and extension apps still lack app-level tests. |
+| `npm run build` | Pass | Source builds complete across all workspaces. |
+| Desktop `package` script | Fail | AppImage is produced, but `.deb` generation stops on missing package metadata. |
+| Packaged AppImage smoke | Pass with extract-and-run fallback | Packaged UI, health probe, trace ingest, and waterfall selection work. Direct FUSE mounting was unavailable in the audit environment. |
+| Production dependency audit | Fail: 2 high-severity packages | Hono runtime dependencies must be updated. |
+| Full dependency audit | Fail: high/critical findings, including Electron | Electron and build tooling are outside a responsible release baseline. |
+| Current tracked-file credential pattern scan | No credential-shaped matches | A dedicated history-aware scanner is still required. |
+| Privacy review | Needs work | Captured fixtures and git history contain machine/session metadata and absolute home paths. |
+| Electron runtime boundary | Good baseline | Sandbox, context isolation, CSP, narrow IPC, and loopback binding are already present. |
+| Artifact contents | Needs work | The AppImage includes source, tests, sourcemaps, and Turbo logs that are not needed at runtime. |
+
+## Milestone 0 - Green Baseline
+
+Estimate: 0.5-1 engineer-day
+
+Status: Local checks complete; remote CI confirmation pending
+
+- [x] Fix all current Biome diagnostics without unrelated reformatting.
+- [x] Fix strict TypeScript errors in the UI tests.
+- [x] Remove or resolve test-runner warnings that can hide real failures.
+- [x] Verify `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build` from a clean install.
+- [ ] Confirm CI uses the same commands and passes on `main`.
+
+Done when every documented routine verification command exits zero and test output has no unexplained warnings.
+
+## Milestone 1 - Public Repository
+
+Estimate: 3.5-6 engineer-days; 4-7 cumulative
+
+- [ ] Add the root MIT `LICENSE` file and verify GitHub license detection.
+- [ ] Add `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, and a concise support/maintainer policy.
+- [ ] Add bug and feature issue forms plus a pull request template.
+- [ ] Include an explicit warning that telemetry attached to issues may contain prompts, headers, URLs, SQL, identifiers, or customer data.
+- [ ] Add user installation, privacy, security model, troubleshooting, uninstall, and known-limit documentation.
+- [ ] Replace captured fixture metadata with explicitly synthetic hosts, identifiers, providers, and timestamps while preserving test cases.
+- [ ] Run Gitleaks and TruffleHog against the complete git history.
+- [ ] Decide whether to preserve author emails and historical absolute paths, rewrite history, or publish a sanitized snapshot as the initial public history.
+- [ ] Add Dependabot and CodeQL with least-privilege workflow permissions and immutable action references.
+- [ ] Configure branch protection, required checks, secret scanning, push protection, and private vulnerability reporting.
+- [ ] Perform a name, trademark, package namespace, and domain availability check before broad branding.
+
+Done when a new contributor can understand, build, test, report a bug, propose a change, and privately report a vulnerability without maintainer guidance, and a history-aware scan finds no undisclosed secrets.
+
+## Milestone 2 - Runtime And Supply-Chain Security
+
+Estimate: 4-6 engineer-days; 8-13 cumulative
+
+- [ ] Upgrade Electron to a supported release line and review breaking security defaults between versions.
+- [ ] Upgrade Hono, `@hono/node-server`, electron-builder, and vulnerable build dependencies.
+- [ ] Enforce zero known high or critical production dependency advisories in CI.
+- [ ] Add bounded request bodies with configurable limits and `413` responses, defaulting to 10 MiB for OTLP and 1 MiB for MCP.
+- [ ] Enforce intentional content types and a browser-origin policy for loopback HTTP listeners.
+- [ ] Make MCP access explicitly opt-in or protect HTTP access with a per-install credential.
+- [ ] Document that enabled MCP clients can read sensitive local telemetry.
+- [ ] Deny unexpected renderer navigation and permission requests.
+- [ ] Restrict external links to intentional HTTPS destinations.
+- [ ] Make settings updates atomic across listener rebind and settings persistence, including rollback when the settings write fails.
+- [ ] Add focused tests for oversized payloads, hostile origins, malformed requests, and Electron navigation policy.
+
+Done when the production audit is clean at the agreed severity threshold, local HTTP trust boundaries are documented and tested, and the Electron security checklist has no unexplained exceptions.
+
+## Milestone 3 - Official Linux Beta
+
+Estimate: 4-6 engineer-days; 12-19 cumulative
+
+- [ ] Establish one application version source and remove hard-coded `0.0.0` values.
+- [ ] Complete author, homepage, repository, executable, desktop-entry, and artifact metadata.
+- [ ] Produce consistently named x64 AppImage and `.deb` artifacts.
+- [ ] Package only runtime code and required assets; exclude source, tests, caches, and production sourcemaps.
+- [ ] Include the project license and generated third-party notices in every artifact.
+- [ ] Add a tag-driven release workflow with explicit permissions and an approval-protected release environment.
+- [ ] Publish SHA-256 checksums, an SBOM, and GitHub artifact attestations with each release.
+- [ ] Add an automated packaged smoke test for startup, health, ingest, and clean shutdown.
+- [ ] Test AppImage and `.deb` install, launch, ingest, restart, upgrade, and uninstall on clean supported Linux systems.
+- [ ] Document AppImage FUSE requirements and extraction fallback behavior.
+- [ ] Surface session-only storage and JSON-only ingest as visible beta limitations rather than relying only on release notes.
+- [ ] Remove unimplemented tools and controls from the supported surface or mark them explicitly experimental.
+- [ ] Run the complete manual regression against both packaged formats and resolve every P0/P1 defect.
+- [ ] Publish `v0.1.0-beta.1` as a GitHub prerelease with memory-only and JSON-only limitations stated plainly.
+
+Done when a user can verify, install, run, and remove OTelux without Node.js or a repository checkout, the same immutable artifacts pass clean-machine tests, all three signal workflows work, and no P0/P1 defect is open.
+
+## Milestone 4 - MVP Product And Quality Readiness
+
+Estimate: 14-22 engineer-days; 26-41 cumulative
+
+- [ ] Complete the release-blocking data-lifecycle work in [plan.md Phase 2](plan.md#phase-2--durable-local-storage).
+- [ ] Complete OTLP/HTTP protobuf and overload handling required from [plan.md Phase 5](plan.md#phase-5--production-ingest-formats); OTLP/gRPC remains deferred.
+- [ ] Complete pause/resume, clear data, and result-state work required from [plan.md Phase 1](plan.md#phase-1--workbench-polish); other Phase 1 polish remains risk-ranked rather than automatically blocking.
+- [ ] Add first-run configuration recipes for .NET, Node.js, Python, Codex, and an OTel Collector.
+- [ ] Add a synthetic demo-data path so a new user can evaluate the UI before configuring an SDK.
+- [ ] Audit every control and advertised MCP tool; implement it, hide it, or mark it experimental.
+- [ ] Add runtime validation at the IPC boundary and automated desktop main/preload integration tests.
+- [ ] Satisfy every automated, packaged, coverage, accessibility, performance, and manual gate in [test.md](test.md#release-qualification).
+- [ ] Verify every [supported workflow](spec.md#supported-release-workflows) and [release-quality gate](spec.md#release-quality-policy).
+
+Done when the specification's supported workflows and quality policy are satisfied and the complete release qualification passes.
+
+## Milestone 5 - Windows And macOS
+
+Estimate: 9-14 engineer-days; 35-55 cumulative, excluding account and certificate lead time
+
+- [ ] Add a Windows x64 NSIS installer with stable application identity and uninstall behavior.
+- [ ] Acquire and configure Windows Authenticode signing.
+- [ ] Add macOS arm64 and x64 artifacts with hardened runtime and required entitlements.
+- [ ] Acquire an Apple Developer ID, sign, notarize, and staple macOS artifacts.
+- [ ] Run source checks and packaging on Linux, Windows, and macOS CI runners.
+- [ ] Run install, launch, ingest, restart, upgrade, and uninstall tests on clean machines for each supported platform.
+- [ ] Verify settings, storage, ports, icons, menus, shortcuts, and external links on every platform.
+- [ ] Decide whether Linux arm64 joins `v0.1.0` based on available test hardware or runners.
+
+Done when every advertised platform receives a verified artifact from the same tag, Windows and macOS show a trusted publisher, and the support matrix names every tested OS and architecture.
+
+## Milestone 6 - Public Launch
+
+Estimate: 3-5 engineer-days plus a one-week external soak; 38-60 cumulative with parallel documentation work
+
+- [ ] Recruit 5-10 external beta users across supported platforms.
+- [ ] Resolve every P0/P1 beta issue and document accepted lower-severity limitations.
+- [ ] Review every accepted P2 with an owner, workaround, rationale, and release-note entry.
+- [ ] Prepare a product page, one strong screenshot or short demo, a two-minute quickstart, and release notes.
+- [ ] Verify all download links, checksums, signatures, attestations, install commands, and uninstall instructions from clean machines.
+- [ ] Prepare issue labels, triage expectations, a patch-release runbook, and security-response ownership.
+- [ ] Publish `v0.1.0`, observe release health, then coordinate Hacker News and social posts.
+
+Done when the released artifacts remain healthy through the soak period, support channels are ready for traffic, and launch material accurately represents the shipped product without hiding limitations.
+
+## Installation Policy
+
+The initial Linux documentation should offer:
+
+1. A `.deb` downloaded from the versioned GitHub release, verified against `SHA256SUMS`, then installed with `sudo apt install ./<artifact>.deb`.
+2. An AppImage downloaded and verified by the user, made executable, and run without root.
+3. Optionally, a convenience installer that installs into `~/.local`, selects or accepts an explicit version, verifies checksums before replacement, and supports uninstall. It must not require `sudo`.
+
+A signed apt repository or store distribution can follow when release cadence justifies the ongoing operational burden.
+
+## Sprint Retirement
+
+After `v0.1.0` ships and its soak period closes:
+
+1. Update [spec.md](spec.md#current-baseline) so the Current Baseline matches the released artifacts and marks newly shipped behavior Live.
+2. Remove completed work from [plan.md](plan.md), leaving only future work; git history and release notes preserve completed detail.
+3. Replace the README's pre-release status with the shipped version and ensure installation, upgrade, uninstall, supported-platform, and known-limitation guidance is reachable from the README and release notes.
+4. Copy final validation evidence and accepted limitations into the GitHub release notes or another versioned release record.
+5. Remove links to this file from the README and [plan.md](plan.md), delete this file, and verify no repository references to `release-sprint.md` remain.
+
+No product requirement, defect policy, or verification gate needs migration at retirement because their canonical owners are already [spec.md](spec.md) and [test.md](test.md).
+
+## Execution Rules
+
+- Work milestones in order unless a later task is required to unblock an earlier gate.
+- Keep each change independently reviewable and verifiable.
+- Update tests and affected canonical docs in the same change as behavior.
+- Do not mix unrelated product features into release-hardening changes.
+- Record validation commands and notable evidence in the sprint log.
+- Do not mark a checkbox complete when only configuration exists; the resulting behavior or artifact must be exercised.
+- Treat packaging and installation as product behavior, not as a final administrative step.
+- Keep release credentials only in protected CI environments; never place them in the repository or local fixtures.
+
+## Risks And External Dependencies
+
+| Risk | Mitigation |
+|---|---|
+| Electron major-version upgrade exposes compatibility work | Upgrade before packaging automation and keep the existing packaged smoke path running. |
+| Apple or Windows signing enrollment delays launch | Start account and certificate procurement during Milestone 1. |
+| Real telemetry leaks through fixtures or issue attachments | Use synthetic fixtures, contributor warnings, and history-aware scanners. |
+| AppImage FUSE behavior differs by distribution | Test supported distributions and document the extraction fallback. |
+| SQLite migrations or retention corrupt user data | Add migration, recovery, and bounded-growth tests before using it in release builds. |
+| Cross-platform work expands the first release indefinitely | Keep VS Code Marketplace, npm, gRPC, auto-update, and store packaging outside `v0.1.0`. |
+
+## Sprint Log
+
+| Date | Milestone | Evidence |
+|---|---|---|
+| 2026-07-13 | Audit baseline | Tests and builds pass; lint, typecheck, dependency audit, `.deb` packaging, repository hygiene, and artifact pruning require work. Packaged AppImage health, ingest, rendering, and trace selection were exercised successfully. |
+| 2026-07-13 | Milestone 0 local baseline | After `npm ci`, lint passed, all 20 typecheck tasks passed, all 175 tests passed without React or Turbo missing-output warnings, and all 11 build tasks passed. The remaining Vite CJS deprecation and tsup type re-export notices are assigned to the dependency/tooling upgrade in Milestone 2. Remote CI confirmation remains open. |
+| 2026-07-13 | MVP quality scope | Added a bounded `v0.1.0` product contract, explicit beta limitations, P0-P3 defect policy, risk-based coverage strategy, packaged end-to-end requirements, accessibility checks, and measurable product-quality exit criteria. |
+| 2026-07-13 | Documentation lifecycle audit | Moved durable workflows and defect policy to `spec.md`, moved release qualification to `test.md`, removed status snapshots from `proposal.md` and the README, corrected stale settings/MCP test behavior, and added an explicit sprint retirement procedure. |

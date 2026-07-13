@@ -1,14 +1,15 @@
 # OTelux
 
-OTelux is a local-first OpenTelemetry workbench. It receives OTLP/HTTP JSON traces, logs, and metrics from local apps, renders them in a desktop workbench, and exposes read-only query tools for local coding agents.
+OTelux is a local-first OpenTelemetry workbench. It receives traces, logs, and metrics from local apps, renders them in a desktop workbench, and exposes read-only query tools for local coding agents.
 
-The desktop app is the main product. The same engine, UI, receiver, adapters, and MCP tools are packaged under `@otelux/*` so they can also run inside the VS Code extension without forking the codebase.
+The desktop app is the main product. The same engine, UI, receiver, adapters, and MCP tools are organized as private `@otelux/*` workspace packages so they can also run inside the experimental VS Code extension without forking the codebase. They are not currently published to npm.
 
 ## Docs
 
 - [docs/spec.md](docs/spec.md) — product, architecture, current state, package boundaries, and UX requirements.
 - [docs/plan.md](docs/plan.md) — work ahead only.
-- [docs/proposal.md](docs/proposal.md) — project pitch and roadmap summary.
+- [docs/release-sprint.md](docs/release-sprint.md) — finite public-release execution plan, launch gates, and evidence.
+- [docs/proposal.md](docs/proposal.md) — project rationale, audience, and product direction.
 - [docs/test.md](docs/test.md) — manual desktop verification plan.
 - [design/README.md](design/README.md) — UI mockup philosophy and design notes.
 
@@ -22,9 +23,9 @@ otelux/
   packages/
     types/              # Shared telemetry types
     protocol/           # DataSource interface and query/result shapes
-    engine/             # Ingest, query, layout, subscriptions, memory storage
-    engine-node/        # Placeholder package for future node:sqlite storage
-    receiver/           # OTLP/HTTP JSON receiver
+    engine/             # Ingest, query, layout, subscriptions, storage boundary
+    engine-node/        # Node local-storage adapter
+    receiver/           # OTLP receiver
     mcp-server/         # Read-only MCP JSON-RPC tools
     adapter-direct/     # In-process DataSource adapter
     adapter-vscode/     # VS Code postMessage DataSource adapter
@@ -58,7 +59,7 @@ Build the desktop app:
 npm run -w @otelux/desktop build
 ```
 
-Package the Linux desktop app:
+Exercise the current Linux packaging target while release work is in progress:
 
 ```bash
 npm run -w @otelux/desktop package
@@ -66,9 +67,7 @@ npm run -w @otelux/desktop package
 
 ## Current Status
 
-Pre-release. The local workbench can ingest and display traces, logs, and metrics over OTLP/HTTP JSON, including scalar metric graphs with visible axes and raw table fallback. Storage is currently in-memory; durable `node:sqlite` storage is planned. OTLP protobuf and gRPC are planned. The VS Code extension shell and MCP/LM tool plumbing exist but still need hardening and packaging work.
-
-See [docs/plan.md](docs/plan.md) for the current work ahead.
+Pre-release. See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities and current limits, [docs/plan.md](docs/plan.md) for future product work, and [docs/release-sprint.md](docs/release-sprint.md) for temporary `v0.1.0` launch execution.
 
 ## License
 

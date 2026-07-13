@@ -1,10 +1,39 @@
 # OTelux — Manual Test Plan
 
+Updated: 2026-07-13
+
 A human-friendly, exhaustive walk-through for verifying the desktop app end-to-end. Designed to be executed verbatim by a person clicking the UI, *and* mirrored by an agent doing self-verification through the repo's self-verify workflow.
 
 Scope: the Electron app (`apps/desktop`) + the OTLP/HTTP receiver + `@otelux/ui` workbench rendered inside it. Not a unit/integration test plan — those live next to source.
 
 > Throughout, **PASS** = behavior exactly matches the "Expected" line. Any deviation is a **FAIL** with a one-line note (what you saw vs. what was expected). Don't fix bugs while testing — log them.
+
+## Release Qualification
+
+This file is the durable verification source of truth. Release-specific execution and evidence may live in a temporary sprint document, but deleting that document must not remove these gates.
+
+Test quality is measured by release-risk coverage rather than by pursuing 100% line coverage:
+
+- Unit tests cover parsing, formatting, filtering, layout, state transitions, and failure branches in shared packages.
+- Storage contract tests run unchanged against memory and durable implementations, including migration, retention, corruption recovery, and interrupted writes.
+- Receiver integration tests cover every supported signal and encoding, malformed and oversized requests, partial and empty payloads, bursts, concurrent ingest, and shutdown.
+- OTLP and MCP transport tests reject unlisted browser origins by default, verify exact allowed-origin matching and `Vary: Origin`, and prove rejected requests neither invoke tools nor ingest telemetry.
+- Desktop main/preload integration tests cover settings validation and migration, port rebinding, rollback after bind or persistence failure, IPC runtime validation, lifecycle cleanup, and the exposed context-bridge surface.
+- Electron security tests assert sandboxing, context isolation, disabled Node integration, the narrow preload surface, rejected malformed IPC, blocked navigation and window creation, denied non-allowlisted permissions, and HTTPS-only external-link handling.
+- MCP transport tests assert explicit enablement or authentication and reject missing or invalid credentials without returning telemetry.
+- Packaged end-to-end tests launch release artifacts, ingest traces, logs, and metrics, exercise one inspection path per signal, restart, verify persistence, clear data, and exit without orphaned listeners.
+- Accessibility checks combine automated scans with keyboard-only testing, focus order and return, dialog trapping, accessible names, both themes, high contrast, and 200% zoom.
+- Performance checks use a checked-in representative workload and enforce the budgets in [spec.md](spec.md); large result sets remain responsive through bounds, pagination, or virtualization.
+- CI publishes coverage for release-critical packages. Stable releases require checked-in thresholds of at least 80% line coverage and 70% branch coverage for `engine`, `engine-node`, `receiver`, `protocol`, `mcp-server`, and desktop main/preload code unless a documented exception demonstrates equivalent behavioral coverage.
+- Every bug fixed during release work receives a regression test at the lowest useful layer.
+
+A release candidate passes only when automated gates are green, this manual plan passes against packaged artifacts on every supported platform and architecture, and defect disposition satisfies the [release quality policy](spec.md#release-quality-policy).
+
+Qualification profiles:
+
+- A **stable release** passes every applicable gate above and every supported workflow in [spec.md](spec.md#supported-release-workflows).
+- A **prerelease** may mark a capability N/A only when the specification permits the narrower surface, the app makes the limitation visible, and the README and release notes disclose it. All behavior the prerelease does advertise must still pass, and no P0/P1 defect may remain.
+- Platform-specific steps run once for every platform and architecture advertised by that artifact set. Unsupported platforms are not failures; claiming an untested platform is.
 
 ---
 
@@ -15,10 +44,10 @@ Scope: the Electron app (`apps/desktop`) + the OTLP/HTTP receiver + `@otelux/ui`
 | 0.1 | `cd <repo-root>` | shell at repo root |
 | 0.2 | `node --version` | `v22.x` (matches `.nvmrc`) |
 | 0.3 | `npm run lint && npm run typecheck` | both exit 0, no errors |
-| 0.4 | `npm run test` | all packages green (currently no `desktop` tests, fine) |
+| 0.4 | `npm run test` | all configured test projects pass with no unexplained warnings |
 | 0.5 | `npm run build` | `apps/desktop/out/{main,preload,renderer}` exist; renderer `assets/index-*.js` >100 KB |
-| 0.6 | `rm -rf /tmp/otelux-userdata && rm -f ~/.config/otelux/settings.json` *(only if you want a clean profile)* | no error |
-| 0.7 | `ss -ltnp \| grep -E ':431[89]'` | no process listening — port is free |
+| 0.6 | `rm -rf /tmp/otelux-userdata` *(only if you want a clean profile)* | no error |
+| 0.7 | `if ss -ltn \| grep -q -e ':4319 ' -e ':4320 '; then exit 1; fi` | exits 0 because neither default port is listening |
 
 ---
 
@@ -30,14 +59,15 @@ cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-us
 ```
 - **Expected**:
   - main-process log line: `[otelux] OTLP/HTTP receiver listening on http://127.0.0.1:4319/v1/{traces,logs,metrics}`
+  - main-process log line: `[otelux] MCP server listening on http://127.0.0.1:4320/`
   - Electron window opens within ~3 s
   - Window title: contains "OTelux" or "Electron"
-  - `ss -ltnp | grep 4319` shows electron listening
+  - `ss -ltnp | grep -e ':4319 ' -e ':4320 '` shows both Electron listeners
 
 ### 1.2 Initial UI
 - **Visible chrome (top → bottom, left → right)**
   1. Left **Rail** — narrow icon strip with the **Traces** tab active, enabled **Metrics** and **Logs** tabs below it, and a footer with the **Theme** switch above **GitHub** (external link) and the **Settings** cog (opens the settings modal).
-  2. **Topbar** — `Traces` heading on the left, **EndpointBar** on the right (status dot, `OTLP/HTTP` label, URL `http://127.0.0.1:4319` as a click-to-copy pill). The copied URL is the receiver base URL; traces, logs, and metrics use the same host and port at `/v1/traces`, `/v1/logs`, and `/v1/metrics`. The settings cog lives on the rail, not in the topbar.
+  2. **Topbar** — `Traces` heading on the left, **EndpointBar** on the right (status dot, `OTLP/HTTP` label, URL `http://127.0.0.1:4319` as a click-to-copy pill, plus a green `MCP :4320` copy pill while MCP is enabled). The OTLP pill copies the receiver base URL; traces, logs, and metrics use the same host and port at `/v1/traces`, `/v1/logs`, and `/v1/metrics`. The MCP pill copies `http://127.0.0.1:4320/`. The settings cog lives on the rail, not in the topbar.
   3. **FilterBar** — hidden on cold start for Traces; it appears once at least one trace has been received and exposes a Service dropdown, an `Errors only` toggle chip, and a search field. Logs and Metrics expose their own filter controls when those tabs are active.
   4. **Workbench** body — right pane is collapsed (no waterfall yet); the left pane fills the width and shows the trace list with the `Traces` header, count `0`, and "Waiting for traces…" empty-state copy (or "No traces match. Point an OTel exporter at http://127.0.0.1:4319/v1/traces" once the first probe completes).
   5. No drawer / value-viewer modal is visible.
@@ -65,13 +95,17 @@ cat /tmp/otelux-userdata/settings.json 2>/dev/null
 
 ### 2.3 URL copy spamming
 - Click the URL 5 times rapidly.
-- **Expected**: no crash, no JS error in DevTools console (Ctrl+Shift+I), the `Copied` tooltip + check icon reset cleanly each time without the row reflowing.
+- **Expected**: no crash, no JS error in the DevTools console opened with the platform shortcut from step 12.3, and the `Copied` tooltip + check icon reset cleanly each time without the row reflowing.
 
-### 2.4 Settings cog opens settings
+### 2.4 MCP URL copy
+- Click the `MCP :4320` pill.
+- **Expected**: the clipboard contains exactly `http://127.0.0.1:4320/`, and the pill remains green and stable while its copied state is visible.
+
+### 2.5 Settings cog opens settings
 - Click the **Settings** cog at the bottom of the **rail** (not the topbar — the cog moved there in the redesign).
 - **Expected**: backdrop dims, settings dialog appears centered, OTLP/HTTP port input focused with value selected (cursor highlights `4319`).
 
-### 2.5 Theme switch
+### 2.6 Theme switch
 - Click the **Theme** button above **GitHub** in the left rail.
 - **Expected**: the title cycles `Theme: Auto (...)` → `Theme: Light` → `Theme: Dark` → `Theme: Auto (...)`. Light mode uses a bright workbench surface, dark mode returns to the dark surface, and muted labels/timestamps stay readable in both themes.
 
@@ -88,7 +122,7 @@ For each of the close paths, reopen the modal via the rail's Settings cog before
 | 3.3 | Press **Escape** | modal closes; receiver unchanged |
 | 3.4 | Click anywhere on dimmed area outside the modal | modal closes; receiver unchanged |
 | 3.5 | Click on the modal body (e.g. on the heading) | modal stays open (no propagation to backdrop) |
-| 3.6 | Tab from port input | focus reaches Cancel, then Save, then loops back |
+| 3.6 | Tab from OTLP port input | focus moves through MCP toggle, MCP port, Cancel, Save, Close, then returns to the OTLP input; Shift+Tab reverses the cycle |
 
 ---
 
@@ -98,44 +132,59 @@ Open settings (rail → Settings cog) before each row. After each row hit Cancel
 
 | Step | Input | Click | Expected |
 |------|-------|-------|----------|
-| 4.1 | empty | Save | inline error: `Port must be an integer between 1 and 65535.` |
+| 4.1 | empty | Save | inline error: `OTLP port must be an integer between 1 and 65535.` |
 | 4.2 | `0` | Save | same inline error |
 | 4.3 | `-1` | Save | same inline error |
 | 4.4 | `65536` | Save | same inline error |
 | 4.5 | `abc` | Save | `<input type=number>` may reject; if value reaches submit, same inline error |
 | 4.6 | `99999` | Save | same inline error |
-| 4.7 | `12.5` | Save | parses as `12`, see 4.8 outcome (success) — confirm coercion is intentional |
-| 4.8 | `14320` | Save | modal closes; receiver dot transitions starting→running; URL updates to `http://127.0.0.1:14320`; `cat /tmp/otelux-userdata/settings.json` shows `{"version":1,"otlp":{"port":14320}}` |
+| 4.7 | `12.5` | Save | native number validation or the app rejects the non-integer; accepting or silently truncating it is a FAIL |
+| 4.8 | `14320` | Save | modal closes; receiver dot transitions starting→running; URL updates to `http://127.0.0.1:14320`; `cat /tmp/otelux-userdata/settings.json` has `{"version":1,"otlp":{"port":14320},"mcp":{"enabled":true,"port":4320}}` |
 | 4.9 | `14320` again | Save | no-op rebind (still running on 14320), modal closes |
-| 4.10 | `22` (privileged, on Linux not allowed for non-root) | Save | inline error like `failed to bind 127.0.0.1:22: EACCES` (or EADDRINUSE if something runs there); EndpointBar dot turns **red**; URL replaced by status text. Reopen settings from the rail, enter `14320`, Save → recovers to green. |
-| 4.11 | While 4.10 is in error state, click URL area | no copy (URL is hidden in error state); status-text span is plain text |
 
-### 4.12 Port already in use
+### 4.10 Port already in use and rollback
 Open a second listener:
 ```bash
 python3 -c "import socket,time; s=socket.socket(); s.bind(('127.0.0.1',14321)); s.listen(1); time.sleep(60)" &
 ```
 Then settings → set `14321` → Save.
-- **Expected**: inline error `failed to bind 127.0.0.1:14321: EADDRINUSE` (or similar), dot **red**.
-- Recover: kill the python listener, retry Save with `14320`. Dot returns green.
+- **Expected**: an inline EADDRINUSE error; the receiver rolls back to `14320`, the EndpointBar remains green, and settings on disk remain unchanged.
+- While the inline error is visible, click the OTLP URL. It remains copyable and copies exactly `http://127.0.0.1:14320`.
+- Recover: kill the python listener, then Cancel or save another valid port.
+
+### 4.11 MCP settings and lifecycle
+
+Restore OTLP to `14320`, then exercise the MCP controls:
+
+| Step | Action | Expected |
+|------|--------|----------|
+| 4.11.1 | Open Settings with defaults | MCP toggle is on, MCP port is `4320`, and the hint reports `http://127.0.0.1:4320/` as running |
+| 4.11.2 | Set MCP port to `14320` while OTLP is `14320`, then Save | inline error: `MCP port must differ from OTLP port.`; both existing listeners remain healthy |
+| 4.11.3 | Set MCP port to `0`, `65536`, or empty, then Save | inline error: `MCP port must be an integer between 1 and 65535.` |
+| 4.11.4 | Turn MCP off, then Save | modal closes, MCP pill disappears, port `4320` is released, OTLP ingest remains healthy, and settings persist `"enabled": false` |
+| 4.11.5 | Turn MCP on with port `14330`, then Save | modal closes, a green `MCP :14330` pill appears and copies `http://127.0.0.1:14330/` |
+| 4.11.6 | Occupy port `14331`, set MCP to `14331`, then Save | inline EADDRINUSE error; MCP rolls back to healthy port `14330`, OTLP remains on `14320`, and settings stay unchanged |
+| 4.11.7 | Restore MCP enabled on `4320` | both default MCP behavior and the persisted settings shape are restored for the remaining sections |
+
+For step 4.11.6, reuse the Python listener from step 4.10 with port `14331`, then stop it after verifying rollback.
 
 ---
 
 ## 5. Settings persistence
 
 ### 5.1 Survives restart
-1. Quit Electron (window close).
-2. Confirm port released: `ss -ltnp | grep 14320` → empty.
+1. Quit the app: close the last window on Linux/Windows; use Command+Q or the application menu on macOS.
+2. Confirm both listeners are released: `ss -ltnp | grep -e ':14320 ' -e ':4320 '` → empty.
 3. Relaunch without env override: `cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-userdata`
-- **Expected**: log shows `listening on http://127.0.0.1:14320/v1/{traces,logs,metrics}` (loaded from settings.json), EndpointBar URL reflects 14320.
+- **Expected**: log shows OTLP listening on `http://127.0.0.1:14320/v1/{traces,logs,metrics}` and MCP listening on `http://127.0.0.1:4320/`; both EndpointBar pills reflect those persisted settings.
 
 ### 5.2 Env override is one-shot
 1. Quit Electron.
 2. Relaunch with `OTELUX_OTLP_PORT=14999 npx electron out/main/index.js --user-data-dir=/tmp/otelux-userdata`
 - **Expected**:
   - log shows `listening on http://127.0.0.1:14999/v1/{traces,logs,metrics}`
-  - `cat /tmp/otelux-userdata/settings.json` still shows `{"otlp":{"port":14320}}` — **env did NOT mutate file**
-  - Open settings modal → input shows persisted `14320` (matches file, not the env port)
+  - `cat /tmp/otelux-userdata/settings.json` still has `{"version":1,"otlp":{"port":14320},"mcp":{"enabled":true,"port":4320}}` — **env did NOT mutate file**
+  - Open settings modal → OTLP input shows the live override `14999`; closing without Save leaves the persisted port at `14320`
   - Quit + relaunch without env → returns to 14320
 
 ### 5.3 Corrupt settings tolerated
@@ -143,18 +192,21 @@ Then settings → set `14321` → Save.
 2. `echo 'this is not json' > /tmp/otelux-userdata/settings.json`
 3. Relaunch.
 - **Expected**: no crash, log shows `listening on http://127.0.0.1:4319/v1/{traces,logs,metrics}` (default), settings modal shows `4319`.
-4. Save `14320` from the modal — `settings.json` is rewritten as valid JSON.
+4. MCP also returns to enabled on `4320`. Save `14320` from the modal — `settings.json` is rewritten as valid JSON with the current OTLP and MCP shape.
 
 ### 5.4 Invalid-shape settings tolerated
 1. Quit.
 2. `echo '{"version":99,"unknown":true}' > /tmp/otelux-userdata/settings.json`
 3. Relaunch.
-- **Expected**: same fallback to 4319. Save → file gets rewritten in the current shape.
+- **Expected**: same fallback to OTLP `4319` and MCP enabled on `4320`. Save → file gets rewritten in the current shape.
 
 ### 5.5 Env validation
 1. Quit.
 2. `OTELUX_OTLP_PORT=abc npx electron out/main/index.js --user-data-dir=/tmp/otelux-userdata`
 - **Expected**: log warns about invalid env, falls back to persisted port. App does **not** crash.
+
+### 5.6 Restore the test baseline
+- Save OTLP port `14320` and MCP enabled on `4320` before continuing. All fixed URLs in the remaining sections assume this baseline unless a section says otherwise.
 
 ---
 
@@ -273,9 +325,9 @@ curl -s -X POST -H 'Content-Type: application/json' --data-binary '@fixtures/mal
 
 ### 10.2 Wrong content-type
 ```bash
-curl -s -X POST -H 'Content-Type: text/plain' --data 'hello' http://127.0.0.1:14320/v1/traces -o /tmp/r.txt -w '%{http_code}\n'
+curl -s -X POST -H 'Content-Type: text/plain' --data '{"resourceSpans":[]}' http://127.0.0.1:14320/v1/traces -o /tmp/r.txt -w '%{http_code}\n'
 ```
-- **Expected**: 4xx, no crash.
+- **Expected**: `415 Unsupported Media Type`, no ingest, and no crash. Valid JSON with the wrong media type makes this check discriminate content-type enforcement from JSON parsing.
 
 ### 10.3 Empty body
 ```bash
@@ -290,8 +342,40 @@ curl -s http://127.0.0.1:14320/v1/nope -X POST -H 'Content-Type: application/jso
 ```
 - **Expected**: 404 for unknown paths. (`/v1/logs` and `/v1/metrics` are real ingest endpoints — exercised in §14 and §15.)
 
-### 10.5 Oversize payload *(optional, will be slow)*
-- Generate a 10 MB JSON body and POST. Confirm no OOM and either a 200 or controlled 4xx (depends on Hono limits).
+### 10.5 Oversize payload
+- With the default 10 MiB OTLP limit, generate a valid JSON body of exactly 10 MiB plus one byte:
+
+```bash
+TARGET_BYTES=$((10 * 1024 * 1024 + 1)) node -e '
+const fs = require("node:fs");
+const target = Number(process.env.TARGET_BYTES);
+const prefix = Buffer.from("{\"padding\":\"");
+const suffix = Buffer.from("\"}");
+const payload = Buffer.concat([prefix, Buffer.alloc(target - prefix.length - suffix.length, 0x61), suffix]);
+fs.writeFileSync("/tmp/otelux-oversize.json", payload);
+if (fs.statSync("/tmp/otelux-oversize.json").size !== target) process.exit(1);
+'
+curl -s -X POST -H 'Content-Type: application/json' \
+  --data-binary '@/tmp/otelux-oversize.json' \
+  http://127.0.0.1:14320/v1/traces -o /tmp/r.txt -w '%{http_code}\n'
+```
+
+- **Expected**: controlled `413 Payload Too Large`; the app remains responsive and subsequent valid ingest succeeds. A 2xx response, hang, crash, or unbounded memory growth is a FAIL.
+- Quit and relaunch once with `OTELUX_OTLP_MAX_BODY_BYTES=1024`, generate the same JSON shape with `TARGET_BYTES=1025`, and repeat the request. Expect `413`; a 1024-byte body must pass the size gate and proceed to normal payload validation. Restore the default launch afterward.
+- Exercise the MCP limit in its transport integration test with `HttpRouterOptions.maxBodyBytes = 1024`; a 1025-byte JSON-RPC request returns `413` without invoking a tool.
+
+### 10.6 Hostile browser origin
+
+```bash
+curl -s -D /tmp/otelux-origin-headers.txt -X POST \
+  -H 'Origin: https://evil.example' \
+  -H 'Content-Type: application/json' \
+  --data '{"resourceSpans":[]}' \
+  http://127.0.0.1:14320/v1/traces -o /tmp/r.txt -w '%{http_code}\n'
+```
+
+- **Expected by default**: `403 Forbidden`, no ingest, and no `Access-Control-Allow-Origin` header.
+- In receiver and MCP transport integration tests, configure one exact allowed origin. That origin succeeds according to normal request validation and returns `Vary: Origin`; a sibling domain, alternate scheme, or alternate port still returns `403`. If credentials are supported, `Access-Control-Allow-Origin: *` is never returned.
 
 ---
 
@@ -299,7 +383,7 @@ curl -s http://127.0.0.1:14320/v1/nope -X POST -H 'Content-Type: application/jso
 
 ### 11.1 Rapid port flips
 - In settings, change port to 14321, Save. Wait for green. Change to 14322, Save. Repeat 5 times.
-- **Expected**: no zombie listeners. After: `ss -ltnp | grep electron | wc -l` returns 1 (the final port). EndpointBar URL matches final port.
+- **Expected**: no zombie listeners. `ss -ltnp` shows only the final OTLP port plus the configured MCP port; none of the previous OTLP ports remain. Both EndpointBar URLs match those listeners.
 
 ### 11.2 Save same port twice
 - Set port to currently-running value, Save.
@@ -309,8 +393,11 @@ curl -s http://127.0.0.1:14320/v1/nope -X POST -H 'Content-Type: application/jso
 - Open settings, change port, hit Save. While Saving… is showing (very brief — may need DevTools throttling), try to click Save again.
 - **Expected**: button disabled, no double-submit. (If you can't repro because save is too fast, mark N/A.)
 
-### 11.4 Settings while error
-- Force an error (port 22), confirm dot red. Open settings — modal still opens, current input still shows the failed port. Fix to 14320 → recover.
+### 11.4 Settings rollback after bind error
+- Occupy a new test port and attempt to save it. Confirm the inline EADDRINUSE error remains in the open modal while the EndpointBar stays green on the previous healthy port. Cancel or save a valid port; no restart or file cleanup is required.
+
+### 11.5 Restore the test baseline
+- Save OTLP port `14320` and MCP enabled on `4320`; confirm no listener remains on any temporary port used by this section.
 
 ---
 
@@ -320,14 +407,16 @@ curl -s http://127.0.0.1:14320/v1/nope -X POST -H 'Content-Type: application/jso
 - **Expected**: receiver keeps running (verify with curl from another terminal).
 
 ### 12.2 Close window
-- **Expected**: app quits, port released within 1 s (`ss -ltnp | grep 14320` empty). settings.json preserved.
+- **Expected on Linux and Windows**: closing the last window quits the app, both OTLP and MCP ports are released within 1 s, and settings.json is preserved.
+- **Expected on macOS**: closing the window leaves the app and both listeners running. Quit with Command+Q or the application menu; both ports are then released and settings.json is preserved.
 
 ### 12.3 DevTools open
-- Ctrl+Shift+I or Cmd+Alt+I.
-- **Expected**: DevTools opens, console clean of red errors. Some warnings (e.g. React dev mode) may be acceptable; log anything from `otelux` namespace as a bug.
+- F12 or Ctrl+Shift+I on Linux/Windows; F12 or Command+Shift+I on macOS.
+- **Expected in the development build used by this plan**: DevTools opens and the console has no unexplained red errors. Packaged builds intentionally disable this accelerator.
 
-### 12.4 No GPU log noise in release build
-- Run packaged build (when available) — `GetVSyncParametersIfAvailable() failed` messages are Chromium/Linux noise and acceptable in dev; in a packaged build they should be suppressed or reduced.
+### 12.4 Packaged runtime diagnostics
+- Run a packaged build and capture main-process stderr while exercising the core workflow.
+- **Expected**: no OTelux uncaught exception, unhandled rejection, disposed-frame error, or crash. Platform Chromium/GPU diagnostics such as `GetVSyncParametersIfAvailable() failed` may be recorded as environmental noise when behavior is unaffected.
 
 ---
 
@@ -341,7 +430,7 @@ curl -sf http://127.0.0.1:14320/v1/traces -X POST -H 'Content-Type: application/
 
 ### 13.2 App crash recovery *(do not run unless you want to)*
 - Kill the main process: `pkill -9 -f out/main/index.js`
-- **Expected**: window closes immediately; relaunch works; settings preserved.
+- **Expected**: window closes immediately; relaunch works; settings are preserved, and telemetry behavior matches the release's documented storage contract.
 
 ---
 
@@ -411,7 +500,7 @@ After running the suite:
 ```bash
 pkill -9 -f "out/main/index.js" 2>/dev/null
 rm -rf /tmp/otelux-userdata
-# Restore any background python listener you may have left from step 4.12.
+# Stop any background Python listener left from the occupied-port tests.
 ```
 
 ---
@@ -421,12 +510,12 @@ rm -rf /tmp/otelux-userdata
 For each FAIL, capture in your test report:
 
 ```
-Step: 4.10
-Action: settings → port 22 → Save
-Expected: inline error, red dot, URL hidden
+Step: <section.step>
+Action: <what you did>
+Expected: <documented behavior>
 Actual: <what happened>
 Repro: 100% / intermittent
-Severity: P1/P2/P3
+Severity: P0/P1/P2/P3 (see spec.md)
 Notes: …
 ```
 
@@ -438,7 +527,7 @@ When you only have a minute (e.g. post-commit gate):
 
 1. Build: `npm run lint && npm run typecheck && npm run build`
 2. Launch: `cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-smoke &`
-3. `sleep 3 && PORT=4319 ./scripts/send-traces.sh`
+3. `curl --retry 20 --retry-delay 0 --retry-connrefused -sf http://127.0.0.1:4319/healthz && PORT=4319 ./scripts/send-traces.sh`
 4. Click the trace, click any span — confirm waterfall + span detail drawer populate.
 5. Rail → Settings cog → change port to a different one (e.g. `4399`) → Save → confirm green dot + new URL, then change back to `4319`.
 6. Close window. `pkill -9 -f out/main/index.js`. Done.

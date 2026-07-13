@@ -1,19 +1,12 @@
 # OTelux — Plan Ahead
 
-Updated: 2026-06-16
+Updated: 2026-07-13
 
 This plan only covers work ahead of us. Completed implementation detail lives in git history and the package READMEs; this file is for deciding what to build next.
 
-OTelux today is a runnable local OpenTelemetry workbench with:
+> **Active `v0.1.0` overlay:** [release-sprint.md](release-sprint.md) orders launch work and records temporary decisions and evidence. This plan remains the owner of product sequencing. Remove this note when the sprint is retired after `v0.1.0`.
 
-- Electron desktop app on Linux.
-- VS Code extension shell with webview, receiver, MCP server, and LM Tool wiring.
-- OTLP/HTTP JSON ingest for traces, logs, and metrics.
-- In-memory engine/storage with live subscriptions.
-- Traces, Logs, and Metrics rail surfaces in `@otelux/ui`, including Logs headers/actions/pivots, a Metrics meter/instrument explorer with summaries/actions/details, scalar graph axes with same-timestamp series aggregation, and rail-driven Auto/Light/Dark theme switching.
-- MCP tools for trace queries and log search, plus schema-stable stubs for agent-run correlation and service overview.
-
-The major gaps are durability, remaining detail polish, production ingest formats, packaging, and deeper correlation.
+See the specification's [Current Baseline](spec.md#current-baseline) for implemented capabilities and limits. The phases below contain only work that remains ahead; remove completed work as it ships.
 
 ## Phase 1 — Workbench Polish
 

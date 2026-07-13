@@ -1,6 +1,6 @@
 # OTelux — Project Proposal
 
-Updated: 2026-06-16
+Updated: 2026-07-13
 
 ## Summary
 
@@ -34,47 +34,16 @@ The core user workflows are:
 - Inspect metrics through a meter/instrument explorer, compare scan summaries, switch the focused instrument between an axis-labeled graph and a raw table, copy metric data, and open details.
 - Let an agent ask read-only questions over the same local store.
 
-## Already Done
+## Living Documents
 
-The current repository already has a working foundation:
-
-- npm workspace monorepo with TypeScript, Turborepo, Biome, and Vitest.
-- `apps/desktop` Electron shell with receiver, engine, IPC, settings, and renderer workbench.
-- `apps/vscode-extension` shell with webview, embedded receiver, MCP server, and VS Code Language Model Tool registration.
-- `@otelux/receiver` with OTLP/HTTP JSON routes for `/v1/traces`, `/v1/logs`, `/v1/metrics`, and `/healthz`.
-- `@otelux/engine` with in-memory ingest/query/subscription support for traces, logs, and metrics.
-- `@otelux/ui` with live Traces, Logs, and Metrics rail surfaces, Auto/Light/Dark theme switching, Logs row actions/pivots, and a Metrics meter/instrument explorer with summaries/actions/details plus scalar chart axes and same-timestamp series aggregation.
-- `@otelux/mcp-server` with read-only JSON-RPC tools for error triage, slow spans, trace drill-down, span details, and log search.
-- `@otelux/adapter-direct` and `@otelux/adapter-vscode` for embedding the same UI over different host boundaries.
-
-## Important Gaps
-
-The product is not release-ready yet. The most important gaps are:
-
-- Storage is still memory-backed; `@otelux/engine-node` is a placeholder for a future `node:sqlite` implementation.
-- The receiver accepts OTLP/HTTP JSON only; protobuf and gRPC are planned.
-- Detail panes need internal search, consistent section actions, and selection behavior across spans, logs, and metrics.
-- Metrics still need service/type grouping controls beyond the meter tree and deeper histogram readability polish.
-- Agent-run correlation has a stable schema but is not backed by engine intelligence yet; service overview exists as a trace-summary approximation and needs richer cross-signal rollups.
-- Desktop and VS Code extension packaging need hardening before handoff to broader users.
-
-## Roadmap
-
-The next work is intentionally scoped. The plan in [plan.md](plan.md) is the source of truth, summarized here:
-
-1. Polish the three-pillar workbench: details search, metric service/type grouping controls, histogram readability, pause/resume, clear, and result footers.
-2. Add durable local storage with `node:sqlite`, schema versioning, WAL mode, retention, and migration tests.
-3. Harden the VS Code extension as a real second consumer of the shared packages.
-4. Back agent-run correlation with real engine queries and upgrade service overview with cross-signal rollups.
-5. Add OTLP protobuf/gRPC and receiver pressure visibility.
-6. Finish installation and platform packaging.
+This proposal intentionally does not track implementation status or repeat the roadmap. The [Current Baseline](spec.md#current-baseline) is the source of truth for what exists and what remains limited; [plan.md](plan.md) owns future work. Keeping those facts out of the pitch lets this document remain stable unless the audience, product bet, or scope changes.
 
 ## Architecture
 
 ```text
 Local apps / agents / SDKs
         |
-        | OTLP/HTTP JSON today; protobuf/gRPC planned
+        | supported OTLP inputs
         v
 @otelux/receiver
         |
