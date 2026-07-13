@@ -77,13 +77,13 @@ Evidence collected locally on 2026-07-13:
 
 Estimate: 0.5-1 engineer-day
 
-Status: Local checks complete; remote CI confirmation pending
+Status: Complete
 
 - [x] Fix all current Biome diagnostics without unrelated reformatting.
 - [x] Fix strict TypeScript errors in the UI tests.
 - [x] Remove or resolve test-runner warnings that can hide real failures.
 - [x] Verify `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build` from a clean install.
-- [ ] Confirm CI uses the same commands and passes on `main`.
+- [x] Confirm CI uses the same commands and passes on `main`.
 
 Done when every documented routine verification command exits zero and test output has no unexplained warnings.
 
@@ -241,3 +241,4 @@ No product requirement, defect policy, or verification gate needs migration at r
 | 2026-07-13 | Milestone 0 local baseline | After `npm ci`, lint passed, all 20 typecheck tasks passed, all 175 tests passed without React or Turbo missing-output warnings, and all 11 build tasks passed. The remaining Vite CJS deprecation and tsup type re-export notices are assigned to the dependency/tooling upgrade in Milestone 2. Remote CI confirmation remains open. |
 | 2026-07-13 | MVP quality scope | Added a bounded `v0.1.0` product contract, explicit beta limitations, P0-P3 defect policy, risk-based coverage strategy, packaged end-to-end requirements, accessibility checks, and measurable product-quality exit criteria. |
 | 2026-07-13 | Documentation lifecycle audit | Moved durable workflows and defect policy to `spec.md`, moved release qualification to `test.md`, removed status snapshots from `proposal.md` and the README, corrected stale settings/MCP test behavior, and added an explicit sprint retirement procedure. |
+| 2026-07-13 | Milestone 0 CI | GitHub Actions run 29288054196 passed install, lint, typecheck, all tests, and build for commit `17c5882`. |
