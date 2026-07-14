@@ -19,7 +19,7 @@
 		"node": ">=22.0.0"
 	},
 	"dependencies": {
-		"@hono/node-server": "1.13.7",
+		"@hono/node-server": "1.19.14",
 		"@otelux/adapter-direct": "*",
 		"@otelux/engine": "*",
 		"@otelux/engine-node": "*",
