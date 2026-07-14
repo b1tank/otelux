@@ -21,7 +21,9 @@
 		"clean": "rm -rf out release .turbo",
 		"start": "electron-vite preview",
 		"generate:notices": "node scripts/generate-notices.mjs",
-		"package": "npm run generate:notices && electron-vite build && electron-builder --linux --publish=never"
+		"package": "npm run generate:notices && electron-vite build && electron-builder --linux --publish=never",
+		"package:dir": "npm run generate:notices && electron-vite build && electron-builder --linux dir",
+		"smoke": "node scripts/smoke.mjs"
 	},
 	"engines": {
 		"node": ">=22.12.0"
