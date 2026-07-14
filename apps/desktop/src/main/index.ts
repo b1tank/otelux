@@ -6,16 +6,15 @@ import {
 	type InvokeMessage,
 	MAX_PORT,
 	MIN_PORT,
-	type McpStatus,
 	OTELUX_EVENT_CHANNEL,
 	OTELUX_INVOKE_CHANNEL,
 	type OteluxEvent,
-	type UpdateSettingsResult,
 } from '../shared/ipc.js';
 import { McpHost } from './mcpHost.js';
 import { ReceiverHost } from './receiverHost.js';
 import { isAllowedExternalUrl, isAllowedNavigation } from './security.js';
 import { SettingsStore } from './settings.js';
+import { updateSettings } from './updateSettings.js';
 
 const isDev = !app.isPackaged;
 
@@ -201,90 +200,6 @@ async function startBackend(): Promise<{
 			ipcMain.removeHandler(OTELUX_INVOKE_CHANNEL);
 		},
 	};
-}
-
-/**
- * Two-phase settings update: validate, try to rebind, only then persist.
- *
- * The old "persist first, then bind" order corrupted `settings.json`
- * whenever the new port could not be acquired (EACCES on privileged
- * ports, EADDRINUSE on contended ones) — the bad value survived
- * restarts and bricked the app until the user wiped their user-data
- * directory. Doing the bind first means a failed save leaves both
- * disk state and the running receiver on the previous port, and the
- * renderer just shows the bind error inline.
- *
- * MCP follows the same recipe: try to apply the requested MCP state
- * (start at the new port / stop entirely) before writing settings.
- * If MCP fails, we roll back both the receiver (if its port changed)
- * and MCP itself, and surface the error.
- */
-async function updateSettings(
-	store: SettingsStore,
-	receiverHost: ReceiverHost,
-	mcpHost: McpHost,
-	patch: Parameters<SettingsStore['update']>[0],
-): Promise<UpdateSettingsResult> {
-	let next: Awaited<ReturnType<SettingsStore['preview']>>;
-	try {
-		next = store.preview(patch);
-	} catch (err) {
-		return { ok: false, error: err instanceof Error ? err.message : String(err) };
-	}
-
-	const previousReceiverStatus = receiverHost.status;
-	const previousMcpStatus = mcpHost.status;
-	const currentReceiverPort =
-		previousReceiverStatus.kind === 'running' ? previousReceiverStatus.port : undefined;
-	const currentMcpEnabled = previousMcpStatus.kind === 'running';
-	const currentMcpPort = previousMcpStatus.kind === 'running' ? previousMcpStatus.port : undefined;
-
-	// Receiver: only rebind if the port actually changes. Avoids a
-	// pointless drop in OTLP ingest when the user toggles MCP.
-	let status = previousReceiverStatus;
-	if (currentReceiverPort !== next.otlp.port) {
-		status = await receiverHost.start(next.otlp.port);
-		if (status.kind === 'error') {
-			if (previousReceiverStatus.kind === 'running' && currentReceiverPort !== next.otlp.port) {
-				await receiverHost.start(previousReceiverStatus.port);
-			}
-			return { ok: false, error: status.message };
-		}
-	}
-
-	// MCP: enable/disable + restart on port change. Rollback on failure
-	// returns the user to exactly the MCP state they had before the
-	// edit, so a busted toggle never leaves orphaned listeners.
-	let mcpStatus: McpStatus = mcpHost.status;
-	const wantMcp = next.mcp.enabled;
-	const portChanged = currentMcpPort !== next.mcp.port;
-	if (!wantMcp) {
-		await mcpHost.disable();
-		mcpStatus = mcpHost.status;
-	} else if (!currentMcpEnabled || portChanged) {
-		mcpStatus = await mcpHost.start(next.mcp.port);
-		if (mcpStatus.kind === 'error') {
-			// Roll back MCP to its previous shape so the user keeps a
-			// working server when their edit was invalid.
-			if (currentMcpEnabled && currentMcpPort !== undefined) {
-				await mcpHost.start(currentMcpPort);
-			} else {
-				await mcpHost.disable();
-			}
-			// Also roll back the receiver port if we rebound it above.
-			if (previousReceiverStatus.kind === 'running' && currentReceiverPort !== next.otlp.port) {
-				await receiverHost.start(previousReceiverStatus.port);
-			}
-			return { ok: false, error: mcpStatus.message };
-		}
-	}
-
-	try {
-		await store.commit(next);
-	} catch (err) {
-		return { ok: false, error: err instanceof Error ? err.message : String(err) };
-	}
-	return { ok: true, settings: next, status, mcpStatus };
 }
 
 function createWindow(): void {
