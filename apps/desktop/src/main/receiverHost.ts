@@ -17,6 +17,7 @@ export class ReceiverHost {
 	constructor(
 		private readonly engine: Engine,
 		private readonly host: string,
+		private readonly maxBodyBytes?: number,
 	) {}
 
 	get status(): ReceiverStatus {
@@ -39,7 +40,12 @@ export class ReceiverHost {
 		await this.stop();
 		this.setStatus({ kind: 'starting' });
 		try {
-			const receiver = createReceiver({ engine: this.engine, port, host: this.host });
+			const receiver = createReceiver({
+				engine: this.engine,
+				port,
+				host: this.host,
+				...(this.maxBodyBytes !== undefined ? { maxBodyBytes: this.maxBodyBytes } : {}),
+			});
 			await receiver.start();
 			this.receiver = receiver;
 			this.setStatus({ kind: 'running', port: receiver.port, host: this.host });

@@ -67,6 +67,37 @@ function resolveStartupPort(persisted: number): number {
 	return parsed;
 }
 
+/**
+ * Resolve a request body-size override from the environment. Used for
+ * `OTELUX_OTLP_MAX_BODY_BYTES` and `OTELUX_MCP_MAX_BODY_BYTES` so tests
+ * and constrained environments can shrink the limit. Precedence:
+ *   1. The env var when it is a positive integer number of bytes.
+ *   2. `undefined`, which lets the receiver/MCP package apply its own
+ *      documented default (10 MiB OTLP, 1 MiB MCP).
+ *
+ * Invalid values fail closed to the package default rather than
+ * disabling the limit.
+ */
+function resolveMaxBodyBytes(envName: string): number | undefined {
+	const raw = process.env[envName];
+	if (raw === undefined || raw === '') {
+		return undefined;
+	}
+	// Require a pure non-negative integer. `Number.parseInt` would accept
+	// a numeric prefix (e.g. "1MiB" -> 1), silently installing a 1-byte
+	// cap instead of failing closed to the documented default.
+	if (!/^\d+$/.test(raw)) {
+		console.warn(`[otelux] ignoring invalid ${envName}=${raw}; using the default limit`);
+		return undefined;
+	}
+	const parsed = Number.parseInt(raw, 10);
+	if (parsed <= 0) {
+		console.warn(`[otelux] ignoring invalid ${envName}=${raw}; using the default limit`);
+		return undefined;
+	}
+	return parsed;
+}
+
 async function startBackend(): Promise<{
 	stop: () => Promise<void>;
 }> {
@@ -75,8 +106,12 @@ async function startBackend(): Promise<{
 
 	const settingsFile = join(app.getPath('userData'), 'settings.json');
 	const settings = await SettingsStore.open(settingsFile);
-	const receiverHost = new ReceiverHost(engine, '127.0.0.1');
-	const mcpHost = new McpHost(engine, '127.0.0.1');
+	const receiverHost = new ReceiverHost(
+		engine,
+		'127.0.0.1',
+		resolveMaxBodyBytes('OTELUX_OTLP_MAX_BODY_BYTES'),
+	);
+	const mcpHost = new McpHost(engine, '127.0.0.1', resolveMaxBodyBytes('OTELUX_MCP_MAX_BODY_BYTES'));
 
 	const broadcast = (event: OteluxEvent): void => {
 		for (const wc of readyReceivers) {

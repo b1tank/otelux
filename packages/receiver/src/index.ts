@@ -44,6 +44,13 @@ export interface ReceiverOptions {
 	port?: number;
 	/** Host to bind. Defaults to `127.0.0.1` so a desktop install is not exposed on the LAN. */
 	host?: string;
+	/**
+	 * Maximum accepted request body size in bytes. Bodies larger than this
+	 * are rejected with `413` before decoding, bounding memory growth from
+	 * a hostile or misconfigured sender. Defaults to 10 MiB, which is far
+	 * above any real OTLP/HTTP export batch.
+	 */
+	maxBodyBytes?: number;
 }
 
 export interface Receiver {
@@ -56,6 +63,7 @@ export interface Receiver {
 export function createReceiver(options: ReceiverOptions): Receiver {
 	const requestedPort = options.port ?? 4318;
 	const host = options.host ?? '127.0.0.1';
+	const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_OTLP_MAX_BODY_BYTES;
 	let server: ServerType | undefined;
 	let boundPort = requestedPort;
 
@@ -67,9 +75,13 @@ export function createReceiver(options: ReceiverOptions): Receiver {
 		// OTLP requires application/json for JSON encoding. Be lenient: we
 		// accept anything that parses, but reject obviously wrong bodies
 		// with a structured OTLP partial-success-style 400.
+		const body = await readBodyWithLimit(c.req.raw, maxBodyBytes);
+		if (!body.ok) {
+			return c.json({ error: 'payload_too_large' }, 413);
+		}
 		let payload: OtlpExportTraceServiceRequest;
 		try {
-			payload = (await c.req.json()) as OtlpExportTraceServiceRequest;
+			payload = JSON.parse(body.text) as OtlpExportTraceServiceRequest;
 		} catch {
 			return c.json({ error: 'invalid_json' }, 400);
 		}
@@ -80,9 +92,13 @@ export function createReceiver(options: ReceiverOptions): Receiver {
 	});
 
 	app.post('/v1/logs', async (c) => {
+		const body = await readBodyWithLimit(c.req.raw, maxBodyBytes);
+		if (!body.ok) {
+			return c.json({ error: 'payload_too_large' }, 413);
+		}
 		let payload: OtlpExportLogsServiceRequest;
 		try {
-			payload = (await c.req.json()) as OtlpExportLogsServiceRequest;
+			payload = JSON.parse(body.text) as OtlpExportLogsServiceRequest;
 		} catch {
 			return c.json({ error: 'invalid_json' }, 400);
 		}
@@ -92,9 +108,13 @@ export function createReceiver(options: ReceiverOptions): Receiver {
 	});
 
 	app.post('/v1/metrics', async (c) => {
+		const body = await readBodyWithLimit(c.req.raw, maxBodyBytes);
+		if (!body.ok) {
+			return c.json({ error: 'payload_too_large' }, 413);
+		}
 		let payload: OtlpExportMetricsServiceRequest;
 		try {
-			payload = (await c.req.json()) as OtlpExportMetricsServiceRequest;
+			payload = JSON.parse(body.text) as OtlpExportMetricsServiceRequest;
 		} catch {
 			return c.json({ error: 'invalid_json' }, 400);
 		}
@@ -161,6 +181,83 @@ export function createReceiver(options: ReceiverOptions): Receiver {
 			});
 		},
 	};
+}
+
+const MIB = 1024 * 1024;
+
+/**
+ * Default OTLP request body cap. Real OTLP/HTTP export batches are far
+ * smaller; this bounds memory growth when a sender is hostile or
+ * misconfigured. Overridable per-receiver via {@link ReceiverOptions.maxBodyBytes}.
+ */
+const DEFAULT_OTLP_MAX_BODY_BYTES = 10 * MIB;
+
+type LimitedBody = { ok: true; text: string } | { ok: false };
+
+/**
+ * Read a request body as text while enforcing a hard byte cap.
+ *
+ * Two layers of defense:
+ *  1. Fast path — honest senders declare `Content-Length`, so reject
+ *     before reading a byte when the declared size already exceeds the
+ *     cap.
+ *  2. Slow path — a chunked body that omits or lies about
+ *     `Content-Length` still cannot exhaust memory because we count
+ *     bytes as they stream and abort the moment the running total
+ *     exceeds the cap.
+ *
+ * A body of exactly `maxBytes` is accepted; only strictly larger bodies
+ * are rejected.
+ */
+async function readBodyWithLimit(req: Request, maxBytes: number): Promise<LimitedBody> {
+	const declared = req.headers.get('content-length');
+	if (declared !== null) {
+		const n = Number(declared);
+		if (Number.isFinite(n) && n > maxBytes) {
+			return { ok: false };
+		}
+	}
+
+	const body = req.body;
+	if (body === null) {
+		return { ok: true, text: '' };
+	}
+
+	const reader = body.getReader();
+	const chunks: Uint8Array[] = [];
+	let total = 0;
+	try {
+		for (;;) {
+			const { done, value } = await reader.read();
+			if (done) {
+				break;
+			}
+			if (value) {
+				total += value.byteLength;
+				if (total > maxBytes) {
+					// Stop pulling and release the socket instead of buffering
+					// the rest of an over-limit body.
+					await reader.cancel();
+					return { ok: false };
+				}
+				chunks.push(value);
+			}
+		}
+	} finally {
+		reader.releaseLock();
+	}
+
+	return { ok: true, text: new TextDecoder().decode(concatChunks(chunks, total)) };
+}
+
+function concatChunks(chunks: readonly Uint8Array[], total: number): Uint8Array {
+	const out = new Uint8Array(total);
+	let offset = 0;
+	for (const chunk of chunks) {
+		out.set(chunk, offset);
+		offset += chunk.byteLength;
+	}
+	return out;
 }
 
 export const OTELUX_RECEIVER_VERSION = '0.1.0' as const;

@@ -88,4 +88,46 @@ describe('@otelux/receiver', () => {
 			await expect(second.stop()).resolves.toBeUndefined();
 		});
 	});
+
+	describe('request body limits', () => {
+		let engine: ReturnType<typeof createEngine>;
+		let receiver: ReturnType<typeof createReceiver>;
+		let baseUrl: string;
+
+		beforeEach(async () => {
+			engine = createEngine({ storage: createMemoryStorage() });
+			// A tiny cap so tests can straddle it without megabyte payloads.
+			receiver = createReceiver({ engine, port: 0, maxBodyBytes: 1024 });
+			await receiver.start();
+			baseUrl = `http://${receiver.host}:${receiver.port}`;
+		});
+
+		afterEach(async () => {
+			await receiver.stop();
+			await engine.close();
+		});
+
+		it('rejects an over-limit body with 413 before decoding', async () => {
+			const res = await fetch(`${baseUrl}/v1/traces`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: 'x'.repeat(1025),
+			});
+			expect(res.status).toBe(413);
+			const list = await engine.listTraces({});
+			expect(list.totalCount).toBe(0);
+		});
+
+		it('accepts a body at exactly the limit, then applies normal validation', async () => {
+			// A 1024-byte body passes the size gate; it is invalid JSON, so it
+			// falls through to the normal 400 rather than 413 — proving the gate
+			// let it reach payload validation.
+			const res = await fetch(`${baseUrl}/v1/traces`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: 'x'.repeat(1024),
+			});
+			expect(res.status).toBe(400);
+		});
+	});
 });

@@ -18,10 +18,20 @@ import type { McpServer } from '../server.js';
 
 export interface HttpRouterOptions {
 	readonly server: McpServer;
+	/**
+	 * Maximum accepted request body size in bytes. Bodies larger than this
+	 * are rejected with `413` before JSON-RPC parsing, so a hostile client
+	 * cannot exhaust memory on the loopback listener. Defaults to 1 MiB,
+	 * which is far above any real MCP request.
+	 */
+	readonly maxBodyBytes?: number;
 }
+
+const DEFAULT_MCP_MAX_BODY_BYTES = 1024 * 1024;
 
 export function httpRouter(options: HttpRouterOptions): Hono {
 	const { server } = options;
+	const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MCP_MAX_BODY_BYTES;
 	const app = new Hono();
 
 	app.get('/', (c) =>
@@ -34,9 +44,13 @@ export function httpRouter(options: HttpRouterOptions): Hono {
 	);
 
 	app.post('/', async (c) => {
+		const read = await readBodyWithLimit(c.req.raw, maxBodyBytes);
+		if (!read.ok) {
+			return c.json(payloadTooLarge() as unknown as Record<string, unknown>, 413);
+		}
 		let body: unknown;
 		try {
-			body = await c.req.json();
+			body = JSON.parse(read.text);
 		} catch {
 			return c.json(parseError() as unknown as Record<string, unknown>, 400);
 		}
@@ -53,6 +67,61 @@ export function httpRouter(options: HttpRouterOptions): Hono {
 	});
 
 	return app;
+}
+
+type LimitedBody = { ok: true; text: string } | { ok: false };
+
+/**
+ * Read a request body as text while enforcing a hard byte cap.
+ *
+ * Fast path rejects on a declared `Content-Length` above the cap; slow
+ * path counts bytes as they stream so a chunked body that omits or lies
+ * about `Content-Length` still cannot exhaust memory. A body of exactly
+ * `maxBytes` is accepted; only strictly larger bodies are rejected.
+ */
+async function readBodyWithLimit(req: Request, maxBytes: number): Promise<LimitedBody> {
+	const declared = req.headers.get('content-length');
+	if (declared !== null) {
+		const n = Number(declared);
+		if (Number.isFinite(n) && n > maxBytes) {
+			return { ok: false };
+		}
+	}
+
+	const body = req.body;
+	if (body === null) {
+		return { ok: true, text: '' };
+	}
+
+	const reader = body.getReader();
+	const chunks: Uint8Array[] = [];
+	let total = 0;
+	try {
+		for (;;) {
+			const { done, value } = await reader.read();
+			if (done) {
+				break;
+			}
+			if (value) {
+				total += value.byteLength;
+				if (total > maxBytes) {
+					await reader.cancel();
+					return { ok: false };
+				}
+				chunks.push(value);
+			}
+		}
+	} finally {
+		reader.releaseLock();
+	}
+
+	const out = new Uint8Array(total);
+	let offset = 0;
+	for (const chunk of chunks) {
+		out.set(chunk, offset);
+		offset += chunk.byteLength;
+	}
+	return { ok: true, text: new TextDecoder().decode(out) };
 }
 
 function isJsonRpcRequest(value: unknown): value is JsonRpcRequest {
@@ -76,5 +145,16 @@ function invalidRequest(): JsonRpcError {
 		jsonrpc: JSON_RPC_VERSION,
 		id: null,
 		error: { code: ERROR_CODES.INVALID_REQUEST, message: 'not a JSON-RPC 2.0 request' },
+	};
+}
+
+function payloadTooLarge(): JsonRpcError {
+	// JSON-RPC has no dedicated size-limit code; the 413 status is the
+	// meaningful signal. INVALID_REQUEST reflects that an over-limit body
+	// is refused before it is ever treated as a valid request.
+	return {
+		jsonrpc: JSON_RPC_VERSION,
+		id: null,
+		error: { code: ERROR_CODES.INVALID_REQUEST, message: 'request body too large' },
 	};
 }

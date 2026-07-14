@@ -28,6 +28,7 @@ export class McpHost {
 	constructor(
 		private readonly engine: Engine,
 		private readonly host: string,
+		private readonly maxBodyBytes?: number,
 	) {}
 
 	get status(): McpStatus {
@@ -51,7 +52,10 @@ export class McpHost {
 		this.setStatus({ kind: 'starting' });
 		try {
 			const mcp = createMcpServer({ engine: this.engine });
-			const router = httpRouter({ server: mcp });
+			const router = httpRouter({
+				server: mcp,
+				...(this.maxBodyBytes !== undefined ? { maxBodyBytes: this.maxBodyBytes } : {}),
+			});
 			// @hono/node-server reports bind errors via the http server's
 			// `error` event. Without an explicit listener those would bubble
 			// up unhandled; wrap in a Promise so we can settle on either

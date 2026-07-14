@@ -216,4 +216,22 @@ describe('httpRouter', () => {
 		const body = (await response.json()) as { error?: { code?: number } };
 		expect(body.error?.code).toBe(-32700);
 	});
+
+	it('rejects an over-limit body with 413 before dispatch', async () => {
+		const server = await fixtureServer();
+		const app = httpRouter({ server, maxBodyBytes: 1024 });
+		const response = await app.request('/', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({
+				jsonrpc: JSON_RPC_VERSION,
+				id: 1,
+				method: 'tools/list',
+				padding: 'x'.repeat(1025),
+			}),
+		});
+		expect(response.status).toBe(413);
+		const body = (await response.json()) as { error?: { code?: number } };
+		expect(body.error?.code).toBe(-32600);
+	});
 });

@@ -138,15 +138,18 @@ The receiver accepts OTLP/HTTP JSON today:
 | `POST /v1/metrics` | `ExportMetricsServiceRequest` JSON | `{ "partialSuccess": {} }` on success. |
 | `GET /healthz` | none | `ok`. |
 
-Malformed JSON returns `400`. Unknown routes return `404`. The default host is `127.0.0.1` so a desktop install is not exposed on the LAN unless explicitly configured by a host.
+Malformed JSON returns `400`. Request bodies larger than the configured limit are rejected with `413 Payload Too Large` before decoding. Unknown routes return `404`. The default host is `127.0.0.1` so a desktop install is not exposed on the LAN unless explicitly configured by a host.
+
+Request bodies are bounded:
+
+- Configurable request limits through `ReceiverOptions.maxBodyBytes` and `HttpRouterOptions.maxBodyBytes`, with a 10 MiB default for OTLP and a 1 MiB default for MCP. A body of exactly the limit is accepted; only strictly larger bodies are rejected. The limit is enforced both from a declared `Content-Length` and while streaming, so a chunked body that omits or understates its length still cannot exceed the cap.
+- Desktop environment overrides `OTELUX_OTLP_MAX_BODY_BYTES` and `OTELUX_MCP_MAX_BODY_BYTES` for testing and constrained environments. Invalid overrides fail closed to the documented defaults.
 
 Planned receiver work:
 
 - OTLP/HTTP protobuf.
 - OTLP/gRPC.
 - Strict request content types with `415 Unsupported Media Type` responses.
-- Configurable request limits through `ReceiverOptions.maxBodyBytes` and `HttpRouterOptions.maxBodyBytes`, with a 10 MiB default for OTLP and a 1 MiB default for MCP.
-- Desktop environment overrides `OTELUX_OTLP_MAX_BODY_BYTES` and `OTELUX_MCP_MAX_BODY_BYTES` for testing and constrained environments. Invalid overrides fail closed to the documented defaults.
 - Backpressure and dropped-record counters.
 - Explicit browser-origin allowlists for hosts that intentionally accept browser clients.
 
