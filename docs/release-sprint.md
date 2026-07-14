@@ -99,7 +99,7 @@ Estimate: 3.5-6 engineer-days; 4-7 cumulative
 - [x] Include an explicit warning that telemetry attached to issues may contain prompts, headers, URLs, SQL, identifiers, or customer data.
 - [ ] Add user installation, privacy, security model, troubleshooting, uninstall, and known-limit documentation.
 - [x] Replace captured fixture metadata with explicitly synthetic hosts, identifiers, providers, and timestamps while preserving test cases.
-- [ ] Run Gitleaks and TruffleHog against the complete git history.
+- [x] Run Gitleaks and TruffleHog against the complete git history.
 - [ ] Decide whether to preserve author emails and historical absolute paths, rewrite history, or publish a sanitized snapshot as the initial public history.
 - [ ] Add Dependabot and CodeQL with least-privilege workflow permissions and immutable action references.
 - [ ] Configure branch protection, required checks, secret scanning, and push protection.
@@ -244,5 +244,6 @@ No product requirement, defect policy, or verification gate needs migration at r
 | 2026-07-13 | MVP quality scope | Added a bounded `v0.1.0` product contract, explicit beta limitations, P0-P3 defect policy, risk-based coverage strategy, packaged end-to-end requirements, accessibility checks, and measurable product-quality exit criteria. |
 | 2026-07-13 | Documentation lifecycle audit | Moved durable workflows and defect policy to `spec.md`, moved release qualification to `test.md`, removed status snapshots from `proposal.md` and the README, corrected stale settings/MCP test behavior, and added an explicit sprint retirement procedure. |
 | 2026-07-14 | Synthetic telemetry fixtures | Replaced machine-derived Codex log and metric metadata with deterministic synthetic hosts, identifiers, providers, models, timestamps, traces, and spans. Preserved prompt, metric, startup, and cross-record correlation behavior; all receiver tests passed. |
+| 2026-07-14 | Privacy CI and history scan | CI run 29354893453 passed install, lint, typecheck, test, and build for `ef1fde5`. Gitleaks v8.30.1 (`sha256:c00b6bd0...`) scanned 134 commits / 3.54 MB with no leaks. TruffleHog v3.95.9 (`sha256:59b24424...`) scanned 1,717 chunks / 3.66 MB with zero verified or unverified secrets. The separate decision about rewriting non-secret author/path metadata remains open. |
 | 2026-07-13 | Milestone 0 CI | GitHub Actions run 29288054196 passed install, lint, typecheck, all tests, and build for commit `17c5882`. |
 | 2026-07-13 | Milestone 1 community foundation | Drafted the MIT license, contribution and support guidance, conduct and security policies, CODEOWNERS, structured issue forms, a pull request template, and public telemetry-sanitization warnings. License detection, private vulnerability reporting, and an independent conduct channel remain publication gates. |
