@@ -8,7 +8,7 @@ import {
 	decodeExportMetricsServiceRequest,
 } from './index.js';
 
-// Real-ish ExportMetricsServiceRequest shaped after a `codex exec` run — the
+// Synthetic ExportMetricsServiceRequest shaped after a `codex exec` run — the
 // Codex metrics pipeline is the load-bearing workload for OTelux metrics.
 const FIXTURE = JSON.parse(
 	readFileSync(
@@ -18,7 +18,7 @@ const FIXTURE = JSON.parse(
 ) as OtlpExportMetricsServiceRequest;
 
 describe('@otelux/receiver metrics', () => {
-	it('decodes the captured Codex ExportMetricsServiceRequest fixture', () => {
+	it('decodes the synthetic Codex-shaped ExportMetricsServiceRequest fixture', () => {
 		const metrics = decodeExportMetricsServiceRequest(FIXTURE);
 		expect(metrics.length).toBe(3);
 		const first = metrics[0];
@@ -97,7 +97,7 @@ describe('@otelux/receiver metrics', () => {
 										dataPoints: [
 											{
 												timeUnixNano: '0',
-												startTimeUnixNano: '1781569401660143310',
+												startTimeUnixNano: '1700000000000000000',
 												asDouble: 1.5,
 											},
 										],
@@ -114,7 +114,7 @@ describe('@otelux/receiver metrics', () => {
 		if (m?.type !== 'gauge') {
 			throw new Error('expected a gauge');
 		}
-		expect(m.dataPoints[0]?.timeUnixNano).toBe(1781569401660143310n);
+		expect(m.dataPoints[0]?.timeUnixNano).toBe(1700000000000000000n);
 		expect(m.dataPoints[0]?.value).toBeCloseTo(1.5);
 	});
 

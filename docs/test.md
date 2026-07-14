@@ -436,7 +436,7 @@ curl -sf http://127.0.0.1:14320/v1/traces -X POST -H 'Content-Type: application/
 
 ## 14. Logs ingest
 
-The receiver accepts OTLP/HTTP logs at `/v1/logs`. Send the captured Codex log fixture and open the **Logs** tab.
+The receiver accepts OTLP/HTTP logs at `/v1/logs`. Send the synthetic Codex-shaped log fixture and open the **Logs** tab.
 
 ### 14.1 Ingest the fixture
 ```bash
@@ -466,7 +466,7 @@ curl -s -X POST -H 'Content-Type: application/json' \
 
 ## 15. Metrics ingest
 
-The receiver accepts OTLP/HTTP metrics at `/v1/metrics`. Send the captured Codex metrics fixture and open the **Metrics** tab.
+The receiver accepts OTLP/HTTP metrics at `/v1/metrics`. Send the synthetic Codex-shaped metrics fixture and open the **Metrics** tab.
 
 ### 15.1 Ingest the fixture
 ```bash

@@ -6,7 +6,13 @@
 					{
 						"key": "host.name",
 						"value": {
-							"stringValue": "sl"
+							"stringValue": "test-host"
+						}
+					},
+					{
+						"key": "fixture.synthetic",
+						"value": {
+							"boolValue": true
 						}
 					},
 					{
@@ -60,7 +66,7 @@
 					"logRecords": [
 						{
 							"timeUnixNano": "0",
-							"observedTimeUnixNano": "1781569401660143310",
+							"observedTimeUnixNano": "1700000000000000000",
 							"severityNumber": 9,
 							"severityText": "INFO",
 							"body": null,
@@ -74,13 +80,13 @@
 								{
 									"key": "provider_name",
 									"value": {
-										"stringValue": "Azure OpenAI"
+										"stringValue": "test-provider"
 									}
 								},
 								{
 									"key": "auth.env_openai_api_key_present",
 									"value": {
-										"boolValue": true
+										"boolValue": false
 									}
 								},
 								{
@@ -92,19 +98,19 @@
 								{
 									"key": "auth.env_codex_api_key_enabled",
 									"value": {
-										"boolValue": true
+										"boolValue": false
 									}
 								},
 								{
 									"key": "auth.env_provider_key_name",
 									"value": {
-										"stringValue": "configured"
+										"stringValue": "test-key"
 									}
 								},
 								{
 									"key": "auth.env_provider_key_present",
 									"value": {
-										"boolValue": true
+										"boolValue": false
 									}
 								},
 								{
@@ -140,19 +146,19 @@
 								{
 									"key": "mcp_servers",
 									"value": {
-										"stringValue": "github"
+										"stringValue": "test-server"
 									}
 								},
 								{
 									"key": "event.timestamp",
 									"value": {
-										"stringValue": "2026-06-16T00:23:21.660Z"
+										"stringValue": "2023-11-14T22:13:20.000Z"
 									}
 								},
 								{
 									"key": "conversation.id",
 									"value": {
-										"stringValue": "019ecdcf-b32c-7613-8ff9-4b0d98d7c44d"
+										"stringValue": "00000000-0000-0000-0000-000000000001"
 									}
 								},
 								{
@@ -176,31 +182,31 @@
 								{
 									"key": "terminal.type",
 									"value": {
-										"stringValue": "vscode/1.125.0-insider"
+										"stringValue": "test-terminal/1.0.0"
 									}
 								},
 								{
 									"key": "model",
 									"value": {
-										"stringValue": "gpt-5.3-codex"
+										"stringValue": "test-model"
 									}
 								},
 								{
 									"key": "slug",
 									"value": {
-										"stringValue": "gpt-5.3-codex"
+										"stringValue": "test-model"
 									}
 								}
 							],
 							"droppedAttributesCount": 0,
 							"flags": 1,
-							"traceId": "0271e95cf311d5abd0b65c5135dea068",
-							"spanId": "caf404e854233d25",
-							"eventName": "event otel/src/events/session_telemetry.rs:450"
+							"traceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+							"spanId": "0000000000000001",
+							"eventName": "event test/session.rs:100"
 						},
 						{
 							"timeUnixNano": "0",
-							"observedTimeUnixNano": "1781569401685048596",
+							"observedTimeUnixNano": "1700000000025000000",
 							"severityNumber": 9,
 							"severityText": "INFO",
 							"body": null,
@@ -232,13 +238,13 @@
 								{
 									"key": "event.timestamp",
 									"value": {
-										"stringValue": "2026-06-16T00:23:21.685Z"
+										"stringValue": "2023-11-14T22:13:20.025Z"
 									}
 								},
 								{
 									"key": "conversation.id",
 									"value": {
-										"stringValue": "019ecdcf-b32c-7613-8ff9-4b0d98d7c44d"
+										"stringValue": "00000000-0000-0000-0000-000000000001"
 									}
 								},
 								{
@@ -262,31 +268,31 @@
 								{
 									"key": "terminal.type",
 									"value": {
-										"stringValue": "vscode/1.125.0-insider"
+										"stringValue": "test-terminal/1.0.0"
 									}
 								},
 								{
 									"key": "model",
 									"value": {
-										"stringValue": "gpt-5.3-codex"
+										"stringValue": "test-model"
 									}
 								},
 								{
 									"key": "slug",
 									"value": {
-										"stringValue": "gpt-5.3-codex"
+										"stringValue": "test-model"
 									}
 								}
 							],
 							"droppedAttributesCount": 0,
 							"flags": 1,
-							"traceId": "0271e95cf311d5abd0b65c5135dea068",
-							"spanId": "8686e85dab492736",
-							"eventName": "event otel/src/events/session_telemetry.rs:207"
+							"traceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+							"spanId": "0000000000000002",
+							"eventName": "event test/session.rs:110"
 						},
 						{
 							"timeUnixNano": "0",
-							"observedTimeUnixNano": "1781569401687150826",
+							"observedTimeUnixNano": "1700000000027000000",
 							"severityNumber": 9,
 							"severityText": "INFO",
 							"body": null,
@@ -318,13 +324,13 @@
 								{
 									"key": "event.timestamp",
 									"value": {
-										"stringValue": "2026-06-16T00:23:21.687Z"
+										"stringValue": "2023-11-14T22:13:20.027Z"
 									}
 								},
 								{
 									"key": "conversation.id",
 									"value": {
-										"stringValue": "019ecdcf-b32c-7613-8ff9-4b0d98d7c44d"
+										"stringValue": "00000000-0000-0000-0000-000000000001"
 									}
 								},
 								{
@@ -348,31 +354,31 @@
 								{
 									"key": "terminal.type",
 									"value": {
-										"stringValue": "vscode/1.125.0-insider"
+										"stringValue": "test-terminal/1.0.0"
 									}
 								},
 								{
 									"key": "model",
 									"value": {
-										"stringValue": "gpt-5.3-codex"
+										"stringValue": "test-model"
 									}
 								},
 								{
 									"key": "slug",
 									"value": {
-										"stringValue": "gpt-5.3-codex"
+										"stringValue": "test-model"
 									}
 								}
 							],
 							"droppedAttributesCount": 0,
 							"flags": 1,
-							"traceId": "0271e95cf311d5abd0b65c5135dea068",
-							"spanId": "8686e85dab492736",
-							"eventName": "event otel/src/events/session_telemetry.rs:207"
+							"traceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+							"spanId": "0000000000000002",
+							"eventName": "event test/session.rs:110"
 						},
 						{
 							"timeUnixNano": "0",
-							"observedTimeUnixNano": "1781569401741860024",
+							"observedTimeUnixNano": "1700000000082000000",
 							"severityNumber": 9,
 							"severityText": "INFO",
 							"body": null,
@@ -398,13 +404,13 @@
 								{
 									"key": "event.timestamp",
 									"value": {
-										"stringValue": "2026-06-16T00:23:21.741Z"
+										"stringValue": "2023-11-14T22:13:20.082Z"
 									}
 								},
 								{
 									"key": "conversation.id",
 									"value": {
-										"stringValue": "019ecdcf-b32c-7613-8ff9-4b0d98d7c44d"
+										"stringValue": "00000000-0000-0000-0000-000000000001"
 									}
 								},
 								{
@@ -428,27 +434,27 @@
 								{
 									"key": "terminal.type",
 									"value": {
-										"stringValue": "vscode/1.125.0-insider"
+										"stringValue": "test-terminal/1.0.0"
 									}
 								},
 								{
 									"key": "model",
 									"value": {
-										"stringValue": "gpt-5.3-codex"
+										"stringValue": "test-model"
 									}
 								},
 								{
 									"key": "slug",
 									"value": {
-										"stringValue": "gpt-5.3-codex"
+										"stringValue": "test-model"
 									}
 								}
 							],
 							"droppedAttributesCount": 0,
 							"flags": 1,
-							"traceId": "7680824120bf759bdb403db1ba0271be",
-							"spanId": "2c40fe2e2990dfc3",
-							"eventName": "event otel/src/events/session_telemetry.rs:968"
+							"traceId": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+							"spanId": "0000000000000003",
+							"eventName": "event test/session.rs:120"
 						}
 					],
 					"schemaUrl": ""

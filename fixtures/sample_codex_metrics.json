@@ -3,7 +3,8 @@
 		{
 			"resource": {
 				"attributes": [
-					{ "key": "host.name", "value": { "stringValue": "sl" } },
+					{ "key": "host.name", "value": { "stringValue": "test-host" } },
+					{ "key": "fixture.synthetic", "value": { "boolValue": true } },
 					{ "key": "service.name", "value": { "stringValue": "codex" } },
 					{ "key": "service.version", "value": { "stringValue": "0.0.0" } },
 					{ "key": "telemetry.sdk.language", "value": { "stringValue": "rust" } },
@@ -31,27 +32,27 @@
 								"aggregationTemporality": 1,
 								"dataPoints": [
 									{
-										"startTimeUnixNano": "1781569400000000000",
-										"timeUnixNano": "1781569401000000000",
+										"startTimeUnixNano": "1700000000000000000",
+										"timeUnixNano": "1700000001000000000",
 										"asInt": "1",
 										"attributes": [
 											{
 												"key": "http.response.status_code",
 												"value": { "intValue": "200" }
 											},
-											{ "key": "model", "value": { "stringValue": "gpt-5-codex" } }
+											{ "key": "model", "value": { "stringValue": "test-model" } }
 										]
 									},
 									{
-										"startTimeUnixNano": "1781569401000000000",
-										"timeUnixNano": "1781569403000000000",
+										"startTimeUnixNano": "1700000001000000000",
+										"timeUnixNano": "1700000003000000000",
 										"asInt": "2",
 										"attributes": [
 											{
 												"key": "http.response.status_code",
 												"value": { "intValue": "200" }
 											},
-											{ "key": "model", "value": { "stringValue": "gpt-5-codex" } }
+											{ "key": "model", "value": { "stringValue": "test-model" } }
 										]
 									}
 								]
@@ -66,14 +67,14 @@
 								"aggregationTemporality": 1,
 								"dataPoints": [
 									{
-										"startTimeUnixNano": "1781569400000000000",
-										"timeUnixNano": "1781569403000000000",
+										"startTimeUnixNano": "1700000000000000000",
+										"timeUnixNano": "1700000003000000000",
 										"asInt": "4096",
 										"attributes": [{ "key": "type", "value": { "stringValue": "input" } }]
 									},
 									{
-										"startTimeUnixNano": "1781569400000000000",
-										"timeUnixNano": "1781569403000000000",
+										"startTimeUnixNano": "1700000000000000000",
+										"timeUnixNano": "1700000003000000000",
 										"asInt": "512",
 										"attributes": [{ "key": "type", "value": { "stringValue": "output" } }]
 									}
@@ -88,8 +89,8 @@
 								"aggregationTemporality": 1,
 								"dataPoints": [
 									{
-										"startTimeUnixNano": "1781569400000000000",
-										"timeUnixNano": "1781569403000000000",
+										"startTimeUnixNano": "1700000000000000000",
+										"timeUnixNano": "1700000003000000000",
 										"count": "3",
 										"sum": 4821.5,
 										"min": 980.2,

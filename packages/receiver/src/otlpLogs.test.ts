@@ -8,8 +8,8 @@ import {
 	decodeExportLogsServiceRequest,
 } from './index.js';
 
-// Real ExportLogsServiceRequest captured from a `codex exec` run — the Codex
-// logs pipeline is the load-bearing workload for OTelux structured logs.
+// Synthetic ExportLogsServiceRequest shaped after `codex exec` telemetry — the
+// Codex logs pipeline is the load-bearing workload for OTelux structured logs.
 const FIXTURE = JSON.parse(
 	readFileSync(
 		fileURLToPath(new URL('../../../fixtures/sample_codex_logs.json', import.meta.url)),
@@ -20,7 +20,7 @@ const FIXTURE = JSON.parse(
 const PROMPT_TEXT = 'Reply with exactly: otelux-logs-fixture';
 
 describe('@otelux/receiver logs', () => {
-	it('decodes the captured Codex ExportLogsServiceRequest fixture', () => {
+	it('decodes the synthetic Codex-shaped ExportLogsServiceRequest fixture', () => {
 		const logs = decodeExportLogsServiceRequest(FIXTURE);
 		expect(logs.length).toBeGreaterThan(0);
 		const first = logs[0];
@@ -64,7 +64,7 @@ describe('@otelux/receiver logs', () => {
 								{
 									severityNumber: 9,
 									timeUnixNano: '0',
-									observedTimeUnixNano: '1781569401660143310',
+									observedTimeUnixNano: '1700000000000000000',
 								},
 							],
 						},
@@ -73,7 +73,7 @@ describe('@otelux/receiver logs', () => {
 			],
 		});
 		expect(logs).toHaveLength(1);
-		expect(logs[0]?.timeUnixNano).toBe(1781569401660143310n);
+		expect(logs[0]?.timeUnixNano).toBe(1700000000000000000n);
 	});
 
 	it('drops records whose only timestamps are "0"', () => {
