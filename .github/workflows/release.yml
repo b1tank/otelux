@@ -90,6 +90,14 @@ jobs:
       - name: Build icons
         run: bash scripts/build-icons.sh
 
+      - name: Build workspace packages
+        # Build every @otelux/* package first so the desktop renderer can
+        # resolve their `dist/` exports (e.g. `@otelux/ui/workbench.css`).
+        # `npm run package` only builds the desktop bundle, not its
+        # workspace dependencies, so packaging fails on a clean checkout
+        # without this step.
+        run: npm run build
+
       - name: Build and package .deb
         run: npm run package -w @otelux/desktop
 
