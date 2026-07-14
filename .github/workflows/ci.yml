@@ -37,6 +37,14 @@ jobs:
       - name: Install
         run: npm ci
 
+      # Fail the build on any known high or critical advisory in the
+      # production dependency graph (the code that ships in release
+      # artifacts). Dev-only tooling advisories are triaged through
+      # Dependabot instead of blocking every PR, since they cannot reach
+      # end users and audit results change with time, not just with code.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Lint
         run: npm run lint
 
