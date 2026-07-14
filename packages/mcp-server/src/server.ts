@@ -148,11 +148,11 @@ function initialize(
 		},
 		// `instructions` is optional in the spec but useful as a hint to
 		// LLMs about how to use this server.
-		instructions:
-			`OTelux exposes ${tools.length} read-only tools that query a local OpenTelemetry store. All tools are safe to call without confirmation; none mutate data.` +
-			(experimentalCount > 0
+		instructions: `OTelux exposes ${tools.length} read-only tools that query a local OpenTelemetry store. All tools are safe to call without confirmation; none mutate data.${
+			experimentalCount > 0
 				? ` ${experimentalCount} of them are experimental and return \`supported: false\` until implemented.`
-				: ''),
+				: ''
+		}`,
 	};
 }
 
