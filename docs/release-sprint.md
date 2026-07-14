@@ -101,7 +101,7 @@ Estimate: 3.5-6 engineer-days; 4-7 cumulative
 - [x] Replace captured fixture metadata with explicitly synthetic hosts, identifiers, providers, and timestamps while preserving test cases.
 - [x] Run Gitleaks and TruffleHog against the complete git history.
 - [ ] Decide whether to preserve author emails and historical absolute paths, rewrite history, or publish a sanitized snapshot as the initial public history.
-- [ ] Add Dependabot and CodeQL with least-privilege workflow permissions and immutable action references.
+- [x] Add Dependabot and CodeQL with least-privilege workflow permissions and immutable action references.
 - [ ] Configure branch protection, required checks, secret scanning, and push protection.
 - [ ] Perform a name, trademark, package namespace, and domain availability check before broad branding.
 
@@ -246,5 +246,6 @@ No product requirement, defect policy, or verification gate needs migration at r
 | 2026-07-14 | Synthetic telemetry fixtures | Replaced machine-derived Codex log and metric metadata with deterministic synthetic hosts, identifiers, providers, models, timestamps, traces, and spans. Preserved prompt, metric, startup, and cross-record correlation behavior; all receiver tests passed. |
 | 2026-07-14 | Privacy CI and history scan | CI run 29354893453 passed install, lint, typecheck, test, and build for `ef1fde5`. Gitleaks v8.30.1 (`sha256:c00b6bd0...`) scanned 134 commits / 3.54 MB with no leaks. TruffleHog v3.95.9 (`sha256:59b24424...`) scanned 1,717 chunks / 3.66 MB with zero verified or unverified secrets. The separate decision about rewriting non-secret author/path metadata remains open. |
 | 2026-07-14 | User documentation | Added source-only setup, endpoint verification, synthetic first telemetry, troubleshooting, local removal, privacy/data handling, and a candid security model. Corrected the desktop README so locally generated packages are not presented as supported releases. |
+| 2026-07-14 | Security automation | Added weekly Dependabot updates and public-only CodeQL, pinned all workflow actions to full SHAs, disabled persisted checkout credentials, kept workflow tokens read-only, and restricted repository Actions to GitHub-owned actions with SHA pinning required. CI run 29355799610 passed again under the hardened policy; CodeQL skipped as designed while private. Enabled Dependabot alerts and automated security fixes; 222 alerts include 24 critical and 38 high findings, assigned to Milestone 2 dependency upgrades. Branch protection, required checks, code scanning upload, secret scanning/push protection, and private vulnerability reporting remain public-visibility or account-tier gates. |
 | 2026-07-13 | Milestone 0 CI | GitHub Actions run 29288054196 passed install, lint, typecheck, all tests, and build for commit `17c5882`. |
 | 2026-07-13 | Milestone 1 community foundation | Drafted the MIT license, contribution and support guidance, conduct and security policies, CODEOWNERS, structured issue forms, a pull request template, and public telemetry-sanitization warnings. License detection, private vulnerability reporting, and an independent conduct channel remain publication gates. |
