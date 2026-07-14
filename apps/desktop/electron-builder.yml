@@ -1,5 +1,6 @@
 appId: com.otelux.desktop
 productName: OTelux
+executableName: otelux
 copyright: Copyright © 2026 OTelux contributors
 directories:
   buildResources: build
@@ -14,8 +15,9 @@ asar: true
 # for macOS / Windows from the same source unless an explicit override is
 # set under the platform block.
 linux:
+  syncDesktopName: true
+  artifactName: "${productName}-${version}-${arch}.${ext}"
   target:
-    - AppImage
     - deb
   category: Development
   maintainer: OTelux contributors
@@ -25,3 +27,5 @@ linux:
     logs, and metrics from local applications and presents them through a
     fast, embeddable viewer.
   icon: build/icons
+deb:
+  packageName: otelux

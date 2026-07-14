@@ -49,7 +49,7 @@ otelux/
 
 ## Develop
 
-Requires Node 22+ and npm 10.9.x.
+Requires Node 22.12+ and npm 10.9.x.
 
 ```bash
 npm install

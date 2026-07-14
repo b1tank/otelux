@@ -32,7 +32,7 @@ Produces `out/main/*.js`, `out/preload/*.js`, and `out/renderer/*` ready to be p
 
 ## Package for Linux
 
-Linux packaging is under release hardening and is not an official installation path yet. The command currently exercises the configured AppImage and `.deb` targets, but generated files under `release/` are unsupported until the [release sprint](../../docs/release-sprint.md#milestone-3---official-linux-beta) passes.
+Linux packaging is under release hardening and is not an official installation path yet. The command currently exercises the `.deb` target. AppImage is disabled until its launcher can preserve Chromium's sandbox or fail closed. Generated files under `release/` are unsupported until the [release sprint](../../docs/release-sprint.md#milestone-3---official-linux-beta) passes.
 
 ```sh
 npm run -w apps/desktop package

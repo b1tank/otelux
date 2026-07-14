@@ -9,7 +9,7 @@ The [Current Baseline](spec.md#current-baseline) is the source of truth for impl
 ## Requirements
 
 - Linux
-- Node.js 22
+- Node.js 22.12 or later
 - npm 10.9.x
 - `curl` for the ingest checks below
 
@@ -163,7 +163,7 @@ That is the current pre-release storage contract. Telemetry is held only in memo
 
 ### The Linux packaging command fails or produces incomplete artifacts
 
-Packaging is under active release hardening. Locally generated files under `apps/desktop/release/` are not supported releases. Follow [release-sprint.md](release-sprint.md#milestone-3---official-linux-beta) for the packaging gate rather than distributing those files.
+Packaging is under active release hardening. The current target is `.deb`; AppImage is disabled because its generated launcher can silently disable Chromium's sandbox on unsupported hosts. Locally generated files under `apps/desktop/release/` are not supported releases. Follow [release-sprint.md](release-sprint.md#milestone-3---official-linux-beta) for the packaging gate rather than distributing those files.
 
 ## Remove The Local Source Installation
 

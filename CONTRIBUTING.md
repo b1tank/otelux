@@ -15,7 +15,7 @@ Telemetry can contain prompts, SQL, URLs, headers, identifiers, source paths, an
 
 Requirements:
 
-- Node.js 22
+- Node.js 22.12 or later
 - npm 10.9.x
 - Linux, macOS, or Windows for package development; desktop packaging remains platform-specific
 

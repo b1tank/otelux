@@ -1,6 +1,6 @@
 # OTelux - Public Release Sprint
 
-Updated: 2026-07-13
+Updated: 2026-07-14
 
 Status: Active
 
@@ -21,7 +21,7 @@ When release work changes product behavior, update the relevant canonical docume
 The sprint is complete when:
 
 - The repository is safe and welcoming to publish as open source.
-- Linux users can install a versioned AppImage or `.deb` from an official release.
+- Linux users can install a versioned, supported package from an official release.
 - Windows and macOS users have signed, tested installers.
 - Release artifacts have checksums, provenance, licenses, and documented verification steps.
 - The shipped app satisfies the [supported release workflows](spec.md#supported-release-workflows), [release quality policy](spec.md#release-quality-policy), and [release qualification](test.md#release-qualification).
@@ -32,10 +32,10 @@ The sprint is complete when:
 
 - The Electron desktop app is the first released product. The VS Code extension remains experimental and is not a `v0.1.0` launch gate.
 - Reusable `@otelux/*` packages remain private during this sprint. Publishing npm packages is a separate decision.
-- Linux x64 is the first beta platform. Windows x64 and macOS arm64/x64 follow from the same release workflow.
+- Linux x64 `.deb` is the first beta target. AppImage remains blocked until its launcher can fail closed when Chromium sandbox prerequisites are unavailable. Windows x64 and macOS arm64/x64 follow from the same release workflow.
 - The first public binary is `v0.1.0-beta.1`. The cross-platform launch is `v0.1.0` unless beta evidence requires another prerelease.
 - GitHub Releases is the canonical artifact source. A product website may provide friendly download links but must resolve to immutable versioned artifacts.
-- The `v0.1.0` channels follow the [distribution requirements](spec.md#distribution-requirements): AppImage use is unprivileged and `.deb` installation uses the package manager after download and verification.
+- The `v0.1.0` channels follow the [distribution requirements](spec.md#distribution-requirements): `.deb` installation uses the package manager after download and verification; a future portable Linux artifact must preserve Chromium's sandbox or refuse to start.
 - Manual updates are acceptable for `v0.1.0`. Auto-update is reconsidered after the release process is stable.
 - A Linux beta may disclose memory-only storage and JSON-only OTLP as preview limitations. Broad marketing requires durable storage and OTLP/HTTP protobuf support.
 - OTLP/gRPC, npm publication, Marketplace publication, an apt repository, Flatpak, Snap, and crash reporting are not `v0.1.0` gates.
@@ -111,7 +111,7 @@ Done when a new contributor can understand, build, test, report a bug, propose a
 
 Estimate: 4-6 engineer-days; 8-13 cumulative
 
-- [ ] Upgrade Electron to a supported release line and review breaking security defaults between versions.
+- [x] Upgrade Electron to a supported release line and review breaking security defaults between versions.
 - [ ] Upgrade Hono, `@hono/node-server`, electron-builder, and vulnerable build dependencies.
 - [ ] Enforce zero known high or critical production dependency advisories in CI.
 - [ ] Add bounded request bodies with configurable limits and `413` responses, defaulting to 10 MiB for OTLP and 1 MiB for MCP.
@@ -130,18 +130,19 @@ Done when the production audit is clean at the agreed severity threshold, local 
 Estimate: 4-6 engineer-days; 12-19 cumulative
 
 - [ ] Establish one application version source and remove hard-coded `0.0.0` values.
-- [ ] Complete author, homepage, repository, executable, desktop-entry, and artifact metadata.
-- [ ] Produce consistently named x64 AppImage and `.deb` artifacts.
+- [x] Complete author, homepage, repository, executable, desktop-entry, and artifact metadata.
+- [x] Produce a consistently named x64 `.deb` artifact from the current placeholder version; final release versioning remains a separate gate.
+- [ ] Restore AppImage only with a fail-closed launcher that never adds `--no-sandbox` automatically; test both sandbox-capable and sandbox-incapable hosts.
 - [ ] Package only runtime code and required assets; exclude source, tests, caches, and production sourcemaps.
 - [ ] Include the project license and generated third-party notices in every artifact.
 - [ ] Add a tag-driven release workflow with explicit permissions and an approval-protected release environment.
 - [ ] Publish SHA-256 checksums, an SBOM, and GitHub artifact attestations with each release.
 - [ ] Add an automated packaged smoke test for startup, health, ingest, and clean shutdown.
-- [ ] Test AppImage and `.deb` install, launch, ingest, restart, upgrade, and uninstall on clean supported Linux systems.
-- [ ] Document AppImage FUSE requirements and extraction fallback behavior.
+- [ ] Test `.deb` install, launch, ingest, restart, upgrade, and uninstall on clean supported Linux systems.
+- [ ] If AppImage returns, document FUSE requirements and extraction fallback behavior and complete the same clean-system tests.
 - [ ] Surface session-only storage and JSON-only ingest as visible beta limitations rather than relying only on release notes.
 - [ ] Remove unimplemented tools and controls from the supported surface or mark them explicitly experimental.
-- [ ] Run the complete manual regression against both packaged formats and resolve every P0/P1 defect.
+- [ ] Run the complete manual regression against every enabled release artifact (`.deb` for the first beta) and resolve every P0/P1 defect.
 - [ ] Publish `v0.1.0-beta.1` as a GitHub prerelease with memory-only and JSON-only limitations stated plainly.
 
 Done when a user can verify, install, run, and remove OTelux without Node.js or a repository checkout, the same immutable artifacts pass clean-machine tests, all three signal workflows work, and no P0/P1 defect is open.
@@ -196,7 +197,7 @@ Done when the released artifacts remain healthy through the soak period, support
 The initial Linux documentation should offer:
 
 1. A `.deb` downloaded from the versioned GitHub release, verified against `SHA256SUMS`, then installed with `sudo apt install ./<artifact>.deb`.
-2. An AppImage downloaded and verified by the user, made executable, and run without root.
+2. A portable artifact only after its launcher preserves Chromium's sandbox or fails closed on unsupported hosts.
 3. Optionally, a convenience installer that installs into `~/.local`, selects or accepts an explicit version, verifies checksums before replacement, and supports uninstall. It must not require `sudo`.
 
 A signed apt repository or store distribution can follow when release cadence justifies the ongoing operational burden.
@@ -231,7 +232,7 @@ No product requirement, defect policy, or verification gate needs migration at r
 | Electron major-version upgrade exposes compatibility work | Upgrade before packaging automation and keep the existing packaged smoke path running. |
 | Apple or Windows signing enrollment delays launch | Start account and certificate procurement during Milestone 1. |
 | Real telemetry leaks through fixtures or issue attachments | Use synthetic fixtures, contributor warnings, and history-aware scanners. |
-| AppImage FUSE behavior differs by distribution | Test supported distributions and document the extraction fallback. |
+| AppImage tooling silently adds `--no-sandbox` on some hosts | Do not publish AppImage until its launcher fails closed; ship the validated `.deb` first. |
 | SQLite migrations or retention corrupt user data | Add migration, recovery, and bounded-growth tests before using it in release builds. |
 | Cross-platform work expands the first release indefinitely | Keep VS Code Marketplace, npm, gRPC, auto-update, and store packaging outside `v0.1.0`. |
 
@@ -249,5 +250,6 @@ No product requirement, defect policy, or verification gate needs migration at r
 | 2026-07-14 | Security automation | Added weekly Dependabot updates and public-only CodeQL, pinned all workflow actions to full SHAs, disabled persisted checkout credentials, kept workflow tokens read-only, and restricted repository Actions to GitHub-owned actions with SHA pinning required. CI run 29355799610 passed again under the hardened policy; CodeQL skipped as designed while private. Enabled Dependabot alerts and automated security fixes; 222 alerts include 24 critical and 38 high findings, assigned to Milestone 2 dependency upgrades. Branch protection, required checks, code scanning upload, secret scanning/push protection, and private vulnerability reporting remain public-visibility or account-tier gates. |
 | 2026-07-14 | License, history, and name decisions | GitHub detects the root license as MIT. Retained 134-commit history because Gitleaks and TruffleHog found no secrets; known author/path metadata is ordinary provenance. Preliminary exact-name screening found no OTelux match in USPTO, GitHub, npm package names, PyPI, NuGet, VS Marketplace, or Open VSX; EUIPO returned only the different mark ROTELUX in classes 6/14. `otelux.com` is registered, `.dev` and `.io` returned no RDAP registration record, and `yummyjars.com` is live over HTTPS. The npm `@otelux` scope is not reserved by this check, and formal legal clearance remains advisable before material brand investment. |
 | 2026-07-14 | User documentation CI | GitHub Actions run 29358229582 passed install, lint, typecheck, all 176 tests, and build for `c693157`; public-only CodeQL skipped as designed. |
+| 2026-07-14 | Electron and Linux packaging | Upgraded Electron 33.2.1 to 43.1.0 and electron-builder 25.1.8 to 26.15.3; measured the packaged runtime as Chromium 150.0.7871.47, Node 24.18.0, and V8 15.0.245.13-electron.0. Raised the build-host floor to Node 22.12. Added explicit repository, homepage, author, executable, desktop identity, lowercase Debian package, and safe artifact names. Full lint, 20 typecheck/test tasks, all 176 tests, and all 11 builds pass; a clean `npm ci` succeeds and the production audit remains at zero. Debian packaging succeeds and its control/desktop metadata validate. AppImage functionality passed health and all three signal workflows, but builder-generated `AppRun` can silently add `--no-sandbox` when user namespaces are unavailable; AppImage publication is therefore blocked and the target is disabled until a fail-closed launcher exists. Artifact pruning and final versioning remain Milestone 3 gates. |
 | 2026-07-13 | Milestone 0 CI | GitHub Actions run 29288054196 passed install, lint, typecheck, all tests, and build for commit `17c5882`. |
 | 2026-07-13 | Milestone 1 community foundation | Drafted the MIT license, contribution and support guidance, conduct and security policies, CODEOWNERS, structured issue forms, a pull request template, and public telemetry-sanitization warnings. License detection, private vulnerability reporting, and an independent conduct channel remain publication gates. |
