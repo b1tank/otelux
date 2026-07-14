@@ -72,12 +72,17 @@ jobs:
       - name: Install packaging system dependencies
         run: |
           sudo apt-get update
-          # librsvg2-bin: rasterize the icon master. xvfb: headless display
-          # for the smoke test. The lib* packages are Electron's runtime
-          # dependencies for launching under xvfb (names stable across
-          # Ubuntu 22.04/24.04; audio libs are omitted as the smoke is
-          # headless and silent).
-          sudo apt-get install -y librsvg2-bin xvfb libgbm1 libnss3 libgtk-3-0
+          # librsvg2-bin rasterizes the icon master; xvfb gives the smoke
+          # test a headless display. The remaining packages are Electron's
+          # runtime libraries so the app can launch under xvfb — they mirror
+          # the .deb's own Depends plus GPU/audio libs. libasound2 was
+          # renamed libasound2t64 on Ubuntu 24.04, so try the new name first
+          # and fall back for older runners.
+          sudo apt-get install -y \
+            librsvg2-bin xvfb \
+            libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 xdg-utils \
+            libatspi2.0-0 libsecret-1-0 libgbm1
+          sudo apt-get install -y libasound2t64 || sudo apt-get install -y libasound2
 
       - name: Set application version from tag
         run: npm pkg set version="${{ steps.version.outputs.version }}" -w @otelux/desktop
