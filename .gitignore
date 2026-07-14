@@ -9,6 +9,12 @@ out/
 .vite/
 .turbo/
 build/
+# ...but keep the desktop icon master (a source asset). Its generated PNGs
+# (icon.png, icon@1024.png, icons/) are rebuilt by scripts/build-icons.sh
+# and stay ignored.
+!apps/desktop/build/
+apps/desktop/build/*
+!apps/desktop/build/icon.svg
 
 # Test outputs
 coverage/

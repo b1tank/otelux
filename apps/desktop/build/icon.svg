@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  OTelux mark.
+
+  Master SVG used both for the in-app brand glyph (rail top-left, 56x56
+  block) and the desktop app icon (rasterized to PNG via
+  scripts/build-icons.sh).
+
+  Concept: OTelux = OTel + flux. Three horizontal arrows pointing right
+  read simultaneously as:
+    - flux / smooth flow (the data the app receives)
+    - a trace waterfall (root span on top, child spans indenting from the
+      left and getting shorter top-to-bottom, same visual contract the
+      workbench waterfall uses)
+  The arrowheads share a right edge so the cascade is unambiguous. The
+  violet to blue gradient is anchored to the in-app accent tokens
+  (otelux-accent-2 #bb9af7 to otelux-accent #7aa2f7) so the mark stays
+  visually consistent with the rest of the UI.
+
+  Geometry sits on a 256x256 canvas with 32px safe padding so the mark
+  scales cleanly from 16px favicon to 1024px macOS app icon. The rounded
+  squircle background ensures the mark reads as an "app icon" on
+  dock/taskbar surfaces; the in-app brand block hides the background via
+  .otelux-rail__brand > svg [data-bg] in CSS so the arrows alone show
+  against the rail surface.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256" role="img" aria-label="OTelux">
+  <defs>
+    <linearGradient id="otelux-bg" x1="0" y1="0" x2="256" y2="256" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#1f2335"/>
+      <stop offset="100%" stop-color="#24283b"/>
+    </linearGradient>
+    <linearGradient id="otelux-mark" x1="40" y1="72" x2="216" y2="184" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#bb9af7"/>
+      <stop offset="100%" stop-color="#7aa2f7"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Squircle background (hidden when used as inline rail brand). -->
+  <rect data-bg="1" x="0" y="0" width="256" height="256" rx="56" ry="56" fill="url(#otelux-bg)"/>
+
+  <!--
+    Three flux arrows. Tails indent from the left (40 / 80 / 120) and
+    tips cascade slightly to the right (220 / 212 / 204) so the mark
+    reads top-down as a waterfall instead of three stacked chevrons.
+    Arrowheads are narrow (24 back, 14 up/down) so they feel like flow
+    pointers, not heavy bars. Stroke is round-capped so the tails feel
+    smooth.
+  -->
+  <g fill="none" stroke="url(#otelux-mark)" stroke-linecap="round" stroke-linejoin="round" stroke-width="20">
+    <path d="M 40 72 L 220 72 M 196 58 L 220 72 L 196 86"/>
+    <path d="M 80 128 L 212 128 M 188 114 L 212 128 L 188 142"/>
+    <path d="M 120 184 L 204 184 M 180 170 L 204 184 L 180 198"/>
+  </g>
+</svg>
