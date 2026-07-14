@@ -1,0 +1,144 @@
+name: Release
+
+# Tag-driven Linux release. Pushing a version tag (or a manual dispatch)
+# builds the Debian package, runs the packaged smoke test, produces
+# checksums and an SBOM, attests build provenance, and publishes a GitHub
+# prerelease. The job runs in the approval-protected `release` environment,
+# so a maintainer must approve before anything is built or published.
+#
+# The `release` environment's required reviewers are configured in the
+# repository settings (Settings -> Environments -> release); this file only
+# references the environment.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag to release (e.g. v0.1.0-beta.1)"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  linux:
+    name: Build and publish Linux release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: release
+    permissions:
+      contents: write # create the release and upload assets
+      id-token: write # OIDC token for build provenance attestation
+      attestations: write # write the attestation
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${{ github.ref_name }}"
+          fi
+          case "$TAG" in
+            v*) : ;;
+            *) echo "Tag '$TAG' must start with 'v'." >&2; exit 1 ;;
+          esac
+          VERSION="${TAG#v}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Install
+        run: npm ci
+
+      - name: Install packaging system dependencies
+        run: |
+          sudo apt-get update
+          # librsvg2-bin: rasterize the icon master. xvfb: headless display
+          # for the smoke test. The lib* packages are Electron's runtime
+          # dependencies for launching under xvfb (names stable across
+          # Ubuntu 22.04/24.04; audio libs are omitted as the smoke is
+          # headless and silent).
+          sudo apt-get install -y librsvg2-bin xvfb libgbm1 libnss3 libgtk-3-0
+
+      - name: Set application version from tag
+        run: npm pkg set version="${{ steps.version.outputs.version }}" -w @otelux/desktop
+
+      - name: Build icons
+        run: bash scripts/build-icons.sh
+
+      - name: Build and package .deb
+        run: npm run package -w @otelux/desktop
+
+      - name: Smoke-test the packaged app
+        run: xvfb-run -a npm run smoke -w @otelux/desktop
+
+      - name: Generate SBOM
+        run: |
+          npm sbom --sbom-format cyclonedx --omit=dev -w @otelux/desktop \
+            > "apps/desktop/release/otelux-${{ steps.version.outputs.version }}-sbom.cdx.json"
+
+      - name: Compute checksums
+        working-directory: apps/desktop/release
+        run: sha256sum OTelux-*.deb otelux-*-sbom.cdx.json > SHA256SUMS
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: apps/desktop/release/OTelux-*.deb
+
+      - name: Write release notes
+        run: |
+          cat > "${RUNNER_TEMP}/release-notes.md" <<'EOF'
+          OTelux ${{ steps.version.outputs.tag }} — Linux prerelease.
+
+          ## Install (Debian/Ubuntu)
+
+          Download the `.deb`, verify it against `SHA256SUMS`, then install:
+
+          ```bash
+          sha256sum -c SHA256SUMS
+          sudo apt install ./OTelux-*.deb
+          ```
+
+          ## Beta limitations
+
+          - Telemetry is held in memory for the current session only; it is not
+            persisted across restarts.
+          - Ingest accepts OTLP/HTTP JSON only (no protobuf or gRPC yet).
+          - The MCP server requires the per-install bearer token from
+            `<userData>/mcp-token`.
+
+          Artifacts include the package, `SHA256SUMS`, and a CycloneDX SBOM.
+          Build provenance is attested for the `.deb`.
+          EOF
+
+      - name: Publish prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        working-directory: apps/desktop/release
+        run: |
+          gh release create "${{ steps.version.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --prerelease \
+            --title "OTelux ${{ steps.version.outputs.tag }}" \
+            --notes-file "${RUNNER_TEMP}/release-notes.md" \
+            OTelux-*.deb SHA256SUMS otelux-*-sbom.cdx.json
