@@ -92,7 +92,7 @@ Done when every documented routine verification command exits zero and test outp
 Estimate: 3.5-6 engineer-days; 4-7 cumulative
 
 - [x] Add the root MIT `LICENSE` file.
-- [ ] Verify GitHub detects the root license as MIT after it is pushed.
+- [x] Verify GitHub detects the root license as MIT after it is pushed.
 - [x] Add `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, and a concise support/maintainer policy.
 - [ ] Before public visibility, enable and exercise GitHub private vulnerability reporting and name an independent conduct recipient with a verified confidential channel.
 - [x] Add bug and feature issue forms plus a pull request template.
@@ -100,10 +100,10 @@ Estimate: 3.5-6 engineer-days; 4-7 cumulative
 - [x] Add user installation, privacy, security model, troubleshooting, uninstall, and known-limit documentation.
 - [x] Replace captured fixture metadata with explicitly synthetic hosts, identifiers, providers, and timestamps while preserving test cases.
 - [x] Run Gitleaks and TruffleHog against the complete git history.
-- [ ] Decide whether to preserve author emails and historical absolute paths, rewrite history, or publish a sanitized snapshot as the initial public history.
+- [x] Preserve existing commit history: author identity and historical development paths are non-secret provenance, and two full-history scanners found no secrets. Do not rewrite published commits without new evidence of sensitive data.
 - [x] Add Dependabot and CodeQL with least-privilege workflow permissions and immutable action references.
 - [ ] Configure branch protection, required checks, secret scanning, and push protection.
-- [ ] Perform a name, trademark, package namespace, and domain availability check before broad branding.
+- [x] Perform a preliminary exact-name, trademark, package namespace, and domain availability screen before broad branding. Treat it as risk screening, not legal clearance or namespace reservation.
 
 Done when a new contributor can understand, build, test, report a bug, propose a change, and privately report a vulnerability without maintainer guidance, and a history-aware scan finds no undisclosed secrets.
 
@@ -247,5 +247,7 @@ No product requirement, defect policy, or verification gate needs migration at r
 | 2026-07-14 | Privacy CI and history scan | CI run 29354893453 passed install, lint, typecheck, test, and build for `ef1fde5`. Gitleaks v8.30.1 (`sha256:c00b6bd0...`) scanned 134 commits / 3.54 MB with no leaks. TruffleHog v3.95.9 (`sha256:59b24424...`) scanned 1,717 chunks / 3.66 MB with zero verified or unverified secrets. The separate decision about rewriting non-secret author/path metadata remains open. |
 | 2026-07-14 | User documentation | Added source-only setup, endpoint verification, synthetic first telemetry, troubleshooting, local removal, privacy/data handling, and a candid security model. Corrected the desktop README so locally generated packages are not presented as supported releases. |
 | 2026-07-14 | Security automation | Added weekly Dependabot updates and public-only CodeQL, pinned all workflow actions to full SHAs, disabled persisted checkout credentials, kept workflow tokens read-only, and restricted repository Actions to GitHub-owned actions with SHA pinning required. CI run 29355799610 passed again under the hardened policy; CodeQL skipped as designed while private. Enabled Dependabot alerts and automated security fixes; 222 alerts include 24 critical and 38 high findings, assigned to Milestone 2 dependency upgrades. Branch protection, required checks, code scanning upload, secret scanning/push protection, and private vulnerability reporting remain public-visibility or account-tier gates. |
+| 2026-07-14 | License, history, and name decisions | GitHub detects the root license as MIT. Retained 134-commit history because Gitleaks and TruffleHog found no secrets; known author/path metadata is ordinary provenance. Preliminary exact-name screening found no OTelux match in USPTO, GitHub, npm package names, PyPI, NuGet, VS Marketplace, or Open VSX; EUIPO returned only the different mark ROTELUX in classes 6/14. `otelux.com` is registered, `.dev` and `.io` returned no RDAP registration record, and `yummyjars.com` is live over HTTPS. The npm `@otelux` scope is not reserved by this check, and formal legal clearance remains advisable before material brand investment. |
+| 2026-07-14 | User documentation CI | GitHub Actions run 29358229582 passed install, lint, typecheck, all 176 tests, and build for `c693157`; public-only CodeQL skipped as designed. |
 | 2026-07-13 | Milestone 0 CI | GitHub Actions run 29288054196 passed install, lint, typecheck, all tests, and build for commit `17c5882`. |
 | 2026-07-13 | Milestone 1 community foundation | Drafted the MIT license, contribution and support guidance, conduct and security policies, CODEOWNERS, structured issue forms, a pull request template, and public telemetry-sanitization warnings. License detection, private vulnerability reporting, and an independent conduct channel remain publication gates. |
