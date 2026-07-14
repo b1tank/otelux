@@ -37,6 +37,13 @@ export interface ToolDefinition {
 	readonly description: string;
 	readonly inputSchema: Record<string, unknown>;
 	readonly handler: ToolHandler;
+	/**
+	 * When true, the tool is advertised but not yet functional: its schema
+	 * is stable for early client integration, but calls return
+	 * `supported: false`. Surfaced in `tools/list` so clients can filter or
+	 * label it rather than discovering the gap only after a call.
+	 */
+	readonly experimental?: boolean;
 }
 
 export interface McpToolContext {
@@ -130,6 +137,7 @@ function initialize(
 		p.protocolVersion && (MCP_PROTOCOL_VERSIONS as readonly string[]).includes(p.protocolVersion)
 			? p.protocolVersion
 			: MCP_PROTOCOL_VERSIONS[0];
+	const experimentalCount = tools.filter((t) => t.experimental).length;
 	return {
 		protocolVersion: negotiated,
 		serverInfo,
@@ -140,7 +148,11 @@ function initialize(
 		},
 		// `instructions` is optional in the spec but useful as a hint to
 		// LLMs about how to use this server.
-		instructions: `OTelux exposes ${tools.length} read-only tools that query a local OpenTelemetry store. All tools are safe to call without confirmation; none mutate data.`,
+		instructions:
+			`OTelux exposes ${tools.length} read-only tools that query a local OpenTelemetry store. All tools are safe to call without confirmation; none mutate data.` +
+			(experimentalCount > 0
+				? ` ${experimentalCount} of them are experimental and return \`supported: false\` until implemented.`
+				: ''),
 	};
 }
 
@@ -178,7 +190,12 @@ async function callTool(
 }
 
 function publicToolDescriptor(t: ToolDefinition): Omit<ToolDefinition, 'handler'> {
-	return { name: t.name, description: t.description, inputSchema: t.inputSchema };
+	return {
+		name: t.name,
+		description: t.description,
+		inputSchema: t.inputSchema,
+		...(t.experimental ? { experimental: true } : {}),
+	};
 }
 
 function ok(id: number | string | null, result: unknown): JsonRpcResponse {

@@ -7,8 +7,9 @@ import type { ToolDefinition } from '../server.js';
  */
 export const correlateAgentRunTool: ToolDefinition = {
 	name: 'otel_correlate_agent_run',
+	experimental: true,
 	description:
-		'Return user-app spans that occurred during a specific Copilot / Codex / Claude agent run. Joins by trace context propagation when available, falling back to time window + agent-host attributes. Schema-stable stub until engine detection lands.',
+		'[Experimental] Return user-app spans that occurred during a specific Copilot / Codex / Claude agent run. Joins by trace context propagation when available, falling back to time window + agent-host attributes. Schema-stable stub that returns supported:false until engine detection lands.',
 	inputSchema: {
 		type: 'object',
 		properties: {

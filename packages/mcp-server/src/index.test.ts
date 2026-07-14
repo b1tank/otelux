@@ -104,6 +104,22 @@ describe('createMcpServer', () => {
 		]);
 	});
 
+	it('marks the unimplemented tool experimental in tools/list', async () => {
+		const server = await fixtureServer();
+		const response = await server.handle({
+			jsonrpc: JSON_RPC_VERSION,
+			id: 2,
+			method: 'tools/list',
+		});
+		const tools = (response as { result: { tools: Array<{ name: string; experimental?: boolean }> } })
+			.result.tools;
+		const correlate = tools.find((t) => t.name === 'otel_correlate_agent_run');
+		const errors = tools.find((t) => t.name === 'otel_find_recent_errors');
+		expect(correlate?.experimental).toBe(true);
+		// Functional tools carry no experimental flag.
+		expect(errors?.experimental).toBeUndefined();
+	});
+
 	it('returns engine-backed results for tools/call', async () => {
 		const server = await fixtureServer();
 		const response = await server.handle({
