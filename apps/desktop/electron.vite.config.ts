@@ -1,6 +1,15 @@
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import react from '@vitejs/plugin-react';
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite';
+
+// Single source of truth for the application version: this package's
+// `version` field, which electron-builder also uses for the artifact name
+// and `app.getVersion()`. Injected into the preload so the value exposed
+// to the renderer can never drift from the packaged version.
+const appVersion = (
+	JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf8')) as { version: string }
+).version;
 
 export default defineConfig({
 	main: {
@@ -16,6 +25,9 @@ export default defineConfig({
 	},
 	preload: {
 		plugins: [externalizeDepsPlugin()],
+		define: {
+			__OTELUX_APP_VERSION__: JSON.stringify(appVersion),
+		},
 		build: {
 			sourcemap: true,
 			rollupOptions: {

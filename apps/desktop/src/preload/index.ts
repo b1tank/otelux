@@ -6,13 +6,18 @@ import {
 	type OteluxEvent,
 } from '../shared/ipc.js';
 
+// Replaced at build time by electron-vite `define` with this package's
+// version (see electron.vite.config.ts). Declared here so `tsc` — which
+// does not apply the bundler define — still type-checks the preload.
+declare const __OTELUX_APP_VERSION__: string;
+
 /**
  * Narrow contextBridge surface. The renderer never touches `ipcRenderer`
  * directly — only this typed adapter, so sandbox+contextIsolation stay
  * meaningful. The shape mirrors the IPC contract in `shared/ipc.ts`.
  */
 const bridge = {
-	version: '0.0.0',
+	version: __OTELUX_APP_VERSION__,
 	invoke: (message: InvokeMessage): Promise<unknown> => {
 		return ipcRenderer.invoke(OTELUX_INVOKE_CHANNEL, message);
 	},
