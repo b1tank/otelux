@@ -66,9 +66,15 @@
 				"inputSchema": {
 					"type": "object",
 					"properties": {
-						"service": { "type": "string" },
-						"sinceMinutes": { "type": "number" },
-						"limit": { "type": "number" }
+						"service": {
+							"type": "string"
+						},
+						"sinceMinutes": {
+							"type": "number"
+						},
+						"limit": {
+							"type": "number"
+						}
 					}
 				}
 			},
@@ -81,8 +87,12 @@
 				"inputSchema": {
 					"type": "object",
 					"properties": {
-						"service": { "type": "string" },
-						"limit": { "type": "number" }
+						"service": {
+							"type": "string"
+						},
+						"limit": {
+							"type": "number"
+						}
 					}
 				}
 			},
@@ -94,7 +104,11 @@
 				"modelDescription": "Return the full waterfall for a trace by trace id.",
 				"inputSchema": {
 					"type": "object",
-					"properties": { "traceId": { "type": "string" } },
+					"properties": {
+						"traceId": {
+							"type": "string"
+						}
+					},
 					"required": ["traceId"]
 				}
 			},
@@ -107,8 +121,12 @@
 				"inputSchema": {
 					"type": "object",
 					"properties": {
-						"traceId": { "type": "string" },
-						"spanId": { "type": "string" }
+						"traceId": {
+							"type": "string"
+						},
+						"spanId": {
+							"type": "string"
+						}
 					},
 					"required": ["traceId", "spanId"]
 				}
@@ -119,7 +137,10 @@
 				"toolReferenceName": "otelServiceOverview",
 				"canBeReferencedInPrompt": true,
 				"modelDescription": "Return per-service request count, error rate, and p50/p95 latency.",
-				"inputSchema": { "type": "object", "properties": {} }
+				"inputSchema": {
+					"type": "object",
+					"properties": {}
+				}
 			}
 		]
 	},
@@ -144,14 +165,14 @@
 		"react-dom": "18.3.1"
 	},
 	"devDependencies": {
-		"@types/node": "22.10.1",
+		"@types/node": "22.20.1",
 		"@types/react": "18.3.12",
 		"@types/react-dom": "18.3.1",
 		"@types/vscode": "1.96.0",
-		"@vitejs/plugin-react": "4.3.4",
-		"esbuild": "0.24.0",
+		"@vitejs/plugin-react": "5.2.0",
+		"esbuild": "0.28.1",
 		"typescript": "5.7.2",
-		"vite": "5.4.11",
-		"vitest": "2.1.8"
+		"vite": "7.3.6",
+		"vitest": "4.1.10"
 	}
 }
