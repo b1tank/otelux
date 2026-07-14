@@ -8,6 +8,17 @@ directories:
 files:
   - "out/**/*"
   - "package.json"
+  # Ship only built runtime code. The app's own `out/` holds bundles, and
+  # the externalized `@otelux/*` workspace packages are loaded from their
+  # `dist/`. Because those workspace deps are symlinked, electron-builder
+  # would otherwise copy their whole source tree, so exclude sourcemaps
+  # everywhere and the workspace packages' `src/` (including tests) and
+  # build config. This keeps source, tests, and maps out of the artifact.
+  - "!**/*.map"
+  - "!node_modules/@otelux/*/src/**"
+  - "!node_modules/@otelux/*/tsconfig*.json"
+  - "!node_modules/@otelux/*/tsup.config.*"
+  - "!node_modules/@otelux/*/vitest.config.*"
 asar: true
 # App icon (master SVG: build/icon.svg). Rasterize with
 # `./scripts/build-icons.sh` after editing the SVG. electron-builder picks
