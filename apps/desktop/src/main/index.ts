@@ -1,4 +1,5 @@
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { createEngine, createMemoryStorage } from '@otelux/engine';
 import { BrowserWindow, app, ipcMain, shell } from 'electron';
 import {
@@ -13,6 +14,7 @@ import {
 } from '../shared/ipc.js';
 import { McpHost } from './mcpHost.js';
 import { ReceiverHost } from './receiverHost.js';
+import { isAllowedExternalUrl, isAllowedNavigation } from './security.js';
 import { SettingsStore } from './settings.js';
 
 const isDev = !app.isPackaged;
@@ -340,10 +342,43 @@ function createWindow(): void {
 		});
 	}
 
-	// Open external links in the system browser, never in-window.
+	// Open external links in the system browser, never in-window, and only
+	// when they are explicit HTTPS destinations. A non-HTTPS or malformed
+	// URL is dropped rather than handed to the OS, so a telemetry value can
+	// never coax the app into launching `file:`, `javascript:`, or a
+	// custom-scheme handler.
 	win.webContents.setWindowOpenHandler(({ url }) => {
-		void shell.openExternal(url);
+		if (isAllowedExternalUrl(url)) {
+			void shell.openExternal(url);
+		}
 		return { action: 'deny' };
+	});
+
+	// The app is a single page; the only legitimate top-frame navigation is
+	// a reload of its own URL. Deny everything else so a redirect or an
+	// injected navigation cannot load a remote origin into the trusted,
+	// preload-bearing window.
+	const appUrl =
+		isDev && process.env.ELECTRON_RENDERER_URL
+			? process.env.ELECTRON_RENDERER_URL
+			: pathToFileURL(join(__dirname, '../renderer/index.html')).href;
+	win.webContents.on('will-navigate', (event, url) => {
+		if (!isAllowedNavigation(url, appUrl)) {
+			event.preventDefault();
+		}
+	});
+
+	// The renderer needs no device or ambient-capability permissions
+	// (camera, microphone, geolocation, notifications, …). Deny every
+	// request and check so a compromised renderer cannot escalate.
+	const { session } = win.webContents;
+	session.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
+	session.setPermissionCheckHandler(() => false);
+
+	// No part of the app embeds a <webview>; refuse any attempt to attach
+	// one, which would otherwise be a fresh, less-restricted web frame.
+	win.webContents.on('will-attach-webview', (event) => {
+		event.preventDefault();
 	});
 
 	if (isDev && process.env.ELECTRON_RENDERER_URL) {

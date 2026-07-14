@@ -39,9 +39,12 @@ Telemetry is rendered in a Chromium renderer. The current desktop enables:
 - `nodeIntegration: false`
 - A Content Security Policy that loads bundled content only
 - A narrow context bridge instead of exposing raw `ipcRenderer`
+- Denied top-frame navigation away from the app's own URL
+- New windows denied; external links opened in the system browser only when they are explicit HTTPS destinations
+- All renderer permission requests and checks denied, and `<webview>` attachment refused
 - Development-only DevTools shortcuts
 
-The renderer is still an untrusted boundary. Stable releases require runtime IPC validation, denied unexpected navigation and window creation, denied unneeded permissions, and an allowlist for external HTTPS destinations.
+The renderer is still an untrusted boundary. The remaining stable-release gap is runtime validation of IPC messages crossing the context bridge.
 
 ### External clients
 
@@ -55,6 +58,7 @@ MCP, LM, browser, clipboard, download, and future export clients operate outside
 - Settings writes use a temporary file and rename to avoid partial JSON.
 - The app uses a single-instance lock to avoid duplicate desktop listeners.
 - The Electron renderer is sandboxed and isolated from Node.js.
+- The renderer cannot navigate away from the app, open new windows, attach a `<webview>`, or obtain device permissions; external links open in the system browser only for HTTPS URLs.
 - Packaged builds do not expose the development DevTools accelerator.
 - Workflow tokens default to read-only.
 - Repository workflows use immutable action SHAs, and repository policy permits only GitHub-owned actions with SHA pinning required.
