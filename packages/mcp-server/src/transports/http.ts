@@ -12,6 +12,7 @@
  */
 
 import { Hono } from 'hono';
+import type { Context, Next } from 'hono';
 import type { JsonRpcError, JsonRpcRequest } from '../protocol.js';
 import { ERROR_CODES, JSON_RPC_VERSION } from '../protocol.js';
 import type { McpServer } from '../server.js';
@@ -25,6 +26,13 @@ export interface HttpRouterOptions {
 	 * which is far above any real MCP request.
 	 */
 	readonly maxBodyBytes?: number;
+	/**
+	 * Browser origins permitted to call this listener. Empty by default,
+	 * which rejects every request carrying an `Origin` header with `403` so
+	 * a malicious web page cannot reach the local MCP tools. MCP clients are
+	 * not browsers and omit `Origin`, so they are unaffected.
+	 */
+	readonly allowedOrigins?: readonly string[];
 }
 
 const DEFAULT_MCP_MAX_BODY_BYTES = 1024 * 1024;
@@ -32,7 +40,11 @@ const DEFAULT_MCP_MAX_BODY_BYTES = 1024 * 1024;
 export function httpRouter(options: HttpRouterOptions): Hono {
 	const { server } = options;
 	const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MCP_MAX_BODY_BYTES;
+	const allowedOrigins = new Set(options.allowedOrigins ?? []);
 	const app = new Hono();
+
+	// Reject browser origins and non-JSON POSTs before any dispatch.
+	app.use('*', (c, next) => enforceRequestPolicy(c, next, allowedOrigins));
 
 	app.get('/', (c) =>
 		c.json({
@@ -122,6 +134,50 @@ async function readBodyWithLimit(req: Request, maxBytes: number): Promise<Limite
 		offset += chunk.byteLength;
 	}
 	return { ok: true, text: new TextDecoder().decode(out) };
+}
+
+/**
+ * Reject requests the loopback MCP listener should never serve:
+ *  - Any request carrying an `Origin` outside `allowedOrigins` gets
+ *    `403`. MCP clients are not browsers and omit `Origin`, so a
+ *    malicious web page is blocked while real clients are unaffected.
+ *  - `OPTIONS` preflight for an approved (or non-browser) request returns
+ *    `204` with the minimal CORS headers a browser needs.
+ *  - `POST` bodies must be `application/json`; anything else is `415`
+ *    before the body is read.
+ */
+async function enforceRequestPolicy(
+	c: Context,
+	next: Next,
+	allowedOrigins: ReadonlySet<string>,
+): Promise<Response | undefined> {
+	const origin = c.req.header('origin');
+	if (origin !== undefined) {
+		if (!allowedOrigins.has(origin)) {
+			return c.json({ error: 'forbidden_origin' }, 403);
+		}
+		c.header('Access-Control-Allow-Origin', origin);
+		c.header('Vary', 'Origin');
+	}
+	if (c.req.method === 'OPTIONS') {
+		c.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+		c.header('Access-Control-Allow-Headers', 'content-type');
+		return c.body(null, 204);
+	}
+	if (c.req.method === 'POST' && !isJsonMediaType(c.req.header('content-type'))) {
+		return c.json({ error: 'unsupported_media_type' }, 415);
+	}
+	await next();
+	return undefined;
+}
+
+function isJsonMediaType(value: string | undefined): boolean {
+	if (value === undefined) {
+		return false;
+	}
+	// Ignore parameters: "application/json; charset=utf-8" -> "application/json".
+	const mediaType = value.split(';', 1)[0]?.trim().toLowerCase();
+	return mediaType === 'application/json';
 }
 
 function isJsonRpcRequest(value: unknown): value is JsonRpcRequest {

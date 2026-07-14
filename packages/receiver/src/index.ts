@@ -18,6 +18,7 @@
 import { type ServerType, serve } from '@hono/node-server';
 import type { Engine } from '@otelux/engine';
 import { Hono } from 'hono';
+import type { Context, Next } from 'hono';
 import { type OtlpExportTraceServiceRequest, decodeExportTraceServiceRequest } from './otlp.js';
 import { type OtlpExportLogsServiceRequest, decodeExportLogsServiceRequest } from './otlpLogs.js';
 import {
@@ -51,6 +52,15 @@ export interface ReceiverOptions {
 	 * above any real OTLP/HTTP export batch.
 	 */
 	maxBodyBytes?: number;
+	/**
+	 * Browser origins permitted to call this listener. Empty by default,
+	 * which rejects every request that carries an `Origin` header with
+	 * `403`. This blocks a malicious web page (or a DNS-rebinding attack)
+	 * from POSTing to the loopback listener. Non-browser senders (OTel
+	 * SDKs, CLIs) omit `Origin` and are always allowed; only hosts that
+	 * intentionally accept browser clients need to populate this.
+	 */
+	allowedOrigins?: readonly string[];
 }
 
 export interface Receiver {
@@ -64,10 +74,15 @@ export function createReceiver(options: ReceiverOptions): Receiver {
 	const requestedPort = options.port ?? 4318;
 	const host = options.host ?? '127.0.0.1';
 	const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_OTLP_MAX_BODY_BYTES;
+	const allowedOrigins = new Set(options.allowedOrigins ?? []);
 	let server: ServerType | undefined;
 	let boundPort = requestedPort;
 
 	const app = new Hono();
+
+	// Origin and content-type gate for every route. Runs before body
+	// reading so a rejected request never touches the decoder.
+	app.use('*', (c, next) => enforceRequestPolicy(c, next, allowedOrigins));
 
 	app.get('/healthz', (c) => c.text('ok'));
 
@@ -258,6 +273,52 @@ function concatChunks(chunks: readonly Uint8Array[], total: number): Uint8Array 
 		offset += chunk.byteLength;
 	}
 	return out;
+}
+
+/**
+ * Reject requests a loopback OTLP listener should never serve:
+ *  - Any request carrying an `Origin` outside `allowedOrigins` gets
+ *    `403`. Browsers attach `Origin`; OTLP SDKs and CLIs do not, so
+ *    legitimate exporters are unaffected while a malicious web page (or
+ *    a DNS-rebinding attempt against `127.0.0.1`) is blocked.
+ *  - `OPTIONS` preflight for an approved (or non-browser) request returns
+ *    `204` with the minimal CORS headers a browser needs.
+ *  - `POST` bodies must be `application/json`; anything else is `415`
+ *    before the body is read.
+ */
+async function enforceRequestPolicy(
+	c: Context,
+	next: Next,
+	allowedOrigins: ReadonlySet<string>,
+): Promise<Response | undefined> {
+	const origin = c.req.header('origin');
+	if (origin !== undefined) {
+		if (!allowedOrigins.has(origin)) {
+			return c.json({ error: 'forbidden_origin' }, 403);
+		}
+		// Echo the approved origin so the browser accepts the response.
+		c.header('Access-Control-Allow-Origin', origin);
+		c.header('Vary', 'Origin');
+	}
+	if (c.req.method === 'OPTIONS') {
+		c.header('Access-Control-Allow-Methods', 'POST, OPTIONS');
+		c.header('Access-Control-Allow-Headers', 'content-type');
+		return c.body(null, 204);
+	}
+	if (c.req.method === 'POST' && !isJsonMediaType(c.req.header('content-type'))) {
+		return c.json({ error: 'unsupported_media_type' }, 415);
+	}
+	await next();
+	return undefined;
+}
+
+function isJsonMediaType(value: string | undefined): boolean {
+	if (value === undefined) {
+		return false;
+	}
+	// Ignore parameters: "application/json; charset=utf-8" -> "application/json".
+	const mediaType = value.split(';', 1)[0]?.trim().toLowerCase();
+	return mediaType === 'application/json';
 }
 
 export const OTELUX_RECEIVER_VERSION = '0.1.0' as const;

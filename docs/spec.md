@@ -138,20 +138,24 @@ The receiver accepts OTLP/HTTP JSON today:
 | `POST /v1/metrics` | `ExportMetricsServiceRequest` JSON | `{ "partialSuccess": {} }` on success. |
 | `GET /healthz` | none | `ok`. |
 
-Malformed JSON returns `400`. Request bodies larger than the configured limit are rejected with `413 Payload Too Large` before decoding. Unknown routes return `404`. The default host is `127.0.0.1` so a desktop install is not exposed on the LAN unless explicitly configured by a host.
+Malformed JSON returns `400`. A `POST` without an `application/json` content type returns `415 Unsupported Media Type` before the body is read. Request bodies larger than the configured limit are rejected with `413 Payload Too Large` before decoding. Unknown routes return `404`. The default host is `127.0.0.1` so a desktop install is not exposed on the LAN unless explicitly configured by a host.
+
+Both loopback listeners enforce a browser-origin policy:
+
+- Any request carrying an `Origin` header is rejected with `403` unless that origin is on an explicit allowlist (empty by default). This blocks a malicious web page or DNS-rebinding attempt from reaching the listener. Non-browser senders (OTel SDKs, CLIs, MCP clients) omit `Origin` and are unaffected.
+- An approved origin receives `Access-Control-Allow-Origin` echoing that origin plus `Vary: Origin`, and CORS preflight (`OPTIONS`) is answered with `204`. A different scheme, host, or port is still rejected.
 
 Request bodies are bounded:
 
 - Configurable request limits through `ReceiverOptions.maxBodyBytes` and `HttpRouterOptions.maxBodyBytes`, with a 10 MiB default for OTLP and a 1 MiB default for MCP. A body of exactly the limit is accepted; only strictly larger bodies are rejected. The limit is enforced both from a declared `Content-Length` and while streaming, so a chunked body that omits or understates its length still cannot exceed the cap.
+- Configurable browser-origin allowlists through `ReceiverOptions.allowedOrigins` and `HttpRouterOptions.allowedOrigins` for hosts that intentionally accept browser clients.
 - Desktop environment overrides `OTELUX_OTLP_MAX_BODY_BYTES` and `OTELUX_MCP_MAX_BODY_BYTES` for testing and constrained environments. Invalid overrides fail closed to the documented defaults.
 
 Planned receiver work:
 
 - OTLP/HTTP protobuf.
 - OTLP/gRPC.
-- Strict request content types with `415 Unsupported Media Type` responses.
 - Backpressure and dropped-record counters.
-- Explicit browser-origin allowlists for hosts that intentionally accept browser clients.
 
 ## Port Defaults
 

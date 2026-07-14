@@ -234,4 +234,26 @@ describe('httpRouter', () => {
 		const body = (await response.json()) as { error?: { code?: number } };
 		expect(body.error?.code).toBe(-32600);
 	});
+
+	it('returns 415 for a non-JSON content type', async () => {
+		const server = await fixtureServer();
+		const app = httpRouter({ server });
+		const response = await app.request('/', {
+			method: 'POST',
+			headers: { 'content-type': 'text/plain' },
+			body: JSON.stringify({ jsonrpc: JSON_RPC_VERSION, id: 1, method: 'tools/list' }),
+		});
+		expect(response.status).toBe(415);
+	});
+
+	it('rejects a browser origin by default with 403', async () => {
+		const server = await fixtureServer();
+		const app = httpRouter({ server });
+		const response = await app.request('/', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json', origin: 'https://evil.example' },
+			body: JSON.stringify({ jsonrpc: JSON_RPC_VERSION, id: 1, method: 'tools/list' }),
+		});
+		expect(response.status).toBe(403);
+	});
 });

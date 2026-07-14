@@ -76,6 +76,31 @@ describe('@otelux/receiver', () => {
 			expect(res.status).toBe(400);
 		});
 
+		it('returns 415 for a non-JSON content type', async () => {
+			// Valid JSON with the wrong media type must still be refused, so the
+			// check discriminates content-type enforcement from JSON parsing.
+			const res = await fetch(`${baseUrl}/v1/traces`, {
+				method: 'POST',
+				headers: { 'content-type': 'text/plain' },
+				body: JSON.stringify(FIXTURE),
+			});
+			expect(res.status).toBe(415);
+			const list = await engine.listTraces({});
+			expect(list.totalCount).toBe(0);
+		});
+
+		it('rejects a browser origin by default with 403 and no CORS header', async () => {
+			const res = await fetch(`${baseUrl}/v1/traces`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json', origin: 'https://evil.example' },
+				body: JSON.stringify(FIXTURE),
+			});
+			expect(res.status).toBe(403);
+			expect(res.headers.get('access-control-allow-origin')).toBeNull();
+			const list = await engine.listTraces({});
+			expect(list.totalCount).toBe(0);
+		});
+
 		it('rejects start() when the port is already in use', async () => {
 			// The fixture receiver is already bound to `receiver.port`.
 			// A second receiver targeting the same port must surface the
@@ -128,6 +153,61 @@ describe('@otelux/receiver', () => {
 				body: 'x'.repeat(1024),
 			});
 			expect(res.status).toBe(400);
+		});
+	});
+
+	describe('browser origin allowlist', () => {
+		let engine: ReturnType<typeof createEngine>;
+		let receiver: ReturnType<typeof createReceiver>;
+		let baseUrl: string;
+
+		beforeEach(async () => {
+			engine = createEngine({ storage: createMemoryStorage() });
+			receiver = createReceiver({
+				engine,
+				port: 0,
+				allowedOrigins: ['https://app.example'],
+			});
+			await receiver.start();
+			baseUrl = `http://${receiver.host}:${receiver.port}`;
+		});
+
+		afterEach(async () => {
+			await receiver.stop();
+			await engine.close();
+		});
+
+		it('allows a configured origin and echoes CORS headers', async () => {
+			const res = await fetch(`${baseUrl}/v1/traces`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json', origin: 'https://app.example' },
+				body: JSON.stringify(FIXTURE),
+			});
+			expect(res.status).toBe(200);
+			expect(res.headers.get('access-control-allow-origin')).toBe('https://app.example');
+			expect(res.headers.get('vary')).toBe('Origin');
+		});
+
+		it('rejects a non-allowlisted sibling origin with 403', async () => {
+			const res = await fetch(`${baseUrl}/v1/traces`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json', origin: 'https://evil.example' },
+				body: JSON.stringify(FIXTURE),
+			});
+			expect(res.status).toBe(403);
+		});
+
+		it('answers CORS preflight for an allowed origin', async () => {
+			const res = await fetch(`${baseUrl}/v1/traces`, {
+				method: 'OPTIONS',
+				headers: {
+					origin: 'https://app.example',
+					'access-control-request-method': 'POST',
+				},
+			});
+			expect(res.status).toBe(204);
+			expect(res.headers.get('access-control-allow-origin')).toBe('https://app.example');
+			expect(res.headers.get('access-control-allow-methods')).toContain('POST');
 		});
 	});
 });
