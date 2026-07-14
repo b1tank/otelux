@@ -6,6 +6,8 @@ OTelux is a local-first OpenTelemetry workbench. It receives local telemetry, ke
 
 This document is the source of truth for what the product is, what is implemented now, and what behavior a supported release must provide. [plan.md](plan.md) owns future work, [test.md](test.md) owns release verification, and [proposal.md](proposal.md) owns the product rationale.
 
+User operation lives in [getting-started.md](getting-started.md), data handling in [privacy.md](privacy.md), and trust boundaries in [security-model.md](security-model.md).
+
 The **Current Baseline** and status tables are descriptive and must match the code. Sections labeled **Requirements** are normative product targets; an item there is not shipped unless the Current Baseline says it is live. Release-specific platform and feature limitations belong in release notes.
 
 ## Product Principles

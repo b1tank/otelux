@@ -25,14 +25,15 @@ Produces `out/main/*.js`, `out/preload/*.js`, and `out/renderer/*` ready to be p
 ./otelux.sh --no-build       # launch what's already in out/
 ./otelux.sh --port 4399      # override the OTLP port for this run
 ./otelux.sh --install-desktop # add a ~/.local entry so the app can be pinned
+./otelux.sh --install-desktop-only # install the entry without launching
 ```
 
 `otelux.sh` lives at the repo root. Unlike the VS Code launch.json ("OTelux: Main + Renderer"), it does **not** attach a debugger and uses a dedicated user-data dir (`~/.config/otelux/local`) so settings persist across runs and don't collide with the debug session.
 
 ## Package for Linux
 
+Linux packaging is under release hardening and is not an official installation path yet. The command currently exercises the configured AppImage and `.deb` targets, but generated files under `release/` are unsupported until the [release sprint](../../docs/release-sprint.md#milestone-3---official-linux-beta) passes.
+
 ```sh
 npm run -w apps/desktop package
 ```
-
-Produces an `.AppImage` and `.deb` under `apps/desktop/release/`.

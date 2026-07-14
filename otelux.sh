@@ -19,6 +19,7 @@
 #   ./otelux.sh --install-desktop     # install a ~/.local desktop entry
 #                                     # so the app can be pinned / launched
 #                                     # from the system launcher
+#   ./otelux.sh --install-desktop-only # install the entry without launching
 #   PORT=4399 ./otelux.sh             # same as --port
 #
 # Any extra arguments after a `--` are forwarded to electron, e.g.
@@ -43,8 +44,23 @@ WM_CLASS="OTelux"
 
 DO_BUILD=1
 DO_INSTALL=0
+DO_LAUNCH=1
 PORT_OVERRIDE=""
 FORWARD_ARGS=()
+
+desktop_exec_quote() {
+	local value="$1"
+	# Desktop Entry values process string escapes before Exec argument
+	# quoting, so a literal backslash inside a quoted argument needs four
+	# backslashes. Percent signs use a separate field-code grammar and must
+	# be doubled to remain literal.
+	value="${value//\\/\\\\\\\\}"
+	value="${value//\"/\\\"}"
+	value="${value//\`/\\\`}"
+	value="${value//\$/\\\$}"
+	value="${value//\%/%%}"
+	printf '"%s"' "${value}"
+}
 
 while [[ $# -gt 0 ]]; do
 	case "$1" in
@@ -54,6 +70,11 @@ while [[ $# -gt 0 ]]; do
 			;;
 		--install-desktop)
 			DO_INSTALL=1
+			shift
+			;;
+		--install-desktop-only)
+			DO_INSTALL=1
+			DO_LAUNCH=0
 			shift
 			;;
 		--port)
@@ -91,6 +112,8 @@ install_desktop_entry() {
 	local icons_dir="${XDG_DATA_HOME:-${HOME}/.local/share}/icons/hicolor/512x512/apps"
 	local desktop_file="${apps_dir}/otelux-local.desktop"
 	local installed_icon="${icons_dir}/otelux-local.png"
+	local launcher_path
+	launcher_path="$(desktop_exec_quote "${REPO_ROOT}/otelux.sh")"
 
 	mkdir -p "${apps_dir}" "${icons_dir}"
 
@@ -105,12 +128,12 @@ install_desktop_entry() {
 Type=Application
 Name=OTelux (local)
 Comment=Local OpenTelemetry workbench (locally built)
-Exec=${BASH_SOURCE[0]} --no-build
+Exec=${launcher_path} --no-build
 Icon=otelux-local
 StartupNotify=true
 StartupWMClass=${WM_CLASS}
 Terminal=false
-Categories=Development;Network;
+Categories=Development;
 Keywords=OpenTelemetry;OTLP;tracing;traces;observability;
 EOF
 
@@ -127,7 +150,10 @@ EOF
 if [[ ${DO_INSTALL} -eq 1 ]]; then
 	install_desktop_entry
 	# Falls through so --install-desktop also launches the app, mirroring
-	# the "build + run" flow. Use --no-build for install-only.
+	# the "build + run" flow. --install-desktop-only exits here instead.
+	if [[ ${DO_LAUNCH} -eq 0 ]]; then
+		exit 0
+	fi
 fi
 
 if [[ ${DO_BUILD} -eq 1 ]]; then

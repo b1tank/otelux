@@ -9,6 +9,9 @@ The desktop app is the main product. The same engine, UI, receiver, adapters, an
 - [docs/spec.md](docs/spec.md) — product, architecture, current state, package boundaries, and UX requirements.
 - [docs/plan.md](docs/plan.md) — work ahead only.
 - [docs/release-sprint.md](docs/release-sprint.md) — finite public-release execution plan, launch gates, and evidence.
+- [docs/getting-started.md](docs/getting-started.md) — current source setup, first telemetry, troubleshooting, and removal.
+- [docs/privacy.md](docs/privacy.md) — local data handling and safe telemetry sharing.
+- [docs/security-model.md](docs/security-model.md) — trust boundaries, current safeguards, and release blockers.
 - [docs/proposal.md](docs/proposal.md) — project rationale, audience, and product direction.
 - [docs/test.md](docs/test.md) — manual desktop verification plan.
 - [design/README.md](design/README.md) — UI mockup philosophy and design notes.
@@ -76,7 +79,7 @@ npm run -w @otelux/desktop package
 
 ## Current Status
 
-Pre-release. See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities and current limits, [docs/plan.md](docs/plan.md) for future product work, and [docs/release-sprint.md](docs/release-sprint.md) for temporary `v0.1.0` launch execution.
+Pre-release. Start with [docs/getting-started.md](docs/getting-started.md). See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities and current limits, [docs/plan.md](docs/plan.md) for future product work, and [docs/release-sprint.md](docs/release-sprint.md) for temporary `v0.1.0` launch execution.
 
 ## License
 
