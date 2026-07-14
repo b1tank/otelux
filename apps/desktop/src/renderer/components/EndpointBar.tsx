@@ -41,7 +41,24 @@ export function EndpointBar(props: EndpointBarProps): JSX.Element {
 				<span className="endpoint-bar__url">{statusText(status)}</span>
 			)}
 			<McpPill status={mcpStatus} />
+			<BetaBadge />
 		</div>
+	);
+}
+
+/**
+ * Always-visible beta indicator. The tooltip states the two limitations a
+ * user most needs to know up front so they are visible in the app itself,
+ * not just in release notes: telemetry is in-memory for the session only,
+ * and ingest is OTLP/HTTP JSON.
+ */
+function BetaBadge(): JSX.Element {
+	const tooltip =
+		'Beta build. Telemetry is kept in memory for this session only and is not persisted across restarts. Ingest accepts OTLP/HTTP JSON only.';
+	return (
+		<span className="endpoint-bar__beta" title={tooltip} aria-label={tooltip}>
+			Beta
+		</span>
 	);
 }
 
