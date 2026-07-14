@@ -167,6 +167,8 @@ Planned receiver work:
 Ports are host settings. The receiver package also exposes single-instance claiming so hosts can handle collisions deliberately.
 OTLP and MCP listeners must use different ports. The desktop exposes a copyable OTLP base URL and, while MCP is enabled, a copyable MCP endpoint; failed listener binds leave the previous healthy listener and persisted settings intact.
 
+The desktop MCP listener requires a per-install bearer token. A random token is generated on first run and stored in `<userData>/mcp-token`; every MCP `POST` must send `Authorization: Bearer <token>` or receive `401`. The identity probe (`GET /`) stays open so a client can check liveness without the token.
+
 ## Data Model And Query Contracts
 
 The `DataSource` contract covers:

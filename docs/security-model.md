@@ -26,9 +26,9 @@ Any local process or user that can reach the loopback interface can submit telem
 
 ### MCP server
 
-The desktop currently starts an unauthenticated MCP HTTP listener on `127.0.0.1:4320` by default. MCP tools are read-only, but they can reveal sensitive telemetry to any local client that can connect.
+The desktop starts an MCP HTTP listener on `127.0.0.1:4320` by default. MCP tools are read-only, but they can reveal sensitive telemetry to any client that connects, so HTTP access requires a per-install bearer token.
 
-Disable MCP in Settings when it is not needed, especially on a shared or multi-user host. A supported stable release requires explicit enablement or a per-install credential before returning tool results.
+A random token is generated on first run and stored in `<userData>/mcp-token` with owner-only permissions. Every JSON-RPC `POST` must send `Authorization: Bearer <token>`; a missing or wrong token is rejected with `401` before any tool runs. Configure your MCP client with the token from that file, or disable MCP in Settings when agent access is not needed. Because loopback is not user isolation, another process running as the same user can still read the token file — the token defends against unauthenticated local clients, not against a compromised local account.
 
 ### Electron renderer
 
@@ -54,7 +54,10 @@ MCP, LM, browser, clipboard, download, and future export clients operate outside
 
 - Desktop OTLP and MCP listeners bind to loopback.
 - OTLP and MCP must use different ports.
-- Failed listener changes roll back to the previous healthy listener before settings are committed.
+- OTLP and MCP request bodies are bounded before parsing; oversized requests return `413`.
+- `POST` listeners require an `application/json` content type (`415` otherwise) and reject requests from non-allowlisted browser origins (`403`).
+- MCP HTTP requires a per-install bearer token; requests without a valid `Authorization: Bearer` header return `401` before any tool runs.
+- Failed listener changes roll back to the previous healthy listener, including when the subsequent settings-file write fails.
 - Settings writes use a temporary file and rename to avoid partial JSON.
 - The app uses a single-instance lock to avoid duplicate desktop listeners.
 - The Electron renderer is sandboxed and isolated from Node.js.
@@ -68,13 +71,7 @@ MCP, LM, browser, clipboard, download, and future export clients operate outside
 
 The current source build is not a supported security release. Known release blockers include:
 
-- Electron, Hono, and build dependencies have known advisories and require coordinated upgrades.
-- OTLP and MCP request bodies are not yet bounded before parsing.
-- Content types and browser origins are not yet enforced according to the stable security requirements.
-- MCP is enabled by default and has no credential.
 - IPC relies on TypeScript shapes rather than complete runtime validation.
-- External URL and permission policies need explicit allowlists.
-- A successful listener rebind is not fully rolled back if the subsequent settings-file write fails.
 - CodeQL is configured but intentionally skipped while this repository remains private on a plan without code-scanning support.
 - Branch protection, required checks, secret scanning, push protection, and private vulnerability reporting cannot be fully enabled until repository visibility or account capabilities change.
 

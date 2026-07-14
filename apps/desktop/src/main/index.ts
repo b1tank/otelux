@@ -11,6 +11,7 @@ import {
 	type OteluxEvent,
 } from '../shared/ipc.js';
 import { McpHost } from './mcpHost.js';
+import { loadOrCreateMcpToken } from './mcpToken.js';
 import { ReceiverHost } from './receiverHost.js';
 import { isAllowedExternalUrl, isAllowedNavigation } from './security.js';
 import { SettingsStore } from './settings.js';
@@ -112,7 +113,17 @@ async function startBackend(): Promise<{
 		'127.0.0.1',
 		resolveMaxBodyBytes('OTELUX_OTLP_MAX_BODY_BYTES'),
 	);
-	const mcpHost = new McpHost(engine, '127.0.0.1', resolveMaxBodyBytes('OTELUX_MCP_MAX_BODY_BYTES'));
+	// The MCP listener is loopback but shares the host with other local
+	// processes; a per-install bearer token keeps it from becoming an
+	// unauthenticated telemetry read API for anything that can reach the port.
+	const mcpTokenFile = join(app.getPath('userData'), 'mcp-token');
+	const mcpToken = await loadOrCreateMcpToken(mcpTokenFile);
+	const mcpHost = new McpHost(
+		engine,
+		'127.0.0.1',
+		resolveMaxBodyBytes('OTELUX_MCP_MAX_BODY_BYTES'),
+		mcpToken,
+	);
 
 	const broadcast = (event: OteluxEvent): void => {
 		for (const wc of readyReceivers) {
@@ -179,6 +190,9 @@ async function startBackend(): Promise<{
 		const mcpStatus = await mcpHost.start(current.mcp.port);
 		if (mcpStatus.kind === 'running') {
 			console.log(`[otelux] MCP server listening on http://${mcpStatus.host}:${mcpStatus.port}/`);
+			console.log(
+				`[otelux] MCP requires an Authorization: Bearer token; read it from ${mcpTokenFile}`,
+			);
 		} else if (mcpStatus.kind === 'error') {
 			console.error(
 				`[otelux] MCP server failed to bind on ${mcpStatus.host}:${mcpStatus.port}: ${mcpStatus.message}`,

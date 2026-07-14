@@ -40,7 +40,7 @@ OTelux itself does not add analytics, crash reporting, or telemetry export. Expl
 - Copy, download, or future export actions place data under the user's control.
 - The GitHub link opens the project repository in the system browser.
 
-The current MCP HTTP listener is enabled by default and unauthenticated. Disable MCP in Settings when agent access is not needed, especially on shared hosts. Explicit enablement or a per-install credential is required before a supported stable release, as described in the [security requirements](spec.md#security-requirements).
+The current MCP HTTP listener is enabled by default but requires a per-install bearer token: a random secret generated on first run and stored in `<userData>/mcp-token`. Requests without a valid `Authorization: Bearer <token>` header are rejected before any tool runs. Configure your MCP client with that token, or disable MCP in Settings when agent access is not needed, especially on shared hosts. See the [security requirements](spec.md#security-requirements).
 
 ## Repository Fixtures
 

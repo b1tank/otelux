@@ -29,6 +29,7 @@ export class McpHost {
 		private readonly engine: Engine,
 		private readonly host: string,
 		private readonly maxBodyBytes?: number,
+		private readonly authToken?: string,
 	) {}
 
 	get status(): McpStatus {
@@ -55,6 +56,7 @@ export class McpHost {
 			const router = httpRouter({
 				server: mcp,
 				...(this.maxBodyBytes !== undefined ? { maxBodyBytes: this.maxBodyBytes } : {}),
+				...(this.authToken !== undefined ? { authToken: this.authToken } : {}),
 			});
 			// @hono/node-server reports bind errors via the http server's
 			// `error` event. Without an explicit listener those would bubble

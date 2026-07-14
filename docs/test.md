@@ -166,6 +166,23 @@ Restore OTLP to `14320`, then exercise the MCP controls:
 | 4.11.6 | Occupy port `14331`, set MCP to `14331`, then Save | inline EADDRINUSE error; MCP rolls back to healthy port `14330`, OTLP remains on `14320`, and settings stay unchanged |
 | 4.11.7 | Restore MCP enabled on `4320` | both default MCP behavior and the persisted settings shape are restored for the remaining sections |
 
+### 4.12 MCP bearer token
+
+The MCP listener requires a per-install token stored in `<userData>/mcp-token`.
+
+```bash
+TOKEN=$(cat /tmp/otelux-userdata/mcp-token)
+# Missing token is rejected before any tool runs.
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' \
+  --data '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' http://127.0.0.1:4320/
+# Valid token succeeds.
+curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer ${TOKEN}" \
+  --data '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' http://127.0.0.1:4320/
+```
+
+- **Expected**: the first request returns `401` and the second returns `200`. The identity probe `curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:4320/` returns `200` without a token. The main-process log points at the token file on startup.
+
 For step 4.11.6, reuse the Python listener from step 4.10 with port `14331`, then stop it after verifying rollback.
 
 ---
