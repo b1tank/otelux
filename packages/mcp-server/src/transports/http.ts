@@ -11,6 +11,7 @@
  * so there is nothing to stream.
  */
 
+import { timingSafeEqual } from 'node:crypto';
 import { Hono } from 'hono';
 import type { Context, Next } from 'hono';
 import type { JsonRpcError, JsonRpcRequest } from '../protocol.js';
@@ -33,12 +34,21 @@ export interface HttpRouterOptions {
 	 * not browsers and omit `Origin`, so they are unaffected.
 	 */
 	readonly allowedOrigins?: readonly string[];
+	/**
+	 * Per-install credential required on every JSON-RPC `POST` as
+	 * `Authorization: Bearer <token>`. When set, a request without a
+	 * matching token is rejected with `401` before any tool runs, so
+	 * another local process cannot read telemetry just by reaching the
+	 * loopback port. When omitted the listener is unauthenticated (used by
+	 * tests and embedders that supply their own gate).
+	 */
+	readonly authToken?: string;
 }
 
 const DEFAULT_MCP_MAX_BODY_BYTES = 1024 * 1024;
 
 export function httpRouter(options: HttpRouterOptions): Hono {
-	const { server } = options;
+	const { server, authToken } = options;
 	const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MCP_MAX_BODY_BYTES;
 	const allowedOrigins = new Set(options.allowedOrigins ?? []);
 	const app = new Hono();
@@ -56,6 +66,11 @@ export function httpRouter(options: HttpRouterOptions): Hono {
 	);
 
 	app.post('/', async (c) => {
+		// Authenticate before reading the body so an unauthorized caller
+		// cannot even stream a payload at us.
+		if (authToken !== undefined && !hasValidBearerToken(c.req.header('authorization'), authToken)) {
+			return c.json(unauthorized() as unknown as Record<string, unknown>, 401);
+		}
 		const read = await readBodyWithLimit(c.req.raw, maxBodyBytes);
 		if (!read.ok) {
 			return c.json(payloadTooLarge() as unknown as Record<string, unknown>, 413);
@@ -213,4 +228,33 @@ function payloadTooLarge(): JsonRpcError {
 		id: null,
 		error: { code: ERROR_CODES.INVALID_REQUEST, message: 'request body too large' },
 	};
+}
+
+function unauthorized(): JsonRpcError {
+	// The 401 status carries the auth signal; JSON-RPC has no auth code, so
+	// INVALID_REQUEST marks the request as refused before processing.
+	return {
+		jsonrpc: JSON_RPC_VERSION,
+		id: null,
+		error: { code: ERROR_CODES.INVALID_REQUEST, message: 'unauthorized' },
+	};
+}
+
+/**
+ * Constant-time check of an `Authorization: Bearer <token>` header
+ * against the expected token. The comparison is length-guarded and uses
+ * `timingSafeEqual` so a caller cannot recover the token byte-by-byte
+ * from response timing.
+ */
+function hasValidBearerToken(header: string | undefined, expected: string): boolean {
+	const prefix = 'Bearer ';
+	if (header === undefined || !header.startsWith(prefix)) {
+		return false;
+	}
+	const provided = Buffer.from(header.slice(prefix.length));
+	const want = Buffer.from(expected);
+	if (provided.length !== want.length) {
+		return false;
+	}
+	return timingSafeEqual(provided, want);
 }

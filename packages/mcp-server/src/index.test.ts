@@ -256,4 +256,52 @@ describe('httpRouter', () => {
 		});
 		expect(response.status).toBe(403);
 	});
+
+	it('rejects a POST without the bearer token when one is configured', async () => {
+		const server = await fixtureServer();
+		const app = httpRouter({ server, authToken: 'secret-token' });
+		const response = await app.request('/', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ jsonrpc: JSON_RPC_VERSION, id: 1, method: 'tools/list' }),
+		});
+		expect(response.status).toBe(401);
+	});
+
+	it('rejects a POST with a wrong bearer token', async () => {
+		const server = await fixtureServer();
+		const app = httpRouter({ server, authToken: 'secret-token' });
+		const response = await app.request('/', {
+			method: 'POST',
+			headers: {
+				'content-type': 'application/json',
+				authorization: 'Bearer wrong-token',
+			},
+			body: JSON.stringify({ jsonrpc: JSON_RPC_VERSION, id: 1, method: 'tools/list' }),
+		});
+		expect(response.status).toBe(401);
+	});
+
+	it('accepts a POST carrying the correct bearer token', async () => {
+		const server = await fixtureServer();
+		const app = httpRouter({ server, authToken: 'secret-token' });
+		const response = await app.request('/', {
+			method: 'POST',
+			headers: {
+				'content-type': 'application/json',
+				authorization: 'Bearer secret-token',
+			},
+			body: JSON.stringify({ jsonrpc: JSON_RPC_VERSION, id: 1, method: 'tools/list' }),
+		});
+		expect(response.status).toBe(200);
+		const body = (await response.json()) as { result?: { tools?: unknown[] } };
+		expect(body.result?.tools).toBeDefined();
+	});
+
+	it('leaves the identity probe open even when a token is configured', async () => {
+		const server = await fixtureServer();
+		const app = httpRouter({ server, authToken: 'secret-token' });
+		const response = await app.request('/');
+		expect(response.status).toBe(200);
+	});
 });
