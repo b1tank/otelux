@@ -19,6 +19,14 @@ files:
   - "!node_modules/@otelux/*/tsconfig*.json"
   - "!node_modules/@otelux/*/tsup.config.*"
   - "!node_modules/@otelux/*/vitest.config.*"
+# Ship the project license and generated third-party notices inside every
+# artifact. THIRD-PARTY-NOTICES.txt is produced by `npm run generate:notices`
+# (invoked by the `package` script) from the production dependency closure.
+extraResources:
+  - from: "../../LICENSE"
+    to: "LICENSE"
+  - from: "build/THIRD-PARTY-NOTICES.txt"
+    to: "THIRD-PARTY-NOTICES.txt"
 asar: true
 # App icon (master SVG: build/icon.svg). Rasterize with
 # `./scripts/build-icons.sh` after editing the SVG. electron-builder picks

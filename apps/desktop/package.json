@@ -20,7 +20,8 @@
 		"test": "vitest run --passWithNoTests",
 		"clean": "rm -rf out release .turbo",
 		"start": "electron-vite preview",
-		"package": "electron-vite build && electron-builder --linux --publish=never"
+		"generate:notices": "node scripts/generate-notices.mjs",
+		"package": "npm run generate:notices && electron-vite build && electron-builder --linux --publish=never"
 	},
 	"engines": {
 		"node": ">=22.12.0"
