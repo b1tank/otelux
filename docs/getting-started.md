@@ -140,7 +140,7 @@ Stop the conflicting process or choose different ports in Settings. Do not expos
 
 Verify all of the following:
 
-- The exporter uses OTLP/HTTP JSON, not protobuf or gRPC.
+- The exporter uses OTLP/HTTP (JSON or protobuf), not gRPC.
 - The signal uses its full endpoint path.
 - The host and port match the green OTLP endpoint shown in OTelux.
 - `curl http://127.0.0.1:4319/healthz` succeeds.

@@ -29,7 +29,7 @@ The repository currently contains:
 
 - `apps/desktop`: Electron app hosting the receiver, engine, MCP server, IPC, settings, and React renderer.
 - `apps/vscode-extension`: VS Code extension shell with embedded receiver, MCP server, webview workbench, and LM Tool registration.
-- OTLP/HTTP JSON ingest for traces, logs, and metrics.
+- OTLP/HTTP JSON and protobuf ingest for traces, logs, and metrics.
 - Durable local storage for all signals via `@otelux/engine-node` (Node `node:sqlite`), with user-configurable retention (age and size). `@otelux/engine` still ships an in-memory store for tests and small workloads.
 - Live Traces, Logs, and Metrics rail surfaces in `@otelux/ui`.
 - Direct and VS Code postMessage `DataSource` adapters.
@@ -38,7 +38,7 @@ The repository currently contains:
 
 Important current limits:
 
-- Protobuf and gRPC ingest are planned, not shipped.
+- OTLP/gRPC ingest is planned, not shipped (OTLP/HTTP JSON and protobuf are live).
 - Dense trace modes, detail search, result footers, and live/paused controls need polish.
 - Agent-run correlation and service overview tools are schema-stable but not fully implemented.
 
@@ -124,20 +124,20 @@ Future packages or apps, such as a WASM storage adapter or web demo, should be a
 | Agent protocol | Hand-written MCP JSON-RPC dispatcher with HTTP and stdio transports. |
 | Storage | `@otelux/engine` in-memory (tests/small workloads); `@otelux/engine-node` durable Node 22 `node:sqlite` with retention. |
 
-Do not document dependencies as adopted until they are present in manifests and used by code. Storybook, Playwright visual snapshots, TanStack, Radix, visx, Zustand, SQLite-WASM, protobuf, and gRPC remain future decisions unless added by implementation.
+Do not document dependencies as adopted until they are present in manifests and used by code. Storybook, Playwright visual snapshots, TanStack, Radix, visx, Zustand, SQLite-WASM, and gRPC remain future decisions unless added by implementation.
 
 ## Receiver Contract
 
-The receiver accepts OTLP/HTTP JSON today:
+The receiver accepts OTLP/HTTP in both JSON and protobuf encodings, selected by `Content-Type`:
 
 | Route | Body | Result |
 |---|---|---|
-| `POST /v1/traces` | `ExportTraceServiceRequest` JSON | `{ "partialSuccess": {} }` on success. |
-| `POST /v1/logs` | `ExportLogsServiceRequest` JSON | `{ "partialSuccess": {} }` on success. |
-| `POST /v1/metrics` | `ExportMetricsServiceRequest` JSON | `{ "partialSuccess": {} }` on success. |
+| `POST /v1/traces` | `ExportTraceServiceRequest` (JSON or protobuf) | success response in the request encoding. |
+| `POST /v1/logs` | `ExportLogsServiceRequest` (JSON or protobuf) | success response in the request encoding. |
+| `POST /v1/metrics` | `ExportMetricsServiceRequest` (JSON or protobuf) | success response in the request encoding. |
 | `GET /healthz` | none | `ok`. |
 
-Malformed JSON returns `400`. A `POST` without an `application/json` content type returns `415 Unsupported Media Type` before the body is read. Request bodies larger than the configured limit are rejected with `413 Payload Too Large` before decoding. Unknown routes return `404`. The default host is `127.0.0.1` so a desktop install is not exposed on the LAN unless explicitly configured by a host.
+Encoding is chosen by `Content-Type`: `application/json` (JSON) or `application/x-protobuf` / `application/protobuf` (protobuf, the default for most OTel SDK exporters). On success a JSON request receives `{ "partialSuccess": {} }`; a protobuf request receives an empty `application/x-protobuf` body (a valid empty `ExportServiceResponse`). A malformed body returns `400`. A `POST` with any other content type returns `415 Unsupported Media Type` before the body is read. Request bodies larger than the configured limit are rejected with `413 Payload Too Large` before decoding. Unknown routes return `404`. The default host is `127.0.0.1` so a desktop install is not exposed on the LAN unless explicitly configured by a host.
 
 Both loopback listeners enforce a browser-origin policy:
 
@@ -152,7 +152,6 @@ Request bodies are bounded:
 
 Planned receiver work:
 
-- OTLP/HTTP protobuf.
 - OTLP/gRPC.
 - Backpressure and dropped-record counters.
 

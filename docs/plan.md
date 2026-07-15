@@ -89,7 +89,7 @@ Goal: accept more real-world OTLP senders without losing the local-first model.
 
 Tasks:
 
-- Add OTLP/HTTP protobuf decoding for traces, logs, and metrics.
+- [x] Add OTLP/HTTP protobuf decoding for traces, logs, and metrics.
 - Add OTLP/gRPC for traces, logs, and metrics.
 - Add bounded ingest queues, dropped-record counters, and UI surfacing for receiver pressure.
 - Harden CORS and optional local auth token settings.

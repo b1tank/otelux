@@ -1,18 +1,19 @@
 /**
  * @otelux/receiver — OTLP/HTTP receiver wired to an @otelux/engine.
  *
- * We accept the OTLP/HTTP JSON encoding today. Spec:
+ * We accept the OTLP/HTTP JSON and protobuf encodings. Spec:
  * https://opentelemetry.io/docs/specs/otlp/#otlphttp
  *
- * - POST /v1/traces  — `ExportTraceServiceRequest` JSON body.
- * - POST /v1/logs    — `ExportLogsServiceRequest` JSON body.
- * - POST /v1/metrics — `ExportMetricsServiceRequest` JSON body.
+ * - POST /v1/traces  — `ExportTraceServiceRequest` (JSON or protobuf body).
+ * - POST /v1/logs    — `ExportLogsServiceRequest` (JSON or protobuf body).
+ * - POST /v1/metrics — `ExportMetricsServiceRequest` (JSON or protobuf body).
  * - GET /healthz — 200 OK probe used by the desktop app to know when the
  *   server is ready to accept connections.
  *
- * The protobuf encoding (`Content-Type: application/x-protobuf`) is
- * intentionally deferred — OTel SDKs all support `protocol=http/json` so
- * we lose no real-world senders.
+ * Encoding is selected by `Content-Type`: `application/json` for JSON, and
+ * `application/x-protobuf` (or `application/protobuf`) for protobuf, which is
+ * the default wire format for most OpenTelemetry SDK exporters. The success
+ * response mirrors the request encoding.
  */
 
 import { type ServerType, serve } from '@hono/node-server';
@@ -25,6 +26,11 @@ import {
 	type OtlpExportMetricsServiceRequest,
 	decodeExportMetricsServiceRequest,
 } from './otlpMetrics.js';
+import {
+	decodeLogsRequestFromProtobuf,
+	decodeMetricsRequestFromProtobuf,
+	decodeTraceRequestFromProtobuf,
+} from './otlpProtobuf.js';
 
 export type { OtlpExportTraceServiceRequest } from './otlp.js';
 export { decodeExportTraceServiceRequest } from './otlp.js';
@@ -32,6 +38,11 @@ export type { OtlpExportLogsServiceRequest } from './otlpLogs.js';
 export { decodeExportLogsServiceRequest } from './otlpLogs.js';
 export type { OtlpExportMetricsServiceRequest } from './otlpMetrics.js';
 export { decodeExportMetricsServiceRequest } from './otlpMetrics.js';
+export {
+	decodeLogsRequestFromProtobuf,
+	decodeMetricsRequestFromProtobuf,
+	decodeTraceRequestFromProtobuf,
+} from './otlpProtobuf.js';
 export type {
 	ClaimSingleInstanceOptions,
 	SingleInstanceClaim,
@@ -86,57 +97,35 @@ export function createReceiver(options: ReceiverOptions): Receiver {
 
 	app.get('/healthz', (c) => c.text('ok'));
 
-	app.post('/v1/traces', async (c) => {
-		// OTLP requires application/json for JSON encoding. Be lenient: we
-		// accept anything that parses, but reject obviously wrong bodies
-		// with a structured OTLP partial-success-style 400.
-		const body = await readBodyWithLimit(c.req.raw, maxBodyBytes);
-		if (!body.ok) {
-			return c.json({ error: 'payload_too_large' }, 413);
-		}
-		let payload: OtlpExportTraceServiceRequest;
-		try {
-			payload = JSON.parse(body.text) as OtlpExportTraceServiceRequest;
-		} catch {
-			return c.json({ error: 'invalid_json' }, 400);
-		}
-		const spans = decodeExportTraceServiceRequest(payload);
-		await options.engine.ingestSpans(spans);
-		// OTLP success response shape: empty partialSuccess means everything accepted.
-		return c.json({ partialSuccess: {} });
-	});
+	app.post('/v1/traces', (c) =>
+		handleExport(
+			c,
+			maxBodyBytes,
+			(bytes) => decodeExportTraceServiceRequest(decodeTraceRequestFromProtobuf(bytes)),
+			(payload) => decodeExportTraceServiceRequest(payload as OtlpExportTraceServiceRequest),
+			(spans) => options.engine.ingestSpans(spans),
+		),
+	);
 
-	app.post('/v1/logs', async (c) => {
-		const body = await readBodyWithLimit(c.req.raw, maxBodyBytes);
-		if (!body.ok) {
-			return c.json({ error: 'payload_too_large' }, 413);
-		}
-		let payload: OtlpExportLogsServiceRequest;
-		try {
-			payload = JSON.parse(body.text) as OtlpExportLogsServiceRequest;
-		} catch {
-			return c.json({ error: 'invalid_json' }, 400);
-		}
-		const logs = decodeExportLogsServiceRequest(payload);
-		await options.engine.ingestLogs(logs);
-		return c.json({ partialSuccess: {} });
-	});
+	app.post('/v1/logs', (c) =>
+		handleExport(
+			c,
+			maxBodyBytes,
+			(bytes) => decodeExportLogsServiceRequest(decodeLogsRequestFromProtobuf(bytes)),
+			(payload) => decodeExportLogsServiceRequest(payload as OtlpExportLogsServiceRequest),
+			(logs) => options.engine.ingestLogs(logs),
+		),
+	);
 
-	app.post('/v1/metrics', async (c) => {
-		const body = await readBodyWithLimit(c.req.raw, maxBodyBytes);
-		if (!body.ok) {
-			return c.json({ error: 'payload_too_large' }, 413);
-		}
-		let payload: OtlpExportMetricsServiceRequest;
-		try {
-			payload = JSON.parse(body.text) as OtlpExportMetricsServiceRequest;
-		} catch {
-			return c.json({ error: 'invalid_json' }, 400);
-		}
-		const metrics = decodeExportMetricsServiceRequest(payload);
-		await options.engine.ingestMetrics(metrics);
-		return c.json({ partialSuccess: {} });
-	});
+	app.post('/v1/metrics', (c) =>
+		handleExport(
+			c,
+			maxBodyBytes,
+			(bytes) => decodeExportMetricsServiceRequest(decodeMetricsRequestFromProtobuf(bytes)),
+			(payload) => decodeExportMetricsServiceRequest(payload as OtlpExportMetricsServiceRequest),
+			(metrics) => options.engine.ingestMetrics(metrics),
+		),
+	);
 
 	return {
 		// Reported port reflects the actually bound port (matters when
@@ -207,10 +196,45 @@ const MIB = 1024 * 1024;
  */
 const DEFAULT_OTLP_MAX_BODY_BYTES = 10 * MIB;
 
-type LimitedBody = { ok: true; text: string } | { ok: false };
+const textDecoder = new TextDecoder();
 
 /**
- * Read a request body as text while enforcing a hard byte cap.
+ * Shared export handler for the three signal routes. Reads the body under the
+ * size cap, decodes it with the encoding named by `Content-Type` (protobuf when
+ * `application/x-protobuf`/`application/protobuf`, otherwise JSON), ingests the
+ * result, and answers with a success response in the same encoding. A malformed
+ * body is rejected with `400` rather than throwing.
+ */
+async function handleExport<T>(
+	c: Context,
+	maxBodyBytes: number,
+	decodeProto: (bytes: Uint8Array) => T,
+	decodeJson: (payload: unknown) => T,
+	ingest: (data: T) => Promise<void>,
+): Promise<Response> {
+	const body = await readBodyWithLimit(c.req.raw, maxBodyBytes);
+	if (!body.ok) {
+		return c.json({ error: 'payload_too_large' }, 413);
+	}
+	const proto = isProtobufMediaType(c.req.header('content-type'));
+	let data: T;
+	try {
+		data = proto ? decodeProto(body.bytes) : decodeJson(JSON.parse(textDecoder.decode(body.bytes)));
+	} catch {
+		return c.json({ error: proto ? 'invalid_protobuf' : 'invalid_json' }, 400);
+	}
+	await ingest(data);
+	// Mirror the request encoding in the success response. An empty body is a
+	// valid empty ExportServiceResponse (no partial_success = everything accepted).
+	return proto
+		? c.body(null, 200, { 'Content-Type': 'application/x-protobuf' })
+		: c.json({ partialSuccess: {} });
+}
+
+type LimitedBody = { ok: true; bytes: Uint8Array } | { ok: false };
+
+/**
+ * Read a request body as raw bytes while enforcing a hard byte cap.
  *
  * Two layers of defense:
  *  1. Fast path — honest senders declare `Content-Length`, so reject
@@ -235,7 +259,7 @@ async function readBodyWithLimit(req: Request, maxBytes: number): Promise<Limite
 
 	const body = req.body;
 	if (body === null) {
-		return { ok: true, text: '' };
+		return { ok: true, bytes: new Uint8Array(0) };
 	}
 
 	const reader = body.getReader();
@@ -262,7 +286,7 @@ async function readBodyWithLimit(req: Request, maxBytes: number): Promise<Limite
 		reader.releaseLock();
 	}
 
-	return { ok: true, text: new TextDecoder().decode(concatChunks(chunks, total)) };
+	return { ok: true, bytes: concatChunks(chunks, total) };
 }
 
 function concatChunks(chunks: readonly Uint8Array[], total: number): Uint8Array {
@@ -283,7 +307,8 @@ function concatChunks(chunks: readonly Uint8Array[], total: number): Uint8Array 
  *    a DNS-rebinding attempt against `127.0.0.1`) is blocked.
  *  - `OPTIONS` preflight for an approved (or non-browser) request returns
  *    `204` with the minimal CORS headers a browser needs.
- *  - `POST` bodies must be `application/json`; anything else is `415`
+ *  - `POST` bodies must be `application/json` or `application/x-protobuf`
+ *    (`application/protobuf` is also accepted); anything else is `415`
  *    before the body is read.
  */
 async function enforceRequestPolicy(
@@ -305,7 +330,7 @@ async function enforceRequestPolicy(
 		c.header('Access-Control-Allow-Headers', 'content-type');
 		return c.body(null, 204);
 	}
-	if (c.req.method === 'POST' && !isJsonMediaType(c.req.header('content-type'))) {
+	if (c.req.method === 'POST' && !isSupportedMediaType(c.req.header('content-type'))) {
 		return c.json({ error: 'unsupported_media_type' }, 415);
 	}
 	await next();
@@ -313,12 +338,25 @@ async function enforceRequestPolicy(
 }
 
 function isJsonMediaType(value: string | undefined): boolean {
+	return mediaType(value) === 'application/json';
+}
+
+function isProtobufMediaType(value: string | undefined): boolean {
+	const m = mediaType(value);
+	// Exporters use `application/x-protobuf`; `application/protobuf` is also seen.
+	return m === 'application/x-protobuf' || m === 'application/protobuf';
+}
+
+function isSupportedMediaType(value: string | undefined): boolean {
+	return isJsonMediaType(value) || isProtobufMediaType(value);
+}
+
+function mediaType(value: string | undefined): string | undefined {
 	if (value === undefined) {
-		return false;
+		return undefined;
 	}
 	// Ignore parameters: "application/json; charset=utf-8" -> "application/json".
-	const mediaType = value.split(';', 1)[0]?.trim().toLowerCase();
-	return mediaType === 'application/json';
+	return value.split(';', 1)[0]?.trim().toLowerCase();
 }
 
 export const OTELUX_RECEIVER_VERSION = '0.1.0' as const;

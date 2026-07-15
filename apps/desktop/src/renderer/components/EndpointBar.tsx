@@ -49,12 +49,12 @@ export function EndpointBar(props: EndpointBarProps): JSX.Element {
 /**
  * Always-visible beta indicator. The tooltip states the limitations a user
  * most needs to know up front so they are visible in the app itself, not just
- * in release notes: telemetry now persists to a local database but is pruned by
- * the retention setting, and ingest is OTLP/HTTP JSON only.
+ * in release notes: telemetry persists to a local database but is pruned by the
+ * retention setting, and ingest is OTLP/HTTP (JSON or protobuf), not gRPC.
  */
 function BetaBadge(): JSX.Element {
 	const tooltip =
-		'Beta build. Telemetry is stored in a local database and persists across restarts, pruned by the retention setting (default 72h / 512 MB). Ingest accepts OTLP/HTTP JSON only.';
+		'Beta build. Telemetry is stored in a local database and persists across restarts, pruned by the retention setting (default 72h / 512 MB). Ingest accepts OTLP/HTTP (JSON or protobuf); gRPC is not supported.';
 	return (
 		<span className="endpoint-bar__beta" title={tooltip} aria-label={tooltip}>
 			Beta

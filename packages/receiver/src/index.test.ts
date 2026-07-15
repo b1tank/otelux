@@ -8,6 +8,32 @@ import {
 	createReceiver,
 	decodeExportTraceServiceRequest,
 } from './index.js';
+import { ProtoWriter, hexToBytes } from './protoTestEncoder.js';
+
+/** Build a minimal single-span OTLP protobuf ExportTraceServiceRequest. */
+function sampleTraceProtobuf(): Uint8Array {
+	const anyString = (s: string): ProtoWriter => new ProtoWriter().stringField(1, s);
+	const keyValue = (k: string, v: ProtoWriter): ProtoWriter =>
+		new ProtoWriter().stringField(1, k).messageField(2, v);
+	const span = new ProtoWriter()
+		.bytesField(1, hexToBytes('abcdef1234567890abcdef1234567890'))
+		.bytesField(2, hexToBytes('1111111111111111'))
+		.stringField(5, 'GET /proto')
+		.varintField(6, 2)
+		.fixed64Field(7, 1_700_000_000_000_000_000n)
+		.fixed64Field(8, 1_700_000_000_010_000_000n)
+		.messageField(15, new ProtoWriter().varintField(3, 1));
+	const scopeSpans = new ProtoWriter()
+		.messageField(1, new ProtoWriter().stringField(1, 'http'))
+		.messageField(2, span);
+	const resourceSpans = new ProtoWriter()
+		.messageField(
+			1,
+			new ProtoWriter().messageField(1, keyValue('service.name', anyString('proto-svc'))),
+		)
+		.messageField(2, scopeSpans);
+	return new ProtoWriter().messageField(1, resourceSpans).finish();
+}
 
 const FIXTURE = JSON.parse(
 	readFileSync(
@@ -74,6 +100,34 @@ describe('@otelux/receiver', () => {
 				body: '{not json',
 			});
 			expect(res.status).toBe(400);
+		});
+
+		it('ingests an OTLP/HTTP protobuf payload and answers in protobuf', async () => {
+			const res = await fetch(`${baseUrl}/v1/traces`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/x-protobuf' },
+				body: sampleTraceProtobuf(),
+			});
+			expect(res.status).toBe(200);
+			// The success response mirrors the request encoding.
+			expect(res.headers.get('content-type')).toContain('application/x-protobuf');
+			const list = await engine.listTraces({});
+			expect(list.totalCount).toBe(1);
+			expect(list.rows[0]?.rootName).toBe('GET /proto');
+			expect(list.rows[0]?.services).toContain('proto-svc');
+		});
+
+		it('returns 400 for a malformed protobuf body', async () => {
+			// A truncated varint header cannot be decoded; the receiver must
+			// reject it rather than throw.
+			const res = await fetch(`${baseUrl}/v1/traces`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/x-protobuf' },
+				body: new Uint8Array([0x0a, 0xff]),
+			});
+			expect(res.status).toBe(400);
+			const list = await engine.listTraces({});
+			expect(list.totalCount).toBe(0);
 		});
 
 		it('returns 415 for a non-JSON content type', async () => {
