@@ -32,7 +32,7 @@ Done when:
 
 Goal: replace the current memory-backed storage with a real local store that survives restarts.
 
-Status: **core delivered.** `@otelux/engine-node` is a durable `node:sqlite` store wired into the desktop app, with user-configurable retention. Migration/versioning and multi-backend contract tests remain.
+Status: **delivered.** `@otelux/engine-node` is a durable `node:sqlite` store wired into the desktop app, with user-configurable retention, a forward-migration framework, corruption recovery, and a contract suite shared with the memory backend. Only the portable browser-store target remains open.
 
 Tasks:
 
@@ -41,13 +41,13 @@ Tasks:
 - [x] Persist traces (+ materialized trace rollup), logs, metrics, interned resources/scopes, and hot indexed attributes.
 - [x] Add retention controls by age and size (default 72h / 512 MB; `0` disables either bound), exposed in Settings and enforced by a background prune + on-change.
 - Keep the engine storage interface portable so a future browser store can reuse the same query behavior.
-- Add schema migration and corruption-tolerance tests (currently: schema bootstrap only; no cross-version migration yet).
-- Run the storage contract test suite against both memory and SQLite backends.
+- [x] Add schema migration framework (versioned, forward-only) and corruption-tolerance recovery (quarantine the bad file, start fresh), with tests for bootstrap, newer-version, and corrupt-file cases.
+- [x] Run the storage contract test suite against both memory and SQLite backends.
 
 Done when:
 
 - [x] Desktop data survives restart.
-- Existing engine tests pass against both memory and SQLite storage (shared contract suite pending).
+- [x] Existing engine tests pass against both memory and SQLite storage (shared contract suite).
 - [x] Retention can bound disk growth (age and size) without blocking ingest.
 
 ## Phase 3 — VS Code Extension Hardening

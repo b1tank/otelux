@@ -25,7 +25,7 @@ import type {
 	ListTracesResult,
 } from '@otelux/protocol';
 import type { LogRecord, Metric, Span, SpanId, TraceId } from '@otelux/types';
-import { openDatabase } from './db.js';
+import { openDatabaseWithRecovery } from './db.js';
 import { Interner } from './intern.js';
 import { LogStore } from './logs.js';
 import { MetricStore } from './metrics.js';
@@ -33,6 +33,7 @@ import { type RetentionConfig, pruneRetention } from './retention.js';
 import { SpanStore } from './spans.js';
 
 export type { RetentionConfig } from './retention.js';
+export { SchemaVersionError } from './db.js';
 
 export interface NodeSqliteStorageOptions {
 	/** Path to the SQLite file. Use `:memory:` for ephemeral tests. */
@@ -88,7 +89,7 @@ export function createNodeSqliteStorage(options: NodeSqliteStorageOptions): Node
 	const now = options.now ?? defaultNow;
 	let retention = options.retention ?? DEFAULT_RETENTION;
 
-	const db: DatabaseSync = openDatabase(options.path);
+	const db: DatabaseSync = openDatabaseWithRecovery(options.path);
 	const interner = new Interner(db);
 	const spans = new SpanStore(db, interner);
 	const logs = new LogStore(db, interner);
