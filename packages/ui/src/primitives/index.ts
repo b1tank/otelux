@@ -18,6 +18,10 @@ export { ToggleChip } from './ToggleChip.js';
 export type { ToggleChipProps } from './ToggleChip.js';
 export { CopyButton } from './CopyButton.js';
 export type { CopyButtonProps } from './CopyButton.js';
+export { LivePauseToggle } from './LivePauseToggle.js';
+export type { LivePauseToggleProps } from './LivePauseToggle.js';
+export { ResultFooter } from './ResultFooter.js';
+export type { ResultFooterProps } from './ResultFooter.js';
 export { ValueViewer } from './ValueViewer.js';
 export type { ValueViewerProps } from './ValueViewer.js';
 export { OTeluxLogo } from './OTeluxLogo.js';
@@ -39,6 +43,8 @@ export {
 	MoonIcon,
 	PanelLeftIcon,
 	PanelRightIcon,
+	PauseIcon,
+	PlayIcon,
 	SearchIcon,
 	SettingsIcon,
 	SunIcon,

@@ -24,6 +24,7 @@ import {
 	Dropdown,
 	type DropdownOption,
 	GithubIcon,
+	LivePauseToggle,
 	LogsIcon,
 	MonitorIcon,
 	MoonIcon,
@@ -150,6 +151,9 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 	const systemTheme = useSystemTheme();
 	const resolvedTheme = themeMode === 'auto' ? systemTheme : themeMode;
 	const [activeView, setActiveView] = useState<'traces' | 'logs' | 'metrics'>('traces');
+	// Live-tail state, shared across all three signal views. When paused, the
+	// views freeze on their current results; ingest continues underneath.
+	const [isPaused, setIsPaused] = useState(false);
 	const [selectedTraceId, setSelectedTraceIdRaw] = useState<TraceId | undefined>(undefined);
 	const [selectedSpanId, setSelectedSpanId] = useState<SpanId | undefined>(undefined);
 	const [errorsOnly, setErrorsOnly] = useState(false);
@@ -370,6 +374,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		dataSource,
 		onSelect: setSelectedTraceId,
 		errorsOnly,
+		paused: isPaused,
 		...(selectedService !== 'all' ? { services: [selectedService] } : {}),
 		...(searchQuery ? { search: searchQuery } : {}),
 		...(selectedTraceId !== undefined ? { selectedTraceId } : {}),
@@ -385,6 +390,12 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		// the user can bring it back without re-selecting a trace.
 		...(wfCollapsed && trace ? { onRestoreWaterfall: () => setWfCollapsed(false) } : {}),
 	};
+
+	// One live/paused control, shared across every view's FilterBar so the
+	// state is global (pausing on Logs keeps Traces frozen too).
+	const livePauseControl = (
+		<LivePauseToggle paused={isPaused} onToggle={() => setIsPaused((p) => !p)} />
+	);
 
 	const cycleThemeMode = (): void => {
 		const currentIndex = THEME_MODE_ORDER.indexOf(themeMode);
@@ -510,10 +521,12 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 									/>
 								</>
 							}
+							end={livePauseControl}
 						/>
 						<LogsView
 							dataSource={dataSource}
 							onOpenTrace={openTraceFromLog}
+							paused={isPaused}
 							{...(logsSeverity !== 'all' ? { minSeverity: Number(logsSeverity) } : {})}
 							{...(logsService !== 'all' ? { services: [logsService] } : {})}
 							{...(logsSearch ? { search: logsSearch } : {})}
@@ -557,9 +570,11 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 									/>
 								</>
 							}
+							end={livePauseControl}
 						/>
 						<MetricsView
 							dataSource={dataSource}
+							paused={isPaused}
 							{...(metricsService !== 'all' ? { services: [metricsService] } : {})}
 							{...(metricsSearch ? { search: metricsSearch } : {})}
 							{...(endpointUrl !== undefined
@@ -604,6 +619,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 										/>
 									</>
 								}
+								end={livePauseControl}
 							/>
 						) : null}
 						<Workbench

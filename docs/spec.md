@@ -40,7 +40,7 @@ The repository currently contains:
 Important current limits:
 
 - OTLP/gRPC ingest is planned, not shipped (OTLP/HTTP JSON and protobuf are live).
-- Dense trace modes, detail search, result footers, and live/paused controls need polish.
+- Dense trace modes, detail search, and clear-data controls need polish.
 - Agent-run correlation and service overview tools are schema-stable but not fully implemented.
 
 ## Signals In Scope

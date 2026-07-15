@@ -24,6 +24,7 @@ import type { JSX, KeyboardEvent } from 'react';
 import { formatDuration, formatWallClock, serviceColorVar } from '../format.js';
 import { CopyButton } from '../primitives/CopyButton.js';
 import { IconButton } from '../primitives/IconButton.js';
+import { ResultFooter } from '../primitives/ResultFooter.js';
 import { PanelLeftIcon, WaterfallIcon } from '../primitives/icons.js';
 import { useDataSourceQuery } from '../useDataSourceQuery.js';
 
@@ -63,6 +64,8 @@ export interface TraceListProps {
 	 * user can populate the workbench without wiring an exporter.
 	 */
 	onLoadSampleData?: () => void;
+	/** When true, live updates are frozen (the list holds its current rows). */
+	paused?: boolean;
 }
 
 const DEFAULT_LIMIT = 200;
@@ -82,6 +85,7 @@ export function TraceList(props: TraceListProps): JSX.Element {
 		onCollapse,
 		onRestoreWaterfall,
 		onLoadSampleData,
+		paused = false,
 	} = props;
 
 	// Build the protocol-level query object. The serialization key below
@@ -108,6 +112,7 @@ export function TraceList(props: TraceListProps): JSX.Element {
 			return ds.listTraces(q);
 		},
 		queryKey,
+		paused,
 	);
 
 	const rows = query.value?.rows ?? [];
@@ -176,6 +181,9 @@ export function TraceList(props: TraceListProps): JSX.Element {
 					</ul>
 				)}
 			</div>
+			{rows.length > 0 ? (
+				<ResultFooter count={query.value?.totalCount ?? rows.length} noun="trace" paused={paused} />
+			) : null}
 		</section>
 	);
 }

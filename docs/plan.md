@@ -18,7 +18,7 @@ Tasks:
 - Normalize section count badges and action menus across span and log details.
 - Add metric grouping controls for Service and Type without losing the current meter-first explorer layout.
 - Improve histogram labels with clearer bucket boundaries, count/sum context, and table parity.
-- Add pause/resume, clear data, and result footer state across traces, logs, and metrics.
+- Add pause/resume (live-tail freeze) and result footer state across traces, logs, and metrics — **done**; clear data with confirmation remains.
 - Add dense trace-list headers and sort controls when the trace list owns enough horizontal space.
 - Virtualize logs and trace rows once row counts exceed a few hundred.
 

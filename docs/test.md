@@ -77,6 +77,14 @@ cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-us
 1. From the empty Traces view, click **Load sample data**.
 - **Expected**: the trace list populates with two traces — `GET /checkout` (4 spans, `otelux-demo-web` + `otelux-demo-api`, **1 err**, ~120ms) and `GET /health` (1 span). The Logs tab shows correlated sample logs (INFO/WARN/ERROR plus a banner naming the OTLP endpoint and a `codex.user_prompt` event), and the Metrics tab shows the `otelux.demo.*` sum, histogram, and gauge. All sample services are prefixed `otelux-demo-` and carry an `otelux.sample` attribute. The button does not reappear once data exists; it is also hidden when a filter is active (filtered-empty).
 
+### 1.2b Live/paused (live-tail) and result footer
+1. With data present, confirm the FilterBar shows a **Live** control (pulsing green dot) on the right, and each view has a footer reading `Showing N <items>` with a green `Live` state.
+2. Click the control to **Pause** (it shows a play icon + `Paused`; the footer state turns grey `Paused`).
+3. While paused, send a new trace (e.g. `curl -X POST http://127.0.0.1:4319/v1/traces …`).
+- **Expected**: the list does NOT change — the new trace is stored but the frozen view keeps its current rows and count.
+4. Click the control to **resume (Live)**.
+- **Expected**: the list refetches and now includes the trace that arrived while paused; the footer returns to `Live`. The paused/live state is global — pausing on any view keeps the others frozen too. Ingest is never dropped; only the view stops following the stream.
+
 ### 1.3 Persisted settings file
 ```bash
 cat /tmp/otelux-userdata/settings.json 2>/dev/null

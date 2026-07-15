@@ -40,6 +40,7 @@ import {
 	Drawer,
 	EyeIcon,
 	IconButton,
+	ResultFooter,
 	ValueViewer,
 } from '../primitives/index.js';
 import { useDataSourceQuery } from '../useDataSourceQuery.js';
@@ -56,6 +57,8 @@ export interface MetricsViewProps {
 	limit?: number;
 	/** Hint text shown in the empty state. */
 	endpointUrl?: string;
+	/** When true, live updates are frozen (the explorer holds its instruments). */
+	paused?: boolean;
 }
 
 const DEFAULT_LIMIT = 500;
@@ -69,6 +72,7 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 		search,
 		limit = DEFAULT_LIMIT,
 		endpointUrl = DEFAULT_ENDPOINT,
+		paused = false,
 	} = props;
 	const [selectedMeter, setSelectedMeter] = useState<string | null>(null);
 	const [selectedMetricKey, setSelectedMetricKey] = useState<string | null>(null);
@@ -95,6 +99,7 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 			return ds.listMetrics(q);
 		},
 		queryKey,
+		paused,
 	);
 
 	const rows = query.value?.rows ?? [];
@@ -153,6 +158,13 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 						</div>
 					)}
 				</div>
+				{rows.length > 0 ? (
+					<ResultFooter
+						count={query.value?.totalCount ?? rows.length}
+						noun="instrument"
+						paused={paused}
+					/>
+				) : null}
 			</section>
 			<Drawer
 				open={detailsMetric !== null}

@@ -32,6 +32,7 @@ import {
 	Drawer,
 	EyeIcon,
 	IconButton,
+	ResultFooter,
 	ValueViewer,
 	WaterfallIcon,
 } from '../primitives/index.js';
@@ -51,6 +52,8 @@ export interface LogsViewProps {
 	endpointUrl?: string;
 	/** Opens the trace surface for a correlated log record. */
 	onOpenTrace?: (traceId: TraceId, spanId?: SpanId) => void;
+	/** When true, live updates are frozen (the table holds its current rows). */
+	paused?: boolean;
 }
 
 const DEFAULT_LIMIT = 500;
@@ -66,6 +69,7 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 		limit = DEFAULT_LIMIT,
 		endpointUrl = DEFAULT_ENDPOINT,
 		onOpenTrace,
+		paused = false,
 	} = props;
 
 	const [selected, setSelected] = useState<LogRecord | null>(null);
@@ -94,6 +98,7 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 			return ds.listLogs(q);
 		},
 		queryKey,
+		paused,
 	);
 
 	const rows = query.value?.rows ?? [];
@@ -155,6 +160,9 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 					</tbody>
 				</table>
 			</div>
+			{rows.length > 0 ? (
+				<ResultFooter count={query.value?.totalCount ?? rows.length} noun="log" paused={paused} />
+			) : null}
 
 			<Drawer
 				open={selected !== null}

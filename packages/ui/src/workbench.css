@@ -3174,3 +3174,88 @@
 	margin: 0 16px 12px;
 	width: calc(100% - 32px);
 }
+
+/* Live/paused toggle — sits in the FilterBar's end slot, shared across views. */
+.otelux-live-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	height: 26px;
+	padding: 0 10px;
+	border: 1px solid var(--otelux-border);
+	border-radius: var(--otelux-r-1);
+	background: var(--otelux-bg-elevated);
+	color: var(--otelux-fg);
+	font: inherit;
+	font-size: 12px;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.otelux-live-toggle:hover {
+	border-color: var(--otelux-accent);
+}
+
+.otelux-live-toggle:focus-visible {
+	outline: 2px solid var(--otelux-accent);
+	outline-offset: 2px;
+}
+
+.otelux-live-toggle--paused {
+	color: var(--otelux-fg-muted);
+}
+
+.otelux-live-toggle__dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--otelux-ok);
+	animation: otelux-live-pulse 2s ease-in-out infinite;
+}
+
+.otelux-live-toggle__hint {
+	opacity: 0.55;
+}
+
+@keyframes otelux-live-pulse {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.35;
+	}
+}
+
+/* Result footer — count + live/paused, pinned below the scroll region. */
+.otelux-result-footer {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	height: 28px;
+	padding: 0 12px;
+	border-top: 1px solid var(--otelux-border);
+	background: var(--otelux-bg);
+	color: var(--otelux-fg-muted);
+	font-size: 11px;
+}
+
+.otelux-result-footer__state {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	color: var(--otelux-ok);
+}
+
+.otelux-result-footer__state::before {
+	content: "";
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: currentColor;
+}
+
+.otelux-result-footer__state--paused {
+	color: var(--otelux-fg-muted);
+}

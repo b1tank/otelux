@@ -60,6 +60,11 @@ class FakeDataSource implements DataSource {
 		this.handlers.add(handler);
 		return { dispose: () => this.handlers.delete(handler) };
 	}
+	notify(): void {
+		for (const h of this.handlers) {
+			h({ kind: 'tracesChanged', traceIds: [] });
+		}
+	}
 }
 
 describe('TraceList', () => {
@@ -92,6 +97,48 @@ describe('TraceList', () => {
 		);
 		await findByText(/No traces match/i);
 		expect(queryByText('Load sample data')).toBeNull();
+	});
+
+	it('renders a result footer with the count and live state', async () => {
+		const ds = new FakeDataSource();
+		ds.rows = [makeRow({ traceId: 'a' })];
+		const { findByText, container } = render(<TraceList dataSource={ds} onSelect={() => {}} />);
+		await findByText('GET /api/users');
+		expect(container.querySelector('.otelux-result-footer')).toBeTruthy();
+		expect(container.textContent).toContain('Showing 1 trace');
+		expect(container.textContent).toContain('Live');
+	});
+
+	it('shows Paused in the footer when paused', async () => {
+		const ds = new FakeDataSource();
+		ds.rows = [makeRow({ traceId: 'a' })];
+		const { findByText, container } = render(
+			<TraceList dataSource={ds} onSelect={() => {}} paused />,
+		);
+		await findByText('GET /api/users');
+		expect(container.querySelector('.otelux-result-footer__state--paused')).toBeTruthy();
+		expect(container.textContent).toContain('Paused');
+	});
+
+	it('refetches on a live notification when not paused', async () => {
+		const ds = new FakeDataSource();
+		ds.rows = [makeRow({ traceId: 'a' })];
+		const { findByText } = render(<TraceList dataSource={ds} onSelect={() => {}} />);
+		await findByText('GET /api/users');
+		const before = ds.calls.length;
+		act(() => ds.notify());
+		await waitFor(() => expect(ds.calls.length).toBeGreaterThan(before));
+	});
+
+	it('does not refetch on a live notification while paused', async () => {
+		const ds = new FakeDataSource();
+		ds.rows = [makeRow({ traceId: 'a' })];
+		const { findByText } = render(<TraceList dataSource={ds} onSelect={() => {}} paused />);
+		await findByText('GET /api/users');
+		const before = ds.calls.length;
+		act(() => ds.notify());
+		await Promise.resolve();
+		expect(ds.calls.length).toBe(before);
 	});
 
 	it('renders 3-line cards by default with name, duration, time and counts', async () => {
