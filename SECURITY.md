@@ -15,7 +15,9 @@ This table will be updated when `v0.1.0` is released. In general, only the lates
 
 Do not open a public issue for a suspected vulnerability.
 
-This repository is currently private, and GitHub private vulnerability reporting cannot yet be enabled or exercised. Public launch is blocked until the repository is public, private vulnerability reporting is enabled and tested, and this section links to the working form. Until then, people who already have repository access should contact the repository owner through an existing trusted private channel without sending vulnerability details first.
+Report privately through **GitHub private vulnerability reporting**: open the repository's **Security** tab and choose **Report a vulnerability**. This opens a private security advisory visible only to you and the maintainer, and is the preferred channel.
+
+> GitHub private vulnerability reporting is a public-repository feature, enabled for this project at the same time it is made public. While the repository is private, that button is not available; anyone who already has repository access should instead contact the maintainer through the private channel listed on their GitHub profile, and must not disclose vulnerability details in a public issue, discussion, or pull request.
 
 Please include:
 

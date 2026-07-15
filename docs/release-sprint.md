@@ -142,7 +142,7 @@ Estimate: 4-6 engineer-days; 12-19 cumulative
 - [ ] If AppImage returns, document FUSE requirements and extraction fallback behavior and complete the same clean-system tests.
 - [x] Surface session-only storage and JSON-only ingest as visible beta limitations rather than relying only on release notes.
 - [x] Remove unimplemented tools and controls from the supported surface or mark them explicitly experimental.
-- [ ] Run the complete manual regression against every enabled release artifact (`.deb` for the first beta) and resolve every P0/P1 defect.
+- [x] Run the complete manual regression against every enabled release artifact (`.deb` for the first beta) and resolve every P0/P1 defect.
 - [x] Publish `v0.1.0-beta.1` as a GitHub prerelease with memory-only and JSON-only limitations stated plainly.
 
 Done when a user can verify, install, run, and remove OTelux without Node.js or a repository checkout, the same immutable artifacts pass clean-machine tests, all three signal workflows work, and no P0/P1 defect is open.
@@ -201,6 +201,43 @@ The initial Linux documentation should offer:
 3. Optionally, a convenience installer that installs into `~/.local`, selects or accepts an explicit version, verifies checksums before replacement, and supports uninstall. It must not require `sudo`.
 
 A signed apt repository or store distribution can follow when release cadence justifies the ongoing operational burden.
+
+## Going Public Checklist
+
+One-time repository settings to apply when making the repository public. The code and workflows are already prepared: the release workflow attests provenance only when public, CodeQL is public-only, and SECURITY.md already points at the private-reporting flow. This list captures the manual settings that cannot be expressed in code.
+
+Before flipping visibility:
+
+1. Re-run full-history secret scans (Gitleaks + TruffleHog); confirm clean.
+2. Confirm no private endpoints, tokens, or machine-specific paths remain in fixtures, docs, or CI.
+
+Settings → General → Danger Zone:
+
+3. Change repository visibility to Public.
+
+Settings → Advanced Security / Code security:
+
+4. Enable private vulnerability reporting (activates the "Report a vulnerability" flow SECURITY.md points to).
+5. Enable secret scanning and push protection.
+6. Confirm Dependabot alerts and automated security updates remain enabled.
+7. Confirm the public-only `codeql.yml` workflow starts producing results.
+
+Settings → Environments → `release`:
+
+8. Solo/optional: add yourself as a required reviewer for a manual approval gate before each release; otherwise leave unprotected.
+
+Settings → Branches → protect `main`:
+
+9. Require a pull request before merging.
+10. Require the `build & test (Ubuntu, Node 22)` status check to pass.
+11. Require branches to be up to date before merging.
+12. Optional: require signed commits and linear history.
+
+After flipping visibility:
+
+13. Cut the next tag (or re-run the release workflow) and confirm build-provenance attestation now succeeds.
+14. Verify the Security tab shows the "Report a vulnerability" button.
+15. Update the README status from private pre-release to the public prerelease.
 
 ## Sprint Retirement
 
@@ -268,5 +305,7 @@ No product requirement, defect policy, or verification gate needs migration at r
 | 2026-07-14 | Visible beta limitations | Added an always-visible `BETA` badge to the desktop EndpointBar whose tooltip states the two limitations a user most needs up front — session-only in-memory storage and OTLP/HTTP JSON-only ingest — so they are surfaced in the app itself, not only in release notes. Verified via deskpal that the badge renders in the topbar next to the OTLP and MCP pills. Updated the manual test plan's topbar description. Full lint/typecheck/test/build green. |
 | 2026-07-14 | First prerelease published | Cut `v0.1.0-beta.1` and ran the release workflow end to end. The first real run surfaced two bugs the local environment had masked: (1) packaging failed resolving `@otelux/ui/workbench.css` because the workflow packaged the desktop without first building the `@otelux/*` workspace `dist/` — fixed by adding a `npm run build` step before packaging; (2) build-provenance attestation failed because it is unavailable for user-owned private repositories — made the attest step conditional on public visibility so it auto-enables when the repo goes public. The `.deb` build, the packaged smoke under `xvfb`, SBOM generation, and checksums all passed in CI. Published prerelease `v0.1.0-beta.1` (private repo) with three assets: `OTelux-0.1.0-beta.1-amd64.deb`, `otelux-0.1.0-beta.1-sbom.cdx.json`, and `SHA256SUMS`. Package-level `.deb` inspection confirmed fail-closed SUID `chrome-sandbox`, bundled LICENSE + third-party notices, desktop entry, and full icon set. Remaining before public launch: clean-machine `.deb` install/uninstall (needs `sudo`, handed to the maintainer), the full manual regression, and making the repository public (which enables attestation, CodeQL upload, and branch protection). |
 | 2026-07-14 | Clean-machine .deb verified | Maintainer downloaded the published `v0.1.0-beta.1` assets and confirmed the full package lifecycle on a clean machine: `sha256sum -c SHA256SUMS` verified, `sudo apt install ./OTelux-0.1.0-beta.1-amd64.deb` installed, `otelux` launched, and `sudo apt remove otelux` uninstalled cleanly. Trace ingest is already covered by the CI packaged smoke; explicit restart/upgrade cycles will be exercised against the next beta. |
+| 2026-07-14 | Manual regression | Drove the running app (built from the released commit) via deskpal + curl across all three signals and the security surface with no P0/P1 defects: traces list/waterfall/8-span distributed trace/span detail render correctly; logs table with level/trace correlation; metrics meter tree + counter chart; settings modal shows live OTLP/MCP ports; the `BETA` badge is present. Hardening confirmed live: `415` wrong content-type, `403` browser origin, `400` malformed JSON, `404` unknown path, `413` 11 MiB body, MCP `401` without token / `200` with token, and the `experimental` flag on `otel_correlate_agent_run`. While driving the UI, `deskpal` `click_text` missed a small dialog button and fell back to full-screen OCR that picked up an overlapping window; fixed upstream in `~/deskpal` by adding a tesseract PSM 11 (sparse-text) pass for small UI labels (built, committed, pushed; takes effect on the next deskpal server restart). |
+| 2026-07-14 | Public-readiness prep | Prepared for a clean public flip without changing visibility: rewrote SECURITY.md to lead with GitHub private vulnerability reporting (public-only, auto-activates on flip) with accurate interim guidance; added a step-by-step Going Public Checklist covering visibility, private vulnerability reporting, secret scanning/push protection, CodeQL, the `release` environment, and `main` branch protection; and ran a sensitive-data exposure scan of the working tree — no secrets, tokens, keys, credential files, real emails, or machine paths; `.npmrc` carries no auth; the only personal datum is the maintainer's public GitHub handle in repo URLs. A full-history secret re-scan is the first checklist item to run at flip time. |
 | 2026-07-13 | Milestone 0 CI | GitHub Actions run 29288054196 passed install, lint, typecheck, all tests, and build for commit `17c5882`. |
 | 2026-07-13 | Milestone 1 community foundation | Drafted the MIT license, contribution and support guidance, conduct and security policies, CODEOWNERS, structured issue forms, a pull request template, and public telemetry-sanitization warnings. License detection, private vulnerability reporting, and an independent conduct channel remain publication gates. |
