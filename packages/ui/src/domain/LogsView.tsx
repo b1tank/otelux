@@ -21,7 +21,7 @@
  * it MUST NOT import other domain components.
  */
 
-import type { DataSource, ListLogsResult } from '@otelux/protocol';
+import type { DataSource, ListLogsResult, LogListSort, SortDirection } from '@otelux/protocol';
 import type { AttributeValue, LogRecord, SpanId, TraceId } from '@otelux/types';
 import { type CSSProperties, type JSX, useState } from 'react';
 import { formatWallClock, serviceColorVar, severityLabel, severityTone } from '../format.js';
@@ -54,6 +54,10 @@ export interface LogsViewProps {
 	onOpenTrace?: (traceId: TraceId, spanId?: SpanId) => void;
 	/** When true, live updates are frozen (the table holds its current rows). */
 	paused?: boolean;
+	/** Sort field. Defaults to `time` (most recent first). */
+	sortBy?: LogListSort;
+	/** Sort direction. Defaults to `desc`. */
+	sortDirection?: SortDirection;
 }
 
 const DEFAULT_LIMIT = 500;
@@ -70,6 +74,8 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 		endpointUrl = DEFAULT_ENDPOINT,
 		onOpenTrace,
 		paused = false,
+		sortBy = 'time',
+		sortDirection = 'desc',
 	} = props;
 
 	const [selected, setSelected] = useState<LogRecord | null>(null);
@@ -77,14 +83,14 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 
 	// The serialization key must include every input that changes the
 	// result set; otherwise the hook reuses a stale fetch when filters change.
-	const queryKey = `logs:${limit}:${minSeverity ?? ''}:${(services ?? []).join(',')}:${search ?? ''}`;
+	const queryKey = `logs:${limit}:${minSeverity ?? ''}:${(services ?? []).join(',')}:${search ?? ''}:${sortBy}:${sortDirection}`;
 	const query = useDataSourceQuery<ListLogsResult>(
 		dataSource,
 		(ds) => {
 			const q: Parameters<DataSource['listLogs']>[0] = {
 				limit,
-				sortBy: 'time',
-				sortDirection: 'desc',
+				sortBy,
+				sortDirection,
 			};
 			if (minSeverity !== undefined) {
 				q.minSeverity = minSeverity;

@@ -19,7 +19,7 @@ Tasks:
 - Add metric grouping controls for Service and Type without losing the current meter-first explorer layout.
 - Improve histogram labels with clearer bucket boundaries, count/sum context, and table parity.
 - Add pause/resume (live-tail freeze), result footer state, and clear data with confirmation across traces, logs, and metrics — **done**.
-- Add trace-list sort controls (Most recent, Slowest, Most errors, Most spans, Name) — **done**; dense/table-like trace-list headers when the list owns enough horizontal space remain.
+- Add trace-list and logs sort controls (traces: Most recent, Slowest, Most errors, Most spans, Name; logs: Newest, Oldest, Highest severity) — **done**; dense/table-like trace-list headers when the list owns enough horizontal space remain.
 - Virtualize logs and trace rows once row counts exceed a few hundred.
 
 Done when:

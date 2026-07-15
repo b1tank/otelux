@@ -99,6 +99,11 @@ cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-us
 3. Try **Most errors**, **Most spans**, and **Name (A–Z)**.
 - **Expected**: the order reflects the chosen field (error count, span count, alphabetical). Sorting is applied by the data source, not client-side, and composes with the service/errors/search filters.
 
+### 1.2e Logs sort control
+1. On the Logs tab (with sample data), confirm the FilterBar has a **SORT** dropdown defaulting to **Newest**.
+2. Choose **Highest severity**.
+- **Expected**: ERROR and WARN rows sort above INFO rows (severity descending); the trigger label updates to `Highest severity`. **Oldest** reverses to time-ascending. Sorting is applied by the data source and composes with the level/service/search filters.
+
 ### 1.3 Persisted settings file
 ```bash
 cat /tmp/otelux-userdata/settings.json 2>/dev/null

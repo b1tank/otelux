@@ -11,7 +11,7 @@
  * domain components MUST NOT import each other.
  */
 
-import type { DataSource, SortDirection, TraceListSort } from '@otelux/protocol';
+import type { DataSource, LogListSort, SortDirection, TraceListSort } from '@otelux/protocol';
 import type { AttributeValue, Span, SpanId, Trace, TraceId } from '@otelux/types';
 import { SpanKind } from '@otelux/types';
 import { type JSX, useEffect, useMemo, useState } from 'react';
@@ -148,6 +148,23 @@ const LOG_SEVERITY_OPTIONS: readonly DropdownOption[] = [
 	{ value: '17', label: 'Error+' },
 ];
 
+// Log sort presets. Like the trace presets, each maps a friendly label to a
+// `ListLogsQuery` sort. `time` is the arrival/emit order; `severity` groups the
+// most severe records first for triage.
+const LOG_SORT_PRESETS = {
+	newest: { sortBy: 'time', sortDirection: 'desc', label: 'Newest' },
+	oldest: { sortBy: 'time', sortDirection: 'asc', label: 'Oldest' },
+	severity: { sortBy: 'severity', sortDirection: 'desc', label: 'Highest severity' },
+} as const satisfies Record<
+	string,
+	{ sortBy: LogListSort; sortDirection: SortDirection; label: string }
+>;
+
+type LogSortKey = keyof typeof LOG_SORT_PRESETS;
+const LOG_SORT_OPTIONS: readonly DropdownOption[] = Object.entries(LOG_SORT_PRESETS).map(
+	([value, preset]) => ({ value, label: preset.label }),
+);
+
 // Shown in the span-detail drawer header to the right of the span name.
 // Matches the mockup's `.drawer__tag` (e.g. "Client", "Server"). We omit
 // `Unspecified` entirely so the tag chip doesn't appear at all when the
@@ -195,6 +212,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 	const [logsSeverity, setLogsSeverity] = useState<string>('all');
 	const [logsService, setLogsService] = useState<string>('all');
 	const [logsSearch, setLogsSearch] = useState<string>('');
+	const [logsSort, setLogsSort] = useState<LogSortKey>('newest');
 	// Metrics-view filters. Kept separate for the same reason as the logs
 	// filters — switching views must not bleed one surface's filter onto
 	// another.
@@ -575,6 +593,14 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 										onChange={setLogsService}
 										options={logsServiceOptions}
 									/>
+									<Dropdown
+										aria-label="Sort logs"
+										triggerSlotLabel="Sort"
+										triggerLabel={LOG_SORT_PRESETS[logsSort].label}
+										value={logsSort}
+										onChange={(v) => setLogsSort(v as LogSortKey)}
+										options={LOG_SORT_OPTIONS}
+									/>
 									<SearchField
 										value={logsSearch}
 										onChange={setLogsSearch}
@@ -589,6 +615,8 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 							dataSource={dataSource}
 							onOpenTrace={openTraceFromLog}
 							paused={isPaused}
+							sortBy={LOG_SORT_PRESETS[logsSort].sortBy}
+							sortDirection={LOG_SORT_PRESETS[logsSort].sortDirection}
 							{...(logsSeverity !== 'all' ? { minSeverity: Number(logsSeverity) } : {})}
 							{...(logsService !== 'all' ? { services: [logsService] } : {})}
 							{...(logsSearch ? { search: logsSearch } : {})}

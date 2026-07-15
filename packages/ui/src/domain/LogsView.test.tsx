@@ -174,6 +174,14 @@ describe('LogsView', () => {
 		});
 	});
 
+	it('forwards sortBy and sortDirection into the query', async () => {
+		const ds = new FakeDataSource();
+		render(<LogsView dataSource={ds} sortBy="severity" sortDirection="desc" />);
+		await waitFor(() =>
+			expect(ds.calls.at(-1)).toMatchObject({ sortBy: 'severity', sortDirection: 'desc' }),
+		);
+	});
+
 	it('opens a detail drawer with attributes when a row is clicked', async () => {
 		const ds = new FakeDataSource();
 		ds.rows = [makeLog()];
