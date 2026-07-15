@@ -1291,6 +1291,27 @@
 	font-size: 11px;
 }
 
+.otelux-trace-list__sample-btn {
+	margin-top: 6px;
+	padding: 6px 12px;
+	background: var(--otelux-accent);
+	color: var(--otelux-accent-fg, #fff);
+	border: none;
+	border-radius: var(--otelux-r-1);
+	font: inherit;
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.otelux-trace-list__sample-btn:hover {
+	filter: brightness(1.08);
+}
+
+.otelux-trace-list__sample-btn:focus-visible {
+	outline: 2px solid var(--otelux-accent);
+	outline-offset: 2px;
+}
+
 .otelux-trace-list__rows {
 	/*
 	 * Mockup parity: cards are flush, separated only by their own

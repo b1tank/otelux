@@ -32,6 +32,7 @@ The repository currently contains:
 - OTLP/HTTP JSON and protobuf ingest for traces, logs, and metrics.
 - Durable local storage for all signals via `@otelux/engine-node` (Node `node:sqlite`), with user-configurable retention (age and size). The store versions its schema (forward-only migrations) and self-heals an unreadable or newer-version file by quarantining it and starting fresh. `@otelux/engine` still ships an in-memory store for tests and small workloads; both back ends pass a shared storage-contract suite.
 - Live Traces, Logs, and Metrics rail surfaces in `@otelux/ui`.
+- A one-click "Load sample data" seed in the empty Traces view populates every surface with clearly-labelled synthetic telemetry, so a first-run user can evaluate the UI before wiring an exporter.
 - Direct and VS Code postMessage `DataSource` adapters.
 - MCP and LM tool plumbing over the same query layer.
 - The desktop app is the release product. The VS Code extension is an experimental second host until its hardening phase is complete.

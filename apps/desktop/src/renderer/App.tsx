@@ -39,6 +39,10 @@ export function App(): JSX.Element {
 		[bridge],
 	);
 
+	const onLoadSampleData = useCallback((): void => {
+		void bridge.invoke({ kind: 'loadSampleData' });
+	}, [bridge]);
+
 	return (
 		<main className="app">
 			<OTeluxWorkbench
@@ -46,6 +50,7 @@ export function App(): JSX.Element {
 				{...(endpointUrl !== undefined ? { endpointUrl } : {})}
 				topbarEnd={<EndpointBar status={status} mcpStatus={mcpStatus} />}
 				onOpenSettings={() => setSettingsOpen(true)}
+				onLoadSampleData={onLoadSampleData}
 			/>
 			{settingsOpen && settings ? (
 				<SettingsModal

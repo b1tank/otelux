@@ -155,7 +155,7 @@ Estimate: 14-22 engineer-days; 26-41 cumulative
 - [ ] Complete OTLP/HTTP protobuf and overload handling required from [plan.md Phase 5](plan.md#phase-5--production-ingest-formats); OTLP/gRPC remains deferred.
 - [ ] Complete pause/resume, clear data, and result-state work required from [plan.md Phase 1](plan.md#phase-1--workbench-polish); other Phase 1 polish remains risk-ranked rather than automatically blocking.
 - [ ] Add first-run configuration recipes for .NET, Node.js, Python, Codex, and an OTel Collector.
-- [ ] Add a synthetic demo-data path so a new user can evaluate the UI before configuring an SDK.
+- [x] Add a synthetic demo-data path so a new user can evaluate the UI before configuring an SDK.
 - [ ] Audit every control and advertised MCP tool; implement it, hide it, or mark it experimental.
 - [ ] Add runtime validation at the IPC boundary and automated desktop main/preload integration tests.
 - [ ] Satisfy every automated, packaged, coverage, accessibility, performance, and manual gate in [test.md](test.md#release-qualification).

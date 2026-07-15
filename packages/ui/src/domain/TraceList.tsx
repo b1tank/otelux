@@ -57,6 +57,12 @@ export interface TraceListProps {
 	 * collapsed so the user has a way to bring it back.
 	 */
 	onRestoreWaterfall?: () => void;
+	/**
+	 * When provided and the list is empty with no active filters, a
+	 * "Load sample data" button is shown in the empty state so a first-run
+	 * user can populate the workbench without wiring an exporter.
+	 */
+	onLoadSampleData?: () => void;
 }
 
 const DEFAULT_LIMIT = 200;
@@ -75,6 +81,7 @@ export function TraceList(props: TraceListProps): JSX.Element {
 		endpointUrl = DEFAULT_ENDPOINT,
 		onCollapse,
 		onRestoreWaterfall,
+		onLoadSampleData,
 	} = props;
 
 	// Build the protocol-level query object. The serialization key below
@@ -104,6 +111,12 @@ export function TraceList(props: TraceListProps): JSX.Element {
 	);
 
 	const rows = query.value?.rows ?? [];
+
+	// Distinguish a genuinely empty store from a filtered-empty result: the
+	// "Load sample data" affordance only makes sense when nothing is stored,
+	// not when the user's filters happen to exclude everything.
+	const filtersActive = Boolean(errorsOnly) || (services?.length ?? 0) > 0 || Boolean(search);
+	const showSampleButton = onLoadSampleData !== undefined && !filtersActive;
 
 	return (
 		<section className={`otelux-trace-list otelux-trace-list--${density}`} aria-label="Traces">
@@ -140,6 +153,14 @@ export function TraceList(props: TraceListProps): JSX.Element {
 						No traces match. Point an OTel exporter at
 						<br />
 						<code>{endpointUrl}</code>
+						{showSampleButton ? (
+							<>
+								<br />
+								<button type="button" className="otelux-trace-list__sample-btn" onClick={onLoadSampleData}>
+									Load sample data
+								</button>
+							</>
+						) : null}
 					</div>
 				) : (
 					<ul className="otelux-trace-list__rows">

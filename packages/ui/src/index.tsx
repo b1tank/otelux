@@ -75,6 +75,13 @@ export interface OTeluxWorkbenchProps {
 	 * cog is rendered disabled.
 	 */
 	onOpenSettings?: () => void;
+	/**
+	 * Invoked when the user clicks "Load sample data" in the empty Traces
+	 * view. Hosts that can seed synthetic telemetry (the desktop app) wire
+	 * it here; left undefined the button is not rendered, so embedders
+	 * without a seed path show only the plain empty state.
+	 */
+	onLoadSampleData?: () => void;
 }
 
 export type ThemeMode = 'auto' | 'dark' | 'light';
@@ -131,7 +138,14 @@ interface ViewValueTarget {
 }
 
 export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
-	const { dataSource, theme = 'auto', endpointUrl, topbarEnd, onOpenSettings } = props;
+	const {
+		dataSource,
+		theme = 'auto',
+		endpointUrl,
+		topbarEnd,
+		onOpenSettings,
+		onLoadSampleData,
+	} = props;
 	const [themeMode, setThemeMode] = useState<ThemeMode>(theme);
 	const systemTheme = useSystemTheme();
 	const resolvedTheme = themeMode === 'auto' ? systemTheme : themeMode;
@@ -360,6 +374,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		...(searchQuery ? { search: searchQuery } : {}),
 		...(selectedTraceId !== undefined ? { selectedTraceId } : {}),
 		...(endpointUrl !== undefined ? { endpointUrl } : {}),
+		...(onLoadSampleData ? { onLoadSampleData } : {}),
 		// Collapse the left pane on click. Also clear any wf-collapse so the
 		// invariant (at most one collapsed pane) holds.
 		onCollapse: () => {

@@ -69,6 +69,31 @@ describe('TraceList', () => {
 		await findByText(/No traces match/i);
 	});
 
+	it('shows the Load sample data button in the empty state and fires the callback', async () => {
+		const ds = new FakeDataSource();
+		const onLoadSampleData = vi.fn();
+		const { findByText } = render(
+			<TraceList dataSource={ds} onSelect={() => {}} onLoadSampleData={onLoadSampleData} />,
+		);
+		const button = await findByText('Load sample data');
+		fireEvent.click(button);
+		expect(onLoadSampleData).toHaveBeenCalledTimes(1);
+	});
+
+	it('hides the Load sample data button when a filter is active (filtered-empty)', async () => {
+		const ds = new FakeDataSource();
+		const { findByText, queryByText } = render(
+			<TraceList
+				dataSource={ds}
+				onSelect={() => {}}
+				onLoadSampleData={() => {}}
+				search="nothing-matches"
+			/>,
+		);
+		await findByText(/No traces match/i);
+		expect(queryByText('Load sample data')).toBeNull();
+	});
+
 	it('renders 3-line cards by default with name, duration, time and counts', async () => {
 		const ds = new FakeDataSource();
 		ds.rows = [makeRow({ traceId: 'a', rootName: 'GET /a', spanCount: 7, errorCount: 2 })];

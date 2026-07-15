@@ -103,6 +103,8 @@ curl --fail-with-body \
 
 Open the Traces, Logs, and Metrics rail tabs to inspect the records. All repository fixtures are synthetic and safe to use in tests and issue reproductions.
 
+To explore the UI before wiring any exporter, launch the desktop app and click **Load sample data** in the empty Traces view. It seeds the store with a small, clearly-labelled synthetic dataset (a distributed trace with an error, correlated logs, and a counter/histogram/gauge) across all three signals. The sample data persists like real telemetry and is removed by retention or by deleting the database.
+
 For Codex CLI exporter configuration, see the specification's [reference workload](spec.md#reference-workload-codex-cli). The current receiver requires `protocol = "json"` and full `/v1/traces`, `/v1/logs`, and `/v1/metrics` endpoint paths.
 
 ## Add A Local Desktop Entry

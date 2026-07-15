@@ -12,6 +12,7 @@ import {
 	type OteluxEvent,
 	type Settings,
 } from '../shared/ipc.js';
+import { createDemoTelemetry } from './demoData.js';
 import { McpHost } from './mcpHost.js';
 import { loadOrCreateMcpToken } from './mcpToken.js';
 import { ReceiverHost } from './receiverHost.js';
@@ -222,6 +223,23 @@ async function startBackend(): Promise<{
 				return mcpHost.status;
 			case 'getStoragePath':
 				return { activePath: activeDbPath, defaultPath: defaultDbPath };
+			case 'loadSampleData': {
+				// Seed the store with obviously-labelled sample telemetry so a
+				// first-run user can explore every surface without wiring an
+				// exporter. Ingested through the engine so it persists and fires
+				// change events that refresh the open views.
+				const demo = createDemoTelemetry(
+					receiverHost.status.kind === 'running' ? { otlpPort: receiverHost.status.port } : {},
+				);
+				await engine.ingestSpans(demo.spans);
+				await engine.ingestLogs(demo.logs);
+				await engine.ingestMetrics(demo.metrics);
+				return {
+					traces: new Set(demo.spans.map((s) => s.traceId)).size,
+					logs: demo.logs.length,
+					metrics: demo.metrics.length,
+				};
+			}
 			case 'updateSettings':
 				return updateSettings(settings, receiverHost, mcpHost, message.patch);
 		}

@@ -69,9 +69,13 @@ cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-us
   1. Left **Rail** — narrow icon strip with the **Traces** tab active, enabled **Metrics** and **Logs** tabs below it, and a footer with the **Theme** switch above **GitHub** (external link) and the **Settings** cog (opens the settings modal).
   2. **Topbar** — `Traces` heading on the left, **EndpointBar** on the right (status dot, `OTLP/HTTP` label, URL `http://127.0.0.1:4319` as a click-to-copy pill, plus a green `MCP :4320` copy pill while MCP is enabled, and a `BETA` badge at the far right). The OTLP pill copies the receiver base URL; traces, logs, and metrics use the same host and port at `/v1/traces`, `/v1/logs`, and `/v1/metrics`. The MCP pill copies `http://127.0.0.1:4320/`. Hovering the `BETA` badge shows the current limitations (local database storage pruned by the retention setting, OTLP/HTTP JSON-or-protobuf ingest with no gRPC). The settings cog lives on the rail, not in the topbar.
   3. **FilterBar** — hidden on cold start for Traces; it appears once at least one trace has been received and exposes a Service dropdown, an `Errors only` toggle chip, and a search field. Logs and Metrics expose their own filter controls when those tabs are active.
-  4. **Workbench** body — right pane is collapsed (no waterfall yet); the left pane fills the width and shows the trace list with the `Traces` header, count `0`, and "Waiting for traces…" empty-state copy (or "No traces match. Point an OTel exporter at http://127.0.0.1:4319/v1/traces" once the first probe completes).
+  4. **Workbench** body — right pane is collapsed (no waterfall yet); the left pane fills the width and shows the trace list with the `Traces` header, count `0`, and "Waiting for traces…" empty-state copy (or "No traces match. Point an OTel exporter at http://127.0.0.1:4319/v1/traces" once the first probe completes). When the store is genuinely empty (no active filters) a **Load sample data** button appears below the endpoint hint.
   5. No drawer / value-viewer modal is visible.
 - **PASS** if the dot is green and the URL renders inside the topbar (no separate header strip above the workbench).
+
+### 1.2a Load sample data (first-run seed)
+1. From the empty Traces view, click **Load sample data**.
+- **Expected**: the trace list populates with two traces — `GET /checkout` (4 spans, `otelux-demo-web` + `otelux-demo-api`, **1 err**, ~120ms) and `GET /health` (1 span). The Logs tab shows correlated sample logs (INFO/WARN/ERROR plus a banner naming the OTLP endpoint and a `codex.user_prompt` event), and the Metrics tab shows the `otelux.demo.*` sum, histogram, and gauge. All sample services are prefixed `otelux-demo-` and carry an `otelux.sample` attribute. The button does not reappear once data exists; it is also hidden when a filter is active (filtered-empty).
 
 ### 1.3 Persisted settings file
 ```bash

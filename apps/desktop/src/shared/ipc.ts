@@ -128,6 +128,13 @@ export interface StoragePathInfo {
 	readonly defaultPath: string;
 }
 
+/** Counts of the synthetic telemetry ingested by `loadSampleData`. */
+export interface LoadSampleDataResult {
+	readonly traces: number;
+	readonly logs: number;
+	readonly metrics: number;
+}
+
 /**
  * Reified receiver lifecycle state. Errors are values rather than
  * exceptions so the renderer can light up a status dot and surface the
@@ -189,7 +196,8 @@ export type InvokeMessage =
 	| { kind: 'updateSettings'; patch: PartialSettings }
 	| { kind: 'getReceiverStatus' }
 	| { kind: 'getMcpStatus' }
-	| { kind: 'getStoragePath' };
+	| { kind: 'getStoragePath' }
+	| { kind: 'loadSampleData' };
 
 export type InvokeResultFor<M extends InvokeMessage> = M extends { kind: 'listTraces' }
 	? ListTracesResult
@@ -211,7 +219,9 @@ export type InvokeResultFor<M extends InvokeMessage> = M extends { kind: 'listTr
 									? McpStatus
 									: M extends { kind: 'getStoragePath' }
 										? StoragePathInfo
-										: never;
+										: M extends { kind: 'loadSampleData' }
+											? LoadSampleDataResult
+											: never;
 
 /**
  * Discriminated union of every main→renderer push. The existing engine
