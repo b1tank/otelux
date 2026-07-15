@@ -3259,3 +3259,112 @@
 .otelux-result-footer__state--paused {
 	color: var(--otelux-fg-muted);
 }
+
+/* Clear-data control — destructive, gated behind a confirmation dialog. */
+.otelux-clear-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	height: 26px;
+	padding: 0 10px;
+	border: 1px solid var(--otelux-border);
+	border-radius: var(--otelux-r-1);
+	background: var(--otelux-bg-elevated);
+	color: var(--otelux-fg-muted);
+	font: inherit;
+	font-size: 12px;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.otelux-clear-btn:hover {
+	border-color: var(--otelux-error, #f7768e);
+	color: var(--otelux-error, #f7768e);
+}
+
+.otelux-clear-btn:focus-visible {
+	outline: 2px solid var(--otelux-accent);
+	outline-offset: 2px;
+}
+
+/* Confirmation dialog for destructive actions. */
+.otelux-confirm-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 100;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.otelux-confirm-backdrop__hit {
+	position: absolute;
+	inset: 0;
+	border: none;
+	padding: 0;
+	background: rgba(0, 0, 0, 0.5);
+	cursor: default;
+}
+
+.otelux-confirm {
+	position: relative;
+	z-index: 1;
+	width: min(420px, calc(100vw - 32px));
+	padding: 20px;
+	border: 1px solid var(--otelux-border);
+	border-radius: var(--otelux-r-2, 6px);
+	background: var(--otelux-bg-elevated);
+	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.otelux-confirm__title {
+	margin: 0 0 8px;
+	font-size: 15px;
+	color: var(--otelux-fg);
+}
+
+.otelux-confirm__message {
+	margin: 0 0 18px;
+	font-size: 13px;
+	line-height: 1.5;
+	color: var(--otelux-fg-muted);
+}
+
+.otelux-confirm__actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+.otelux-confirm__cancel,
+.otelux-confirm__confirm {
+	height: 30px;
+	padding: 0 14px;
+	border-radius: var(--otelux-r-1);
+	border: 1px solid var(--otelux-border);
+	background: var(--otelux-bg);
+	color: var(--otelux-fg);
+	font: inherit;
+	font-size: 13px;
+	cursor: pointer;
+}
+
+.otelux-confirm__cancel:hover {
+	border-color: var(--otelux-accent);
+}
+
+.otelux-confirm__confirm--destructive {
+	border-color: var(--otelux-error, #f7768e);
+	background: var(--otelux-error, #f7768e);
+	color: #fff;
+}
+
+.otelux-confirm__confirm--destructive:hover {
+	filter: brightness(1.08);
+}
+
+.otelux-confirm__cancel:focus-visible,
+.otelux-confirm__confirm:focus-visible {
+	outline: 2px solid var(--otelux-accent);
+	outline-offset: 2px;
+}

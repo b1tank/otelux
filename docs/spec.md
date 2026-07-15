@@ -33,6 +33,7 @@ The repository currently contains:
 - Durable local storage for all signals via `@otelux/engine-node` (Node `node:sqlite`), with user-configurable retention (age and size). The store versions its schema (forward-only migrations) and self-heals an unreadable or newer-version file by quarantining it and starting fresh. `@otelux/engine` still ships an in-memory store for tests and small workloads; both back ends pass a shared storage-contract suite.
 - Live Traces, Logs, and Metrics rail surfaces in `@otelux/ui`.
 - A one-click "Load sample data" seed in the empty Traces view populates every surface with clearly-labelled synthetic telemetry, so a first-run user can evaluate the UI before wiring an exporter.
+- A shared live/paused (live-tail) control and result footers across all three views, plus a confirmed "Clear data" action that deletes all stored telemetry.
 - Direct and VS Code postMessage `DataSource` adapters.
 - MCP and LM tool plumbing over the same query layer.
 - The desktop app is the release product. The VS Code extension is an experimental second host until its hardening phase is complete.
@@ -40,7 +41,7 @@ The repository currently contains:
 Important current limits:
 
 - OTLP/gRPC ingest is planned, not shipped (OTLP/HTTP JSON and protobuf are live).
-- Dense trace modes, detail search, and clear-data controls need polish.
+- Dense trace modes and detail search need polish.
 - Agent-run correlation and service overview tools are schema-stable but not fully implemented.
 
 ## Signals In Scope

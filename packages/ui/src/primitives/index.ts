@@ -18,6 +18,8 @@ export { ToggleChip } from './ToggleChip.js';
 export type { ToggleChipProps } from './ToggleChip.js';
 export { CopyButton } from './CopyButton.js';
 export type { CopyButtonProps } from './CopyButton.js';
+export { ConfirmDialog } from './ConfirmDialog.js';
+export type { ConfirmDialogProps } from './ConfirmDialog.js';
 export { LivePauseToggle } from './LivePauseToggle.js';
 export type { LivePauseToggleProps } from './LivePauseToggle.js';
 export { ResultFooter } from './ResultFooter.js';
@@ -48,6 +50,7 @@ export {
 	SearchIcon,
 	SettingsIcon,
 	SunIcon,
+	TrashIcon,
 	WaterfallIcon,
 	XIcon,
 } from './icons.js';

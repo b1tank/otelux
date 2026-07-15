@@ -70,6 +70,7 @@ export interface NodeSqliteStorage extends Storage {
 	listLogs(query: ListLogsQuery): ListLogsResult;
 	writeMetrics(metrics: readonly Metric[]): void;
 	listMetrics(query: ListMetricsQuery): ListMetricsResult;
+	clear(): void;
 	close(): void;
 	/** Replace the retention config and prune immediately against it. */
 	applyRetention(config: RetentionConfig): void;
@@ -142,6 +143,34 @@ export function createNodeSqliteStorage(options: NodeSqliteStorageOptions): Node
 			prune();
 		},
 		prune,
+
+		clear(): void {
+			// Delete every fact and dimension table. Order respects the foreign
+			// keys (children before parents) since `foreign_keys = ON`. The
+			// interner's in-memory hash→id cache must be reset too, or the next
+			// write would reference resource/scope rows that no longer exist.
+			db.exec('BEGIN');
+			try {
+				for (const table of [
+					'metric_points',
+					'metric_instruments',
+					'spans',
+					'traces',
+					'logs',
+					'resources',
+					'scopes',
+				]) {
+					db.exec(`DELETE FROM ${table}`);
+				}
+				db.exec('COMMIT');
+			} catch (err) {
+				db.exec('ROLLBACK');
+				throw err;
+			}
+			interner.reset();
+			// Reclaim the freed pages so clearing actually shrinks the file.
+			db.exec('PRAGMA incremental_vacuum');
+		},
 
 		close(): void {
 			if (timer !== undefined) {

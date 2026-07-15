@@ -18,7 +18,7 @@ Tasks:
 - Normalize section count badges and action menus across span and log details.
 - Add metric grouping controls for Service and Type without losing the current meter-first explorer layout.
 - Improve histogram labels with clearer bucket boundaries, count/sum context, and table parity.
-- Add pause/resume (live-tail freeze) and result footer state across traces, logs, and metrics — **done**; clear data with confirmation remains.
+- Add pause/resume (live-tail freeze), result footer state, and clear data with confirmation across traces, logs, and metrics — **done**.
 - Add dense trace-list headers and sort controls when the trace list owns enough horizontal space.
 - Virtualize logs and trace rows once row counts exceed a few hundred.
 
@@ -26,7 +26,7 @@ Done when:
 
 - A user can inspect a log or span, search inside details, copy useful values, and close the pane without losing list context.
 - A user can navigate metrics by meter, compare instruments by service, type, latest value, update time, and details, then focus one instrument without losing meter context.
-- Streaming data can be paused, cleared with confirmation, and understood from visible footer/status state.
+- Streaming data can be paused, cleared with confirmation, and understood from visible footer/status state. — **done**
 
 ## Phase 2 — Durable Local Storage
 

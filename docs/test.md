@@ -85,6 +85,13 @@ cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-us
 4. Click the control to **resume (Live)**.
 - **Expected**: the list refetches and now includes the trace that arrived while paused; the footer returns to `Live`. The paused/live state is global — pausing on any view keeps the others frozen too. Ingest is never dropped; only the view stops following the stream.
 
+### 1.2c Clear data (with confirmation)
+1. With data present, click **Clear** (trash icon) in the FilterBar.
+- **Expected**: a confirmation dialog appears — "Clear all telemetry? This deletes every stored trace, log, and metric. It cannot be undone." with **Cancel** and a red **Clear data** button.
+2. Click **Cancel** (or press Escape) → the dialog closes and nothing is deleted.
+3. Click **Clear** again, then **Clear data**.
+- **Expected**: all traces, logs, and metrics are removed (every view returns to its empty state; Traces shows `0` and the first-run **Load sample data** button). Clearing also resumes live tail. The deletion is durable — the underlying database tables (including interned resources/scopes) are emptied, not just the view.
+
 ### 1.3 Persisted settings file
 ```bash
 cat /tmp/otelux-userdata/settings.json 2>/dev/null

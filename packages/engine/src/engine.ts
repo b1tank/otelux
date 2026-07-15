@@ -24,6 +24,8 @@ export interface Engine extends DataSource {
 	ingestSpans(spans: readonly Span[]): Promise<void>;
 	ingestLogs(logs: readonly LogRecord[]): Promise<void>;
 	ingestMetrics(metrics: readonly Metric[]): Promise<void>;
+	/** Delete all stored telemetry and notify subscribers that every signal is now empty. */
+	clear(): Promise<void>;
 	close(): Promise<void>;
 }
 
@@ -123,6 +125,15 @@ export function createEngine(options: EngineOptions): Engine {
 					listeners.delete(handler);
 				},
 			};
+		},
+
+		async clear(): Promise<void> {
+			await storage.clear();
+			// Tell every subscriber the store is now empty so open views refetch
+			// and drop their rows, matching the notify-on-ingest path.
+			notify({ kind: 'tracesChanged', traceIds: [] });
+			notify({ kind: 'logsChanged', count: 0 });
+			notify({ kind: 'metricsChanged', count: 0 });
 		},
 
 		async close(): Promise<void> {

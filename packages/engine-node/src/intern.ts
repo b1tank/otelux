@@ -33,6 +33,17 @@ export class Interner {
 		this.selectScope = db.prepare('SELECT id FROM scopes WHERE hash = ?');
 	}
 
+	/**
+	 * Drop the in-memory hash→id caches. Must be called whenever the underlying
+	 * `resources`/`scopes` rows are deleted (e.g. clearing the store): a stale
+	 * cache would otherwise hand out ids for rows that no longer exist, producing
+	 * dangling foreign keys on the next write.
+	 */
+	reset(): void {
+		this.resourceCache.clear();
+		this.scopeCache.clear();
+	}
+
 	internResource(resource: Resource): number {
 		const svc = resource.attributes['service.name'];
 		const serviceName = typeof svc === 'string' ? svc : '';

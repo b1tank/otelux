@@ -242,6 +242,10 @@ async function startBackend(): Promise<{
 			}
 			case 'updateSettings':
 				return updateSettings(settings, receiverHost, mcpHost, message.patch);
+			case 'clearData':
+				// Delete all stored telemetry. The engine notifies subscribers so
+				// open views refetch to their empty state.
+				return engine.clear();
 		}
 	});
 

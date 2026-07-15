@@ -20,6 +20,7 @@ import { serviceColorVar, serviceIndex } from './format.js';
 import { AppShell, FilterBar, Rail, type RailItem, Topbar, Workbench } from './layout/index.js';
 import {
 	BarChart3Icon,
+	ConfirmDialog,
 	Drawer,
 	Dropdown,
 	type DropdownOption,
@@ -33,6 +34,7 @@ import {
 	SettingsIcon,
 	SunIcon,
 	ToggleChip,
+	TrashIcon,
 	ValueViewer,
 	WaterfallIcon,
 } from './primitives/index.js';
@@ -83,6 +85,12 @@ export interface OTeluxWorkbenchProps {
 	 * without a seed path show only the plain empty state.
 	 */
 	onLoadSampleData?: () => void;
+	/**
+	 * Invoked when the user confirms "Clear data". Hosts that own the store
+	 * (the desktop app) delete all stored telemetry here. Left undefined the
+	 * clear control is not rendered.
+	 */
+	onClearData?: () => void;
 }
 
 export type ThemeMode = 'auto' | 'dark' | 'light';
@@ -146,6 +154,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		topbarEnd,
 		onOpenSettings,
 		onLoadSampleData,
+		onClearData,
 	} = props;
 	const [themeMode, setThemeMode] = useState<ThemeMode>(theme);
 	const systemTheme = useSystemTheme();
@@ -154,6 +163,8 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 	// Live-tail state, shared across all three signal views. When paused, the
 	// views freeze on their current results; ingest continues underneath.
 	const [isPaused, setIsPaused] = useState(false);
+	// Destructive "clear all data" confirmation.
+	const [confirmClearOpen, setConfirmClearOpen] = useState(false);
 	const [selectedTraceId, setSelectedTraceIdRaw] = useState<TraceId | undefined>(undefined);
 	const [selectedSpanId, setSelectedSpanId] = useState<SpanId | undefined>(undefined);
 	const [errorsOnly, setErrorsOnly] = useState(false);
@@ -397,6 +408,35 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		<LivePauseToggle paused={isPaused} onToggle={() => setIsPaused((p) => !p)} />
 	);
 
+	// FilterBar right-side actions: live/paused plus (when the host supports it)
+	// a destructive clear-data control gated behind a confirmation dialog.
+	const filterBarActions = (
+		<>
+			{livePauseControl}
+			{onClearData ? (
+				<button
+					type="button"
+					className="otelux-clear-btn"
+					onClick={() => setConfirmClearOpen(true)}
+					title="Clear all stored telemetry"
+				>
+					<TrashIcon size={13} />
+					<span>Clear</span>
+				</button>
+			) : null}
+		</>
+	);
+
+	// Confirming a clear resumes live tail (so the now-empty result is visible
+	// rather than frozen) and drops any open selection whose trace just vanished.
+	const handleConfirmClear = (): void => {
+		setConfirmClearOpen(false);
+		setIsPaused(false);
+		setSelectedTraceIdRaw(undefined);
+		setSelectedSpanId(undefined);
+		onClearData?.();
+	};
+
 	const cycleThemeMode = (): void => {
 		const currentIndex = THEME_MODE_ORDER.indexOf(themeMode);
 		setThemeMode(THEME_MODE_ORDER[(currentIndex + 1) % THEME_MODE_ORDER.length] ?? 'auto');
@@ -521,7 +561,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 									/>
 								</>
 							}
-							end={livePauseControl}
+							end={filterBarActions}
 						/>
 						<LogsView
 							dataSource={dataSource}
@@ -570,7 +610,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 									/>
 								</>
 							}
-							end={livePauseControl}
+							end={filterBarActions}
 						/>
 						<MetricsView
 							dataSource={dataSource}
@@ -619,7 +659,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 										/>
 									</>
 								}
-								end={livePauseControl}
+								end={filterBarActions}
 							/>
 						) : null}
 						<Workbench
@@ -679,6 +719,15 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 				open={viewValue !== null}
 				onClose={() => setViewValue(null)}
 				{...(viewValue !== null ? { title: viewValue.key, value: viewValue.value } : { value: '' })}
+			/>
+			<ConfirmDialog
+				open={confirmClearOpen}
+				title="Clear all telemetry?"
+				message="This deletes every stored trace, log, and metric. It cannot be undone."
+				confirmLabel="Clear data"
+				destructive
+				onConfirm={handleConfirmClear}
+				onCancel={() => setConfirmClearOpen(false)}
 			/>
 		</div>
 	);

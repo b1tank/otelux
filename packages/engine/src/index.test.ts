@@ -141,6 +141,32 @@ describe('createMemoryStorage + createEngine', () => {
 
 		await engine.close();
 	});
+
+	it('clear() empties the store and notifies every signal', async () => {
+		const engine = createEngine({ storage: createMemoryStorage() });
+		const events: string[] = [];
+		const sub = engine.subscribe((e) => {
+			events.push(e.kind);
+		});
+		await engine.ingestSpans([
+			makeSpan({
+				traceId: TRACE,
+				spanId: '1'.repeat(16),
+				name: 'op',
+				startUnixNano: 1n,
+				endUnixNano: 2n,
+			}),
+		]);
+		expect((await engine.listTraces({})).totalCount).toBe(1);
+		events.length = 0;
+
+		await engine.clear();
+
+		expect((await engine.listTraces({})).totalCount).toBe(0);
+		expect(events).toEqual(['tracesChanged', 'logsChanged', 'metricsChanged']);
+		sub.dispose();
+		await engine.close();
+	});
 });
 
 describe('traceFromSpans', () => {

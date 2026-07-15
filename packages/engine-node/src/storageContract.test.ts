@@ -275,6 +275,36 @@ function runStorageContract(label: string, make: () => Storage): void {
 				'turn.duration_ms',
 			);
 		});
+
+		it('clear() empties every signal and the store stays writable', async () => {
+			await storage.writeSpans([
+				makeSpan({ traceId: TRACE_A, spanId: '1'.repeat(16), name: 'op', start: 1n, end: 2n }),
+			]);
+			await storage.writeLogs([makeLog({ time: 1n, severity: 9, body: 'x' })]);
+			await storage.writeMetrics([
+				{
+					type: 'gauge',
+					name: 'g',
+					resource: { attributes: { 'service.name': 'svc' } },
+					scope: { name: 'm' },
+					dataPoints: [{ timeUnixNano: 1n, value: 1, attributes: {} }],
+				},
+			]);
+
+			await storage.clear();
+
+			expect((await storage.listTraces({})).totalCount).toBe(0);
+			expect((await storage.listLogs({})).totalCount).toBe(0);
+			expect((await storage.listMetrics({})).totalCount).toBe(0);
+
+			// Writing after a clear must still work — for SQLite this proves the
+			// interner cache was reset so resource/scope ids are re-created rather
+			// than pointing at deleted rows.
+			await storage.writeLogs([makeLog({ time: 5n, severity: 9, body: 'after-clear' })]);
+			const logs = await storage.listLogs({});
+			expect(logs.totalCount).toBe(1);
+			expect(logs.rows[0]?.body).toBe('after-clear');
+		});
 	});
 }
 
