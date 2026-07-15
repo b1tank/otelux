@@ -11,7 +11,7 @@
  * domain components MUST NOT import each other.
  */
 
-import type { DataSource } from '@otelux/protocol';
+import type { DataSource, SortDirection, TraceListSort } from '@otelux/protocol';
 import type { AttributeValue, Span, SpanId, Trace, TraceId } from '@otelux/types';
 import { SpanKind } from '@otelux/types';
 import { type JSX, useEffect, useMemo, useState } from 'react';
@@ -111,6 +111,25 @@ const RAIL_ITEMS: readonly RailItem[] = [
 	{ id: 'logs', label: 'Logs', icon: <LogsIcon size={18} /> },
 ];
 
+// Trace-list sort presets. Each maps a friendly label to a (field, direction)
+// the storage layer already supports, so "Slowest" / "Most errors" are just a
+// different `ListTracesQuery` rather than any new query work.
+const TRACE_SORT_PRESETS = {
+	recent: { sortBy: 'startTime', sortDirection: 'desc', label: 'Most recent' },
+	slowest: { sortBy: 'duration', sortDirection: 'desc', label: 'Slowest' },
+	errors: { sortBy: 'errorCount', sortDirection: 'desc', label: 'Most errors' },
+	spans: { sortBy: 'spanCount', sortDirection: 'desc', label: 'Most spans' },
+	name: { sortBy: 'name', sortDirection: 'asc', label: 'Name (A\u2013Z)' },
+} as const satisfies Record<
+	string,
+	{ sortBy: TraceListSort; sortDirection: SortDirection; label: string }
+>;
+
+type TraceSortKey = keyof typeof TRACE_SORT_PRESETS;
+const TRACE_SORT_OPTIONS: readonly DropdownOption[] = Object.entries(TRACE_SORT_PRESETS).map(
+	([value, preset]) => ({ value, label: preset.label }),
+);
+
 // Severity-floor options for the logs filter. Values are OTLP severity
 // numbers; "All" clears the floor. See
 // https://opentelemetry.io/docs/specs/otel/logs/data-model/#field-severitynumber.
@@ -170,6 +189,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 	const [errorsOnly, setErrorsOnly] = useState(false);
 	const [selectedService, setSelectedService] = useState<string>('all');
 	const [searchQuery, setSearchQuery] = useState<string>('');
+	const [traceSort, setTraceSort] = useState<TraceSortKey>('recent');
 	// Logs-view filters. Kept separate from the trace filters so switching
 	// views doesn't carry one surface's filter state onto the other.
 	const [logsSeverity, setLogsSeverity] = useState<string>('all');
@@ -386,6 +406,8 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		onSelect: setSelectedTraceId,
 		errorsOnly,
 		paused: isPaused,
+		sortBy: TRACE_SORT_PRESETS[traceSort].sortBy,
+		sortDirection: TRACE_SORT_PRESETS[traceSort].sortDirection,
 		...(selectedService !== 'all' ? { services: [selectedService] } : {}),
 		...(searchQuery ? { search: searchQuery } : {}),
 		...(selectedTraceId !== undefined ? { selectedTraceId } : {}),
@@ -651,6 +673,14 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 										<ToggleChip pressed={errorsOnly} onPressedChange={setErrorsOnly} pressedTone="error">
 											Errors only
 										</ToggleChip>
+										<Dropdown
+											aria-label="Sort traces"
+											triggerSlotLabel="Sort"
+											triggerLabel={TRACE_SORT_PRESETS[traceSort].label}
+											value={traceSort}
+											onChange={(v) => setTraceSort(v as TraceSortKey)}
+											options={TRACE_SORT_OPTIONS}
+										/>
 										<SearchField
 											value={searchQuery}
 											onChange={setSearchQuery}

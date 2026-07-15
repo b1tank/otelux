@@ -120,6 +120,20 @@ describe('TraceList', () => {
 		expect(container.textContent).toContain('Paused');
 	});
 
+	it('forwards sortBy and sortDirection into the data source query', async () => {
+		const ds = new FakeDataSource();
+		render(<TraceList dataSource={ds} onSelect={() => {}} sortBy="duration" sortDirection="asc" />);
+		await waitFor(() => expect(ds.calls.length).toBe(1));
+		expect(ds.calls[0]).toMatchObject({ sortBy: 'duration', sortDirection: 'asc' });
+	});
+
+	it('defaults to newest-first (startTime desc) when no sort is given', async () => {
+		const ds = new FakeDataSource();
+		render(<TraceList dataSource={ds} onSelect={() => {}} />);
+		await waitFor(() => expect(ds.calls.length).toBe(1));
+		expect(ds.calls[0]).toMatchObject({ sortBy: 'startTime', sortDirection: 'desc' });
+	});
+
 	it('refetches on a live notification when not paused', async () => {
 		const ds = new FakeDataSource();
 		ds.rows = [makeRow({ traceId: 'a' })];

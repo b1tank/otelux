@@ -92,6 +92,13 @@ cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-us
 3. Click **Clear** again, then **Clear data**.
 - **Expected**: all traces, logs, and metrics are removed (every view returns to its empty state; Traces shows `0` and the first-run **Load sample data** button). Clearing also resumes live tail. The deletion is durable — the underlying database tables (including interned resources/scopes) are emptied, not just the view.
 
+### 1.2d Trace sort control
+1. With sample data present, confirm the Traces FilterBar has a **SORT** dropdown defaulting to **Most recent** (newest trace first).
+2. Choose **Slowest**.
+- **Expected**: the list reorders so the longest-duration trace is first (e.g. `GET /checkout` ~120ms above `GET /health` ~3ms). The trigger label updates to `Slowest`.
+3. Try **Most errors**, **Most spans**, and **Name (A–Z)**.
+- **Expected**: the order reflects the chosen field (error count, span count, alphabetical). Sorting is applied by the data source, not client-side, and composes with the service/errors/search filters.
+
 ### 1.3 Persisted settings file
 ```bash
 cat /tmp/otelux-userdata/settings.json 2>/dev/null

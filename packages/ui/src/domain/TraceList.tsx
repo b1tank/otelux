@@ -18,7 +18,12 @@
  * well; revisit when a heavier load arrives.
  */
 
-import type { DataSource, ListTracesResultRow } from '@otelux/protocol';
+import type {
+	DataSource,
+	ListTracesResultRow,
+	SortDirection,
+	TraceListSort,
+} from '@otelux/protocol';
 import type { TraceId } from '@otelux/types';
 import type { JSX, KeyboardEvent } from 'react';
 import { formatDuration, formatWallClock, serviceColorVar } from '../format.js';
@@ -66,6 +71,10 @@ export interface TraceListProps {
 	onLoadSampleData?: () => void;
 	/** When true, live updates are frozen (the list holds its current rows). */
 	paused?: boolean;
+	/** Sort field. Defaults to `startTime` (most recent first). */
+	sortBy?: TraceListSort;
+	/** Sort direction. Defaults to `desc` for `startTime`, else `asc`. */
+	sortDirection?: SortDirection;
 }
 
 const DEFAULT_LIMIT = 200;
@@ -86,19 +95,21 @@ export function TraceList(props: TraceListProps): JSX.Element {
 		onRestoreWaterfall,
 		onLoadSampleData,
 		paused = false,
+		sortBy = 'startTime',
+		sortDirection = sortBy === 'startTime' ? 'desc' : 'asc',
 	} = props;
 
 	// Build the protocol-level query object. The serialization key below
 	// must include every input that changes the result set; otherwise the
 	// hook will reuse a stale fetch when filters change.
-	const queryKey = `list:${limit}:${errorsOnly ? '1' : '0'}:${(services ?? []).join(',')}:${search ?? ''}`;
+	const queryKey = `list:${limit}:${errorsOnly ? '1' : '0'}:${(services ?? []).join(',')}:${search ?? ''}:${sortBy}:${sortDirection}`;
 	const query = useDataSourceQuery(
 		dataSource,
 		(ds) => {
 			const q: Parameters<DataSource['listTraces']>[0] = {
 				limit,
-				sortBy: 'startTime',
-				sortDirection: 'desc',
+				sortBy,
+				sortDirection,
 			};
 			if (errorsOnly) {
 				q.hasError = true;
