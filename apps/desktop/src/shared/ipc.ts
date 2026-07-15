@@ -51,6 +51,16 @@ export interface Settings {
 		/** Prune oldest telemetry once the DB exceeds this size. `0` = no size limit. */
 		readonly maxSizeMb: number;
 	};
+	/**
+	 * Durable-storage location. `dbPath` is the absolute path of the SQLite
+	 * database file; an empty string means "use the default" (`otelux.db` in the
+	 * platform user-data directory). A change takes effect on the next launch —
+	 * the running database is not moved or reopened mid-session.
+	 */
+	readonly storage: {
+		/** Absolute DB file path, or `''` for the default location. */
+		readonly dbPath: string;
+	};
 }
 
 /**
@@ -68,6 +78,9 @@ export interface PartialSettings {
 	readonly retention?: {
 		readonly maxAgeHours?: number;
 		readonly maxSizeMb?: number;
+	};
+	readonly storage?: {
+		readonly dbPath?: string;
 	};
 }
 
@@ -89,6 +102,9 @@ export const DEFAULT_SETTINGS: Settings = {
 	// exporter fill the disk; 512 MiB is the hard ceiling that wins if the
 	// window is busier than expected. Both are user-adjustable in Settings.
 	retention: { maxAgeHours: 72, maxSizeMb: 512 },
+	// Empty = default location (`otelux.db` under the user-data directory). The
+	// resolved absolute path is surfaced to the UI via `getStoragePath`.
+	storage: { dbPath: '' },
 };
 
 /** Inclusive bounds for a valid TCP port. */
@@ -100,6 +116,17 @@ export const MAX_PORT = 65535;
 // sentinel for "no limit" on either axis and is validated separately.
 export const MAX_RETENTION_AGE_HOURS = 43_800;
 export const MAX_RETENTION_SIZE_MB = 1_048_576;
+
+/**
+ * Resolved storage location, reported by `getStoragePath`. `activePath` is the
+ * database the running app actually has open; `defaultPath` is where it would
+ * live with no custom path configured. When the persisted custom path differs
+ * from `activePath`, a restart is pending for it to take effect.
+ */
+export interface StoragePathInfo {
+	readonly activePath: string;
+	readonly defaultPath: string;
+}
 
 /**
  * Reified receiver lifecycle state. Errors are values rather than
@@ -161,7 +188,8 @@ export type InvokeMessage =
 	| { kind: 'getSettings' }
 	| { kind: 'updateSettings'; patch: PartialSettings }
 	| { kind: 'getReceiverStatus' }
-	| { kind: 'getMcpStatus' };
+	| { kind: 'getMcpStatus' }
+	| { kind: 'getStoragePath' };
 
 export type InvokeResultFor<M extends InvokeMessage> = M extends { kind: 'listTraces' }
 	? ListTracesResult
@@ -181,7 +209,9 @@ export type InvokeResultFor<M extends InvokeMessage> = M extends { kind: 'listTr
 								? ReceiverStatus
 								: M extends { kind: 'getMcpStatus' }
 									? McpStatus
-									: never;
+									: M extends { kind: 'getStoragePath' }
+										? StoragePathInfo
+										: never;
 
 /**
  * Discriminated union of every main→renderer push. The existing engine

@@ -200,7 +200,7 @@ For step 4.11.6, reuse the Python listener from step 4.10 with port `14331`, the
 2. Relaunch with `OTELUX_OTLP_PORT=14999 npx electron out/main/index.js --user-data-dir=/tmp/otelux-userdata`
 - **Expected**:
   - log shows `listening on http://127.0.0.1:14999/v1/{traces,logs,metrics}`
-  - `cat /tmp/otelux-userdata/settings.json` still has `{"version":1,"otlp":{"port":14320},"mcp":{"enabled":true,"port":4320},"retention":{"maxAgeHours":72,"maxSizeMb":512}}` — **env did NOT mutate file**
+  - `cat /tmp/otelux-userdata/settings.json` still has `{"version":1,"otlp":{"port":14320},"mcp":{"enabled":true,"port":4320},"retention":{"maxAgeHours":72,"maxSizeMb":512},"storage":{"dbPath":""}}` — **env did NOT mutate file**
   - Open settings modal → OTLP input shows the live override `14999`; closing without Save leaves the persisted port at `14320`
   - Quit + relaunch without env → returns to 14320
 
@@ -237,6 +237,14 @@ For step 4.11.6, reuse the Python listener from step 4.10 with port `14331`, the
 4. Enter a negative or non-integer value → inline validation error, nothing persisted.
 5. Restore defaults (`72` / `512`) before continuing.
 - **Expected**: valid values persist to `settings.json` under `"retention"`; invalid values are rejected inline without mutating the file or the running store.
+
+### 5.9 Database location
+1. Open Settings → **Database location**. Confirm the **Active database file** shows the absolute path of the open DB (e.g. `<user-data>/otelux.db`, or `/tmp/otelux-userdata/otelux.db` under the test data-dir) and the **Copy** button copies that path to the clipboard.
+2. In **Custom database path**, enter a relative path (e.g. `foo.db`) → inline validation error, nothing persisted.
+3. Enter an absolute path in a writable directory (e.g. `/tmp/otelux-alt/otelux.db`) and Save → accepted; the hint shows "Restart required to switch to this path" and `settings.json` records `"storage":{"dbPath":"/tmp/otelux-alt/otelux.db"}`.
+4. Quit and relaunch with the same `--user-data-dir` → the **Active database file** now shows `/tmp/otelux-alt/otelux.db` and `ls /tmp/otelux-alt/otelux.db*` exists.
+5. Clear the custom path (blank) and Save, then restart → the active DB returns to the default location.
+- **Expected**: path changes are validated inline, persisted under `"storage"`, applied on the next launch (not mid-session), and a bad/unwritable custom path falls back to the default without crashing (log shows the fallback).
 
 ---
 

@@ -248,6 +248,54 @@ body,
 	border-color: var(--otelux-accent);
 }
 
+.field input[type="text"] {
+	background: var(--otelux-bg);
+	border: 1px solid var(--otelux-border);
+	border-radius: 3px;
+	color: var(--otelux-fg);
+	padding: 6px 8px;
+	font: inherit;
+	width: 100%;
+}
+
+.field input[type="text"]:focus {
+	outline: none;
+	border-color: var(--otelux-accent);
+}
+
+/* Read-only path display with an adjacent Copy button. */
+.field__inline-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.field__path {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow-x: auto;
+	white-space: nowrap;
+	background: rgba(255, 255, 255, 0.06);
+	padding: 5px 8px;
+	border-radius: 3px;
+	font-size: 11px;
+}
+
+.field__copy {
+	flex: 0 0 auto;
+	background: var(--otelux-bg);
+	border: 1px solid var(--otelux-border);
+	border-radius: 3px;
+	color: var(--otelux-fg);
+	padding: 5px 10px;
+	font-size: 11px;
+	cursor: pointer;
+}
+
+.field__copy:hover {
+	border-color: var(--otelux-accent);
+}
+
 /* Grouped settings (e.g. the MCP fieldset). A subtle bordered frame so
  * users scan "this whole block is one feature" without us needing a
  * second visual heading style. */

@@ -30,7 +30,7 @@ npm ci
 ${XDG_CONFIG_HOME:-$HOME/.config}/otelux/local/settings.json
 ```
 
-It persists telemetry to a local SQLite database in the user-data directory, so received traces, logs, and metrics survive restarts. Old data is pruned by the retention setting (default 72 hours or 512 MB, whichever comes first; set either to `0` to disable that bound).
+It persists telemetry to a local SQLite database in the user-data directory, so received traces, logs, and metrics survive restarts. You can point the database at a custom absolute path in Settings → Database location (the current path is shown there with a Copy button; a change takes effect on the next launch). Old data is pruned by the retention setting (default 72 hours or 512 MB, whichever comes first; set either to `0` to disable that bound).
 
 After one successful build, launch the existing output without rebuilding:
 

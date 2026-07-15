@@ -82,6 +82,9 @@ class FakeStore implements SettingsWriter {
 				maxAgeHours: patch.retention?.maxAgeHours ?? this.base.retention.maxAgeHours,
 				maxSizeMb: patch.retention?.maxSizeMb ?? this.base.retention.maxSizeMb,
 			},
+			storage: {
+				dbPath: patch.storage?.dbPath ?? this.base.storage.dbPath,
+			},
 		};
 	}
 
@@ -101,6 +104,7 @@ function baseSettings(): Settings {
 		otlp: { port: 4319 },
 		mcp: { enabled: true, port: 4320 },
 		retention: { maxAgeHours: 72, maxSizeMb: 512 },
+		storage: { dbPath: '' },
 	};
 }
 

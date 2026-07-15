@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createEngine } from '@otelux/engine';
-import { createNodeSqliteStorage } from '@otelux/engine-node';
+import { type NodeSqliteStorage, createNodeSqliteStorage } from '@otelux/engine-node';
 import { BrowserWindow, app, ipcMain, shell } from 'electron';
 import {
 	type InvokeMessage,
@@ -10,6 +10,7 @@ import {
 	OTELUX_EVENT_CHANNEL,
 	OTELUX_INVOKE_CHANNEL,
 	type OteluxEvent,
+	type Settings,
 } from '../shared/ipc.js';
 import { McpHost } from './mcpHost.js';
 import { loadOrCreateMcpToken } from './mcpToken.js';
@@ -101,20 +102,59 @@ function resolveMaxBodyBytes(envName: string): number | undefined {
 	return parsed;
 }
 
+/**
+ * Open the durable store at `preferredPath`, falling back to the default
+ * location if that fails. A user-configured `storage.dbPath` that points at an
+ * unwritable or invalid location (bad drive, permission denied, a directory)
+ * would otherwise throw during startup and brick the app the same way a bad
+ * persisted port used to — so a failed custom path degrades to the default
+ * rather than preventing launch. Returns the path that was actually opened so
+ * the UI can report the real active location.
+ */
+function openStorage(
+	preferredPath: string,
+	defaultPath: string,
+	retention: Settings['retention'],
+): { storage: NodeSqliteStorage; activeDbPath: string } {
+	try {
+		return {
+			storage: createNodeSqliteStorage({ path: preferredPath, retention }),
+			activeDbPath: preferredPath,
+		};
+	} catch (err) {
+		if (preferredPath === defaultPath) {
+			// The default location itself failed; nothing left to fall back to.
+			throw err;
+		}
+		console.error(
+			`[otelux] failed to open database at ${preferredPath}; falling back to ${defaultPath}: ${
+				err instanceof Error ? err.message : String(err)
+			}`,
+		);
+		return {
+			storage: createNodeSqliteStorage({ path: defaultPath, retention }),
+			activeDbPath: defaultPath,
+		};
+	}
+}
+
 async function startBackend(): Promise<{
 	stop: () => Promise<void>;
 }> {
 	const settingsFile = join(app.getPath('userData'), 'settings.json');
 	const settings = await SettingsStore.open(settingsFile);
 
-	// Durable, on-disk store (node:sqlite). The DB lives in the platform
-	// user-data directory so it survives restarts and app updates. Retention is
+	// Durable, on-disk store (node:sqlite). By default the DB lives in the
+	// platform user-data directory so it survives restarts and app updates; the
+	// user can point `storage.dbPath` at a custom absolute path. Retention is
 	// seeded from settings and re-applied whenever the user changes it.
-	const dbFile = join(app.getPath('userData'), 'otelux.db');
-	const storage = createNodeSqliteStorage({
-		path: dbFile,
-		retention: settings.get().retention,
-	});
+	const defaultDbPath = join(app.getPath('userData'), 'otelux.db');
+	const configuredDbPath = settings.get().storage.dbPath;
+	const { storage, activeDbPath } = openStorage(
+		configuredDbPath !== '' ? configuredDbPath : defaultDbPath,
+		defaultDbPath,
+		settings.get().retention,
+	);
 	const engine = createEngine({ storage });
 
 	const receiverHost = new ReceiverHost(
@@ -180,6 +220,8 @@ async function startBackend(): Promise<{
 				return receiverHost.status;
 			case 'getMcpStatus':
 				return mcpHost.status;
+			case 'getStoragePath':
+				return { activePath: activeDbPath, defaultPath: defaultDbPath };
 			case 'updateSettings':
 				return updateSettings(settings, receiverHost, mcpHost, message.patch);
 		}

@@ -7,6 +7,7 @@ import {
 	type McpStatus,
 	type PartialSettings,
 	type Settings,
+	type StoragePathInfo,
 	type UpdateSettingsResult,
 } from '../../shared/ipc.js';
 
@@ -23,6 +24,12 @@ interface SettingsModalProps {
 	 * MCP URL into an external agent config).
 	 */
 	readonly mcpStatus?: McpStatus;
+	/**
+	 * Resolved storage location. `activePath` is the database the running app has
+	 * open; `defaultPath` is where it lives with no custom path. Used to show the
+	 * current DB file and detect a pending restart after a path change.
+	 */
+	readonly storagePath?: StoragePathInfo;
 	readonly onSave: (patch: PartialSettings) => Promise<UpdateSettingsResult>;
 	readonly onClose: () => void;
 }
@@ -39,12 +46,14 @@ interface SettingsModalProps {
  * two-phase update in `main/index.ts` can roll back atomically.
  */
 export function SettingsModal(props: SettingsModalProps): JSX.Element {
-	const { settings, currentPort, mcpStatus, onSave, onClose } = props;
+	const { settings, currentPort, mcpStatus, storagePath, onSave, onClose } = props;
 	const [portInput, setPortInput] = useState(String(currentPort ?? settings.otlp.port));
 	const [mcpEnabled, setMcpEnabled] = useState(settings.mcp.enabled);
 	const [mcpPortInput, setMcpPortInput] = useState(String(settings.mcp.port));
 	const [ageInput, setAgeInput] = useState(String(settings.retention.maxAgeHours));
 	const [sizeInput, setSizeInput] = useState(String(settings.retention.maxSizeMb));
+	const [dbPathInput, setDbPathInput] = useState(settings.storage.dbPath);
+	const [copiedPath, setCopiedPath] = useState(false);
 	const [error, setError] = useState<string | undefined>(undefined);
 	const [saving, setSaving] = useState(false);
 	const portInputRef = useRef<HTMLInputElement>(null);
@@ -124,12 +133,22 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 			setError(`Retention size must be between 0 and ${MAX_RETENTION_SIZE_MB} MB (0 = unlimited).`);
 			return;
 		}
+		const trimmedDbPath = dbPathInput.trim();
+		if (trimmedDbPath !== '' && !isAbsolutePath(trimmedDbPath)) {
+			setError('Database path must be an absolute path, or blank for the default location.');
+			return;
+		}
+		if (trimmedDbPath !== '' && /[\\/]$/.test(trimmedDbPath)) {
+			setError('Database path must point at a file, not a directory.');
+			return;
+		}
 		setError(undefined);
 		setSaving(true);
 		const patch: PartialSettings = {
 			otlp: { port: parsedOtlp },
 			mcp: { enabled: mcpEnabled, port: parsedMcp },
 			retention: { maxAgeHours: parsedAge, maxSizeMb: parsedSize },
+			storage: { dbPath: trimmedDbPath },
 		};
 		const result = await onSave(patch);
 		setSaving(false);
@@ -145,6 +164,13 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 			onClose();
 		}
 	};
+
+	// The DB path only takes effect on restart, so warn when the edited path
+	// resolves to something other than the database currently open. A blank
+	// custom path resolves to the default location.
+	const resolvedDesiredPath =
+		dbPathInput.trim() === '' ? (storagePath?.defaultPath ?? '') : dbPathInput.trim();
+	const restartPending = storagePath !== undefined && resolvedDesiredPath !== storagePath.activePath;
 
 	return (
 		<div className="modal-backdrop">
@@ -274,6 +300,51 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 						</label>
 					</fieldset>
 
+					<fieldset className="fieldset">
+						<legend>Database location</legend>
+						{storagePath ? (
+							<label className="field">
+								<span className="field__label">Active database file</span>
+								<span className="field__inline-row">
+									<code className="field__path">{storagePath.activePath}</code>
+									<button
+										type="button"
+										className="field__copy"
+										onClick={() => {
+											void navigator.clipboard.writeText(storagePath.activePath).then(() => {
+												setCopiedPath(true);
+												window.setTimeout(() => setCopiedPath(false), 1500);
+											});
+										}}
+									>
+										{copiedPath ? 'Copied' : 'Copy'}
+									</button>
+								</span>
+							</label>
+						) : null}
+						<label className="field">
+							<span className="field__label">Custom database path</span>
+							<input
+								type="text"
+								spellCheck={false}
+								placeholder={storagePath?.defaultPath ?? 'Default location'}
+								value={dbPathInput}
+								onChange={(e) => setDbPathInput(e.target.value)}
+								disabled={saving}
+							/>
+							<span className="field__hint">
+								Absolute path to the SQLite file. Leave blank to use the default location. Changes take
+								effect after you restart OTelux; the current database is not moved.
+								{restartPending ? (
+									<em className="field__status field__status--error">
+										{' '}
+										Restart required to switch to this path.
+									</em>
+								) : null}
+							</span>
+						</label>
+					</fieldset>
+
 					{error ? <p className="modal__error">{error}</p> : null}
 					<div className="modal__actions">
 						<button type="button" onClick={onClose} disabled={saving}>
@@ -300,4 +371,14 @@ function McpStatusHint({ status }: { status: McpStatus }): JSX.Element | null {
 		case 'error':
 			return <em className="field__status field__status--error">error: {status.message}</em>;
 	}
+}
+
+/**
+ * Cross-platform absolute-path check for the renderer, which cannot import
+ * `node:path`. Accepts POSIX (`/…`), Windows drive (`C:\…` / `C:/…`), and UNC
+ * (`\\host\…`) roots. The authoritative validation still runs in the main
+ * process via `node:path.isAbsolute`; this only fails fast in the modal.
+ */
+function isAbsolutePath(value: string): boolean {
+	return value.startsWith('/') || /^[A-Za-z]:[\\/]/.test(value) || value.startsWith('\\\\');
 }

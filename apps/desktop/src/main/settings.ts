@@ -1,5 +1,5 @@
 import { promises as fs } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, isAbsolute } from 'node:path';
 import {
 	DEFAULT_SETTINGS,
 	MAX_PORT,
@@ -124,6 +124,9 @@ function merge(base: Settings, patch: PartialSettings): Settings {
 			maxAgeHours: patch.retention?.maxAgeHours ?? base.retention.maxAgeHours,
 			maxSizeMb: patch.retention?.maxSizeMb ?? base.retention.maxSizeMb,
 		},
+		storage: {
+			dbPath: patch.storage?.dbPath ?? base.storage.dbPath,
+		},
 	};
 }
 
@@ -136,6 +139,7 @@ function coerce(value: unknown): Settings {
 		otlp?: { port?: unknown };
 		mcp?: { enabled?: unknown; port?: unknown };
 		retention?: { maxAgeHours?: unknown; maxSizeMb?: unknown };
+		storage?: { dbPath?: unknown };
 	};
 	if (v.version !== 1) {
 		return DEFAULT_SETTINGS;
@@ -152,11 +156,14 @@ function coerce(value: unknown): Settings {
 		typeof v.retention?.maxSizeMb === 'number'
 			? v.retention.maxSizeMb
 			: DEFAULT_SETTINGS.retention.maxSizeMb;
+	const dbPath =
+		typeof v.storage?.dbPath === 'string' ? v.storage.dbPath : DEFAULT_SETTINGS.storage.dbPath;
 	const candidate: Settings = {
 		version: 1,
 		otlp: { port: otlpPort },
 		mcp: { enabled: mcpEnabled, port: mcpPort },
 		retention: { maxAgeHours, maxSizeMb },
+		storage: { dbPath },
 	};
 	try {
 		validate(candidate);
@@ -191,5 +198,15 @@ function validate(settings: Settings): void {
 		throw new Error(
 			`Retention size must be an integer in [0, ${MAX_RETENTION_SIZE_MB}] MB (0 = unlimited); got ${maxSizeMb}`,
 		);
+	}
+	const { dbPath } = settings.storage;
+	// Empty means "use the default location". A non-empty path must be absolute so
+	// it resolves the same regardless of the process working directory, and must
+	// name a file rather than a directory (no trailing separator).
+	if (dbPath !== '' && !isAbsolute(dbPath)) {
+		throw new Error(`Database path must be an absolute path or empty; got ${dbPath}`);
+	}
+	if (dbPath !== '' && /[\\/]$/.test(dbPath)) {
+		throw new Error(`Database path must be a file, not a directory; got ${dbPath}`);
 	}
 }

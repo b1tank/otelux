@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { McpStatus, ReceiverStatus, Settings } from '../shared/ipc.js';
+import type { McpStatus, ReceiverStatus, Settings, StoragePathInfo } from '../shared/ipc.js';
 import type { OteluxWindowBridge } from './ipcDataSource.js';
 
 /**
@@ -82,4 +82,25 @@ export function useMcpStatus(bridge: OteluxWindowBridge): McpStatus | undefined 
 		};
 	}, [bridge]);
 	return status;
+}
+
+/**
+ * Fetch the resolved storage location (active DB path + default path). The
+ * active path only changes on restart, so this fetches once and does not
+ * subscribe to any push event.
+ */
+export function useStoragePath(bridge: OteluxWindowBridge): StoragePathInfo | undefined {
+	const [info, setInfo] = useState<StoragePathInfo>();
+	useEffect(() => {
+		let cancelled = false;
+		void bridge.invoke({ kind: 'getStoragePath' }).then((result) => {
+			if (!cancelled) {
+				setInfo(result as StoragePathInfo);
+			}
+		});
+		return () => {
+			cancelled = true;
+		};
+	}, [bridge]);
+	return info;
 }
