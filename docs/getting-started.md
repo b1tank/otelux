@@ -50,7 +50,7 @@ By default, the desktop starts two loopback listeners:
 
 | Service | Default endpoint | Current behavior |
 |---|---|---|
-| OTLP/HTTP | `http://127.0.0.1:4319` | Accepts JSON traces, logs, and metrics. |
+| OTLP/HTTP | `http://127.0.0.1:4319` | Accepts OTLP/HTTP JSON and protobuf traces, logs, and metrics. |
 | MCP HTTP | `http://127.0.0.1:4320/` | Enabled by default and exposes read-only telemetry tools. |
 
 Check the OTLP receiver:
@@ -105,7 +105,114 @@ Open the Traces, Logs, and Metrics rail tabs to inspect the records. All reposit
 
 To explore the UI before wiring any exporter, launch the desktop app and click **Load sample data** in the empty Traces view. It seeds the store with a small, clearly-labelled synthetic dataset (a distributed trace with an error, correlated logs, and a counter/histogram/gauge) across all three signals. The sample data persists like real telemetry and is removed by retention or by deleting the database.
 
-For Codex CLI exporter configuration, see the specification's [reference workload](spec.md#reference-workload-codex-cli). The current receiver requires `protocol = "json"` and full `/v1/traces`, `/v1/logs`, and `/v1/metrics` endpoint paths.
+For Codex CLI and other real exporters, see the recipes below.
+
+## Configure Your Own Exporter
+
+OTelux is a standard OTLP/HTTP receiver. Point any OpenTelemetry SDK, the OpenTelemetry Collector, or an OTLP-emitting app at `http://127.0.0.1:4319` (or your configured port). Both encodings are accepted: **protobuf** (`application/x-protobuf`, the SDK default) and **JSON** (`application/json`).
+
+> OTelux does not support OTLP/**gRPC** yet. Exporters that default to gRPC (for example the Python and .NET OTLP exporters) must be set to **`http/protobuf`** (or `http/json`) and the HTTP endpoint below.
+
+### Environment variables (any SDK)
+
+Most SDKs honor the standard OTLP environment variables. Set the protocol explicitly so a gRPC default does not take over:
+
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4319
+export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf   # or http/json
+```
+
+The SDK appends `/v1/traces`, `/v1/logs`, and `/v1/metrics` to the base endpoint.
+
+### OpenTelemetry Collector
+
+Add an `otlphttp` exporter and route each pipeline to it:
+
+```yaml
+exporters:
+  otlphttp/otelux:
+    endpoint: http://127.0.0.1:4319
+
+service:
+  pipelines:
+    traces:
+      exporters: [otlphttp/otelux]
+    logs:
+      exporters: [otlphttp/otelux]
+    metrics:
+      exporters: [otlphttp/otelux]
+```
+
+### Node.js
+
+```bash
+npm install @opentelemetry/sdk-node @opentelemetry/exporter-trace-otlp-proto
+```
+
+```js
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
+
+const sdk = new NodeSDK({
+  traceExporter: new OTLPTraceExporter({ url: 'http://127.0.0.1:4319/v1/traces' }),
+});
+sdk.start();
+```
+
+### Python
+
+```bash
+pip install opentelemetry-sdk opentelemetry-exporter-otlp-proto-http
+```
+
+Zero-code, via `opentelemetry-instrument`:
+
+```bash
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf \
+  OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4319 \
+  opentelemetry-instrument python your_app.py
+```
+
+The bare `opentelemetry-exporter-otlp` package defaults to gRPC; install the `-http` variant above (or set the protocol) so exports reach OTelux.
+
+### .NET
+
+```bash
+dotnet add package OpenTelemetry.Exporter.OpenTelemetryProtocol
+```
+
+```csharp
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing => tracing.AddOtlpExporter(o =>
+    {
+        o.Endpoint = new Uri("http://127.0.0.1:4319");
+        o.Protocol = OtlpExportProtocol.HttpProtobuf; // default is gRPC
+    }));
+```
+
+### Codex CLI
+
+Codex CLI is the reference workload. Configure its `config.toml` with full per-signal endpoints:
+
+```toml
+[otel]
+environment = "dev"
+log_user_prompt = true
+
+[otel.exporter.otlp-http]
+endpoint = "http://localhost:4319/v1/logs"
+protocol = "json"
+
+[otel.trace_exporter.otlp-http]
+endpoint = "http://localhost:4319/v1/traces"
+protocol = "json"
+
+[otel.metrics_exporter.otlp-http]
+endpoint = "http://localhost:4319/v1/metrics"
+protocol = "json"
+```
+
+See the [reference workload](spec.md#reference-workload-codex-cli) for details.
 
 ## Add A Local Desktop Entry
 
