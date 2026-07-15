@@ -1,23 +1,154 @@
 /**
  * node:sqlite storage adapter for @otelux/engine.
  *
- * The persistent SQLite-backed store (using Node 22+ built-in `node:sqlite`
- * `DatabaseSync`, no node-gyp, no prebuilds) is planned. Until then this
- * package forwards to `createMemoryStorage` so downstream code can already
- * depend on `@otelux/engine-node` and pick up the real implementation
- * transparently.
+ * A durable, on-disk store built on Node's built-in `node:sqlite`
+ * (`DatabaseSync`) — no native addon, no node-gyp, no prebuilds. It implements
+ * the same {@link Storage} contract the memory backend does, so the engine,
+ * UI, and MCP tools are unaware of where telemetry lives, and adds two things
+ * the memory store cannot: persistence across restarts and user-configurable
+ * retention (age and size bounds).
+ *
+ * The schema is generalizable for OpenTelemetry — attribute bags ride as JSON
+ * rather than being exploded into convention-specific columns — while hot
+ * filter/sort fields are promoted to indexed columns for query efficiency. See
+ * `schema.ts` for the layout.
  */
 
-import { type Storage, createMemoryStorage } from '@otelux/engine';
+import type { DatabaseSync } from 'node:sqlite';
+import type { Storage } from '@otelux/engine';
+import type {
+	ListLogsQuery,
+	ListLogsResult,
+	ListMetricsQuery,
+	ListMetricsResult,
+	ListTracesQuery,
+	ListTracesResult,
+} from '@otelux/protocol';
+import type { LogRecord, Metric, Span, SpanId, TraceId } from '@otelux/types';
+import { openDatabase } from './db.js';
+import { Interner } from './intern.js';
+import { LogStore } from './logs.js';
+import { MetricStore } from './metrics.js';
+import { type RetentionConfig, pruneRetention } from './retention.js';
+import { SpanStore } from './spans.js';
+
+export type { RetentionConfig } from './retention.js';
 
 export interface NodeSqliteStorageOptions {
 	/** Path to the SQLite file. Use `:memory:` for ephemeral tests. */
 	path: string;
+	/**
+	 * Retention bounds. Defaults to unlimited (`0`/`0`) so tests and callers
+	 * that do not care never prune; the desktop host passes the user's setting.
+	 */
+	retention?: RetentionConfig;
+	/**
+	 * Background prune interval in milliseconds. `0` disables the timer (tests
+	 * drive {@link NodeSqliteStorage.prune} directly). The timer is `unref`'d so
+	 * it never keeps the process alive on its own.
+	 */
+	pruneIntervalMs?: number;
+	/** Injectable wall clock in Unix nanoseconds. Defaults to `Date.now()`. */
+	now?: () => bigint;
 }
 
-export function createNodeSqliteStorage(_options: NodeSqliteStorageOptions): Storage {
-	// TODO: replace with DatabaseSync-backed implementation.
-	return createMemoryStorage();
+/**
+ * Storage plus retention controls. Every method is synchronous — `node:sqlite`
+ * `DatabaseSync` is a blocking API — so the signatures are narrowed from the
+ * base {@link Storage} (whose methods are `T | Promise<T>`) to plain `T`. That
+ * is a valid subtype and lets callers use results without awaiting. The engine
+ * only sees {@link Storage}; the desktop host keeps this wider handle so it can
+ * re-apply retention when the user changes the setting.
+ */
+export interface NodeSqliteStorage extends Storage {
+	writeSpans(spans: readonly Span[]): void;
+	listTraces(query: ListTracesQuery): ListTracesResult;
+	getTraceSpans(traceId: TraceId): readonly Span[];
+	getSpan(spanId: SpanId): Span | undefined;
+	writeLogs(logs: readonly LogRecord[]): void;
+	listLogs(query: ListLogsQuery): ListLogsResult;
+	writeMetrics(metrics: readonly Metric[]): void;
+	listMetrics(query: ListMetricsQuery): ListMetricsResult;
+	close(): void;
+	/** Replace the retention config and prune immediately against it. */
+	applyRetention(config: RetentionConfig): void;
+	/** Run a retention pass now (used by the background timer and on demand). */
+	prune(): void;
+}
+
+const DEFAULT_RETENTION: RetentionConfig = { maxAgeHours: 0, maxSizeMb: 0 };
+const DEFAULT_PRUNE_INTERVAL_MS = 60_000;
+
+function defaultNow(): bigint {
+	// Date.now() is millisecond precision; scale to the nanosecond wire unit.
+	return BigInt(Date.now()) * 1_000_000n;
+}
+
+export function createNodeSqliteStorage(options: NodeSqliteStorageOptions): NodeSqliteStorage {
+	const now = options.now ?? defaultNow;
+	let retention = options.retention ?? DEFAULT_RETENTION;
+
+	const db: DatabaseSync = openDatabase(options.path);
+	const interner = new Interner(db);
+	const spans = new SpanStore(db, interner);
+	const logs = new LogStore(db, interner);
+	const metrics = new MetricStore(db, interner);
+
+	const prune = (): void => {
+		pruneRetention(db, retention, now());
+	};
+
+	const intervalMs = options.pruneIntervalMs ?? DEFAULT_PRUNE_INTERVAL_MS;
+	let timer: ReturnType<typeof setInterval> | undefined;
+	if (intervalMs > 0) {
+		timer = setInterval(prune, intervalMs);
+		// Do not let the prune timer hold the event loop open.
+		timer.unref?.();
+	}
+
+	return {
+		kind: 'otelux/storage',
+
+		writeSpans(input: readonly Span[]): void {
+			spans.write(input, now());
+		},
+		listTraces(query: ListTracesQuery): ListTracesResult {
+			return spans.listTraces(query);
+		},
+		getTraceSpans(traceId: TraceId): readonly Span[] {
+			return spans.getTraceSpans(traceId);
+		},
+		getSpan(spanId: SpanId): Span | undefined {
+			return spans.getSpan(spanId);
+		},
+
+		writeLogs(input: readonly LogRecord[]): void {
+			logs.write(input, now());
+		},
+		listLogs(query: ListLogsQuery): ListLogsResult {
+			return logs.listLogs(query);
+		},
+
+		writeMetrics(input: readonly Metric[]): void {
+			metrics.write(input, now());
+		},
+		listMetrics(query: ListMetricsQuery): ListMetricsResult {
+			return metrics.listMetrics(query);
+		},
+
+		applyRetention(config: RetentionConfig): void {
+			retention = config;
+			prune();
+		},
+		prune,
+
+		close(): void {
+			if (timer !== undefined) {
+				clearInterval(timer);
+			}
+			db.close();
+		},
+	};
 }
 
 export const OTELUX_ENGINE_NODE_VERSION = '0.1.0' as const;

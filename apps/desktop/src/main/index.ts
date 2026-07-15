@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { createEngine, createMemoryStorage } from '@otelux/engine';
+import { createEngine } from '@otelux/engine';
+import { createNodeSqliteStorage } from '@otelux/engine-node';
 import { BrowserWindow, app, ipcMain, shell } from 'electron';
 import {
 	type InvokeMessage,
@@ -103,11 +104,19 @@ function resolveMaxBodyBytes(envName: string): number | undefined {
 async function startBackend(): Promise<{
 	stop: () => Promise<void>;
 }> {
-	const storage = createMemoryStorage();
-	const engine = createEngine({ storage });
-
 	const settingsFile = join(app.getPath('userData'), 'settings.json');
 	const settings = await SettingsStore.open(settingsFile);
+
+	// Durable, on-disk store (node:sqlite). The DB lives in the platform
+	// user-data directory so it survives restarts and app updates. Retention is
+	// seeded from settings and re-applied whenever the user changes it.
+	const dbFile = join(app.getPath('userData'), 'otelux.db');
+	const storage = createNodeSqliteStorage({
+		path: dbFile,
+		retention: settings.get().retention,
+	});
+	const engine = createEngine({ storage });
+
 	const receiverHost = new ReceiverHost(
 		engine,
 		'127.0.0.1',
@@ -145,6 +154,9 @@ async function startBackend(): Promise<{
 		broadcast({ kind: 'mcp-status-changed', status });
 	});
 	const offSettings = settings.onChange((next) => {
+		// Retention is enforced by the storage layer; re-apply on every change so
+		// tightening the bound prunes immediately rather than at the next timer.
+		storage.applyRetention(next.retention);
 		broadcast({ kind: 'settings-changed', settings: next });
 	});
 

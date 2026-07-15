@@ -30,7 +30,7 @@ npm ci
 ${XDG_CONFIG_HOME:-$HOME/.config}/otelux/local/settings.json
 ```
 
-It does not persist telemetry. The current engine is memory-only, so closing OTelux discards received traces, logs, and metrics.
+It persists telemetry to a local SQLite database in the user-data directory, so received traces, logs, and metrics survive restarts. Old data is pruned by the retention setting (default 72 hours or 512 MB, whichever comes first; set either to `0` to disable that bound).
 
 After one successful build, launch the existing output without rebuilding:
 
@@ -159,7 +159,7 @@ The root build refreshes upstream workspace outputs before bundling the desktop 
 
 ### Telemetry disappeared after restart
 
-That is the current pre-release storage contract. Telemetry is held only in memory. Durable SQLite storage, retention, and migration support are tracked in [plan.md](plan.md#phase-2--durable-local-storage).
+Telemetry persists to a local SQLite database, so a normal restart keeps your data. If data is missing, the retention setting may have pruned it: telemetry older than the age bound, or beyond the size bound (default 72 hours / 512 MB), is dropped. Adjust or disable retention in Settings → Data retention (`0` = no limit). Schema migration across future storage versions is tracked in [plan.md](plan.md#phase-2--durable-local-storage).
 
 ### The Linux packaging command fails or produces incomplete artifacts
 

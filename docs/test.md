@@ -67,7 +67,7 @@ cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-us
 ### 1.2 Initial UI
 - **Visible chrome (top → bottom, left → right)**
   1. Left **Rail** — narrow icon strip with the **Traces** tab active, enabled **Metrics** and **Logs** tabs below it, and a footer with the **Theme** switch above **GitHub** (external link) and the **Settings** cog (opens the settings modal).
-  2. **Topbar** — `Traces` heading on the left, **EndpointBar** on the right (status dot, `OTLP/HTTP` label, URL `http://127.0.0.1:4319` as a click-to-copy pill, plus a green `MCP :4320` copy pill while MCP is enabled, and a `BETA` badge at the far right). The OTLP pill copies the receiver base URL; traces, logs, and metrics use the same host and port at `/v1/traces`, `/v1/logs`, and `/v1/metrics`. The MCP pill copies `http://127.0.0.1:4320/`. Hovering the `BETA` badge shows the current limitations (session-only in-memory storage, OTLP/HTTP JSON-only ingest). The settings cog lives on the rail, not in the topbar.
+  2. **Topbar** — `Traces` heading on the left, **EndpointBar** on the right (status dot, `OTLP/HTTP` label, URL `http://127.0.0.1:4319` as a click-to-copy pill, plus a green `MCP :4320` copy pill while MCP is enabled, and a `BETA` badge at the far right). The OTLP pill copies the receiver base URL; traces, logs, and metrics use the same host and port at `/v1/traces`, `/v1/logs`, and `/v1/metrics`. The MCP pill copies `http://127.0.0.1:4320/`. Hovering the `BETA` badge shows the current limitations (local database storage pruned by the retention setting, OTLP/HTTP JSON-only ingest). The settings cog lives on the rail, not in the topbar.
   3. **FilterBar** — hidden on cold start for Traces; it appears once at least one trace has been received and exposes a Service dropdown, an `Errors only` toggle chip, and a search field. Logs and Metrics expose their own filter controls when those tabs are active.
   4. **Workbench** body — right pane is collapsed (no waterfall yet); the left pane fills the width and shows the trace list with the `Traces` header, count `0`, and "Waiting for traces…" empty-state copy (or "No traces match. Point an OTel exporter at http://127.0.0.1:4319/v1/traces" once the first probe completes).
   5. No drawer / value-viewer modal is visible.
@@ -77,7 +77,7 @@ cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-us
 ```bash
 cat /tmp/otelux-userdata/settings.json 2>/dev/null
 ```
-- **Expected**: file does NOT exist yet (settings only persist on user write). Defaults are in-memory.
+- **Expected**: file does NOT exist yet (settings only persist on user write). Until then the app runs on the default settings held in memory. (Telemetry, unlike settings, persists to `otelux.db` from first ingest.)
 
 ---
 
@@ -200,7 +200,7 @@ For step 4.11.6, reuse the Python listener from step 4.10 with port `14331`, the
 2. Relaunch with `OTELUX_OTLP_PORT=14999 npx electron out/main/index.js --user-data-dir=/tmp/otelux-userdata`
 - **Expected**:
   - log shows `listening on http://127.0.0.1:14999/v1/{traces,logs,metrics}`
-  - `cat /tmp/otelux-userdata/settings.json` still has `{"version":1,"otlp":{"port":14320},"mcp":{"enabled":true,"port":4320}}` — **env did NOT mutate file**
+  - `cat /tmp/otelux-userdata/settings.json` still has `{"version":1,"otlp":{"port":14320},"mcp":{"enabled":true,"port":4320},"retention":{"maxAgeHours":72,"maxSizeMb":512}}` — **env did NOT mutate file**
   - Open settings modal → OTLP input shows the live override `14999`; closing without Save leaves the persisted port at `14320`
   - Quit + relaunch without env → returns to 14320
 
@@ -224,6 +224,19 @@ For step 4.11.6, reuse the Python listener from step 4.10 with port `14331`, the
 
 ### 5.6 Restore the test baseline
 - Save OTLP port `14320` and MCP enabled on `4320` before continuing. All fixed URLs in the remaining sections assume this baseline unless a section says otherwise.
+
+### 5.7 Telemetry persists across restart
+1. With the app running, ingest at least one trace, one log, and one metric (see sections 6–8).
+2. Quit the app and relaunch with the same `--user-data-dir=/tmp/otelux-userdata`.
+- **Expected**: the previously ingested traces, logs, and metrics are still listed after restart (they are read back from `<user-data>/otelux.db`, not re-received). `ls /tmp/otelux-userdata/otelux.db*` shows the database file.
+
+### 5.8 Data retention
+1. Open Settings → **Data retention**. Confirm defaults: **Keep for (hours)** `72`, **Max database size (MB)** `512`.
+2. Set **Keep for (hours)** to `0` and Save → accepted (no age limit).
+3. Set **Max database size (MB)** to `0` and Save → accepted (no size limit).
+4. Enter a negative or non-integer value → inline validation error, nothing persisted.
+5. Restore defaults (`72` / `512`) before continuing.
+- **Expected**: valid values persist to `settings.json` under `"retention"`; invalid values are rejected inline without mutating the file or the running store.
 
 ---
 

@@ -78,6 +78,10 @@ class FakeStore implements SettingsWriter {
 				enabled: patch.mcp?.enabled ?? this.base.mcp.enabled,
 				port: patch.mcp?.port ?? this.base.mcp.port,
 			},
+			retention: {
+				maxAgeHours: patch.retention?.maxAgeHours ?? this.base.retention.maxAgeHours,
+				maxSizeMb: patch.retention?.maxSizeMb ?? this.base.retention.maxSizeMb,
+			},
 		};
 	}
 
@@ -92,7 +96,12 @@ class FakeStore implements SettingsWriter {
 }
 
 function baseSettings(): Settings {
-	return { version: 1, otlp: { port: 4319 }, mcp: { enabled: true, port: 4320 } };
+	return {
+		version: 1,
+		otlp: { port: 4319 },
+		mcp: { enabled: true, port: 4320 },
+		retention: { maxAgeHours: 72, maxSizeMb: 512 },
+	};
 }
 
 describe('updateSettings', () => {

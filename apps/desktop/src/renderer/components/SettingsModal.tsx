@@ -1,6 +1,8 @@
 import { type JSX, useEffect, useRef, useState } from 'react';
 import {
 	MAX_PORT,
+	MAX_RETENTION_AGE_HOURS,
+	MAX_RETENTION_SIZE_MB,
 	MIN_PORT,
 	type McpStatus,
 	type PartialSettings,
@@ -41,6 +43,8 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 	const [portInput, setPortInput] = useState(String(currentPort ?? settings.otlp.port));
 	const [mcpEnabled, setMcpEnabled] = useState(settings.mcp.enabled);
 	const [mcpPortInput, setMcpPortInput] = useState(String(settings.mcp.port));
+	const [ageInput, setAgeInput] = useState(String(settings.retention.maxAgeHours));
+	const [sizeInput, setSizeInput] = useState(String(settings.retention.maxSizeMb));
 	const [error, setError] = useState<string | undefined>(undefined);
 	const [saving, setSaving] = useState(false);
 	const portInputRef = useRef<HTMLInputElement>(null);
@@ -108,11 +112,24 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 			setError('MCP port must differ from OTLP port.');
 			return;
 		}
+		const parsedAge = Number.parseInt(ageInput, 10);
+		if (!Number.isInteger(parsedAge) || parsedAge < 0 || parsedAge > MAX_RETENTION_AGE_HOURS) {
+			setError(
+				`Retention age must be between 0 and ${MAX_RETENTION_AGE_HOURS} hours (0 = unlimited).`,
+			);
+			return;
+		}
+		const parsedSize = Number.parseInt(sizeInput, 10);
+		if (!Number.isInteger(parsedSize) || parsedSize < 0 || parsedSize > MAX_RETENTION_SIZE_MB) {
+			setError(`Retention size must be between 0 and ${MAX_RETENTION_SIZE_MB} MB (0 = unlimited).`);
+			return;
+		}
 		setError(undefined);
 		setSaving(true);
 		const patch: PartialSettings = {
 			otlp: { port: parsedOtlp },
 			mcp: { enabled: mcpEnabled, port: parsedMcp },
+			retention: { maxAgeHours: parsedAge, maxSizeMb: parsedSize },
 		};
 		const result = await onSave(patch);
 		setSaving(false);
@@ -214,6 +231,45 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 								) : (
 									<>MCP server is off. OTLP ingest is unaffected.</>
 								)}
+							</span>
+						</label>
+					</fieldset>
+
+					<fieldset className="fieldset">
+						<legend>Data retention</legend>
+						<span className="field__hint">
+							Telemetry is stored on disk and pruned when either limit is reached, whichever comes first.
+							Set a value to <code>0</code> to disable that limit.
+						</span>
+						<label className="field">
+							<span className="field__label">Keep for (hours)</span>
+							<input
+								type="number"
+								min={0}
+								max={MAX_RETENTION_AGE_HOURS}
+								step={1}
+								value={ageInput}
+								onChange={(e) => setAgeInput(e.target.value)}
+								disabled={saving}
+							/>
+							<span className="field__hint">
+								Drop telemetry older than this. Default 72 (3 days). <code>0</code> = keep forever.
+							</span>
+						</label>
+						<label className="field">
+							<span className="field__label">Max database size (MB)</span>
+							<input
+								type="number"
+								min={0}
+								max={MAX_RETENTION_SIZE_MB}
+								step={1}
+								value={sizeInput}
+								onChange={(e) => setSizeInput(e.target.value)}
+								disabled={saving}
+							/>
+							<span className="field__hint">
+								Prune oldest telemetry once the store passes this size. Default 512 MB. <code>0</code> = no
+								size limit.
 							</span>
 						</label>
 					</fieldset>

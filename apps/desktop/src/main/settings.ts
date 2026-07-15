@@ -3,6 +3,8 @@ import { dirname } from 'node:path';
 import {
 	DEFAULT_SETTINGS,
 	MAX_PORT,
+	MAX_RETENTION_AGE_HOURS,
+	MAX_RETENTION_SIZE_MB,
 	MIN_PORT,
 	type PartialSettings,
 	type Settings,
@@ -118,6 +120,10 @@ function merge(base: Settings, patch: PartialSettings): Settings {
 			enabled: patch.mcp?.enabled ?? base.mcp.enabled,
 			port: patch.mcp?.port ?? base.mcp.port,
 		},
+		retention: {
+			maxAgeHours: patch.retention?.maxAgeHours ?? base.retention.maxAgeHours,
+			maxSizeMb: patch.retention?.maxSizeMb ?? base.retention.maxSizeMb,
+		},
 	};
 }
 
@@ -129,6 +135,7 @@ function coerce(value: unknown): Settings {
 		version?: unknown;
 		otlp?: { port?: unknown };
 		mcp?: { enabled?: unknown; port?: unknown };
+		retention?: { maxAgeHours?: unknown; maxSizeMb?: unknown };
 	};
 	if (v.version !== 1) {
 		return DEFAULT_SETTINGS;
@@ -137,10 +144,19 @@ function coerce(value: unknown): Settings {
 	const mcpEnabled =
 		typeof v.mcp?.enabled === 'boolean' ? v.mcp.enabled : DEFAULT_SETTINGS.mcp.enabled;
 	const mcpPort = typeof v.mcp?.port === 'number' ? v.mcp.port : DEFAULT_SETTINGS.mcp.port;
+	const maxAgeHours =
+		typeof v.retention?.maxAgeHours === 'number'
+			? v.retention.maxAgeHours
+			: DEFAULT_SETTINGS.retention.maxAgeHours;
+	const maxSizeMb =
+		typeof v.retention?.maxSizeMb === 'number'
+			? v.retention.maxSizeMb
+			: DEFAULT_SETTINGS.retention.maxSizeMb;
 	const candidate: Settings = {
 		version: 1,
 		otlp: { port: otlpPort },
 		mcp: { enabled: mcpEnabled, port: mcpPort },
+		retention: { maxAgeHours, maxSizeMb },
 	};
 	try {
 		validate(candidate);
@@ -164,5 +180,16 @@ function validate(settings: Settings): void {
 		// the user sees a clear validation error instead of a cryptic
 		// EADDRINUSE at runtime.
 		throw new Error('MCP port must differ from OTLP port.');
+	}
+	const { maxAgeHours, maxSizeMb } = settings.retention;
+	if (!Number.isInteger(maxAgeHours) || maxAgeHours < 0 || maxAgeHours > MAX_RETENTION_AGE_HOURS) {
+		throw new Error(
+			`Retention age must be an integer in [0, ${MAX_RETENTION_AGE_HOURS}] hours (0 = unlimited); got ${maxAgeHours}`,
+		);
+	}
+	if (!Number.isInteger(maxSizeMb) || maxSizeMb < 0 || maxSizeMb > MAX_RETENTION_SIZE_MB) {
+		throw new Error(
+			`Retention size must be an integer in [0, ${MAX_RETENTION_SIZE_MB}] MB (0 = unlimited); got ${maxSizeMb}`,
+		);
 	}
 }

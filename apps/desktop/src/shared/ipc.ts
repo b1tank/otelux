@@ -39,6 +39,18 @@ export interface Settings {
 		readonly enabled: boolean;
 		readonly port: number;
 	};
+	/**
+	 * Durable-storage retention. Telemetry is pruned when EITHER bound is
+	 * exceeded (age OR size), evaluated against wall-clock arrival time so a
+	 * client with a skewed event clock cannot pin data in the store forever.
+	 * `0` disables that individual bound (the other still applies).
+	 */
+	readonly retention: {
+		/** Drop telemetry older than this many hours. `0` = no age limit. */
+		readonly maxAgeHours: number;
+		/** Prune oldest telemetry once the DB exceeds this size. `0` = no size limit. */
+		readonly maxSizeMb: number;
+	};
 }
 
 /**
@@ -52,6 +64,10 @@ export interface PartialSettings {
 	readonly mcp?: {
 		readonly enabled?: boolean;
 		readonly port?: number;
+	};
+	readonly retention?: {
+		readonly maxAgeHours?: number;
+		readonly maxSizeMb?: number;
 	};
 }
 
@@ -69,11 +85,21 @@ export const DEFAULT_SETTINGS: Settings = {
 	version: 1,
 	otlp: { port: 4319 },
 	mcp: { enabled: true, port: 4320 },
+	// 3 days keeps a useful debugging window without letting a chatty local
+	// exporter fill the disk; 512 MiB is the hard ceiling that wins if the
+	// window is busier than expected. Both are user-adjustable in Settings.
+	retention: { maxAgeHours: 72, maxSizeMb: 512 },
 };
 
 /** Inclusive bounds for a valid TCP port. */
 export const MIN_PORT = 1;
 export const MAX_PORT = 65535;
+
+// Retention bounds. Upper limits keep a fat-fingered value from being
+// effectively "unlimited": ~5 years of hours, and 1 TiB of disk. `0` is the
+// sentinel for "no limit" on either axis and is validated separately.
+export const MAX_RETENTION_AGE_HOURS = 43_800;
+export const MAX_RETENTION_SIZE_MB = 1_048_576;
 
 /**
  * Reified receiver lifecycle state. Errors are values rather than

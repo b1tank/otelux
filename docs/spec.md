@@ -30,7 +30,7 @@ The repository currently contains:
 - `apps/desktop`: Electron app hosting the receiver, engine, MCP server, IPC, settings, and React renderer.
 - `apps/vscode-extension`: VS Code extension shell with embedded receiver, MCP server, webview workbench, and LM Tool registration.
 - OTLP/HTTP JSON ingest for traces, logs, and metrics.
-- In-memory storage for all signals.
+- Durable local storage for all signals via `@otelux/engine-node` (Node `node:sqlite`), with user-configurable retention (age and size). `@otelux/engine` still ships an in-memory store for tests and small workloads.
 - Live Traces, Logs, and Metrics rail surfaces in `@otelux/ui`.
 - Direct and VS Code postMessage `DataSource` adapters.
 - MCP and LM tool plumbing over the same query layer.
@@ -38,7 +38,6 @@ The repository currently contains:
 
 Important current limits:
 
-- `@otelux/engine-node` currently forwards to memory storage. Durable `node:sqlite` storage is planned, not shipped.
 - Protobuf and gRPC ingest are planned, not shipped.
 - Dense trace modes, detail search, result footers, and live/paused controls need polish.
 - Agent-run correlation and service overview tools are schema-stable but not fully implemented.
@@ -75,7 +74,7 @@ The reference dogfood workload is Codex CLI telemetry. Its user-visible content 
 │   ingest, query, layout, live subscription, storage boundary   │
 ├──────────────────────────────────────────────────────────────┤
 │ Storage                                                      │
-│   memory today; @otelux/engine-node SQLite planned            │
+│   @otelux/engine memory; @otelux/engine-node node:sqlite      │
 ├──────────────────────────────────────────────────────────────┤
 │ Ingest and agent tools                                       │
 │   @otelux/receiver      @otelux/mcp-server      VS Code tools │
@@ -93,7 +92,7 @@ The engine is the source of truth for ingest, query, layout, and subscriptions. 
 | `@otelux/types` | Shared trace, log, metric, resource, scope, and attribute types. | Live. |
 | `@otelux/protocol` | `DataSource` interface and query/result contracts. | Live for traces/logs/metrics. |
 | `@otelux/engine` | Pure TypeScript ingest, query, layout, subscriptions, memory storage. | Live. |
-| `@otelux/engine-node` | Node storage package. | Placeholder that currently uses memory storage; SQLite planned. |
+| `@otelux/engine-node` | Durable Node storage adapter (`node:sqlite`) with retention (age/size). | Live. |
 | `@otelux/receiver` | OTLP/HTTP receiver and single-instance helper. | JSON routes live for traces/logs/metrics. |
 | `@otelux/ui` | React workbench and primitives. | Traces/logs/metrics live; polish ongoing around details, grouping controls, and footer controls. |
 | `@otelux/adapter-direct` | In-process `DataSource` wrapper. | Live. |
@@ -123,7 +122,7 @@ Future packages or apps, such as a WASM storage adapter or web demo, should be a
 | UI | React 18, CSS variables, hand-rolled primitives where small. |
 | Receiver | Hono over Node. |
 | Agent protocol | Hand-written MCP JSON-RPC dispatcher with HTTP and stdio transports. |
-| Storage | Memory today; Node 22 `node:sqlite` planned. |
+| Storage | `@otelux/engine` in-memory (tests/small workloads); `@otelux/engine-node` durable Node 22 `node:sqlite` with retention. |
 
 Do not document dependencies as adopted until they are present in manifests and used by code. Storybook, Playwright visual snapshots, TanStack, Radix, visx, Zustand, SQLite-WASM, protobuf, and gRPC remain future decisions unless added by implementation.
 
@@ -341,8 +340,8 @@ Treat these as targets until benchmark coverage exists:
 |---|---:|
 | Cold start to first paint | < 3 seconds in development, tighter for packaged builds. |
 | Trace list query | < 100 ms for common local workloads. |
-| Log search | < 150 ms for indexed local workloads after SQLite lands. |
-| Metric chart query | < 150 ms for common local workloads after SQLite lands. |
+| Log search | < 150 ms for indexed local workloads. |
+| Metric chart query | < 150 ms for common local workloads. |
 | Waterfall layout | One frame for visible rows in typical traces. |
 | UI interaction | No intentional blocking over one frame. |
 
