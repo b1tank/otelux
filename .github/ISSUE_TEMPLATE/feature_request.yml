@@ -38,7 +38,8 @@ body:
         - Logs
         - Metrics
         - MCP tools
-        - VS Code extension (experimental)
+        - Agent plugin
+        - CLI
         - Distribution or packaging
         - Documentation
     validations:

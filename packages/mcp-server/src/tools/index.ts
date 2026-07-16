@@ -1,8 +1,8 @@
 /**
  * Tool implementations frozen in `docs/spec.md` § 12.3.
  *
- * Each tool is a thin wrapper over `@otelux/engine` so the LM Tools in
- * `apps/vscode-extension` and these MCP tools return identical results.
+ * Each tool is a thin wrapper over `@otelux/engine` so every MCP transport
+ * returns identical results.
  *
  * `otel_correlate_agent_run` is schema-stable but waits on engine-side
  * agent-run detection. `otel_get_service_overview` is backed by recent trace

@@ -2,11 +2,11 @@
  * Color tokens live in @otelux/ui's tokens.css and are imported via
  * `@otelux/ui/workbench.css` at the renderer entry. The previous
  * `:root` block here redeclared `--otelux-bg`, `--otelux-bg-panel`,
- * `--otelux-fg-muted`, and `--otelux-accent` with VS Code-style
- * greys/blues, which silently shadowed the workbench palette and
- * pulled the desktop build off the design system. The only thing
- * left here is `color-scheme: dark` so form controls and scrollbars
- * pick the dark UA chrome.
+ * `--otelux-fg-muted`, and `--otelux-accent` with local overrides,
+ * which silently shadowed the workbench palette and pulled the desktop
+ * build off the design system. The only thing left here is
+ * `color-scheme: dark` so form controls and scrollbars pick the dark UA
+ * chrome.
  */
 :root {
 	color-scheme: dark;

@@ -6,7 +6,7 @@ OTelux is a local-first OpenTelemetry workbench. It receives local telemetry, ke
 
 This document is the source of truth for what the product is, what is implemented now, and what behavior a supported release must provide. [plan.md](plan.md) owns future work, [test.md](test.md) owns release verification, and [proposal.md](proposal.md) owns the product rationale.
 
-User operation lives in [getting-started.md](getting-started.md), data handling in [privacy.md](privacy.md), and trust boundaries in [security-model.md](security-model.md).
+User operation lives in [getting-started.md](getting-started.md), system architecture in [arch.md](arch.md), data handling in [privacy.md](privacy.md), and trust boundaries in [security-model.md](security-model.md).
 
 The **Current Baseline** and status tables are descriptive and must match the code. Sections labeled **Requirements** are normative product targets; an item there is not shipped unless the Current Baseline says it is live. Release-specific platform and feature limitations belong in release notes.
 
@@ -16,7 +16,7 @@ The **Current Baseline** and status tables are descriptive and must match the co
 |---|---|
 | Local-first | No cloud account, no backend dependency, no multi-tenant core. |
 | Workbench, not dashboard | Dense comparison where users scan rows; spacious detail where users inspect one item. |
-| One engine, many hosts | Desktop, VS Code, and agent tools query the same engine data. |
+| One runtime, four forms | Agent plugin, direct MCP, CLI, and Desktop converge on one backend and active local database rather than starting competing receivers. |
 | Package-first | Shared behavior belongs in `packages/*`; apps assemble packages. |
 | Embed-friendly | UI is browser-safe, themeable through CSS variables, and usable inside webviews. |
 | A11y is part of done | Keyboard access, focus states, labels, and readable high-contrast states are required. |
@@ -28,16 +28,15 @@ The **Current Baseline** and status tables are descriptive and must match the co
 The repository currently contains:
 
 - `apps/desktop`: Electron app hosting the receiver, engine, MCP server, IPC, settings, and React renderer.
-- `apps/vscode-extension`: VS Code extension shell with embedded receiver, MCP server, webview workbench, and LM Tool registration.
 - OTLP/HTTP JSON and protobuf ingest for traces, logs, and metrics.
 - Durable local storage for all signals via `@otelux/engine-node` (Node `node:sqlite`), with user-configurable retention (age and size). The store versions its schema (forward-only migrations) and self-heals an unreadable or newer-version file by quarantining it and starting fresh. `@otelux/engine` still ships an in-memory store for tests and small workloads; both back ends pass a shared storage-contract suite.
 - Live Traces, Logs, and Metrics rail surfaces in `@otelux/ui`.
 - A one-click "Load sample data" seed in the empty Traces view populates every surface with clearly-labelled synthetic telemetry, so a first-run user can evaluate the UI before wiring an exporter.
 - A shared live/paused (live-tail) control and result footers across all three views, plus a confirmed "Clear data" action that deletes all stored telemetry.
-- Direct and VS Code postMessage `DataSource` adapters.
-- MCP and LM tool plumbing over the same query layer.
-- A shared OTelux plugin under `plugins/otelux` installs into Claude Code and Codex with four observability skills plus a secure stdio bridge to the desktop MCP listener. See [plugin-architecture.md](plugin-architecture.md).
-- The desktop app is the release product. The VS Code extension is an experimental second host until its hardening phase is complete.
+- Direct in-process and Electron IPC `DataSource` adapters.
+- MCP tool plumbing over the same query layer.
+- A shared OTelux plugin under `plugins/otelux` installs into Claude Code and Codex with four observability skills plus a secure stdio bridge to the desktop MCP listener. This is the current companion implementation; see [arch.md](arch.md#current-implementation) for the target shared-runtime architecture.
+- The desktop app is the current release product. The agent plugin is currently its companion; direct MCP and CLI become independent forms after the shared-runtime extraction.
 
 Important current limits:
 
@@ -60,33 +59,24 @@ The reference dogfood workload is Codex CLI telemetry. Its user-visible content 
 ## Architecture
 
 ```text
-┌──────────────────────────────────────────────────────────────┐
-│ Apps                                                         │
-│   apps/desktop            apps/vscode-extension              │
-├──────────────────────────────────────────────────────────────┤
-│ UI adapters                                                  │
-│   @otelux/adapter-direct  @otelux/adapter-vscode             │
-├──────────────────────────────────────────────────────────────┤
-│ @otelux/ui                                                   │
-│   Traces, Logs, Metrics, details, primitives, theme tokens    │
-├──────────────────────────────────────────────────────────────┤
-│ @otelux/protocol                                             │
-│   DataSource interface and query/result shapes                │
-├──────────────────────────────────────────────────────────────┤
-│ @otelux/engine                                               │
-│   ingest, query, layout, live subscription, storage boundary   │
-├──────────────────────────────────────────────────────────────┤
-│ Storage                                                      │
-│   @otelux/engine memory; @otelux/engine-node node:sqlite      │
-├──────────────────────────────────────────────────────────────┤
-│ Ingest and agent tools                                       │
-│   @otelux/receiver      @otelux/mcp-server      VS Code tools │
-└──────────────────────────────────────────────────────────────┘
+Agent plugin    Direct MCP    CLI    Desktop
+      \             |         |        /
+       +------------+---------+-------+
+			  |
+		  shared local runtime
+			  |
+	+-----------------+-----------------+
+	|                 |                 |
+  OTLP receiver       MCP tools       workbench UI/API
+			  |
+		  engine + protocol
+			  |
+		     node:sqlite
 ```
 
-The load-bearing boundary is `DataSource` from `@otelux/protocol`. The UI asks for telemetry through this interface. Hosts decide whether the request is served directly, over Electron IPC, or over VS Code postMessage.
+The load-bearing boundary is `DataSource` from `@otelux/protocol`. The UI asks for telemetry through this interface. Hosts decide whether the request is served directly, over Electron IPC, or over local HTTP/events. The browser is a delivery mode opened by the plugin or CLI, not a separate product form.
 
-The engine is the source of truth for ingest, query, layout, and subscriptions. The receiver writes into it. The UI and agent tools read from it.
+The runtime is the only process that opens the active database and binds the receiver. The engine is the source of truth for ingest, query, layout, and subscriptions. The receiver writes into it; the shared workbench and agent tools read from it. See [arch.md](arch.md) for lifecycle and migration details.
 
 ## Packages
 
@@ -99,7 +89,6 @@ The engine is the source of truth for ingest, query, layout, and subscriptions. 
 | `@otelux/receiver` | OTLP/HTTP receiver and single-instance helper. | JSON routes live for traces/logs/metrics. |
 | `@otelux/ui` | React workbench and primitives. | Traces/logs/metrics live; polish ongoing around details, grouping controls, and footer controls. |
 | `@otelux/adapter-direct` | In-process `DataSource` wrapper. | Live. |
-| `@otelux/adapter-vscode` | VS Code webview postMessage `DataSource` bridge. | Live. |
 | `@otelux/mcp-server` | Read-only MCP JSON-RPC dispatcher. | Live with some stubbed tools. |
 
 Apps are not published packages:
@@ -107,17 +96,15 @@ Apps are not published packages:
 | App | Purpose | Current state |
 |---|---|---|
 | `apps/desktop` | Main Electron workbench. | Runnable Linux-focused pre-release. |
-| `apps/vscode-extension` | VS Code-hosted workbench plus MCP/LM tools. | Shell implemented; needs hardening and packaging. |
 
 Plugin distributions are thin hosts over the same packages:
 
 | Plugin | Purpose | Current state |
 |---|---|---|
 | Claude Code | Shared skills + local desktop MCP bridge. | Built, validated, locally installed. |
-| Codex / ChatGPT desktop | Shared skills + local desktop MCP bridge. | Built, locally installed; marketplace entry live in-repo. |
-| Public ChatGPT app | Hosted MCP + optional Apps SDK UI reusing `@otelux/ui`. | Designed; requires public HTTPS deployment and review. |
+| Codex | Shared skills + local desktop MCP bridge. | Built, locally installed; marketplace entry live in-repo. |
 
-Future packages or apps, such as a WASM storage adapter or web demo, should be added to this spec when they enter active implementation.
+Future packages or apps should be added to this spec only when they support one of the four product forms and enter active implementation.
 
 ## Technology
 
@@ -129,7 +116,6 @@ Future packages or apps, such as a WASM storage adapter or web demo, should be a
 | Lint/format | Biome. |
 | Tests | Vitest. |
 | Desktop | Electron, electron-vite, electron-builder. |
-| VS Code extension | esbuild host bundle, Vite webview bundle. |
 | UI | React 18, CSS variables, hand-rolled primitives where small. |
 | Receiver | Hono over Node. |
 | Agent protocol | Hand-written MCP JSON-RPC dispatcher with HTTP and stdio transports. |
@@ -168,10 +154,9 @@ Planned receiver work:
 
 ## Port Defaults
 
-| Consumer | OTLP/HTTP | MCP HTTP | Notes |
+| Runtime | OTLP/HTTP | MCP HTTP | Notes |
 |---|---:|---:|---|
-| Desktop | `4319` | `4320` by default | Avoids colliding with a user's standard collector on `4318`; both listeners are configurable and MCP can be disabled. |
-| VS Code extension | `4318` | `4319` by default | Standard OTLP endpoint for editor-local ingest. |
+| Shared local runtime | `4319` | `4320` by default | Avoids colliding with a user's standard collector on `4318`; both listeners are configurable and MCP can be disabled. Desktop owns these listeners until the runtime extraction lands. |
 
 Ports are host settings. The receiver package also exposes single-instance claiming so hosts can handle collisions deliberately.
 OTLP and MCP listeners must use different ports. The desktop exposes a copyable OTLP base URL and, while MCP is enabled, a copyable MCP endpoint; failed listener binds leave the previous healthy listener and persisted settings intact.
@@ -291,7 +276,7 @@ Every release candidate requires zero unresolved P0 or P1 defects, explicit disp
 
 ## Agent Tool Surface
 
-Initial MCP tools, mirrored where useful by VS Code LM Tools:
+Initial MCP tools shared by the agent plugin, direct MCP, CLI, and Desktop:
 
 | Tool | Status | Question |
 |---|---|---|
@@ -374,5 +359,4 @@ Manual desktop verification lives in [test.md](test.md). UI/runtime smoke checks
 
 - When does the workbench need a separate Services surface versus compact service overview panels in existing views?
 - How much column management is needed before durable storage makes row counts large enough to justify full data-grid behavior?
-- Does a browser demo matter before desktop and VS Code are both hard enough for daily local use?
-- Should MCP config writers live in the extension only, or graduate into a shared package after desktop needs them too?
+- Should telemetry configuration mutations live in the CLI so plugin skills only propose, confirm, and invoke them?

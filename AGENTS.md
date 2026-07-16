@@ -40,6 +40,6 @@ New plan/spec/proposal/test material belongs under `docs/`, never the root.
 
 ## Layout
 
-- `packages/` — `types`, `protocol`, `engine`, `engine-node`, `receiver`, `mcp-server`, `ui`, `adapter-direct`, `adapter-vscode`.
-- `apps/` — `desktop` (Electron), `vscode-extension`.
-- Adding a `DataSource` method means updating **all** consumers: `ipcDataSource`, `adapter-direct`, `adapter-vscode` (protocol + host + webview + test), and the `ui`/adapter test fakes.
+- `packages/` — `types`, `protocol`, `engine`, `engine-node`, `receiver`, `mcp-server`, `ui`, `adapter-direct`.
+- `apps/` — `desktop` (Electron).
+- Adding a `DataSource` method means updating **all** consumers: `ipcDataSource`, `adapter-direct`, and the `ui`/adapter test fakes.

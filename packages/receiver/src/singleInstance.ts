@@ -1,12 +1,11 @@
 /**
  * Cross-process single-instance election for the OTLP receiver.
  *
- * The desktop app and the VS Code extension both want to listen on the
- * same default OTLP/HTTP port (4318) on `127.0.0.1`. Only one of them
- * can win the bind. This helper decides — based on a small JSON
- * lockfile — whether the current process is the "owner" (must start a
- * receiver) or a "client" (should forward to the already-running
- * receiver instead of binding).
+ * Multiple OTelux entry points can start concurrently, but only the shared
+ * local runtime may own the configured OTLP/HTTP port. This helper decides —
+ * based on a small JSON lockfile — whether the current process is the
+ * "owner" (must start a receiver) or a "client" (should forward to the
+ * already-running receiver instead of binding).
  *
  * Why a lockfile rather than just attempting `listen()` and falling
  * back on EADDRINUSE? Because we also need to know **what URL to send

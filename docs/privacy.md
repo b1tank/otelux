@@ -50,9 +50,9 @@ The current MCP HTTP listener is enabled by default but requires a per-install b
 
 The OTelux Claude Code and Codex plugins connect to the authenticated loopback MCP listener through a bundled local bridge. The bridge reads the token from the platform user-data directory; it does not copy the token into plugin manifests, model prompts, or marketplace metadata.
 
-All bundled MCP tools are read-only. Tool results can contain telemetry attributes, log bodies, prompts, SQL, identifiers, and other sensitive content. When Claude, Codex, or ChatGPT uses a tool result, that selected data may be sent to the AI provider under that provider's account, retention, and privacy settings. Installing the plugin does not itself upload telemetry; data leaves the local store only when the user/model invokes a tool or the user explicitly exports/copies it.
+All bundled MCP tools are read-only. Tool results can contain telemetry attributes, log bodies, prompts, SQL, identifiers, and other sensitive content. When Claude or Codex uses a tool result, that selected data may be sent to the AI provider under that provider's account, retention, and privacy settings. Installing the plugin does not itself upload telemetry; data leaves the local store only when the user/model invokes a tool or the user explicitly exports/copies it.
 
-A future public ChatGPT app requires a public HTTPS MCP service because hosted ChatGPT cannot reach localhost. Any hosted store or desktop relay must be separately opt-in and cannot ship until its egress, authentication, tenant isolation, retention, deletion, privacy, and legal terms are documented and reviewed. See [plugin-architecture.md](plugin-architecture.md).
+The local plugin, direct-MCP, CLI, and Desktop forms do not require a hosted OTelux service or account.
 
 ## Repository Fixtures
 

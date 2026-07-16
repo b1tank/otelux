@@ -9,10 +9,9 @@
  * - {@link runStdioTransport} pipes `process.stdin`/`process.stdout`
  *   through the dispatcher for spawn-on-demand clients.
  *
- * Tool surface is frozen in `docs/spec.md` § 12.3. Tools are thin
- * wrappers over `@otelux/engine` so the LM Tools in
- * `apps/vscode-extension` and the MCP tools here return identical
- * results from the same query path.
+ * Tool surface is frozen in `docs/spec.md` § 12.3. Tools are thin wrappers
+ * over `@otelux/engine` so every MCP transport returns results from the same
+ * query path.
  */
 
 export {

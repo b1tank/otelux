@@ -1,10 +1,9 @@
 /**
  * `@otelux/ui` — composed React workbench.
  *
- * `OTeluxWorkbench` is the single entry point hosts (Electron renderer,
- * vscode webview, vscode-dev workbench) mount. It owns the redesigned
- * layout (rail + topbar + filterbar + resizable workbench + drawer)
- * and consumes any `DataSource`.
+ * `OTeluxWorkbench` is the single entry point Desktop and runtime-served
+ * browser hosts mount. It owns the redesigned layout (rail + topbar +
+ * filterbar + resizable workbench + drawer) and consumes any `DataSource`.
  *
  * Layered import discipline: this file is the only composition surface
  * permitted to depend on both `layout/` and `domain/`. Individual
@@ -60,9 +59,8 @@ export interface OTeluxWorkbenchProps {
 	theme?: ThemeMode;
 	/**
 	 * OTLP/HTTP traces endpoint shown in the empty-state hint. Hosts
-	 * that know the live bind (desktop app with a configurable port,
-	 * vscode webview proxied through the extension) should pass the
-	 * real URL so users copy-paste the right thing.
+	 * that know the live bind should pass the real URL so users copy-paste
+	 * the right thing.
 	 */
 	endpointUrl?: string;
 	/**

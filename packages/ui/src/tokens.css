@@ -132,64 +132,7 @@
 	--otelux-svc-8: #2e8a78;
 }
 
-/* ----------------------------------------------------------------------
- * VS Code host theme — applied when the workbench is mounted inside a
- * VS Code webview. The host injects `--vscode-*` CSS variables onto the
- * document root that follow the user's color theme; we remap our
- * `--otelux-*` tokens to those variables (with our dark-theme defaults
- * as fallbacks) so the workbench feels native in light, dark, and
- * high-contrast themes without us shipping any extra CSS.
- *
- * The webview token catalog is documented at
- * https://code.visualstudio.com/api/extension-guides/webview#theming-webview-content
- * — names we use here all appear there.
- *
- * Enable by mounting the workbench with `data-host="vscode"` on the root
- * element. Service palette and layout sizes are intentionally NOT
- * remapped: services need their hash-stable hue family across hosts, and
- * layout sizes are deliberate design constants.
- * --------------------------------------------------------------------*/
 .otelux-workbench-root[data-theme="dark"],
 .otelux-workbench[data-theme="dark"] {
 	color-scheme: dark;
-}
-
-.otelux-workbench-root[data-host="vscode"],
-.otelux-workbench[data-host="vscode"] {
-	--otelux-bg: var(--vscode-editor-background, #1a1b26);
-	--otelux-bg-panel: var(--vscode-sideBar-background, #1f2335);
-	--otelux-bg-elevated: var(--vscode-list-activeSelectionBackground, #24283b);
-	--otelux-bg-hover: var(--vscode-list-hoverBackground, #292e42);
-	--otelux-border: var(--vscode-panel-border, #343b60);
-	--otelux-border-strong: var(--vscode-editorWidget-border, #4a5380);
-
-	--otelux-fg: var(--vscode-foreground, #d6ddff);
-	--otelux-fg-secondary: var(--vscode-descriptionForeground, #bbc4ee);
-	--otelux-fg-muted: var(--vscode-disabledForeground, #8f9bd0);
-	--otelux-fg-faint: var(--vscode-disabledForeground, #8f9bd0);
-
-	--otelux-accent: var(--vscode-focusBorder, #7aa2f7);
-	--otelux-accent-2: var(--vscode-textLink-foreground, #bb9af7);
-	--otelux-ok: var(--vscode-testing-iconPassed, #9ece6a);
-	--otelux-warn: var(--vscode-editorWarning-foreground, #e0af68);
-	--otelux-error: var(--vscode-errorForeground, #f7768e);
-
-	/* Type — let the webview match the editor surface so headings/code
-	 * align with the rest of the IDE. Fall back to our bundled stacks. */
-	--otelux-font-sans: var(
-		--vscode-font-family,
-		"Inter",
-		-apple-system,
-		BlinkMacSystemFont,
-		"Segoe UI",
-		sans-serif
-	);
-	--otelux-font-mono: var(
-		--vscode-editor-font-family,
-		"JetBrains Mono",
-		"Fira Code",
-		ui-monospace,
-		Menlo,
-		monospace
-	);
 }

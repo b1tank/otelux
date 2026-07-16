@@ -1,6 +1,6 @@
 # OTelux plugin
 
-Shared plugin for Claude Code, Codex, and ChatGPT/Codex plugin surfaces.
+Shared plugin for Claude Code and Codex.
 
 ## What it includes
 
@@ -47,10 +47,10 @@ codex plugin marketplace add .
 codex plugin add otelux@otelux-plugins
 ```
 
-Restart the ChatGPT desktop app or Codex session after installation.
+Restart the Codex client or session after installation.
 
 ## Data handling
 
 The plugin connects only to the authenticated loopback MCP listener owned by the local OTelux desktop app. Its MCP tools are read-only. Telemetry remains on the user's machine unless the user or model explicitly includes tool results in an AI conversation, whose provider policies then apply.
 
-For the shared local/public architecture and Apps SDK dashboard roadmap, see [`docs/plugin-architecture.md`](../../docs/plugin-architecture.md).
+For the current bridge, target shared runtime, CLI/direct-MCP forms, and shared workbench delivery, see [`docs/arch.md`](../../docs/arch.md).

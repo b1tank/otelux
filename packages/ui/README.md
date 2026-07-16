@@ -1,6 +1,6 @@
 # @otelux/ui
 
-React components for the OTelux viewer. Consumes a `DataSource` from `@otelux/protocol`. Styling uses CSS variables (`packages/ui/src/tokens.css`) so hosts such as the desktop app and VS Code webview can theme via `--otelux-*` tokens or, when running under VS Code, inherit `--vscode-*` automatically.
+React components for the OTelux viewer. Consumes a `DataSource` from `@otelux/protocol`. Styling uses CSS variables (`packages/ui/src/tokens.css`) so Desktop and the runtime-served browser workbench share the same themeable application.
 
 ## What ships today
 

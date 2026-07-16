@@ -1,8 +1,8 @@
 /**
  * In-process DataSource backed by an @otelux/engine instance.
  *
- * Used by Electron's renderer-over-IPC bridge and by the future web demo.
- * For VS Code embedders, prefer @otelux/adapter-vscode.
+ * Used by hosts and tests that intentionally run the workbench and engine in
+ * the same process.
  */
 
 import type { Engine } from '@otelux/engine';

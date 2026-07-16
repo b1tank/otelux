@@ -1,6 +1,6 @@
 # OTelux — Plan Ahead
 
-Updated: 2026-07-13
+Updated: 2026-07-16
 
 This plan only covers work ahead of us. Completed implementation detail lives in git history and the package READMEs; this file is for deciding what to build next.
 
@@ -32,7 +32,7 @@ Done when:
 
 Goal: replace the current memory-backed storage with a real local store that survives restarts.
 
-Status: **delivered.** `@otelux/engine-node` is a durable `node:sqlite` store wired into the desktop app, with user-configurable retention, a forward-migration framework, corruption recovery, and a contract suite shared with the memory backend. Only the portable browser-store target remains open.
+Status: **delivered.** `@otelux/engine-node` is a durable `node:sqlite` store wired into the desktop app, with user-configurable retention, a forward-migration framework, corruption recovery, and a contract suite shared with the memory backend.
 
 Tasks:
 
@@ -40,7 +40,6 @@ Tasks:
 - [x] WAL mode, prepared statements, and schema bootstrap on open (`PRAGMA user_version`).
 - [x] Persist traces (+ materialized trace rollup), logs, metrics, interned resources/scopes, and hot indexed attributes.
 - [x] Add retention controls by age and size (default 72h / 512 MB; `0` disables either bound), exposed in Settings and enforced by a background prune + on-change.
-- Keep the engine storage interface portable so a future browser store can reuse the same query behavior.
 - [x] Add schema migration framework (versioned, forward-only) and corruption-tolerance recovery (quarantine the bad file, start fresh), with tests for bootstrap, newer-version, and corrupt-file cases.
 - [x] Run the storage contract test suite against both memory and SQLite backends.
 
@@ -50,24 +49,7 @@ Done when:
 - [x] Existing engine tests pass against both memory and SQLite storage (shared contract suite).
 - [x] Retention can bound disk growth (age and size) without blocking ingest.
 
-## Phase 3 — VS Code Extension Hardening
-
-Goal: make the extension a credible second consumer of the shared packages.
-
-Tasks:
-
-- Smoke-test the webview against live traces, logs, and metrics.
-- Harden the postMessage adapter for errors, timeouts, and subscription cleanup.
-- Verify VS Code-hosted theme inheritance, especially high-contrast behavior.
-- Complete one-click MCP config writers for Copilot, Codex CLI, Claude Code, and Cursor using temporary homes in tests.
-- Package a `.vsix` artifact from CI.
-- Document extension settings and ports.
-
-Done when:
-
-- A fresh VS Code window can side-load the extension, receive local OTLP data, render the same workbench as desktop, and expose LM/MCP tools over the same engine data.
-
-## Phase 4 — Agent And Service Intelligence
+## Phase 3 — Agent And Service Intelligence
 
 Goal: make OTelux useful for agent-assisted debugging, not just human browsing.
 
@@ -83,7 +65,7 @@ Done when:
 
 - A human or LM tool can answer: what broke, what was slow, what logs explain it, and what app telemetry happened during an agent run.
 
-## Phase 5 — Production Ingest Formats
+## Phase 4 — Production Ingest Formats
 
 Goal: accept more real-world OTLP senders without losing the local-first model.
 
@@ -99,7 +81,7 @@ Done when:
 
 - Common OTel SDK defaults can send to OTelux without forcing JSON protocol, and overload is visible rather than silent.
 
-## Phase 6 — Distribution And Platform Polish
+## Phase 5 — Distribution And Platform Polish
 
 Goal: make OTelux easy to install and keep around.
 
@@ -114,32 +96,38 @@ Done when:
 
 - A user can install OTelux, run it like a normal app, and keep settings and data across sessions.
 
-## Phase 7 — Agent Plugin Ecosystem
+## Phase 6 — Shared Runtime And Agent Ecosystem
 
-Goal: make OTelux a reusable observability companion in Claude, Codex, and ChatGPT while preserving one engine/tool/UI implementation.
+Goal: make every local OTelux form reuse one per-user runtime, receiver, active database, tool implementation, and visual workbench.
 
 Tasks:
 
 - [x] Ship one dual Claude/Codex plugin package with shared skills and a secure bridge to the desktop MCP listener.
 - [x] Publish local Claude and Codex marketplace catalogs and validate/install both plugins.
 - [x] Add MCP safety annotations required by agent hosts and public plugin review.
+- Extract the Desktop backend into a single-instance local runtime that alone owns SQLite, migrations, retention, OTLP, and MCP.
+- Add canonical per-user data-home resolution, atomic state/locking, version negotiation, and safe legacy Desktop migration.
+- Add an HTTP/event `DataSource` adapter, serve the existing `@otelux/ui` as a loopback browser workbench, and convert Desktop into a client of that runtime.
+- Add the OTelux CLI for runtime lifecycle, status, settings, dashboard launch, and diagnostics.
+- Package the shared stdio MCP launcher for direct-MCP users and make the Claude/Codex plugin ensure the runtime without requiring Desktop.
+- Add confirmation-backed skills for configuring Claude, Codex, OpenTelemetry SDKs, and Collectors, with sensitive telemetry capture disabled by default.
+- Validate plugin-first, Desktop-first, direct-MCP, CLI-only, multi-agent, upgrade, port-conflict, and uninstall scenarios on every supported platform.
 - Add stable output schemas and paginated UI query tools/resources for traces, logs, and metrics.
-- Add `@otelux/adapter-chatgpt` and an Apps SDK component that reuses `@otelux/ui` for compact/fullscreen dashboards.
-- Choose and implement the opt-in public data path (hosted OTelux store or outbound desktop relay).
-- Complete public policy/support/assets/reviewer tests and submit to OpenAI and Anthropic plugin directories.
+- Publish prebuilt CLI, direct-MCP, and self-contained Claude/Codex plugin artifacts that require no install-time compilation or separate Desktop installation.
+- Complete marketplace metadata, support/privacy material, clean-install evidence, and Claude/Codex publishing workflows.
 
 Done when:
 
-- Local Claude/Codex users can install OTelux, invoke analysis skills, query the running desktop store, and hand off to its visual workbench.
-- Public ChatGPT users can install an approved app-plus-skills plugin and inspect a tenant-isolated dashboard without weakening OTelux's local-first default.
+- Plugin, direct-MCP, CLI, and Desktop users all reach the same local runtime and database, regardless of installation order.
+- Claude/Codex users can install the plugin without Desktop, invoke analysis skills, configure telemetry with approval, and open the browser workbench.
+- Installing Desktop later shows telemetry already collected by the plugin, and closing Desktop does not interrupt ingest or MCP access.
 
-See [plugin-architecture.md](plugin-architecture.md).
+See [arch.md](arch.md).
 
-## Phase 8 — Future Surfaces
+## Phase 7 — Future Capabilities
 
 These stay out of the near-term plan until the core workbench is strong:
 
-- Pure-browser demo with a WASM/OPFS storage adapter.
 - Profiles and flame graph view.
 - Service map and span-link graph.
 - Saved views and global search.
@@ -149,5 +137,5 @@ These stay out of the near-term plan until the core workbench is strong:
 
 - Keep code, tests, and docs in the same change when behavior changes.
 - Prefer package-level implementation over app-specific forks.
-- Do not add a new surface until traces, logs, metrics, storage, and tests stay coherent on the existing desktop and VS Code surfaces.
+- Do not add another product form until traces, logs, metrics, storage, and tests stay coherent across plugin, direct MCP, CLI, and Desktop.
 - Re-check [spec.md](spec.md) whenever this plan changes.

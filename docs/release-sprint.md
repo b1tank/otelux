@@ -30,7 +30,7 @@ The sprint is complete when:
 
 ## Release Decisions
 
-- The Electron desktop app is the first released product. The VS Code extension remains experimental and is not a `v0.1.0` launch gate.
+- The Electron desktop app is the first released product. Shared-runtime plugin, direct-MCP, and CLI packaging follow separately and are not `v0.1.0` launch gates.
 - Reusable `@otelux/*` packages remain private during this sprint. Publishing npm packages is a separate decision.
 - Linux x64 `.deb` is the first beta target. AppImage remains blocked until its launcher can fail closed when Chromium sandbox prerequisites are unavailable. Windows x64 and macOS arm64/x64 follow from the same release workflow.
 - The first public binary is `v0.1.0-beta.1`. The cross-platform launch is `v0.1.0` unless beta evidence requires another prerelease.
@@ -271,7 +271,7 @@ No product requirement, defect policy, or verification gate needs migration at r
 | Real telemetry leaks through fixtures or issue attachments | Use synthetic fixtures, contributor warnings, and history-aware scanners. |
 | AppImage tooling silently adds `--no-sandbox` on some hosts | Do not publish AppImage until its launcher fails closed; ship the validated `.deb` first. |
 | SQLite migrations or retention corrupt user data | Add migration, recovery, and bounded-growth tests before using it in release builds. |
-| Cross-platform work expands the first release indefinitely | Keep VS Code Marketplace, npm, gRPC, auto-update, and store packaging outside `v0.1.0`. |
+| Cross-platform work expands the first release indefinitely | Keep CLI/plugin packaging, npm distribution, gRPC, auto-update, and store packaging outside `v0.1.0`. |
 
 ## Sprint Log
 

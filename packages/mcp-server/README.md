@@ -1,6 +1,6 @@
 # @otelux/mcp-server
 
-Read-only [Model Context Protocol](https://modelcontextprotocol.io/) server exposing OTelux query tools. Consumed by both `apps/desktop` (enabled by default; HTTP access requires the per-install bearer token from `<userData>/mcp-token`, and it can be toggled off in Settings) and `apps/vscode-extension` (always-on, mounted alongside the OTLP receiver).
+Read-only [Model Context Protocol](https://modelcontextprotocol.io/) server exposing OTelux query tools. It is currently hosted by `apps/desktop`; the shared-runtime architecture makes it available to the agent plugin, direct MCP, CLI, and Desktop through one local backend. HTTP access requires an owner-only bearer token.
 
 ## Tools
 

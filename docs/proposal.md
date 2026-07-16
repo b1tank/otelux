@@ -4,7 +4,7 @@ Updated: 2026-07-13
 
 ## Summary
 
-OTelux is a local-first OpenTelemetry workbench for developers and coding agents. It receives telemetry from local applications, stores and queries it locally, shows it in a focused desktop workbench, and exposes the same data to VS Code and MCP-compatible agents.
+OTelux is a local-first OpenTelemetry workbench for developers and coding agents. It receives telemetry from local applications and agent harnesses, stores and queries it locally, presents one shared visual workbench, and exposes the same data through CLI and MCP-compatible tools.
 
 The bet is simple: developers already have useful telemetry nearby, but local inspection is fragmented. OTelux makes traces, logs, and metrics immediately visible without requiring a cloud backend, a hosted account, or a production observability stack.
 
@@ -12,18 +12,20 @@ The bet is simple: developers already have useful telemetry nearby, but local in
 
 OpenTelemetry has become the common data shape for applications, developer tools, and agent runtimes. Local SDKs can emit traces, logs, and metrics today, but after configuration there is still a gap: where does a developer inspect that data while iterating locally, and how can an agent ground its debugging in the same facts the human sees?
 
-OTelux fills that gap as a local tool first. The desktop app is the primary experience. The reusable package architecture lets the same workbench appear in VS Code and lets MCP/LM tools query the same engine data.
+OTelux fills that gap as a local tool first. A single per-user runtime owns ingest and storage while the agent plugin, direct MCP, CLI, and Desktop provide interaction forms suited to different workflows. Reusable packages prevent those forms from forking the workbench or query behavior.
 
 ## Product Shape
 
-OTelux has four product surfaces:
+OTelux has these local product forms:
 
 | Surface | Role |
 |---|---|
-| Desktop app | Main local workbench for traces, logs, metrics, settings, and ingest status. |
-| VS Code extension | Editor-hosted workbench that reuses the same UI, receiver, engine, and MCP tools. |
-| MCP server | Read-only tool surface for local coding agents such as Codex CLI, Claude Code, and Cursor. |
-| VS Code LM Tools | Thin wrappers over the same MCP/engine queries for Copilot inside VS Code. |
+| Agent plugin | Claude/Codex skills, MCP tools, telemetry setup workflows, and browser-workbench launch over the local runtime. |
+| Direct MCP | Read-only OTelux tools for users who want agent access without packaged skills or Electron. |
+| CLI | Headless runtime, lifecycle, status, configuration, diagnostics, and browser launch. |
+| Desktop app | Native traces, logs, metrics, settings, and ingest-status workbench over the shared runtime. |
+
+The visual workbench has two delivery modes, not two products: the plugin and CLI can open the runtime-served UI in a browser, while Desktop embeds the same `@otelux/ui` application.
 
 The core user workflows are:
 
@@ -41,27 +43,16 @@ This proposal intentionally does not track implementation status or repeat the r
 ## Architecture
 
 ```text
-Local apps / agents / SDKs
-        |
-        | supported OTLP inputs
-        v
-@otelux/receiver
-        |
-        v
-@otelux/engine + storage
-        |
-        +--> @otelux/ui through DataSource adapters
-        |       - desktop renderer
-        |       - VS Code webview
-        |
-        +--> @otelux/mcp-server
-        |       - HTTP and stdio MCP clients
-        |
-        +--> VS Code LM Tools
-                - Copilot tool calls
+Applications / agent telemetry --OTLP/HTTP--> one local OTelux runtime
+                                                      |
+                                                      +--> one SQLite database
+                                                      +--> MCP tools
+                                                      +--> shared workbench UI/API
+                                                               |
+                                      plugin / direct MCP / CLI / Desktop
 ```
 
-The `DataSource` interface is the main boundary. UI code asks for traces, logs, metrics, and details through that interface; apps decide whether those queries cross Electron IPC, VS Code postMessage, or a direct in-process engine.
+The runtime is the only local process that opens the active SQLite database and binds the receiver. The `DataSource` interface is the main UI boundary: UI code asks for traces, logs, metrics, details, and change events through that interface, while host adapters decide whether those queries cross local HTTP/events, Electron IPC, or a direct in-process engine. See [arch.md](arch.md) for lifecycle, migration, packaging, security boundaries, and current implementation status.
 
 ## Scope
 
@@ -69,7 +60,7 @@ In scope:
 
 - Local ingest, local storage, local query, local UI.
 - Traces, structured logs, metrics, and later profiles.
-- Desktop first, VS Code second, package reuse throughout.
+- Shared runtime first, then multiple install and interaction forms with package reuse throughout.
 - Read-only agent tools over local telemetry.
 
 Out of scope for the core product:

@@ -21,7 +21,8 @@ body:
         - Logs
         - Metrics
         - MCP tools
-        - VS Code extension (experimental)
+        - Agent plugin
+        - CLI
         - Build or packaging
     validations:
       required: true
