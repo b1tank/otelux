@@ -4,7 +4,7 @@ Shared plugin for Claude Code, Codex, and ChatGPT/Codex plugin surfaces.
 
 ## What it includes
 
-- Four shared skills: incident investigation, trace analysis, service health, and visual dashboard handoff.
+- Four shared skills: incident investigation, trace analysis, service health, and a real dashboard launch/focus action.
 - A bundled MCP stdio bridge that discovers and authenticates to the running OTelux desktop MCP listener. Claude resolves the bridge via `${CLAUDE_PLUGIN_ROOT}`; Codex starts it relative to the installed plugin root (`cwd: "."`). Both invoke the same bridge.
 - Dual manifests: `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json`.
 
@@ -32,12 +32,12 @@ Some Claude desktop local-agent sessions load plugin skills but do not start plu
 node ./plugins/otelux/bin/install-claude-app-mcp.mjs
 ```
 
-This copies the bridge to a stable per-user location and registers `otelux-local`. Fully start a **new Claude App session** afterward; an existing chat keeps the MCP snapshot it started with. Approve the read-only OTelux tool when Claude prompts. Re-run the installer after a plugin update to refresh the stable bridge copy.
+This copies the bridge to a stable per-user location and registers it as `otelux`, matching Codex. Fully start a **new Claude App session** afterward; an existing chat keeps the MCP snapshot it started with. Approve the OTelux tools when Claude prompts. Re-run the installer after a plugin update to refresh the stable bridge copy.
 
 Verify from a terminal:
 
 ```bash
-claude mcp get otelux-local
+claude mcp get otelux
 ```
 
 ## Local Codex marketplace

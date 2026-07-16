@@ -51,8 +51,10 @@ async function main() {
 	await copyFile(source, target);
 
 	const claude = process.env.CLAUDE_BIN || 'claude';
-	// Replacement is intentionally idempotent. Removal may fail on first install.
+	// Replacement is intentionally idempotent. Remove the former compatibility
+	// name too so Claude presents the same `otelux` server name as Codex.
 	await run(claude, ['mcp', 'remove', 'otelux-local', '--scope', 'user'], { allowFailure: true });
+	await run(claude, ['mcp', 'remove', 'otelux', '--scope', 'user'], { allowFailure: true });
 	await run(claude, [
 		'mcp',
 		'add',
@@ -60,7 +62,7 @@ async function main() {
 		'stdio',
 		'--scope',
 		'user',
-		'otelux-local',
+		'otelux',
 		'--',
 		process.execPath,
 		target,

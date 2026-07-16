@@ -9,8 +9,8 @@ OTelux plugins make local OpenTelemetry data available to coding agents without 
 | Surface | Data plane | Analysis | Visual UI | Distribution |
 |---|---|---|---|---|
 | OTelux desktop | Local receiver + SQLite engine | MCP tools | Full React workbench | Desktop package |
-| Claude Code plugin | Desktop loopback MCP via bundled stdio bridge | Shared skills + MCP | Handoff to desktop | Claude marketplace |
-| Codex plugin | Desktop loopback MCP via bundled stdio bridge | Shared skills + MCP | Handoff to desktop | Codex marketplace |
+| Claude Code plugin | Desktop loopback MCP via bundled stdio bridge | Shared skills + MCP | Launch/focus desktop | Claude marketplace |
+| Codex plugin | Desktop loopback MCP via bundled stdio bridge | Shared skills + MCP | Launch/focus desktop | Codex marketplace |
 | ChatGPT/Codex public plugin (later) | Public HTTPS MCP service backed by opt-in relay/store | Shared skills + MCP | Apps SDK component/fullscreen dashboard | OpenAI Plugins Directory |
 
 The local plugins are implemented under `plugins/otelux/`. They contain two thin manifests, four shared skills, one shared bridge executable, and host-specific MCP launcher files:
@@ -50,7 +50,7 @@ The bridge discovers the platform OTelux user-data directory, reads `settings.js
 
 The token is never written into a plugin manifest, marketplace, skill, or model context. stdout is reserved for MCP protocol responses; diagnostics use stderr.
 
-Claude Code starts the plugin-bundled MCP bridge directly. Some Claude desktop local-agent sessions currently load local plugin skills while snapshotting only app-managed and user-scoped MCP servers. `bin/install-claude-app-mcp.mjs` installs the same bridge at a stable user path and registers `otelux-local` as a user MCP fallback. New app sessions then expose the tools; existing chats must be restarted because their MCP set is immutable.
+Claude Code starts the plugin-bundled MCP bridge directly. Some Claude desktop local-agent sessions currently load local plugin skills while snapshotting only app-managed and user-scoped MCP servers. `bin/install-claude-app-mcp.mjs` installs the same bridge at a stable user path and registers it as `otelux`, matching Codex. New app sessions then expose the tools; existing chats must be restarted because their MCP set is immutable.
 
 ## Shared-Code Boundaries
 
@@ -81,9 +81,9 @@ The shared skill reconstructs the span tree and critical path, identifies errors
 
 The shared skill summarizes service activity/error traces/span volume and slow traces. It explicitly describes current service rollups as local, trace-derived evidence rather than production SLOs.
 
-### Dashboard handoff
+### Dashboard launch
 
-Local plugins identify the tab/filter/trace target and direct the user to the desktop UI. A future ChatGPT app renders an embedded Apps SDK component instead.
+The bridge-local `otel_open_dashboard` tool launches or focuses the installed OTelux desktop using its single-instance behavior. Skills can identify the tab/filter/trace target before opening it. Claude Code and Codex local plugins cannot embed a custom interactive component inside their chat surfaces; a future hosted ChatGPT app renders an embedded Apps SDK component instead.
 
 ## Embedded ChatGPT Dashboard
 

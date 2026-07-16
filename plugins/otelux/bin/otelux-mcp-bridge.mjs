@@ -17,6 +17,7 @@
  * stdout is reserved for MCP protocol messages. Diagnostics go to stderr.
  */
 
+import { spawn } from 'node:child_process';
 import { constants as fsConstants } from 'node:fs';
 import { access, readFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
@@ -27,6 +28,29 @@ const JSON_RPC_VERSION = '2.0';
 const INTERNAL_ERROR = -32603;
 const INVALID_REQUEST = -32600;
 const PARSE_ERROR = -32700;
+
+const OPEN_DASHBOARD_TOOL = {
+	name: 'otel_open_dashboard',
+	description:
+		'Launch or focus the local OTelux desktop workbench so the user can interactively inspect traces, logs, metrics, and waterfalls.',
+	inputSchema: {
+		type: 'object',
+		properties: {
+			tab: {
+				type: 'string',
+				enum: ['traces', 'logs', 'metrics'],
+				description:
+					'Preferred signal tab. Current desktop versions open the workbench and the user can select the tab.',
+			},
+		},
+	},
+	annotations: {
+		readOnlyHint: false,
+		destructiveHint: false,
+		idempotentHint: true,
+		openWorldHint: false,
+	},
+};
 
 function platformUserDataCandidates() {
 	const override = process.env.OTELUX_USER_DATA_DIR;
@@ -107,6 +131,61 @@ function errorResponse(id, code, message) {
 	return { jsonrpc: JSON_RPC_VERSION, id: id ?? null, error: { code, message } };
 }
 
+function toolCallResult(result) {
+	return {
+		content: [{ type: 'text', text: JSON.stringify(result) }],
+		isError: false,
+	};
+}
+
+async function firstExecutable(paths) {
+	for (const path of paths) {
+		try {
+			await access(path, fsConstants.X_OK);
+			return path;
+		} catch {
+			// Try the next install location.
+		}
+	}
+	return undefined;
+}
+
+async function dashboardCommand() {
+	if (process.env.OTELUX_DESKTOP_EXECUTABLE) {
+		return { command: process.env.OTELUX_DESKTOP_EXECUTABLE, args: [] };
+	}
+	if (process.platform === 'darwin') {
+		return { command: 'open', args: ['-a', 'OTelux'] };
+	}
+	if (process.platform === 'win32') {
+		const base = process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local');
+		const executable = await firstExecutable([
+			join(base, 'Programs', 'OTelux', 'OTelux.exe'),
+			join(base, 'Programs', 'otelux', 'OTelux.exe'),
+		]);
+		return { command: executable || 'otelux.exe', args: [] };
+	}
+	const executable = await firstExecutable(['/opt/OTelux/otelux', '/usr/bin/otelux']);
+	return { command: executable || 'otelux', args: [] };
+}
+
+async function launchDashboard() {
+	const { command, args } = await dashboardCommand();
+	await new Promise((resolve, reject) => {
+		const child = spawn(command, args, { detached: true, stdio: 'ignore' });
+		child.once('error', reject);
+		child.once('spawn', () => {
+			child.unref();
+			resolve();
+		});
+	});
+	return {
+		opened: true,
+		application: 'OTelux',
+		message: 'OTelux was launched or focused. Use its Traces, Logs, and Metrics tabs interactively.',
+	};
+}
+
 async function forward(line, connection) {
 	let request;
 	try {
@@ -117,6 +196,25 @@ async function forward(line, connection) {
 	}
 	if (!request || request.jsonrpc !== JSON_RPC_VERSION || typeof request.method !== 'string') {
 		emit(errorResponse(request?.id, INVALID_REQUEST, 'not a JSON-RPC 2.0 request'));
+		return;
+	}
+
+	if (request.method === 'tools/call' && request.params?.name === OPEN_DASHBOARD_TOOL.name) {
+		try {
+			emit({
+				jsonrpc: JSON_RPC_VERSION,
+				id: request.id ?? null,
+				result: toolCallResult(await launchDashboard()),
+			});
+		} catch (error) {
+			emit(
+				errorResponse(
+					request.id,
+					INTERNAL_ERROR,
+					`Could not launch OTelux. Start it manually or set OTELUX_DESKTOP_EXECUTABLE. ${error.message}`,
+				),
+			);
+		}
 		return;
 	}
 
@@ -142,7 +240,11 @@ async function forward(line, connection) {
 			emit(errorResponse(request.id, INTERNAL_ERROR, `OTelux MCP HTTP ${response.status}: ${detail}`));
 			return;
 		}
-		emit(JSON.parse(text));
+		const payload = JSON.parse(text);
+		if (request.method === 'tools/list' && Array.isArray(payload?.result?.tools)) {
+			payload.result.tools.push(OPEN_DASHBOARD_TOOL);
+		}
+		emit(payload);
 	} catch (error) {
 		emit(
 			errorResponse(

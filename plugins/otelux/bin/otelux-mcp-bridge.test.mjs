@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -129,6 +129,78 @@ test('returns a JSON-RPC error when the desktop MCP endpoint is unreachable', as
 		child.stdin.end();
 		child.kill('SIGKILL');
 		lines.close();
+		await rm(dir, { recursive: true, force: true });
+	}
+});
+
+test('adds otel_open_dashboard and executes the configured desktop launcher locally', async () => {
+	const dir = await mkdtemp(join(tmpdir(), 'otelux-plugin-dashboard-'));
+	const token = 'test-token';
+	const marker = join(dir, 'launched');
+	const launcher = join(dir, 'otelux-launcher');
+	await writeFile(join(dir, 'mcp-token'), `${token}\n`, { mode: 0o600 });
+	await writeFile(launcher, `#!/bin/sh\nprintf launched > "${marker}"\n`, { mode: 0o755 });
+
+	let requestCount = 0;
+	const server = createServer(async (req, res) => {
+		requestCount += 1;
+		const chunks = [];
+		for await (const chunk of req) chunks.push(chunk);
+		const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+		res.writeHead(200, { 'content-type': 'application/json' });
+		res.end(
+			JSON.stringify({
+				jsonrpc: '2.0',
+				id: body.id,
+				result: { tools: [] },
+			}),
+		);
+	});
+	const port = await listen(server);
+	const child = spawn(process.execPath, [BRIDGE.pathname], {
+		stdio: ['pipe', 'pipe', 'pipe'],
+		env: {
+			...process.env,
+			OTELUX_USER_DATA_DIR: dir,
+			OTELUX_MCP_URL: `http://127.0.0.1:${port}/`,
+			OTELUX_DESKTOP_EXECUTABLE: launcher,
+		},
+	});
+	const lines = createInterface({ input: child.stdout, crlfDelay: Number.POSITIVE_INFINITY });
+
+	try {
+		child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' })}\n`);
+		const listed = JSON.parse(await nextLine(lines));
+		assert.equal(listed.result.tools.at(-1).name, 'otel_open_dashboard');
+
+		child.stdin.write(
+			`${JSON.stringify({
+				jsonrpc: '2.0',
+				id: 2,
+				method: 'tools/call',
+				params: { name: 'otel_open_dashboard', arguments: { tab: 'traces' } },
+			})}\n`,
+		);
+		const opened = JSON.parse(await nextLine(lines));
+		const result = JSON.parse(opened.result.content[0].text);
+		assert.equal(result.opened, true);
+
+		for (let attempt = 0; attempt < 20; attempt += 1) {
+			try {
+				await access(marker);
+				break;
+			} catch {
+				await new Promise((resolve) => setTimeout(resolve, 10));
+			}
+		}
+		await access(marker);
+		// Only tools/list is proxied. The launch call is handled by the bridge.
+		assert.equal(requestCount, 1);
+	} finally {
+		child.stdin.end();
+		child.kill('SIGKILL');
+		lines.close();
+		await new Promise((resolve) => server.close(resolve));
 		await rm(dir, { recursive: true, force: true });
 	}
 });
