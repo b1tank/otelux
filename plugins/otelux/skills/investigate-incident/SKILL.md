@@ -21,4 +21,4 @@ Use the OTelux MCP tools to investigate the user's local OpenTelemetry data. The
    - next action(s) in priority order.
 8. End with a visual handoff: tell the user which trace ID(s) and service(s) to inspect in the OTelux desktop waterfall/logs UI.
 
-If OTelux MCP is unavailable, explain that the desktop app must be running with MCP enabled. Do not invent telemetry. All OTelux tools are read-only.
+If OTelux MCP is unavailable, explain that the desktop app must be running with MCP enabled. In Claude desktop, when the app is already running but tools are absent, direct the user to `node ./plugins/otelux/bin/install-claude-app-mcp.mjs` and a fully new Claude App session. Do not invent telemetry. All OTelux tools are read-only.

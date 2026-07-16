@@ -17,3 +17,5 @@ description: "Summarize local service health from OTelux traces, errors, latency
 6. Recommend the next trace IDs/service filters to open in the OTelux desktop UI.
 
 Do not describe this as a production SLO report: OTelux is a local workbench and the service overview currently derives mainly from recent trace summaries. State that limitation when it materially affects the conclusion.
+
+If OTelux MCP is unavailable, tell the user to start OTelux and enable MCP. In Claude desktop, when OTelux is already running but tools are absent, direct the user to `node ./plugins/otelux/bin/install-claude-app-mcp.mjs` and a fully new Claude App session.

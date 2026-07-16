@@ -1,6 +1,6 @@
 {
 	"name": "otelux",
-	"version": "0.1.2",
+	"version": "0.1.3",
 	"description": "Investigate local OpenTelemetry traces, logs, metrics, errors, and latency with OTelux.",
 	"author": {
 		"name": "OTelux contributors",

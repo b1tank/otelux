@@ -50,6 +50,8 @@ The bridge discovers the platform OTelux user-data directory, reads `settings.js
 
 The token is never written into a plugin manifest, marketplace, skill, or model context. stdout is reserved for MCP protocol responses; diagnostics use stderr.
 
+Claude Code starts the plugin-bundled MCP bridge directly. Some Claude desktop local-agent sessions currently load local plugin skills while snapshotting only app-managed and user-scoped MCP servers. `bin/install-claude-app-mcp.mjs` installs the same bridge at a stable user path and registers `otelux-local` as a user MCP fallback. New app sessions then expose the tools; existing chats must be restarted because their MCP set is immutable.
+
 ## Shared-Code Boundaries
 
 | Concern | Owning package | Reused by |

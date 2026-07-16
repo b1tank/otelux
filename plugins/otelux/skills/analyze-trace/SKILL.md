@@ -16,4 +16,4 @@ description: "Analyze an OpenTelemetry trace or slow request from OTelux, includ
 6. Return a compact trace narrative, critical-path table, errors/warnings, and prioritized instrumentation or code follow-ups.
 7. Include the trace ID and span IDs in the answer so the user can inspect the same waterfall and details in the OTelux desktop UI.
 
-If OTelux MCP is unavailable, tell the user to start OTelux and enable MCP. Never fabricate spans or attributes.
+If OTelux MCP is unavailable, tell the user to start OTelux and enable MCP. In Claude desktop, when OTelux is already running but tools are absent, direct the user to `node ./plugins/otelux/bin/install-claude-app-mcp.mjs` and a fully new Claude App session. Never fabricate spans or attributes.

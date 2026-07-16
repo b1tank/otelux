@@ -17,5 +17,5 @@ OTelux's desktop app is the authoritative rich UI for local traces, logs, and me
    - trace ID, span ID, service name, or search text;
    - expected timestamp/window;
    - what visual pattern to look for.
-3. If the desktop app is not running or MCP is unavailable, tell the user to launch OTelux and enable MCP in Settings. Do not claim to have opened or controlled the UI unless the host actually provides that capability.
+3. If MCP is unavailable, first tell the user to launch OTelux and enable MCP in Settings. If they are in the Claude desktop app and OTelux is already running, tell them to run `node ./plugins/otelux/bin/install-claude-app-mcp.mjs` from the OTelux checkout, then fully start a new Claude App session; existing chats keep their original MCP snapshot. Do not claim to have opened or controlled the UI unless the host actually provides that capability.
 4. For ChatGPT surfaces that support an OTelux MCP UI component in the future, prefer the embedded component for inspection and keep the underlying tool result useful without it.

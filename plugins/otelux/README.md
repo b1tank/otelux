@@ -24,6 +24,22 @@ claude --plugin-dir ./plugins/otelux
 
 Then use `/otelux:investigate-incident`, `/otelux:analyze-trace`, `/otelux:service-health`, or `/otelux:open-dashboard`. Check `/mcp` for the bundled `otelux` server.
 
+### Claude desktop app
+
+Some Claude desktop local-agent sessions load plugin skills but do not start plugin-bundled local MCP servers. If a skill says no `otel_*` tools are available even though OTelux is running, install the same bridge at Claude user scope:
+
+```bash
+node ./plugins/otelux/bin/install-claude-app-mcp.mjs
+```
+
+This copies the bridge to a stable per-user location and registers `otelux-local`. Fully start a **new Claude App session** afterward; an existing chat keeps the MCP snapshot it started with. Approve the read-only OTelux tool when Claude prompts. Re-run the installer after a plugin update to refresh the stable bridge copy.
+
+Verify from a terminal:
+
+```bash
+claude mcp get otelux-local
+```
+
 ## Local Codex marketplace
 
 ```bash
