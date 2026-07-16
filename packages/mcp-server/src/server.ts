@@ -38,6 +38,19 @@ export interface ToolDefinition {
 	readonly inputSchema: Record<string, unknown>;
 	readonly handler: ToolHandler;
 	/**
+	 * MCP tool safety hints consumed by agent hosts and required by the
+	 * ChatGPT plugin review flow. Every bundled OTelux tool is read-only,
+	 * deterministic for a fixed store, closed-world (local loopback data), and
+	 * non-destructive. Custom downstream tools may override these defaults.
+	 */
+	readonly annotations?: {
+		readonly title?: string;
+		readonly readOnlyHint?: boolean;
+		readonly destructiveHint?: boolean;
+		readonly idempotentHint?: boolean;
+		readonly openWorldHint?: boolean;
+	};
+	/**
 	 * When true, the tool is advertised but not yet functional: its schema
 	 * is stable for early client integration, but calls return
 	 * `supported: false`. Surfaced in `tools/list` so clients can filter or
@@ -194,6 +207,13 @@ function publicToolDescriptor(t: ToolDefinition): Omit<ToolDefinition, 'handler'
 		name: t.name,
 		description: t.description,
 		inputSchema: t.inputSchema,
+		annotations: {
+			readOnlyHint: true,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false,
+			...t.annotations,
+		},
 		...(t.experimental ? { experimental: true } : {}),
 	};
 }

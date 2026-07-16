@@ -114,7 +114,28 @@ Done when:
 
 - A user can install OTelux, run it like a normal app, and keep settings and data across sessions.
 
-## Phase 7 — Future Surfaces
+## Phase 7 — Agent Plugin Ecosystem
+
+Goal: make OTelux a reusable observability companion in Claude, Codex, and ChatGPT while preserving one engine/tool/UI implementation.
+
+Tasks:
+
+- [x] Ship one dual Claude/Codex plugin package with shared skills and a secure bridge to the desktop MCP listener.
+- [x] Publish local Claude and Codex marketplace catalogs and validate/install both plugins.
+- [x] Add MCP safety annotations required by agent hosts and public plugin review.
+- Add stable output schemas and paginated UI query tools/resources for traces, logs, and metrics.
+- Add `@otelux/adapter-chatgpt` and an Apps SDK component that reuses `@otelux/ui` for compact/fullscreen dashboards.
+- Choose and implement the opt-in public data path (hosted OTelux store or outbound desktop relay).
+- Complete public policy/support/assets/reviewer tests and submit to OpenAI and Anthropic plugin directories.
+
+Done when:
+
+- Local Claude/Codex users can install OTelux, invoke analysis skills, query the running desktop store, and hand off to its visual workbench.
+- Public ChatGPT users can install an approved app-plus-skills plugin and inspect a tenant-isolated dashboard without weakening OTelux's local-first default.
+
+See [plugin-architecture.md](plugin-architecture.md).
+
+## Phase 8 — Future Surfaces
 
 These stay out of the near-term plan until the core workbench is strong:
 

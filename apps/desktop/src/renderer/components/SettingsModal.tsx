@@ -303,7 +303,7 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 					<fieldset className="fieldset">
 						<legend>Database location</legend>
 						{storagePath ? (
-							<label className="field">
+							<div className="field">
 								<span className="field__label">Active database file</span>
 								<span className="field__inline-row">
 									<code className="field__path">{storagePath.activePath}</code>
@@ -320,7 +320,7 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 										{copiedPath ? 'Copied' : 'Copy'}
 									</button>
 								</span>
-							</label>
+							</div>
 						) : null}
 						<label className="field">
 							<span className="field__label">Custom database path</span>

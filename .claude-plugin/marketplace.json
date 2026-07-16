@@ -1,0 +1,17 @@
+{
+	"name": "otelux-plugins",
+	"owner": {
+		"name": "OTelux contributors"
+	},
+	"description": "Plugins for investigating local OpenTelemetry data with OTelux.",
+	"plugins": [
+		{
+			"name": "otelux",
+			"displayName": "OTelux",
+			"source": "./plugins/otelux",
+			"description": "Investigate traces, logs, metrics, errors, and latency from the local OTelux desktop store.",
+			"category": "development",
+			"tags": ["opentelemetry", "observability", "debugging"]
+		}
+	]
+}

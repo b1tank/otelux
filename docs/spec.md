@@ -36,6 +36,7 @@ The repository currently contains:
 - A shared live/paused (live-tail) control and result footers across all three views, plus a confirmed "Clear data" action that deletes all stored telemetry.
 - Direct and VS Code postMessage `DataSource` adapters.
 - MCP and LM tool plumbing over the same query layer.
+- A shared OTelux plugin under `plugins/otelux` installs into Claude Code and Codex with four observability skills plus a secure stdio bridge to the desktop MCP listener. See [plugin-architecture.md](plugin-architecture.md).
 - The desktop app is the release product. The VS Code extension is an experimental second host until its hardening phase is complete.
 
 Important current limits:
@@ -107,6 +108,14 @@ Apps are not published packages:
 |---|---|---|
 | `apps/desktop` | Main Electron workbench. | Runnable Linux-focused pre-release. |
 | `apps/vscode-extension` | VS Code-hosted workbench plus MCP/LM tools. | Shell implemented; needs hardening and packaging. |
+
+Plugin distributions are thin hosts over the same packages:
+
+| Plugin | Purpose | Current state |
+|---|---|---|
+| Claude Code | Shared skills + local desktop MCP bridge. | Built, validated, locally installed. |
+| Codex / ChatGPT desktop | Shared skills + local desktop MCP bridge. | Built, locally installed; marketplace entry live in-repo. |
+| Public ChatGPT app | Hosted MCP + optional Apps SDK UI reusing `@otelux/ui`. | Designed; requires public HTTPS deployment and review. |
 
 Future packages or apps, such as a WASM storage adapter or web demo, should be added to this spec when they enter active implementation.
 

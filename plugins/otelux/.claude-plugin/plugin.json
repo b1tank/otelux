@@ -1,0 +1,17 @@
+{
+	"$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+	"name": "otelux",
+	"displayName": "OTelux",
+	"version": "0.1.2",
+	"description": "Investigate local OpenTelemetry traces, logs, metrics, errors, and latency with OTelux.",
+	"author": {
+		"name": "OTelux contributors",
+		"url": "https://github.com/b1tank/otelux"
+	},
+	"homepage": "https://github.com/b1tank/otelux",
+	"repository": "https://github.com/b1tank/otelux",
+	"license": "MIT",
+	"keywords": ["opentelemetry", "observability", "tracing", "logs", "metrics", "debugging"],
+	"skills": "./skills/",
+	"mcpServers": "./.mcp.json"
+}

@@ -1,0 +1,31 @@
+{
+	"name": "otelux",
+	"version": "0.1.2",
+	"description": "Investigate local OpenTelemetry traces, logs, metrics, errors, and latency with OTelux.",
+	"author": {
+		"name": "OTelux contributors",
+		"url": "https://github.com/b1tank/otelux"
+	},
+	"homepage": "https://github.com/b1tank/otelux",
+	"repository": "https://github.com/b1tank/otelux",
+	"license": "MIT",
+	"keywords": ["opentelemetry", "observability", "tracing", "logs", "metrics", "debugging"],
+	"skills": "./skills/",
+	"mcpServers": "./.mcp.codex.json",
+	"interface": {
+		"displayName": "OTelux",
+		"shortDescription": "Analyze local OpenTelemetry data",
+		"longDescription": "Query the OTelux desktop store through read-only MCP tools, investigate incidents and slow traces, summarize service health, and hand off evidence to the visual OTelux workbench.",
+		"developerName": "OTelux contributors",
+		"category": "Developer Tools",
+		"capabilities": ["Read"],
+		"websiteURL": "https://github.com/b1tank/otelux",
+		"privacyPolicyURL": "https://github.com/b1tank/otelux/blob/main/docs/privacy.md",
+		"defaultPrompt": [
+			"Use OTelux to investigate recent errors and identify the most likely root cause.",
+			"Use OTelux to find the slowest local traces and explain their critical paths.",
+			"Summarize service health from the telemetry currently stored in OTelux."
+		],
+		"brandColor": "#7AA2F7"
+	}
+}

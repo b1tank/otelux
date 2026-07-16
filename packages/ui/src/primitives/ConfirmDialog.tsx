@@ -65,12 +65,7 @@ export function ConfirmDialog(props: ConfirmDialogProps): JSX.Element | null {
 				tabIndex={-1}
 				onClick={onCancel}
 			/>
-			<div
-				className="otelux-confirm"
-				role="dialog"
-				aria-modal="true"
-				aria-labelledby="otelux-confirm-title"
-			>
+			<dialog className="otelux-confirm" aria-modal="true" aria-labelledby="otelux-confirm-title" open>
 				<h2 id="otelux-confirm-title" className="otelux-confirm__title">
 					{title}
 				</h2>
@@ -90,7 +85,7 @@ export function ConfirmDialog(props: ConfirmDialogProps): JSX.Element | null {
 						{confirmLabel}
 					</button>
 				</div>
-			</div>
+			</dialog>
 		</div>
 	);
 }

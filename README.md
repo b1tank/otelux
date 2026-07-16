@@ -12,6 +12,7 @@ The desktop app is the main product. The same engine, UI, receiver, adapters, an
 - [docs/getting-started.md](docs/getting-started.md) — current source setup, first telemetry, troubleshooting, and removal.
 - [docs/privacy.md](docs/privacy.md) — local data handling and safe telemetry sharing.
 - [docs/security-model.md](docs/security-model.md) — trust boundaries, current safeguards, and release blockers.
+- [docs/plugin-architecture.md](docs/plugin-architecture.md) — shared Claude/Codex plugin, MCP bridge, Apps SDK dashboard, and publishing plan.
 - [docs/proposal.md](docs/proposal.md) — project rationale, audience, and product direction.
 - [docs/test.md](docs/test.md) — manual desktop verification plan.
 - [design/README.md](design/README.md) — UI mockup philosophy and design notes.
@@ -42,6 +43,8 @@ otelux/
     adapter-direct/     # In-process DataSource adapter
     adapter-vscode/     # VS Code postMessage DataSource adapter
     ui/                 # React workbench and primitives
+  plugins/
+    otelux/             # Shared Claude/Codex skills + desktop MCP bridge
   fixtures/             # OTLP JSON fixtures for traces, logs, and metrics
   docs/                 # Canonical project docs
   design/               # Single-file UI mockup and notes
@@ -70,6 +73,20 @@ Build the desktop app:
 ```bash
 npm run -w @otelux/desktop build
 ```
+
+Install the local OTelux agent plugin after starting the desktop app:
+
+```bash
+# Codex / ChatGPT desktop
+codex plugin marketplace add .
+codex plugin add otelux@otelux-plugins
+
+# Claude Code
+claude plugin marketplace add /absolute/path/to/otelux
+claude plugin install otelux@otelux-plugins
+```
+
+Both hosts load the same four skills and connect to the desktop's authenticated, read-only MCP listener. See [plugins/otelux/README.md](plugins/otelux/README.md) for usage and overrides.
 
 Exercise the current Linux packaging target while release work is in progress:
 

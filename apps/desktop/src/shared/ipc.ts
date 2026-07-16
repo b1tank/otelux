@@ -223,7 +223,7 @@ export type InvokeResultFor<M extends InvokeMessage> = M extends { kind: 'listTr
 										: M extends { kind: 'loadSampleData' }
 											? LoadSampleDataResult
 											: M extends { kind: 'clearData' }
-												? void
+												? undefined
 												: never;
 
 /**

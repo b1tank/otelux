@@ -1,0 +1,10 @@
+{
+	"mcpServers": {
+		"otelux": {
+			"type": "stdio",
+			"command": "node",
+			"args": ["./bin/otelux-mcp-bridge.mjs"],
+			"cwd": "."
+		}
+	}
+}

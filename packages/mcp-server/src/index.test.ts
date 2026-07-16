@@ -104,6 +104,32 @@ describe('createMcpServer', () => {
 		]);
 	});
 
+	it('annotates every bundled tool as read-only, closed-world, and non-destructive', async () => {
+		const server = await fixtureServer();
+		const response = await server.handle({
+			jsonrpc: JSON_RPC_VERSION,
+			id: 2,
+			method: 'tools/list',
+		});
+		const tools = (
+			response as {
+				result: {
+					tools: Array<{
+						annotations?: Record<string, boolean>;
+					}>;
+				};
+			}
+		).result.tools;
+		expect(tools.map((tool) => tool.annotations)).toEqual(
+			tools.map(() => ({
+				readOnlyHint: true,
+				destructiveHint: false,
+				idempotentHint: true,
+				openWorldHint: false,
+			})),
+		);
+	});
+
 	it('marks the unimplemented tool experimental in tools/list', async () => {
 		const server = await fixtureServer();
 		const response = await server.handle({
