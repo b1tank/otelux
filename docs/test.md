@@ -263,11 +263,13 @@ For step 4.11.6, reuse the Python listener from step 4.10 with port `14331`, the
 
 ### 5.8 Data retention
 1. Open Settings → **Data retention**. Confirm defaults: **Keep for (hours)** `72`, **Max database size (MB)** `512`.
-2. Set **Keep for (hours)** to `0` and Save → accepted (no age limit).
-3. Set **Max database size (MB)** to `0` and Save → accepted (no size limit).
-4. Enter a negative or non-integer value → inline validation error, nothing persisted.
-5. Restore defaults (`72` / `512`) before continuing.
-- **Expected**: valid values persist to `settings.json` under `"retention"`; invalid values are rejected inline without mutating the file or the running store.
+2. Confirm the **SQLite budget** meter shows current page usage against `512 MB`, a percentage, `72h window`, and an **On disk / DB / WAL / SHM** breakdown.
+3. While Settings remains open, ingest telemetry. Within 2 seconds, page usage and/or the physical breakdown updates without shifting the modal layout.
+4. Set **Keep for (hours)** to `0` → the meter previews **No age limit** before Save.
+5. Set **Max database size (MB)** to `0` → the meter previews **No size limit** and infinity rather than a fake percentage; Save is accepted.
+6. Enter a negative or non-integer value → inline validation error, nothing persisted.
+7. Restore defaults (`72` / `512`) before continuing.
+- **Expected**: meter fill uses SQLite page bytes (the same quantity size retention enforces), while DB/WAL/SHM are a separate physical footprint. Valid values persist under `"retention"`; invalid values do not mutate the file or running store.
 
 ### 5.9 Database location
 1. Open Settings → **Database location**. Confirm the **Active database file** shows `/tmp/otelux-userdata/otelux.db` and the **Copy** button copies that path to the clipboard.

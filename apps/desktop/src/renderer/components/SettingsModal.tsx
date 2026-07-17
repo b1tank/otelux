@@ -10,8 +10,10 @@ import type {
 	PartialSettings,
 	Settings,
 	StoragePathInfo,
+	StorageUsageInfo,
 	UpdateSettingsResult,
 } from '../../shared/ipc.js';
+import { StorageBudgetMeter } from './StorageBudgetMeter.js';
 
 interface SettingsModalProps {
 	readonly settings: Settings;
@@ -32,6 +34,7 @@ interface SettingsModalProps {
 	 * current DB file and detect a pending restart after a path change.
 	 */
 	readonly storagePath?: StoragePathInfo;
+	readonly storageUsage?: StorageUsageInfo;
 	readonly onSave: (patch: PartialSettings) => Promise<UpdateSettingsResult>;
 	readonly onClose: () => void;
 }
@@ -48,7 +51,7 @@ interface SettingsModalProps {
  * two-phase update in `main/index.ts` can roll back atomically.
  */
 export function SettingsModal(props: SettingsModalProps): JSX.Element {
-	const { settings, currentPort, mcpStatus, storagePath, onSave, onClose } = props;
+	const { settings, currentPort, mcpStatus, storagePath, storageUsage, onSave, onClose } = props;
 	const [portInput, setPortInput] = useState(String(currentPort ?? settings.otlp.port));
 	const [mcpEnabled, setMcpEnabled] = useState(settings.mcp.enabled);
 	const [mcpPortInput, setMcpPortInput] = useState(String(settings.mcp.port));
@@ -123,15 +126,15 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 			setError('MCP port must differ from OTLP port.');
 			return;
 		}
-		const parsedAge = Number.parseInt(ageInput, 10);
-		if (!Number.isInteger(parsedAge) || parsedAge < 0 || parsedAge > MAX_RETENTION_AGE_HOURS) {
+		const parsedAge = parseRetentionLimit(ageInput);
+		if (parsedAge === undefined || parsedAge > MAX_RETENTION_AGE_HOURS) {
 			setError(
 				`Retention age must be between 0 and ${MAX_RETENTION_AGE_HOURS} hours (0 = unlimited).`,
 			);
 			return;
 		}
-		const parsedSize = Number.parseInt(sizeInput, 10);
-		if (!Number.isInteger(parsedSize) || parsedSize < 0 || parsedSize > MAX_RETENTION_SIZE_MB) {
+		const parsedSize = parseRetentionLimit(sizeInput);
+		if (parsedSize === undefined || parsedSize > MAX_RETENTION_SIZE_MB) {
 			setError(`Retention size must be between 0 and ${MAX_RETENTION_SIZE_MB} MB (0 = unlimited).`);
 			return;
 		}
@@ -173,6 +176,8 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 	const resolvedDesiredPath =
 		dbPathInput.trim() === '' ? (storagePath?.defaultPath ?? '') : dbPathInput.trim();
 	const restartPending = storagePath !== undefined && resolvedDesiredPath !== storagePath.activePath;
+	const previewAgeHours = parsePreviewLimit(ageInput, settings.retention.maxAgeHours);
+	const previewSizeMb = parsePreviewLimit(sizeInput, settings.retention.maxSizeMb);
 
 	return (
 		<div className="modal-backdrop">
@@ -269,37 +274,44 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 							Telemetry is stored on disk and pruned when either limit is reached, whichever comes first.
 							Set a value to <code>0</code> to disable that limit.
 						</span>
-						<label className="field">
-							<span className="field__label">Keep for (hours)</span>
-							<input
-								type="number"
-								min={0}
-								max={MAX_RETENTION_AGE_HOURS}
-								step={1}
-								value={ageInput}
-								onChange={(e) => setAgeInput(e.target.value)}
-								disabled={saving}
-							/>
-							<span className="field__hint">
-								Drop telemetry older than this. Default 72 (3 days). <code>0</code> = keep forever.
-							</span>
-						</label>
-						<label className="field">
-							<span className="field__label">Max database size (MB)</span>
-							<input
-								type="number"
-								min={0}
-								max={MAX_RETENTION_SIZE_MB}
-								step={1}
-								value={sizeInput}
-								onChange={(e) => setSizeInput(e.target.value)}
-								disabled={saving}
-							/>
-							<span className="field__hint">
-								Prune oldest telemetry once the store passes this size. Default 512 MB. <code>0</code> = no
-								size limit.
-							</span>
-						</label>
+						<StorageBudgetMeter
+							{...(storageUsage !== undefined ? { usage: storageUsage } : {})}
+							maxSizeMb={previewSizeMb}
+							maxAgeHours={previewAgeHours}
+						/>
+						<div className="retention-fields">
+							<label className="field">
+								<span className="field__label">Keep for (hours)</span>
+								<input
+									type="number"
+									min={0}
+									max={MAX_RETENTION_AGE_HOURS}
+									step={1}
+									value={ageInput}
+									onChange={(e) => setAgeInput(e.target.value)}
+									disabled={saving}
+								/>
+								<span className="field__hint">
+									Drop telemetry older than this. Default 72 (3 days). <code>0</code> = keep forever.
+								</span>
+							</label>
+							<label className="field">
+								<span className="field__label">Max database size (MB)</span>
+								<input
+									type="number"
+									min={0}
+									max={MAX_RETENTION_SIZE_MB}
+									step={1}
+									value={sizeInput}
+									onChange={(e) => setSizeInput(e.target.value)}
+									disabled={saving}
+								/>
+								<span className="field__hint">
+									Prune oldest telemetry once the store passes this size. Default 512 MB. <code>0</code> = no
+									size limit.
+								</span>
+							</label>
+						</div>
 					</fieldset>
 
 					<fieldset className="fieldset">
@@ -360,6 +372,14 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 			</dialog>
 		</div>
 	);
+}
+
+function parsePreviewLimit(value: string, fallback: number): number {
+	return parseRetentionLimit(value) ?? fallback;
+}
+
+export function parseRetentionLimit(value: string): number | undefined {
+	return /^\d+$/.test(value) ? Number.parseInt(value, 10) : undefined;
 }
 
 function McpStatusHint({ status }: { status: McpStatus }): JSX.Element | null {

@@ -15,6 +15,7 @@ import type {
 	Settings,
 	SpanDetails,
 	StoragePathInfo,
+	StorageUsageInfo,
 	UpdateSettingsResult,
 } from '@otelux/protocol';
 export type {
@@ -24,6 +25,7 @@ export type {
 	ReceiverStatus,
 	Settings,
 	StoragePathInfo,
+	StorageUsageInfo,
 	UpdateSettingsResult,
 } from '@otelux/protocol';
 import type { Trace } from '@otelux/types';
@@ -56,6 +58,7 @@ export type InvokeMessage =
 	| { kind: 'getReceiverStatus' }
 	| { kind: 'getMcpStatus' }
 	| { kind: 'getStoragePath' }
+	| { kind: 'getStorageUsage' }
 	| { kind: 'loadSampleData' }
 	| { kind: 'clearData' };
 
@@ -79,11 +82,13 @@ export type InvokeResultFor<M extends InvokeMessage> = M extends { kind: 'listTr
 									? McpStatus
 									: M extends { kind: 'getStoragePath' }
 										? StoragePathInfo
-										: M extends { kind: 'loadSampleData' }
-											? LoadSampleDataResult
-											: M extends { kind: 'clearData' }
-												? undefined
-												: never;
+										: M extends { kind: 'getStorageUsage' }
+											? StorageUsageInfo
+											: M extends { kind: 'loadSampleData' }
+												? LoadSampleDataResult
+												: M extends { kind: 'clearData' }
+													? undefined
+													: never;
 
 /**
  * Discriminated union of every main→renderer push. The existing engine

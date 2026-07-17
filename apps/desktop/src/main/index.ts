@@ -142,6 +142,8 @@ async function startBackend(): Promise<{
 				return runtime.getMcpStatus();
 			case 'getStoragePath':
 				return runtime.getStoragePath();
+			case 'getStorageUsage':
+				return runtime.getStorageUsage();
 			case 'loadSampleData':
 				return runtime.loadSampleData();
 			case 'updateSettings':

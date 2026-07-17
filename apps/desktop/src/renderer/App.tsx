@@ -3,7 +3,13 @@ import { type JSX, useCallback, useMemo, useState } from 'react';
 import type { PartialSettings, UpdateSettingsResult } from '../shared/ipc.js';
 import { EndpointBar } from './components/EndpointBar.js';
 import { SettingsModal } from './components/SettingsModal.js';
-import { useMcpStatus, useReceiverStatus, useSettings, useStoragePath } from './hooks.js';
+import {
+	useMcpStatus,
+	useReceiverStatus,
+	useSettings,
+	useStoragePath,
+	useStorageUsage,
+} from './hooks.js';
 import { createIpcDataSource } from './ipcDataSource.js';
 
 export function App(): JSX.Element {
@@ -21,6 +27,7 @@ export function App(): JSX.Element {
 	const settings = useSettings(bridge);
 	const storagePath = useStoragePath(bridge);
 	const [settingsOpen, setSettingsOpen] = useState(false);
+	const storageUsage = useStorageUsage(bridge, settingsOpen);
 
 	const endpointUrl = useMemo<string | undefined>(() => {
 		if (status?.kind === 'running') {
@@ -65,6 +72,7 @@ export function App(): JSX.Element {
 						: {})}
 					{...(mcpStatus !== undefined ? { mcpStatus } : {})}
 					{...(storagePath !== undefined ? { storagePath } : {})}
+					{...(storageUsage !== undefined ? { storageUsage } : {})}
 					onSave={onSaveSettings}
 					onClose={() => setSettingsOpen(false)}
 				/>

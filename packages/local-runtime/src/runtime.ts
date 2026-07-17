@@ -11,6 +11,7 @@ import type {
 	RuntimeEvent,
 	Settings,
 	StoragePathInfo,
+	StorageUsageInfo,
 	UpdateSettingsResult,
 } from '@otelux/protocol';
 import { OTELUX_PROTOCOL_VERSION } from '@otelux/protocol';
@@ -57,6 +58,7 @@ export interface LocalRuntime extends DataSource {
 	getReceiverStatus(): ReceiverStatus;
 	getMcpStatus(): McpStatus;
 	getStoragePath(): StoragePathInfo;
+	getStorageUsage(): StorageUsageInfo;
 	getRuntimeState(): RuntimeState;
 	updateSettings(patch: PartialSettings): Promise<UpdateSettingsResult>;
 	loadSampleData(): Promise<LoadSampleDataResult>;
@@ -275,6 +277,7 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 		getReceiverStatus: () => receiverHost.status,
 		getMcpStatus: () => mcpHost.status,
 		getStoragePath: () => ({ activePath: activeDbPath, defaultPath: defaultDbPath }),
+		getStorageUsage: () => storage.getStorageUsage(),
 		getRuntimeState: runtimeState,
 		updateSettings: (patch) => updateSettings(settings, receiverHost, mcpHost, patch),
 		async loadSampleData(): Promise<LoadSampleDataResult> {

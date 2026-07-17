@@ -195,6 +195,17 @@ export interface StoragePathInfo {
 	readonly defaultPath: string;
 }
 
+/** Snapshot of the active SQLite store's retention budget and disk footprint. */
+export interface StorageUsageInfo {
+	readonly activePath: string;
+	/** SQLite page bytes used by size-retention enforcement. */
+	readonly retentionBytes: number;
+	readonly databaseFileBytes: number;
+	readonly walBytes: number;
+	readonly sharedMemoryBytes: number;
+	readonly totalBytes: number;
+}
+
 export interface LoadSampleDataResult {
 	readonly traces: number;
 	readonly logs: number;
@@ -238,4 +249,4 @@ export type RuntimeEvent =
 	| { readonly kind: 'receiver-status-changed'; readonly status: ReceiverStatus }
 	| { readonly kind: 'mcp-status-changed'; readonly status: McpStatus };
 
-export const OTELUX_PROTOCOL_VERSION = '0.2.0' as const;
+export const OTELUX_PROTOCOL_VERSION = '0.3.0' as const;

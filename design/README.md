@@ -71,6 +71,7 @@ Min widths: list ≥ 280 px, waterfall ≥ 480 px. Splitter is 6 px wide with a 
 | **Compact 3-line trace cards** (vs a wider table) | The list pane is narrow on purpose. Cards trade horizontal density for vertical scannability and accommodate the variable-width service-chip set. |
 | **Deterministic service color** (hash → 1 of 8) | Same service is always the same color across all rows, all traces, the drawer header dot, and the dropdown option dot. |
 | **CSS variables for theme tokens** | Promote to `packages/ui/src/tokens.css` on port. One source of truth for colors, spacing, radii, type. |
+| **Retention meter tracks SQLite pages, not WAL overhead** | The battery fill matches the exact page budget used by pruning. Real DB/WAL/SHM disk footprint stays visible beneath it without falsely implying temporary WAL growth should trigger retention. |
 
 ---
 
@@ -88,6 +89,7 @@ These should be enforced in code, not in CSS.
 8. **Min widths enforced.** Splitter clamps to `list ≥ 280 px` and `waterfall ≥ 480 px` regardless of window size.
 9. **Keyboard parity.** Every interactive control reachable by mouse must also be reachable by keyboard, with a visible focus state.
 10. **No layout shift on async data.** Skeleton or reserved height for rows that haven't loaded.
+11. **Storage pressure matches pruning.** The retention meter fill uses SQLite page bytes; physical DB/WAL/SHM bytes are a separate breakdown.
 
 ---
 
@@ -125,6 +127,7 @@ If you edit the geometry, edit `icon.svg`, mirror the change in `OTeluxLogo.tsx`
 | `.kv` + `.view-btn` | `<AttrRow>` + `<ViewValueButton>` | none |
 | `.overlay` + `.viewer` | `<ValueViewer>` | `@radix-ui/react-dialog` (full modal) |
 | `.empty` | `<EmptyState>` | none |
+| `.storage-meter` + `.storage-battery` | `<StorageBudgetMeter>` | native meter semantics with custom presentation |
 | All icons | `lucide-react` (`PanelLeft`, `PanelRight`, `List`, `Search`, `X`, `Copy`, `Download`, `Eye`, `ChevronRight`, `ChevronDown`, `AlertCircle`) | [`lucide-react`](https://lucide.dev) |
 
 ---

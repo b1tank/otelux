@@ -412,6 +412,65 @@
                  color: #0a0e2a; font-weight: 600; }
   .btn.primary:hover { filter: brightness(1.08); }
 
+  /* ---------- settings + SQLite retention meter ---------- */
+  .settings-overlay { position: fixed; inset: 0; z-index: 70; display: none;
+                      place-items: center; background: rgba(7,9,16,.72); padding: 24px; }
+  .settings-overlay.is-open { display: grid; }
+  .settings { width: min(500px, 100%); max-height: calc(100vh - 48px);
+              display: flex; flex-direction: column; overflow: hidden;
+              background: var(--bg-1); border: 1px solid var(--border-1); border-radius: 6px;
+              box-shadow: 0 20px 64px rgba(0,0,0,.58); }
+  .settings__head { flex: 0 0 48px; display: flex; align-items: center; gap: 8px;
+                    padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .settings__head h2 { margin: 0; font-size: 14px; font-weight: 600; }
+  .settings__spacer { flex: 1; }
+  .settings__body { overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+  .settings__group { margin: 0; padding: 14px; display: flex; flex-direction: column; gap: 12px;
+                     border: 1px solid var(--border); border-radius: 4px; }
+  .settings__group legend { padding: 0 6px; color: var(--fg-1); font-size: 12px; }
+  .settings__hint { margin: 0; color: var(--fg-mute); font-size: 11px; line-height: 1.45; }
+  .settings__fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .settings__field { display: flex; flex-direction: column; gap: 6px; }
+  .settings__field label { color: var(--fg-1); font-size: 11px; }
+  .settings__field input { width: 100%; height: 32px; padding: 0 9px; color: var(--fg);
+                           background: var(--bg); border: 1px solid var(--border-1); border-radius: 3px;
+                           font: inherit; font-variant-numeric: tabular-nums; }
+  .settings__field input:focus { outline: 2px solid color-mix(in srgb,var(--accent),transparent 55%);
+                                 outline-offset: 1px; border-color: var(--accent); }
+  .settings__field input[type="number"] { appearance: textfield; }
+  .settings__field input[type="number"]::-webkit-inner-spin-button,
+  .settings__field input[type="number"]::-webkit-outer-spin-button { appearance: none; margin: 0; }
+  .storage-meter { padding: 12px; background: var(--bg); border: 1px solid var(--border);
+                   border-radius: 4px; }
+  .storage-meter__head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+  .storage-meter__eyebrow { display: block; color: var(--fg-mute); font-size: 10px;
+                            font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+  .storage-meter__value { margin-top: 2px; color: var(--fg); font-size: 16px;
+                          font-weight: 650; font-variant-numeric: tabular-nums; }
+  .storage-meter__value span { color: var(--fg-mute); font-size: 11px; font-weight: 500; }
+  .storage-meter__age { margin-left: auto; padding: 3px 7px; color: var(--fg-1);
+                        background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px;
+                        font-size: 10px; white-space: nowrap; }
+  .storage-meter__rail { display: flex; align-items: center; gap: 10px; }
+  .storage-battery { position: relative; flex: 1; height: 18px; overflow: visible;
+                     border: 1px solid var(--border-1); border-radius: 3px; background: var(--bg-1); }
+  .storage-battery::after { content:""; position:absolute; right:-5px; top:5px; width:3px; height:6px;
+                            border: 1px solid var(--border-1); border-left: 0; border-radius: 0 2px 2px 0; }
+  .storage-battery__fill { position: absolute; inset: 2px auto 2px 2px; width: calc(var(--level) - 4px);
+                           max-width: calc(100% - 4px); min-width: 2px; border-radius: 1px;
+                           background: var(--warn); }
+  .storage-battery__ticks { position: absolute; inset: 2px; display: grid;
+                            grid-template-columns: repeat(10,1fr); pointer-events: none; }
+  .storage-battery__ticks span { border-right: 1px solid rgba(26,27,38,.55); }
+  .storage-battery__ticks span:last-child { border-right: 0; }
+  .storage-meter__percent { width: 36px; color: var(--warn); font-size: 11px; font-weight: 650;
+                             text-align: right; font-variant-numeric: tabular-nums; }
+  .storage-meter__foot { display: flex; align-items: center; gap: 8px; margin-top: 9px;
+                         color: var(--fg-mute); font-size: 10px; font-variant-numeric: tabular-nums; }
+  .storage-meter__dot { width: 4px; height: 4px; border-radius: 50%; background: var(--border-1); }
+  .settings__foot { flex: 0 0 52px; display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+                    padding: 0 16px; border-top: 1px solid var(--border); background: var(--bg-1); }
+
   /* tiny inline svg helpers */
   .ico { width: 14px; height: 14px; flex: none; }
 
@@ -479,12 +538,12 @@
           <path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.3.8-.6v-2c-3.2.7-3.9-1.5-3.9-1.5-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.7.4-1.3.7-1.5-2.5-.3-5.2-1.3-5.2-5.7 0-1.3.4-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2.9-.3 2-.4 3-.4s2.1.1 3 .4c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.2 5.7.4.4.8 1.1.8 2.2v3.2c0 .3.2.7.8.6 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5z"/>
         </svg>
       </a>
-      <a class="rail__item" title="Settings" id="open-settings">
+      <button class="rail__item" type="button" title="Settings" aria-label="Settings" id="open-settings">
         <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
           <circle cx="12" cy="12" r="3"/>
           <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.8.3l-.1.1A2 2 0 1 1 4.3 17l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1A2 2 0 1 1 7 4.3l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>
         </svg>
-      </a>
+      </button>
     </nav>
   </aside>
 
@@ -1039,6 +1098,63 @@
   </div>
 </aside>
 
+<!-- ============ SETTINGS MODAL ============ -->
+<div class="settings-overlay" id="settings-overlay">
+  <section class="settings" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <header class="settings__head">
+      <h2 id="settings-title">Settings</h2>
+      <span class="settings__spacer"></span>
+      <button class="icon-btn" id="close-settings" title="Close settings" aria-label="Close settings">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </header>
+    <div class="settings__body">
+      <fieldset class="settings__group">
+        <legend>Data retention</legend>
+        <p class="settings__hint">Oldest telemetry is pruned when either the age or database-page limit is reached.</p>
+        <div class="storage-meter">
+          <div class="storage-meter__head">
+            <div>
+              <span class="storage-meter__eyebrow">SQLite budget</span>
+              <div class="storage-meter__value">418.6 MB <span>/ 512 MB</span></div>
+            </div>
+            <span class="storage-meter__age">72h window</span>
+          </div>
+          <div class="storage-meter__rail">
+            <div class="storage-battery" role="meter" aria-label="SQLite retention budget" aria-valuemin="0" aria-valuemax="512" aria-valuenow="418.6" style="--level:81.8%">
+              <div class="storage-battery__fill"></div>
+              <div class="storage-battery__ticks" aria-hidden="true">
+                <span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span><span></span>
+              </div>
+            </div>
+            <span class="storage-meter__percent">82%</span>
+          </div>
+          <div class="storage-meter__foot">
+            <span>On disk 429.2 MB</span><span class="storage-meter__dot"></span>
+            <span>DB 418.6</span><span class="storage-meter__dot"></span>
+            <span>WAL 10.5</span><span class="storage-meter__dot"></span><span>SHM 0.1</span>
+          </div>
+        </div>
+        <div class="settings__fields">
+          <div class="settings__field">
+            <label for="retention-age">Keep for (hours)</label>
+            <input id="retention-age" type="number" value="72" min="0" />
+          </div>
+          <div class="settings__field">
+            <label for="retention-size">Max database size (MB)</label>
+            <input id="retention-size" type="number" value="512" min="0" />
+          </div>
+        </div>
+      </fieldset>
+    </div>
+    <footer class="settings__foot">
+      <button class="btn" id="cancel-settings">Cancel</button>
+      <button class="btn primary">Save</button>
+    </footer>
+  </section>
+</div>
+
 <!-- ============ TEXT VISUALIZER MODAL ============ -->
 <div class="overlay" id="overlay" style="display:none">
   <div class="viewer" role="dialog" aria-modal="true" aria-labelledby="viewer-title">
@@ -1099,6 +1215,13 @@
 <script>
   // small interactivity so the user can play with the mockup
   const $ = (s) => document.querySelector(s);
+  const settingsOverlay = $('#settings-overlay');
+  function openSettings() { settingsOverlay.classList.add('is-open'); $('#retention-age').focus(); }
+  function closeSettings() { settingsOverlay.classList.remove('is-open'); $('#open-settings').focus(); }
+  $('#open-settings').addEventListener('click', openSettings);
+  $('#close-settings').addEventListener('click', closeSettings);
+  $('#cancel-settings').addEventListener('click', closeSettings);
+  settingsOverlay.addEventListener('click', (e) => { if (e.target === settingsOverlay) closeSettings(); });
   $('#close-drawer').addEventListener('click', () => { $('#drawer').classList.remove('is-open'); $('#t-drawer').classList.remove('is-on'); });
   $('#t-drawer').addEventListener('click', (e) => {
     $('#drawer').classList.toggle('is-open');
@@ -1209,6 +1332,9 @@
   $('#view-output').addEventListener('click', () => $('#overlay').style.display = 'grid');
   $('#close-viewer').addEventListener('click', () => $('#overlay').style.display = 'none');
   $('#overlay').addEventListener('click', (e) => { if (e.target === $('#overlay')) $('#overlay').style.display = 'none'; });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && settingsOverlay.classList.contains('is-open')) closeSettings();
+  });
 
   // ---- draggable splitter between trace list and waterfall ----
   (() => {

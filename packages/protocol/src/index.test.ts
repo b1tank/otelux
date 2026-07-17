@@ -25,7 +25,7 @@ describe('@otelux/protocol', () => {
 		expect(r.totalCount).toBe(0);
 	});
 
-	it('exports a 0.2.0 protocol version', () => {
-		expect(OTELUX_PROTOCOL_VERSION).toBe('0.2.0');
+	it('exports a 0.3.0 protocol version', () => {
+		expect(OTELUX_PROTOCOL_VERSION).toBe('0.3.0');
 	});
 });

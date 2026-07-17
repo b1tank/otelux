@@ -63,7 +63,7 @@ function pruneByAge(db: DatabaseSync, maxAgeHours: number, nowUnixNano: bigint):
 function pruneBySize(db: DatabaseSync, maxSizeMb: number): void {
 	const capBytes = maxSizeMb * BYTES_PER_MB;
 	for (let round = 0; round < MAX_SIZE_PRUNE_ROUNDS; round++) {
-		if (databaseSizeBytes(db) <= capBytes) {
+		if (databasePageBytes(db) <= capBytes) {
 			return;
 		}
 		const removed = deleteOldestFraction(db);
@@ -139,7 +139,8 @@ function countRows(db: DatabaseSync, table: string): number {
 	return (db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n;
 }
 
-function databaseSizeBytes(db: DatabaseSync): number {
+/** Bytes in SQLite pages, matching the quantity enforced by size retention. */
+export function databasePageBytes(db: DatabaseSync): number {
 	const pageCount = (db.prepare('PRAGMA page_count').get() as { page_count: number }).page_count;
 	const pageSize = (db.prepare('PRAGMA page_size').get() as { page_size: number }).page_size;
 	return pageCount * pageSize;

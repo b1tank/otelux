@@ -66,6 +66,50 @@ describe('@otelux/engine-node metadata', () => {
 		expect(OTELUX_ENGINE_NODE_VERSION).toBe('0.1.0');
 		storage.close();
 	});
+
+	it('reports retention page bytes and the physical SQLite file footprint', () => {
+		const directory = mkdtempSync(join(tmpdir(), 'otelux-usage-'));
+		const path = join(directory, 'otelux.db');
+		let storage: NodeSqliteStorage | undefined;
+		try {
+			storage = createNodeSqliteStorage({ path, pruneIntervalMs: 0 });
+			storage.writeLogs([
+				makeLog({ time: 1n, severity: 9, body: 'storage usage', service: 'usage-test' }),
+			]);
+
+			const usage = storage.getStorageUsage();
+			expect(usage).toEqual({
+				activePath: path,
+				retentionBytes: usage.retentionBytes,
+				databaseFileBytes: usage.databaseFileBytes,
+				walBytes: usage.walBytes,
+				sharedMemoryBytes: usage.sharedMemoryBytes,
+				totalBytes: usage.databaseFileBytes + usage.walBytes + usage.sharedMemoryBytes,
+			});
+			expect(usage.retentionBytes).toBeGreaterThan(0);
+			expect(usage.databaseFileBytes).toBeGreaterThan(0);
+			expect(usage.walBytes).toBeGreaterThan(0);
+		} finally {
+			storage?.close();
+			rmSync(directory, { recursive: true, force: true });
+		}
+	});
+
+	it('reports no physical files for an in-memory database', () => {
+		const storage = createNodeSqliteStorage({ path: ':memory:', pruneIntervalMs: 0 });
+		try {
+			const usage = storage.getStorageUsage();
+			expect(usage.retentionBytes).toBeGreaterThan(0);
+			expect(usage).toMatchObject({
+				databaseFileBytes: 0,
+				walBytes: 0,
+				sharedMemoryBytes: 0,
+				totalBytes: 0,
+			});
+		} finally {
+			storage.close();
+		}
+	});
 });
 
 describe('@otelux/engine-node spans', () => {

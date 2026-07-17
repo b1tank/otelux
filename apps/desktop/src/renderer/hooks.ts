@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react';
-import type { McpStatus, ReceiverStatus, Settings, StoragePathInfo } from '../shared/ipc.js';
+import type {
+	McpStatus,
+	ReceiverStatus,
+	Settings,
+	StoragePathInfo,
+	StorageUsageInfo,
+} from '../shared/ipc.js';
 import type { OteluxWindowBridge } from './ipcDataSource.js';
 
 /**
@@ -103,4 +109,57 @@ export function useStoragePath(bridge: OteluxWindowBridge): StoragePathInfo | un
 		};
 	}, [bridge]);
 	return info;
+}
+
+/** Refresh SQLite usage while Settings is open and after telemetry changes. */
+export function useStorageUsage(
+	bridge: OteluxWindowBridge,
+	enabled: boolean,
+): StorageUsageInfo | undefined {
+	const [usage, setUsage] = useState<StorageUsageInfo>();
+	useEffect(() => {
+		if (!enabled) {
+			return;
+		}
+		return subscribeStorageUsage(bridge, setUsage, window);
+	}, [bridge, enabled]);
+	return usage;
+}
+
+interface StorageUsageTimer {
+	setInterval(handler: () => void, timeout: number): number;
+	clearInterval(id: number): void;
+}
+
+/** Own the event/timer refresh lifecycle independently from React. */
+export function subscribeStorageUsage(
+	bridge: OteluxWindowBridge,
+	onUsage: (usage: StorageUsageInfo) => void,
+	timer: StorageUsageTimer,
+): () => void {
+	let disposed = false;
+	const refresh = (): void => {
+		if (disposed) {
+			return;
+		}
+		void bridge
+			.invoke({ kind: 'getStorageUsage' })
+			.then((result) => {
+				if (!disposed) {
+					onUsage(result as StorageUsageInfo);
+				}
+			})
+			.catch(() => {
+				// The runtime may be stopping or a transient stat can fail. Keep
+				// the last coherent snapshot and retry on the next event/tick.
+			});
+	};
+	refresh();
+	const interval = timer.setInterval(refresh, 2_000);
+	const off = bridge.onEvent(refresh);
+	return () => {
+		disposed = true;
+		timer.clearInterval(interval);
+		off();
+	};
 }

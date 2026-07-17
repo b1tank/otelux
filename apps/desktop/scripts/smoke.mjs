@@ -112,6 +112,7 @@ function evaluateRenderer(webSocketDebuggerUrl, expression) {
 					method: 'Runtime.evaluate',
 					params: {
 						expression,
+						awaitPromise: true,
 						returnByValue: true,
 					},
 				}),
@@ -256,6 +257,19 @@ try {
 			fail('preload bridge or rendered workbench was not available within 45s');
 		} else {
 			console.log('OK: preload bridge loaded and workbench rendered');
+			const storageUsage = await evaluateRenderer(
+				renderer.webSocketDebuggerUrl,
+				`(async () => JSON.stringify(await window.otelux.invoke({ kind: 'getStorageUsage' })))()`,
+			);
+			if (
+				storageUsage.retentionBytes <= 0 ||
+				storageUsage.totalBytes !==
+					storageUsage.databaseFileBytes + storageUsage.walBytes + storageUsage.sharedMemoryBytes
+			) {
+				fail('storage usage IPC returned an incoherent SQLite footprint');
+			} else {
+				console.log('OK: storage usage IPC returned a coherent SQLite footprint');
+			}
 			await evaluateRenderer(renderer.webSocketDebuggerUrl, 'window.close(); true');
 			await new Promise((resolve) => setTimeout(resolve, 500));
 			const hiddenHealth = await fetch(`${baseUrl}/healthz`);

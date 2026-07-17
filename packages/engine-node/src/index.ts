@@ -14,6 +14,7 @@
  * `schema.ts` for the layout.
  */
 
+import { statSync } from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
 import type { Storage } from '@otelux/engine';
 import type {
@@ -23,13 +24,14 @@ import type {
 	ListMetricsResult,
 	ListTracesQuery,
 	ListTracesResult,
+	StorageUsageInfo,
 } from '@otelux/protocol';
 import type { LogRecord, Metric, Span, SpanId, TraceId } from '@otelux/types';
 import { openDatabaseWithRecovery } from './db.js';
 import { Interner } from './intern.js';
 import { LogStore } from './logs.js';
 import { MetricStore } from './metrics.js';
-import { type RetentionConfig, pruneRetention } from './retention.js';
+import { type RetentionConfig, databasePageBytes, pruneRetention } from './retention.js';
 import { SpanStore } from './spans.js';
 
 export type { RetentionConfig } from './retention.js';
@@ -70,6 +72,7 @@ export interface NodeSqliteStorage extends Storage {
 	listLogs(query: ListLogsQuery): ListLogsResult;
 	writeMetrics(metrics: readonly Metric[]): void;
 	listMetrics(query: ListMetricsQuery): ListMetricsResult;
+	getStorageUsage(): StorageUsageInfo;
 	clear(): void;
 	close(): void;
 	/** Replace the retention config and prune immediately against it. */
@@ -84,6 +87,17 @@ const DEFAULT_PRUNE_INTERVAL_MS = 60_000;
 function defaultNow(): bigint {
 	// Date.now() is millisecond precision; scale to the nanosecond wire unit.
 	return BigInt(Date.now()) * 1_000_000n;
+}
+
+function fileSize(path: string): number {
+	try {
+		return statSync(path).size;
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+			return 0;
+		}
+		throw error;
+	}
 }
 
 export function createNodeSqliteStorage(options: NodeSqliteStorageOptions): NodeSqliteStorage {
@@ -136,6 +150,20 @@ export function createNodeSqliteStorage(options: NodeSqliteStorageOptions): Node
 		},
 		listMetrics(query: ListMetricsQuery): ListMetricsResult {
 			return metrics.listMetrics(query);
+		},
+		getStorageUsage(): StorageUsageInfo {
+			const inMemory = options.path === ':memory:';
+			const databaseFileBytes = inMemory ? 0 : fileSize(options.path);
+			const walBytes = inMemory ? 0 : fileSize(`${options.path}-wal`);
+			const sharedMemoryBytes = inMemory ? 0 : fileSize(`${options.path}-shm`);
+			return {
+				activePath: options.path,
+				retentionBytes: databasePageBytes(db),
+				databaseFileBytes,
+				walBytes,
+				sharedMemoryBytes,
+				totalBytes: databaseFileBytes + walBytes + sharedMemoryBytes,
+			};
 		},
 
 		applyRetention(config: RetentionConfig): void {

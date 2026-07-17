@@ -113,6 +113,10 @@ describe('createLocalRuntime', () => {
 			activePath: join(directory, 'otelux.db'),
 			defaultPath: join(directory, 'otelux.db'),
 		});
+		const usage = runtime.getStorageUsage();
+		expect(usage.activePath).toBe(join(directory, 'otelux.db'));
+		expect(usage.retentionBytes).toBeGreaterThan(0);
+		expect(usage.totalBytes).toBe(usage.databaseFileBytes + usage.walBytes + usage.sharedMemoryBytes);
 	});
 
 	it('copies a legacy runtime database into the canonical data directory', async () => {

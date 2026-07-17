@@ -174,6 +174,10 @@ body,
 	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 	color: inherit;
 	padding: 0;
+	display: flex;
+	flex-direction: column;
+	max-height: calc(100vh - 32px);
+	width: min(480px, calc(100vw - 32px));
 }
 
 .modal__header {
@@ -207,6 +211,7 @@ body,
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
+	overflow-y: auto;
 }
 
 .field {
@@ -241,6 +246,13 @@ body,
 	padding: 6px 8px;
 	font: inherit;
 	width: 120px;
+	appearance: textfield;
+}
+
+.field input[type="number"]::-webkit-inner-spin-button,
+.field input[type="number"]::-webkit-outer-spin-button {
+	appearance: none;
+	margin: 0;
 }
 
 .field input[type="number"]:focus {
@@ -313,6 +325,181 @@ body,
 	padding: 0 6px;
 	font-size: 12px;
 	color: var(--otelux-fg-muted);
+}
+
+.retention-fields {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+	gap: 12px;
+}
+
+.retention-fields .field input[type="number"] {
+	width: 100%;
+}
+
+.storage-budget {
+	padding: 12px;
+	background: var(--otelux-bg);
+	border: 1px solid var(--otelux-border);
+	border-radius: 4px;
+}
+
+.storage-budget__head {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	margin-bottom: 10px;
+}
+
+.storage-budget__eyebrow {
+	display: block;
+	color: var(--otelux-fg-muted);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+.storage-budget__value {
+	margin-top: 2px;
+	color: var(--otelux-fg);
+	font-size: 16px;
+	font-weight: 650;
+	font-variant-numeric: tabular-nums;
+}
+
+.storage-budget__value span {
+	color: var(--otelux-fg-muted);
+	font-size: 11px;
+	font-weight: 500;
+}
+
+.storage-budget__age {
+	margin-left: auto;
+	padding: 3px 7px;
+	color: var(--otelux-fg);
+	background: var(--otelux-bg-elevated);
+	border: 1px solid var(--otelux-border);
+	border-radius: 10px;
+	font-size: 10px;
+	white-space: nowrap;
+}
+
+.storage-budget__rail {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.storage-battery {
+	position: relative;
+	flex: 1;
+	height: 18px;
+	overflow: visible;
+	background: var(--otelux-bg-panel);
+	border: 1px solid var(--otelux-border-strong, var(--otelux-border));
+	border-radius: 3px;
+}
+
+.storage-battery::after {
+	content: "";
+	position: absolute;
+	top: 5px;
+	right: -5px;
+	width: 3px;
+	height: 6px;
+	border: 1px solid var(--otelux-border-strong, var(--otelux-border));
+	border-left: 0;
+	border-radius: 0 2px 2px 0;
+}
+
+.storage-battery__fill {
+	position: absolute;
+	top: 2px;
+	bottom: 2px;
+	left: 2px;
+	max-width: calc(100% - 4px);
+	border-radius: 1px;
+	background: var(--otelux-ok);
+	transition: width 180ms ease;
+}
+
+.storage-budget--warning .storage-battery__fill {
+	background: var(--otelux-warn);
+}
+
+.storage-budget--warning .storage-budget__percent {
+	color: var(--otelux-warn);
+}
+
+.storage-budget--critical .storage-battery__fill {
+	background: var(--otelux-error);
+}
+
+.storage-budget--critical .storage-budget__percent {
+	color: var(--otelux-error);
+}
+
+.storage-budget--unlimited .storage-battery {
+	border-style: dashed;
+}
+
+.storage-battery__ticks {
+	position: absolute;
+	inset: 2px;
+	display: grid;
+	grid-template-columns: repeat(10, 1fr);
+	pointer-events: none;
+}
+
+.storage-battery__ticks span {
+	border-right: 1px solid color-mix(in srgb, var(--otelux-bg) 55%, transparent);
+}
+
+.storage-battery__ticks span:last-child {
+	border-right: 0;
+}
+
+.storage-budget__percent {
+	width: 36px;
+	color: var(--otelux-ok);
+	font-size: 11px;
+	font-weight: 650;
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+}
+
+.storage-budget--unlimited .storage-budget__percent {
+	color: var(--otelux-accent);
+}
+
+.storage-budget__foot {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-top: 9px;
+	color: var(--otelux-fg-muted);
+	font-size: 10px;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.storage-budget__dot {
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background: var(--otelux-border);
+}
+
+@media (max-width: 520px) {
+	.retention-fields {
+		grid-template-columns: 1fr;
+	}
+
+	.storage-budget__foot {
+		flex-wrap: wrap;
+		white-space: normal;
+	}
 }
 
 /* Checkbox row: checkbox sits next to the label rather than the
