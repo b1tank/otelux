@@ -11,8 +11,8 @@
  *
  * Discovery order:
  *   1. OTELUX_MCP_URL / OTELUX_MCP_TOKEN / OTELUX_MCP_TOKEN_FILE overrides.
- *   2. OTELUX_USER_DATA_DIR override.
- *   3. Platform user-data candidates (packaged OTelux first).
+ *   2. OTELUX_DATA_DIR (or legacy OTELUX_USER_DATA_DIR) override.
+ *   3. Canonical platform data home, followed by legacy Desktop candidates.
  *
  * stdout is reserved for MCP protocol messages. Diagnostics go to stderr.
  */
@@ -52,8 +52,8 @@ const OPEN_DASHBOARD_TOOL = {
 	},
 };
 
-function platformUserDataCandidates() {
-	const override = process.env.OTELUX_USER_DATA_DIR;
+function platformDataCandidates() {
+	const override = process.env.OTELUX_DATA_DIR || process.env.OTELUX_USER_DATA_DIR;
 	if (override) return [override];
 
 	const home = homedir();
@@ -62,12 +62,24 @@ function platformUserDataCandidates() {
 		return [join(base, 'OTelux'), join(base, 'otelux'), join(base, '@otelux', 'desktop')];
 	}
 	if (process.platform === 'win32') {
-		const base = process.env.APPDATA || join(home, 'AppData', 'Roaming');
-		return [join(base, 'OTelux'), join(base, 'otelux'), join(base, '@otelux', 'desktop')];
+		const dataBase = process.env.LOCALAPPDATA || join(home, 'AppData', 'Local');
+		const legacyBase = process.env.APPDATA || join(home, 'AppData', 'Roaming');
+		return [
+			join(dataBase, 'OTelux'),
+			join(legacyBase, 'OTelux'),
+			join(legacyBase, 'otelux'),
+			join(legacyBase, '@otelux', 'desktop'),
+		];
 	}
 
-	const base = process.env.XDG_CONFIG_HOME || join(home, '.config');
-	return [join(base, 'OTelux'), join(base, 'otelux'), join(base, '@otelux', 'desktop')];
+	const dataBase = process.env.XDG_DATA_HOME || join(home, '.local', 'share');
+	const legacyBase = process.env.XDG_CONFIG_HOME || join(home, '.config');
+	return [
+		join(dataBase, 'otelux'),
+		join(legacyBase, 'OTelux'),
+		join(legacyBase, 'otelux'),
+		join(legacyBase, '@otelux', 'desktop'),
+	];
 }
 
 async function firstReadableFile(paths) {
@@ -94,13 +106,28 @@ async function readSettings(userDataDirs) {
 	}
 }
 
-async function discoverConnection() {
-	const userDataDirs = platformUserDataCandidates();
-	const settings = await readSettings(userDataDirs);
-	const configuredPort = settings?.mcp?.port;
-	const url = process.env.OTELUX_MCP_URL || `http://127.0.0.1:${configuredPort ?? 4320}/`;
+async function readRuntimeState(dataDirectories) {
+	const statePath = await firstReadableFile(
+		dataDirectories.map((directory) => join(directory, 'runtime.json')),
+	);
+	if (!statePath) return undefined;
+	try {
+		return JSON.parse(await readFile(statePath, 'utf8'));
+	} catch {
+		return undefined;
+	}
+}
 
-	if (settings?.mcp?.enabled === false && !process.env.OTELUX_MCP_URL) {
+async function discoverConnection() {
+	const dataDirectories = platformDataCandidates();
+	const state = await readRuntimeState(dataDirectories);
+	const settings = await readSettings(dataDirectories);
+	const configuredPort = state?.mcp?.port ?? settings?.mcp?.port;
+	const configuredHost = state?.mcp?.host ?? '127.0.0.1';
+	const url = process.env.OTELUX_MCP_URL || `http://${configuredHost}:${configuredPort ?? 4320}/`;
+
+	const mcpDisabled = state ? state.mcp?.kind === 'disabled' : settings?.mcp?.enabled === false;
+	if (mcpDisabled && !process.env.OTELUX_MCP_URL) {
 		throw new Error(
 			'OTelux MCP is disabled. Enable it in OTelux Settings, then restart this session.',
 		);
@@ -109,14 +136,17 @@ async function discoverConnection() {
 	let token = process.env.OTELUX_MCP_TOKEN;
 	let tokenFile = process.env.OTELUX_MCP_TOKEN_FILE;
 	if (!token && !tokenFile) {
-		tokenFile = await firstReadableFile(userDataDirs.map((dir) => join(dir, 'mcp-token')));
+		if (typeof state?.mcpTokenFile === 'string') {
+			tokenFile = await firstReadableFile([state.mcpTokenFile]);
+		}
+		tokenFile ??= await firstReadableFile(dataDirectories.map((dir) => join(dir, 'mcp-token')));
 	}
 	if (!token && tokenFile) {
 		token = (await readFile(tokenFile, 'utf8')).trim();
 	}
 	if (!token) {
 		throw new Error(
-			`Could not find the OTelux MCP token. Start OTelux once, or set OTELUX_USER_DATA_DIR / OTELUX_MCP_TOKEN_FILE. Checked: ${userDataDirs.join(', ')}`,
+			`Could not find the OTelux MCP token. Start OTelux once, or set OTELUX_DATA_DIR / OTELUX_MCP_TOKEN_FILE. Checked: ${dataDirectories.join(', ')}`,
 		);
 	}
 

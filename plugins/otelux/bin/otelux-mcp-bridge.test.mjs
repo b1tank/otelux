@@ -62,12 +62,18 @@ test('proxies authenticated MCP JSON-RPC over stdio and ignores notification res
 	});
 
 	const port = await listen(server);
+	await writeFile(
+		join(dir, 'runtime.json'),
+		JSON.stringify({
+			mcp: { kind: 'running', host: '127.0.0.1', port },
+			mcpTokenFile: join(dir, 'mcp-token'),
+		}),
+	);
 	const child = spawn(process.execPath, [BRIDGE.pathname], {
 		stdio: ['pipe', 'pipe', 'pipe'],
 		env: {
 			...process.env,
-			OTELUX_USER_DATA_DIR: dir,
-			OTELUX_MCP_URL: `http://127.0.0.1:${port}/`,
+			OTELUX_DATA_DIR: dir,
 		},
 	});
 	const lines = createInterface({ input: child.stdout, crlfDelay: Number.POSITIVE_INFINITY });

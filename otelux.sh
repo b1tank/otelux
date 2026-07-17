@@ -1,14 +1,11 @@
 #!/usr/bin/env bash
 # Launch the locally built OTelux desktop app.
 #
-# This is the "daily driver" path — not for debugging (use the VS Code
-# launch.json for that), and not a full electron-builder package. The
-# script:
+# This is the "daily driver" path, not a full electron-builder package. The script:
 #   • rebuilds the desktop bundle (unless --no-build),
 #   • runs the unpackaged build with Electron,
-#   • pins the user-data dir to ~/.config/otelux/local so settings persist
-#     across runs and don't collide with the VS Code "Run/Debug" launch
-#     (which uses the default Electron userData path),
+#   • keeps Electron profile data under ~/.config/otelux/local,
+#   • stores OTelux telemetry/settings under the canonical OS data home,
 #   • forwards the window icon via the same build/icon.png that
 #     electron-builder uses for packaged AppImages.
 #
@@ -34,7 +31,8 @@ DESKTOP_DIR="${REPO_ROOT}/apps/desktop"
 MAIN_ENTRY="${DESKTOP_DIR}/out/main/index.js"
 ICON_PNG="${DESKTOP_DIR}/build/icon.png"
 ELECTRON_BIN="${REPO_ROOT}/node_modules/.bin/electron"
-USER_DATA_DIR="${OTELUX_USER_DATA_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/otelux/local}"
+ELECTRON_USER_DATA_DIR="${OTELUX_USER_DATA_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/otelux/local}"
+RUNTIME_DATA_DIR="${OTELUX_DATA_DIR:-${XDG_DATA_HOME:-${HOME}/.local/share}/otelux}"
 
 # Use a stable WM_CLASS so the running window matches the .desktop file
 # installed via --install-desktop. Linux WMs pin by WM_CLASS, not by
@@ -185,7 +183,8 @@ elif [[ -n "${PORT:-}" ]]; then
 	export OTELUX_OTLP_PORT="${PORT}"
 fi
 
-mkdir -p "${USER_DATA_DIR}"
+mkdir -p "${ELECTRON_USER_DATA_DIR}" "${RUNTIME_DATA_DIR}"
+export OTELUX_DATA_DIR="${RUNTIME_DATA_DIR}"
 
 # `--class` sets WM_CLASS so the running window groups under the
 # installed .desktop entry on Linux (GNOME/KDE/sway all key off WM_CLASS).
@@ -197,6 +196,6 @@ mkdir -p "${USER_DATA_DIR}"
 # array is empty (avoids a `set -u` "unbound variable" error on bash 4).
 exec "${ELECTRON_BIN}" \
 	"${MAIN_ENTRY}" \
-	--user-data-dir="${USER_DATA_DIR}" \
+	--user-data-dir="${ELECTRON_USER_DATA_DIR}" \
 	--class="${WM_CLASS}" \
 	${FORWARD_ARGS[@]+"${FORWARD_ARGS[@]}"}

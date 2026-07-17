@@ -107,7 +107,7 @@ Tasks:
 - [x] Add MCP safety annotations required by agent hosts and public plugin review.
 - [x] Extract backend composition into `@otelux/local-runtime`; Desktop now delegates SQLite, migrations, retention, OTLP, MCP, settings, and sample data to it.
 - Run `@otelux/local-runtime` as a single-instance per-user daemon instead of embedding it in Electron.
-- Add canonical per-user data-home resolution, atomic state/locking, version negotiation, and safe legacy Desktop migration.
+- [x] Add canonical per-user data-home resolution, nonce-protected state/locking, protocol/runtime version metadata, and resumable copy-only legacy Desktop migration.
 - Add an HTTP/event `DataSource` adapter, serve the existing `@otelux/ui` as a loopback browser workbench, and convert Desktop into a client of that runtime.
 - Add the OTelux CLI for runtime lifecycle, status, settings, dashboard launch, and diagnostics.
 - Package the shared stdio MCP launcher for direct-MCP users and make the Claude/Codex plugin ensure the runtime without requiring Desktop.

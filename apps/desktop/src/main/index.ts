@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { createLocalRuntime } from '@otelux/local-runtime';
+import { createLocalRuntime, resolveOteluxDataDirectory } from '@otelux/local-runtime';
 import { BrowserWindow, app, ipcMain, shell } from 'electron';
 import {
 	type InvokeMessage,
@@ -13,6 +13,12 @@ import {
 import { isAllowedExternalUrl, isAllowedNavigation } from './security.js';
 
 const isDev = !app.isPackaged;
+
+// Process managers and packaged smoke tests stop Electron with signals rather
+// than a window action. Route them through app.quit() so `will-quit` closes the
+// runtime and releases runtime.json/runtime.lock before the process exits.
+process.once('SIGTERM', () => app.quit());
+process.once('SIGINT', () => app.quit());
 
 // Renderers that have finished loading and haven't started navigating away.
 // `webContents.send` does NOT throw when the underlying render frame is
@@ -99,8 +105,10 @@ async function startBackend(): Promise<{
 	const otlpPortOverride = resolveStartupPortOverride();
 	const otlpMaxBodyBytes = resolveMaxBodyBytes('OTELUX_OTLP_MAX_BODY_BYTES');
 	const mcpMaxBodyBytes = resolveMaxBodyBytes('OTELUX_MCP_MAX_BODY_BYTES');
+	const legacyDataDirectory = app.getPath('userData');
 	const runtime = await createLocalRuntime({
-		dataDirectory: app.getPath('userData'),
+		dataDirectory: resolveOteluxDataDirectory(),
+		legacyDataDirectories: [legacyDataDirectory],
 		...(otlpPortOverride !== undefined ? { otlpPortOverride } : {}),
 		...(otlpMaxBodyBytes !== undefined ? { otlpMaxBodyBytes } : {}),
 		...(mcpMaxBodyBytes !== undefined ? { mcpMaxBodyBytes } : {}),

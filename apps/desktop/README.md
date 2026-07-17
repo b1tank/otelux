@@ -28,7 +28,7 @@ Produces `out/main/*.js`, `out/preload/*.js`, and `out/renderer/*` ready to be p
 ./otelux.sh --install-desktop-only # install the entry without launching
 ```
 
-`otelux.sh` lives at the repo root. Unlike the VS Code launch.json ("OTelux: Main + Renderer"), it does **not** attach a debugger and uses a dedicated user-data dir (`~/.config/otelux/local`) so settings persist across runs and don't collide with the debug session.
+`otelux.sh` lives at the repo root. It keeps Electron profile data under `~/.config/otelux/local`, while OTelux settings, token, runtime state, and default database use the canonical platform data home (`${XDG_DATA_HOME:-$HOME/.local/share}/otelux` on Linux). Set `OTELUX_DATA_DIR` to isolate the runtime store for testing.
 
 ## Package for Linux
 

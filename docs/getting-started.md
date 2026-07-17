@@ -1,6 +1,6 @@
 # Getting Started With OTelux
 
-Updated: 2026-07-14
+Updated: 2026-07-16
 
 OTelux has not published a supported binary release yet. The only current installation path is a local source checkout. Do not install OTelux through an unofficial `curl | sudo sh` command or third-party package.
 
@@ -24,13 +24,13 @@ npm ci
 ./otelux.sh
 ```
 
-`otelux.sh` builds every workspace package before launching Electron. The local launcher stores settings under:
+`otelux.sh` builds every workspace package before launching Electron. The runtime stores settings, token, state, and its default database under:
 
 ```text
-${XDG_CONFIG_HOME:-$HOME/.config}/otelux/local/settings.json
+${XDG_DATA_HOME:-$HOME/.local/share}/otelux/
 ```
 
-It persists telemetry to a local SQLite database in the user-data directory, so received traces, logs, and metrics survive restarts. You can point the database at a custom absolute path in Settings → Database location (the current path is shown there with a Copy button; a change takes effect on the next launch). Old data is pruned by the retention setting (default 72 hours or 512 MB, whichever comes first; set either to `0` to disable that bound).
+Set `OTELUX_DATA_DIR` to override this location for development or tests. Existing source/packaged Desktop data is copied into the canonical directory on first launch when no canonical database exists; source files are preserved. Two populated default databases are never merged or overwritten. Telemetry persists in SQLite, so received traces, logs, and metrics survive restarts. You can point the database at a custom absolute path in Settings → Database location (the current path is shown there with a Copy button; a change takes effect on the next launch). Old data is pruned by the retention setting (default 72 hours or 512 MB, whichever comes first; set either to `0` to disable that bound).
 
 After one successful build, launch the existing output without rebuilding:
 
@@ -284,9 +284,11 @@ rm -f "$DATA_HOME/applications/otelux-local.desktop"
 rm -f "$DATA_HOME/icons/hicolor/512x512/apps/otelux-local.png"
 ```
 
-Remove local settings only when you intentionally want to reset them:
+Remove local telemetry and settings only when you intentionally want to reset them:
 
 ```bash
+rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/otelux"
+# Optional: remove Electron-only profile/cache state from the source launcher.
 rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/otelux/local"
 ```
 

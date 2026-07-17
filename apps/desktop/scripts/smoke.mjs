@@ -16,7 +16,7 @@
  * Exit code 0 on success, non-zero on any failed assertion.
  */
 import { spawn } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -59,13 +59,21 @@ function fail(message) {
 	process.exitCode = 1;
 }
 
-const child = spawn(binary, ['--no-sandbox', `--user-data-dir=${userDataDir}`], {
-	env: { ...process.env, OTELUX_OTLP_PORT: String(otlpPort) },
-	stdio: ['ignore', 'pipe', 'pipe'],
-	// New process group so we can signal Electron and all of its child
-	// processes (GPU, zygote, utility) as one unit on shutdown.
-	detached: true,
-});
+const child = spawn(
+	binary,
+	['--no-sandbox', '--ozone-platform=x11', `--user-data-dir=${userDataDir}`],
+	{
+		env: {
+			...process.env,
+			OTELUX_DATA_DIR: userDataDir,
+			OTELUX_OTLP_PORT: String(otlpPort),
+		},
+		stdio: ['ignore', 'pipe', 'pipe'],
+		// New process group so we can signal Electron and all of its child
+		// processes (GPU, zygote, utility) as one unit on shutdown.
+		detached: true,
+	},
+);
 child.stdout.on('data', record);
 child.stderr.on('data', record);
 
@@ -98,22 +106,34 @@ function signalGroup(signal) {
 
 async function shutdown() {
 	if (!exited) {
-		signalGroup('SIGTERM');
+		// Signal only Electron's main process first so it can run `will-quit`,
+		// close the runtime, and terminate its own utility processes cleanly.
+		child.kill('SIGTERM');
 		if (!(await waitForExit(5000))) {
-			// Electron can ignore SIGTERM under --no-sandbox; force it.
+			// A wedged process gets a final process-group kill.
 			signalGroup('SIGKILL');
 			await waitForExit(3000);
 		}
 	}
 	child.stdout?.destroy();
 	child.stderr?.destroy();
-	rmSync(userDataDir, { recursive: true, force: true });
 }
 
 try {
 	if (!(await waitForHealth(45_000))) {
 		fail('receiver did not answer /healthz within 45s');
 	} else {
+		const statePath = join(userDataDir, 'runtime.json');
+		const lockPath = join(userDataDir, 'runtime.lock');
+		if (!existsSync(statePath) || !existsSync(lockPath)) {
+			fail('runtime state or ownership lock was not published');
+		} else {
+			const state = JSON.parse(readFileSync(statePath, 'utf8'));
+			if (state.receiver?.kind !== 'running' || state.receiver.port !== otlpPort) {
+				fail(`runtime.json did not report the live OTLP port ${otlpPort}`);
+			}
+		}
+
 		// 1. Valid ingest.
 		const traceBody = readFileSync(fixture, 'utf8');
 		const ingest = await fetch(`${baseUrl}/v1/traces`, {
@@ -143,6 +163,13 @@ try {
 	fail(err instanceof Error ? err.message : String(err));
 } finally {
 	await shutdown();
+	if (
+		existsSync(join(userDataDir, 'runtime.json')) ||
+		existsSync(join(userDataDir, 'runtime.lock'))
+	) {
+		fail('runtime state or ownership lock remained after clean shutdown');
+	}
+	rmSync(userDataDir, { recursive: true, force: true });
 }
 
 if (process.exitCode === undefined || process.exitCode === 0) {

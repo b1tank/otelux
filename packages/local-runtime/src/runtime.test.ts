@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DEFAULT_SETTINGS, type RuntimeEvent } from '@otelux/protocol';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { type LocalRuntime, createLocalRuntime } from './runtime.js';
+import { type LocalRuntime, RuntimeAlreadyRunningError, createLocalRuntime } from './runtime.js';
+import { RUNTIME_LOCK_FILE, RUNTIME_STATE_FILE, readRuntimeState } from './runtimeState.js';
 
 const silentLogger = {
 	info: (): void => {},
@@ -40,6 +41,12 @@ describe('createLocalRuntime', () => {
 			expect(status.port).toBeGreaterThan(0);
 			const response = await fetch(`http://${status.host}:${status.port}/healthz`);
 			expect(response.ok).toBe(true);
+			expect(await readRuntimeState(directory)).toMatchObject({
+				pid: process.pid,
+				dataDirectory: directory,
+				receiver: { kind: 'running', host: status.host, port: status.port },
+				mcp: { kind: 'disabled' },
+			});
 		}
 		expect(runtime.getMcpStatus()).toEqual({ kind: 'disabled' });
 
@@ -62,6 +69,30 @@ describe('createLocalRuntime', () => {
 		subscription.dispose();
 	});
 
+	it('rejects a second owner and removes its state and lock when closed', async () => {
+		runtime = await createLocalRuntime({
+			dataDirectory: directory,
+			otlpPortOverride: 0,
+			logger: silentLogger,
+		});
+
+		await expect(
+			createLocalRuntime({
+				dataDirectory: directory,
+				otlpPortOverride: 0,
+				logger: silentLogger,
+			}),
+		).rejects.toMatchObject({
+			name: RuntimeAlreadyRunningError.name,
+			state: { instanceId: runtime.getRuntimeState().instanceId },
+		});
+
+		await runtime.close();
+		runtime = undefined;
+		await expect(fs.access(join(directory, RUNTIME_STATE_FILE))).rejects.toThrow();
+		await expect(fs.access(join(directory, RUNTIME_LOCK_FILE))).rejects.toThrow();
+	});
+
 	it('reopens the same durable database', async () => {
 		runtime = await createLocalRuntime({
 			dataDirectory: directory,
@@ -82,5 +113,40 @@ describe('createLocalRuntime', () => {
 			activePath: join(directory, 'otelux.db'),
 			defaultPath: join(directory, 'otelux.db'),
 		});
+	});
+
+	it('copies a legacy runtime database into the canonical data directory', async () => {
+		const legacyDirectory = join(directory, 'legacy');
+		await fs.mkdir(legacyDirectory);
+		await fs.writeFile(
+			join(legacyDirectory, 'settings.json'),
+			`${JSON.stringify({ ...DEFAULT_SETTINGS, mcp: { enabled: false, port: 4320 } })}\n`,
+			'utf8',
+		);
+		let legacyRuntime: LocalRuntime | undefined;
+		try {
+			legacyRuntime = await createLocalRuntime({
+				dataDirectory: legacyDirectory,
+				otlpPortOverride: 0,
+				logger: silentLogger,
+			});
+			await legacyRuntime.loadSampleData();
+		} finally {
+			await legacyRuntime?.close();
+		}
+
+		runtime = await createLocalRuntime({
+			dataDirectory: directory,
+			legacyDataDirectories: [legacyDirectory],
+			otlpPortOverride: 0,
+			logger: silentLogger,
+		});
+
+		expect(runtime.migration).toMatchObject({
+			kind: 'migrated',
+			sourceDirectory: legacyDirectory,
+		});
+		expect((await runtime.listTraces({})).totalCount).toBe(2);
+		expect(await fs.readFile(join(legacyDirectory, 'otelux.db'))).not.toHaveLength(0);
 	});
 });

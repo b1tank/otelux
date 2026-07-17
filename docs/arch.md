@@ -84,10 +84,10 @@ Desktop and plugin processes must not independently open the same database. SQLi
 Every entry point uses the same `ensure runtime` operation:
 
 1. Resolve the canonical per-user OTelux data directory.
-2. Read and validate the runtime state file.
-3. Check the recorded PID, protocol version, and authenticated health endpoint.
-4. If no compatible runtime is healthy, acquire an atomic startup lock and launch one.
-5. Publish the PID, endpoints, runtime version, token location, and active database path atomically.
+2. Read and validate `runtime.json`.
+3. Check the recorded PID and protocol/runtime versions.
+4. If no owner is alive, atomically claim `runtime.lock` with a random ownership nonce and launch one.
+5. Publish the PID, listener statuses, versions, token location, and active database path atomically.
 6. Connect as a client.
 
 This handles Desktop and several agent sessions starting concurrently. An occupied stable OTLP port is an actionable error; the runtime must not silently move it because exporters are configured with that endpoint. The workbench/API port may fall back to another loopback port because clients discover its current URL through runtime state.
@@ -134,15 +134,17 @@ The runtime uses a product-level data directory independent of plugin caches and
 | macOS | `~/Library/Application Support/OTelux`. |
 | Windows | `%LOCALAPPDATA%\OTelux`. |
 
-It contains the default `otelux.db`, settings, authentication material, runtime state, and logs. Owner-only permissions protect tokens and runtime metadata. A user-configured absolute database path remains supported, but only the runtime resolves and opens it.
+It contains the default `otelux.db`, `settings.json`, owner-only `mcp-token`, and the transient owner-only `runtime.json` / `runtime.lock` files while the runtime is active. `OTELUX_DATA_DIR` overrides the location for development and tests. A user-configured absolute database path remains supported, but only the runtime resolves and opens it.
 
 The shared-runtime release must migrate existing Desktop users safely:
 
 1. Acquire the exclusive runtime lock before inspecting legacy state.
-2. If no canonical database exists, atomically move or copy the legacy Electron database and settings.
+2. If no canonical database exists, atomically copy the legacy Electron database, sidecars, settings, and token.
 3. Preserve a configured custom database path rather than relocating that database.
 4. Reuse the existing schema migration and corruption-quarantine behavior.
 5. Never silently merge two populated databases. Preserve both and require an explicit import decision.
+
+Migration uses a resumable marker and intentionally leaves the legacy source files in place. This favors recovery over reclaiming disk automatically; users can remove the legacy Electron directory after confirming the canonical store is healthy.
 
 Plugin-first users need no migration when they later install Desktop; Desktop simply connects to the already populated runtime.
 
@@ -206,20 +208,19 @@ flowchart LR
     Codex[Codex plugin] --> Bridge
     Bridge -->|authenticated loopback HTTP| Runtime[Local runtime embedded in Electron]
     Desktop[Desktop IPC and workbench] --> Runtime
-    Runtime --> LegacyDB[(Electron user-data otelux.db)]
+    Runtime --> DB[(Canonical data-home otelux.db)]
 ```
 
-Today, `@otelux/local-runtime` owns SQLite, retention, engine queries, OTLP, MCP, settings, sample data, and lifecycle events. Electron embeds that package and forwards its existing IPC contract to it. The bridge still discovers Desktop settings and its owner-only token, and `otel_open_dashboard` still launches or focuses Electron, so Desktop must remain installed and running until the runtime becomes a separately managed daemon.
+Today, `@otelux/local-runtime` owns SQLite, retention, engine queries, OTLP, MCP, settings, sample data, lifecycle events, canonical data migration, and runtime ownership/state files. Electron embeds that package and forwards its existing IPC contract to it. The bridge discovers `runtime.json` and the owner-only token, while `otel_open_dashboard` still launches or focuses Electron, so Desktop must remain installed and running until the runtime becomes a separately managed daemon.
 
 The next implementation sequence is:
 
-1. Add canonical data-home resolution, single-instance state/locking, and legacy Desktop migration.
-2. Run the runtime as a separately managed per-user daemon.
-3. Add the HTTP/event `DataSource` adapter and serve the shared workbench in browser mode.
-4. Convert Desktop from an embedded runtime host into a daemon client while retaining native shell integration.
-5. Add the CLI and package the same launcher for direct MCP use.
-6. Make the Claude/Codex plugin self-contained and change dashboard launch to the browser URL.
-7. Add confirmation-backed agent and application telemetry setup workflows.
-8. Validate clean installs, upgrades, concurrent clients, port conflicts, retention, and uninstall behavior on every supported platform.
+1. Run the runtime as a separately managed per-user daemon.
+2. Add the HTTP/event `DataSource` adapter and serve the shared workbench in browser mode.
+3. Convert Desktop from an embedded runtime host into a daemon client while retaining native shell integration.
+4. Add the CLI and package the same launcher for direct MCP use.
+5. Make the Claude/Codex plugin self-contained and change dashboard launch to the browser URL.
+6. Add confirmation-backed agent and application telemetry setup workflows.
+7. Validate clean installs, upgrades, concurrent clients, port conflicts, retention, and uninstall behavior on every supported platform.
 
 Only after this sequence should the self-contained plugin be published. That prevents two competing local backend models from reaching users.

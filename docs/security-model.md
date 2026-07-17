@@ -28,7 +28,7 @@ Any local process or user that can reach the loopback interface can submit telem
 
 The desktop starts an MCP HTTP listener on `127.0.0.1:4320` by default. MCP tools are read-only, but they can reveal sensitive telemetry to any client that connects, so HTTP access requires a per-install bearer token.
 
-A random token is generated on first run and stored in `<userData>/mcp-token` with owner-only permissions. Every JSON-RPC `POST` must send `Authorization: Bearer <token>`; a missing or wrong token is rejected with `401` before any tool runs. Configure your MCP client with the token from that file, or disable MCP in Settings when agent access is not needed. Because loopback is not user isolation, another process running as the same user can still read the token file — the token defends against unauthenticated local clients, not against a compromised local account.
+A random token is generated on first run and stored as `mcp-token` in the canonical OTelux data directory with owner-only permissions. Runtime ownership metadata (`runtime.json` and `runtime.lock`) is also owner-only and contains paths/endpoints but never the token value. Every JSON-RPC `POST` must send `Authorization: Bearer <token>`; a missing or wrong token is rejected with `401` before any tool runs. Configure your MCP client with the token from that file, or disable MCP in Settings when agent access is not needed. Because loopback is not user isolation, another process running as the same user can still read the token file — the token defends against unauthenticated local clients, not against a compromised local account.
 
 ### Electron renderer
 

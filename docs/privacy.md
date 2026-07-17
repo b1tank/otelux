@@ -24,15 +24,15 @@ The desktop stores traces, logs, and metrics in a local SQLite database (`otelux
 
 Retention bounds disk growth. The defaults remove telemetry after 72 hours or when the database exceeds 512 MB, whichever happens first. Either bound can be changed or disabled in Settings. Clear data deletes every stored trace, log, metric, resource, and instrumentation scope after an explicit confirmation.
 
-The local source launcher stores port and MCP settings in:
+The runtime stores telemetry, port/MCP settings, and its token under the canonical platform data home. On Linux this is:
 
 ```text
-${XDG_CONFIG_HOME:-$HOME/.config}/otelux/local/settings.json
+${XDG_DATA_HOME:-$HOME/.local/share}/otelux/
 ```
 
-and its database/token in the same user-data directory. Packaged builds use Electron's platform user-data directory. The Settings UI is the source of truth for the active database path.
+macOS uses `~/Library/Application Support/OTelux`; Windows uses `%LOCALAPPDATA%\OTelux`. `OTELUX_DATA_DIR` provides an explicit test/development override. The Settings UI is the source of truth for the active database path.
 
-`settings.json` does not contain captured telemetry or credentials. The MCP token is stored separately as `<userData>/mcp-token` with owner-only permissions.
+`settings.json` does not contain captured telemetry or credentials. The MCP token is stored separately as `mcp-token` with owner-only permissions. While running, `runtime.json` and `runtime.lock` contain process, version, endpoint, and path metadata but never the token value.
 
 ## Network Behavior
 
@@ -44,11 +44,11 @@ OTelux itself does not add analytics, crash reporting, or telemetry export. Expl
 - Copy, download, or future export actions place data under the user's control.
 - The GitHub link opens the project repository in the system browser.
 
-The current MCP HTTP listener is enabled by default but requires a per-install bearer token: a random secret generated on first run and stored in `<userData>/mcp-token`. Requests without a valid `Authorization: Bearer <token>` header are rejected before any tool runs. Configure your MCP client with that token, or disable MCP in Settings when agent access is not needed, especially on shared hosts. See the [security requirements](spec.md#security-requirements).
+The current MCP HTTP listener is enabled by default but requires a per-install bearer token: a random secret generated on first run and stored in the canonical data directory. Requests without a valid `Authorization: Bearer <token>` header are rejected before any tool runs. Configure your MCP client with that token, or disable MCP in Settings when agent access is not needed, especially on shared hosts. See the [security requirements](spec.md#security-requirements).
 
 ## Agent Plugins
 
-The OTelux Claude Code and Codex plugins connect to the authenticated loopback MCP listener through a bundled local bridge. The bridge reads the token from the platform user-data directory; it does not copy the token into plugin manifests, model prompts, or marketplace metadata.
+The OTelux Claude Code and Codex plugins connect to the authenticated loopback MCP listener through a bundled local bridge. The bridge reads `runtime.json` and the token file from the canonical data directory; it does not copy the token into plugin manifests, model prompts, or marketplace metadata.
 
 All bundled MCP tools are read-only. Tool results can contain telemetry attributes, log bodies, prompts, SQL, identifiers, and other sensitive content. When Claude or Codex uses a tool result, that selected data may be sent to the AI provider under that provider's account, retention, and privacy settings. Installing the plugin does not itself upload telemetry; data leaves the local store only when the user/model invokes a tool or the user explicitly exports/copies it.
 
@@ -70,10 +70,12 @@ Use a minimal synthetic reproduction. Follow [SUPPORT.md](../SUPPORT.md) for ord
 
 Use **Clear** in the workbench to delete telemetry while preserving settings and the MCP token.
 
-For a complete source-launcher reset, close OTelux and remove its user-data directory:
+For a complete source-launcher reset, close OTelux and remove its canonical data directory:
 
 ```bash
+rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/otelux"
+# Optional Electron profile/cache state used by the local source launcher:
 rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/otelux/local"
 ```
 
-For packaged builds, inspect **Settings → Database location** before deleting files. Removing `otelux.db`, `settings.json`, and `mcp-token` resets telemetry, settings, and plugin authentication respectively. Stop OTelux before deleting the database or its `-wal`/`-shm` sidecars.
+Inspect **Settings → Database location** before deleting files. Removing `otelux.db`, `settings.json`, and `mcp-token` resets telemetry, settings, and plugin authentication respectively. Stop OTelux before deleting the database or its `-wal`/`-shm` sidecars. Legacy Electron files are copied, not deleted, during migration.

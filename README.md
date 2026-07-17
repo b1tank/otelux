@@ -123,7 +123,7 @@ npm run -w @otelux/desktop package
 
 ## Current Status
 
-Pre-release. `@otelux/local-runtime` now owns storage, engine, OTLP, MCP, settings, and lifecycle, but Desktop still embeds it in Electron and the `0.1.4` plugin remains a Desktop companion. The standalone daemon, CLI, direct MCP package, and runtime-served workbench are planned. Start with [docs/getting-started.md](docs/getting-started.md). See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities, [docs/arch.md](docs/arch.md#current-implementation) for the architecture transition, [docs/plan.md](docs/plan.md) for future work, and [docs/release-sprint.md](docs/release-sprint.md) for temporary `v0.1.0` launch execution.
+Pre-release. `@otelux/local-runtime` now owns storage, engine, OTLP, MCP, settings, lifecycle, canonical data-home migration, and nonce-protected runtime state. Desktop still embeds it in Electron and the `0.1.4` plugin remains a Desktop companion. The standalone daemon, CLI, direct MCP package, and runtime-served workbench are planned. Start with [docs/getting-started.md](docs/getting-started.md). See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities, [docs/arch.md](docs/arch.md#current-implementation) for the architecture transition, [docs/plan.md](docs/plan.md) for future work, and [docs/release-sprint.md](docs/release-sprint.md) for temporary `v0.1.0` launch execution.
 
 ## License
 

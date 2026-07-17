@@ -46,7 +46,7 @@ Qualification profiles:
 | 0.3 | `npm run lint && npm run typecheck` | both exit 0, no errors |
 | 0.4 | `npm run test` | all configured test projects pass with no unexplained warnings |
 | 0.5 | `npm run build` | `apps/desktop/out/{main,preload,renderer}` exist; renderer `assets/index-*.js` >100 KB |
-| 0.6 | `rm -rf /tmp/otelux-userdata` *(only if you want a clean profile)* | no error |
+| 0.6 | `rm -rf /tmp/otelux-userdata /tmp/otelux-electron-userdata` *(only if you want a clean profile)* | no error |
 | 0.7 | `if ss -ltn \| grep -q -e ':4319 ' -e ':4320 '; then exit 1; fi` | exits 0 because neither default port is listening |
 
 ---
@@ -55,7 +55,7 @@ Qualification profiles:
 
 ### 1.1 Launch
 ```bash
-cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-userdata
+cd apps/desktop && OTELUX_DATA_DIR=/tmp/otelux-userdata npx electron out/main/index.js --user-data-dir=/tmp/otelux-electron-userdata
 ```
 - **Expected**:
   - main-process log line: `[otelux] OTLP/HTTP receiver listening on http://127.0.0.1:4319/v1/{traces,logs,metrics}`
@@ -199,7 +199,7 @@ Restore OTLP to `14320`, then exercise the MCP controls:
 
 ### 4.12 MCP bearer token
 
-The MCP listener requires a per-install token stored in `<userData>/mcp-token`.
+The MCP listener requires a per-install token stored in the canonical data directory.
 
 ```bash
 TOKEN=$(cat /tmp/otelux-userdata/mcp-token)
@@ -223,12 +223,12 @@ For step 4.11.6, reuse the Python listener from step 4.10 with port `14331`, the
 ### 5.1 Survives restart
 1. Quit the app: close the last window on Linux/Windows; use Command+Q or the application menu on macOS.
 2. Confirm both listeners are released: `ss -ltnp | grep -e ':14320 ' -e ':4320 '` → empty.
-3. Relaunch without env override: `cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-userdata`
+3. Relaunch without a port override: `cd apps/desktop && OTELUX_DATA_DIR=/tmp/otelux-userdata npx electron out/main/index.js --user-data-dir=/tmp/otelux-electron-userdata`
 - **Expected**: log shows OTLP listening on `http://127.0.0.1:14320/v1/{traces,logs,metrics}` and MCP listening on `http://127.0.0.1:4320/`; both EndpointBar pills reflect those persisted settings.
 
 ### 5.2 Env override is one-shot
 1. Quit Electron.
-2. Relaunch with `OTELUX_OTLP_PORT=14999 npx electron out/main/index.js --user-data-dir=/tmp/otelux-userdata`
+2. Relaunch with `OTELUX_DATA_DIR=/tmp/otelux-userdata OTELUX_OTLP_PORT=14999 npx electron out/main/index.js --user-data-dir=/tmp/otelux-electron-userdata`
 - **Expected**:
   - log shows `listening on http://127.0.0.1:14999/v1/{traces,logs,metrics}`
   - `cat /tmp/otelux-userdata/settings.json` still has `{"version":1,"otlp":{"port":14320},"mcp":{"enabled":true,"port":4320},"retention":{"maxAgeHours":72,"maxSizeMb":512},"storage":{"dbPath":""}}` — **env did NOT mutate file**
@@ -250,7 +250,7 @@ For step 4.11.6, reuse the Python listener from step 4.10 with port `14331`, the
 
 ### 5.5 Env validation
 1. Quit.
-2. `OTELUX_OTLP_PORT=abc npx electron out/main/index.js --user-data-dir=/tmp/otelux-userdata`
+2. `OTELUX_DATA_DIR=/tmp/otelux-userdata OTELUX_OTLP_PORT=abc npx electron out/main/index.js --user-data-dir=/tmp/otelux-electron-userdata`
 - **Expected**: log warns about invalid env, falls back to persisted port. App does **not** crash.
 
 ### 5.6 Restore the test baseline
@@ -258,8 +258,8 @@ For step 4.11.6, reuse the Python listener from step 4.10 with port `14331`, the
 
 ### 5.7 Telemetry persists across restart
 1. With the app running, ingest at least one trace, one log, and one metric (see sections 6–8).
-2. Quit the app and relaunch with the same `--user-data-dir=/tmp/otelux-userdata`.
-- **Expected**: the previously ingested traces, logs, and metrics are still listed after restart (they are read back from `<user-data>/otelux.db`, not re-received). `ls /tmp/otelux-userdata/otelux.db*` shows the database file.
+2. Quit the app and relaunch with the same `OTELUX_DATA_DIR=/tmp/otelux-userdata`.
+- **Expected**: the previously ingested traces, logs, and metrics are still listed after restart (they are read back from the canonical `otelux.db`, not re-received). `ls /tmp/otelux-userdata/otelux.db*` shows the database file.
 
 ### 5.8 Data retention
 1. Open Settings → **Data retention**. Confirm defaults: **Keep for (hours)** `72`, **Max database size (MB)** `512`.
@@ -270,12 +270,27 @@ For step 4.11.6, reuse the Python listener from step 4.10 with port `14331`, the
 - **Expected**: valid values persist to `settings.json` under `"retention"`; invalid values are rejected inline without mutating the file or the running store.
 
 ### 5.9 Database location
-1. Open Settings → **Database location**. Confirm the **Active database file** shows the absolute path of the open DB (e.g. `<user-data>/otelux.db`, or `/tmp/otelux-userdata/otelux.db` under the test data-dir) and the **Copy** button copies that path to the clipboard.
+1. Open Settings → **Database location**. Confirm the **Active database file** shows `/tmp/otelux-userdata/otelux.db` and the **Copy** button copies that path to the clipboard.
 2. In **Custom database path**, enter a relative path (e.g. `foo.db`) → inline validation error, nothing persisted.
 3. Enter an absolute path in a writable directory (e.g. `/tmp/otelux-alt/otelux.db`) and Save → accepted; the hint shows "Restart required to switch to this path" and `settings.json` records `"storage":{"dbPath":"/tmp/otelux-alt/otelux.db"}`.
-4. Quit and relaunch with the same `--user-data-dir` → the **Active database file** now shows `/tmp/otelux-alt/otelux.db` and `ls /tmp/otelux-alt/otelux.db*` exists.
+4. Quit and relaunch with the same `OTELUX_DATA_DIR` → the **Active database file** now shows `/tmp/otelux-alt/otelux.db` and `ls /tmp/otelux-alt/otelux.db*` exists.
 5. Clear the custom path (blank) and Save, then restart → the active DB returns to the default location.
 - **Expected**: path changes are validated inline, persisted under `"storage"`, applied on the next launch (not mid-session), and a bad/unwritable custom path falls back to the default without crashing (log shows the fallback).
+
+### 5.10 Runtime state and ownership lock
+1. While OTelux is running, inspect `cat /tmp/otelux-userdata/runtime.json`.
+- **Expected**: valid JSON reports the current PID, runtime/protocol versions, `/tmp/otelux-userdata/otelux.db`, token path, and actual OTLP/MCP statuses. It does not contain the bearer token value.
+2. Confirm `/tmp/otelux-userdata/runtime.lock` exists and carries the same PID plus an ownership nonce.
+3. Quit OTelux normally.
+- **Expected**: both `runtime.json` and `runtime.lock` are removed; `otelux.db`, `settings.json`, and `mcp-token` remain.
+
+### 5.11 Legacy Desktop migration
+Run this as an isolated migration check, not against valuable telemetry:
+
+1. Quit OTelux and create `/tmp/otelux-legacy` containing a synthetic or disposable `otelux.db`, `settings.json`, and `mcp-token` from a previous test run.
+2. Ensure `/tmp/otelux-canonical` does not exist.
+3. Launch with `OTELUX_DATA_DIR=/tmp/otelux-canonical npx electron out/main/index.js --user-data-dir=/tmp/otelux-legacy`.
+- **Expected**: the runtime copies legacy files into `/tmp/otelux-canonical`, opens the canonical database, and leaves every source file in `/tmp/otelux-legacy` intact. An interrupted `.legacy-migration.json` operation resumes before SQLite opens. If both directories already contain `otelux.db`, neither is overwritten or merged and the conflict is logged.
 
 ---
 
@@ -568,7 +583,7 @@ curl -s -X POST -H 'Content-Type: application/json' \
 After running the suite:
 ```bash
 pkill -9 -f "out/main/index.js" 2>/dev/null
-rm -rf /tmp/otelux-userdata
+rm -rf /tmp/otelux-userdata /tmp/otelux-electron-userdata
 # Stop any background Python listener left from the occupied-port tests.
 ```
 
@@ -595,7 +610,7 @@ Notes: …
 When you only have a minute (e.g. post-commit gate):
 
 1. Build: `npm run lint && npm run typecheck && npm run build`
-2. Launch: `cd apps/desktop && npx electron out/main/index.js --user-data-dir=/tmp/otelux-smoke &`
+2. Launch: `cd apps/desktop && OTELUX_DATA_DIR=/tmp/otelux-smoke npx electron out/main/index.js --user-data-dir=/tmp/otelux-electron-smoke &`
 3. `curl --retry 20 --retry-delay 0 --retry-connrefused -sf http://127.0.0.1:4319/healthz && PORT=4319 ./scripts/send-traces.sh`
 4. Click the trace, click any span — confirm waterfall + span detail drawer populate.
 5. Rail → Settings cog → change port to a different one (e.g. `4399`) → Save → confirm green dot + new URL, then change back to `4319`.

@@ -29,6 +29,7 @@ The repository currently contains:
 
 - `apps/desktop`: Electron shell hosting IPC/windows and the React renderer; its main process currently embeds `@otelux/local-runtime`.
 - `@otelux/local-runtime`: backend composition for SQLite, retention, engine queries, OTLP, authenticated MCP, settings, sample data, and lifecycle events.
+- Canonical platform data-home resolution, resumable copy-only migration from legacy Electron state, and nonce-protected `runtime.lock` / `runtime.json` ownership metadata.
 - OTLP/HTTP JSON and protobuf ingest for traces, logs, and metrics.
 - Durable local storage for all signals via `@otelux/engine-node` (Node `node:sqlite`), with user-configurable retention (age and size). The store versions its schema (forward-only migrations) and self-heals an unreadable or newer-version file by quarantining it and starting fresh. `@otelux/engine` still ships an in-memory store for tests and small workloads; both back ends pass a shared storage-contract suite.
 - Live Traces, Logs, and Metrics rail surfaces in `@otelux/ui`.
@@ -160,10 +161,10 @@ Planned receiver work:
 |---|---:|---:|---|
 | Shared local runtime | `4319` | `4320` by default | Avoids colliding with a user's standard collector on `4318`; both listeners are configurable and MCP can be disabled. The runtime is currently embedded in the Desktop process. |
 
-Ports are host settings. The receiver package also exposes single-instance claiming so hosts can handle collisions deliberately.
+Ports are runtime settings. The runtime claims owner-only `runtime.lock` before opening SQLite or binding either listener and publishes effective statuses in `runtime.json`, preventing concurrent local entry points from becoming competing backend owners.
 OTLP and MCP listeners must use different ports. The desktop exposes a copyable OTLP base URL and, while MCP is enabled, a copyable MCP endpoint; failed listener binds leave the previous healthy listener and persisted settings intact.
 
-The desktop MCP listener requires a per-install bearer token. A random token is generated on first run and stored in `<userData>/mcp-token`; every MCP `POST` must send `Authorization: Bearer <token>` or receive `401`. The identity probe (`GET /`) stays open so a client can check liveness without the token.
+The runtime MCP listener requires a per-install bearer token. A random token is generated on first run and stored as `mcp-token` in the canonical OTelux data directory; every MCP `POST` must send `Authorization: Bearer <token>` or receive `401`. The identity probe (`GET /`) stays open so a client can check liveness without the token.
 
 ## Data Model And Query Contracts
 

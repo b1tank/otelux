@@ -14,7 +14,7 @@ Shared plugin for Claude Code and Codex.
 2. Keep MCP enabled in OTelux Settings (default port `4320`).
 3. Node.js 22 or newer must be on `PATH` for the bridge process.
 
-The bridge discovers the platform OTelux user-data directory and reads its owner-only `mcp-token`. Override discovery with `OTELUX_USER_DATA_DIR`, `OTELUX_MCP_URL`, `OTELUX_MCP_TOKEN_FILE`, or `OTELUX_MCP_TOKEN`.
+The bridge reads `runtime.json` and the owner-only `mcp-token` from the canonical OTelux data directory. Override discovery with `OTELUX_DATA_DIR`, `OTELUX_MCP_URL`, `OTELUX_MCP_TOKEN_FILE`, or `OTELUX_MCP_TOKEN`; `OTELUX_USER_DATA_DIR` remains a compatibility alias.
 
 ## Local Claude test
 

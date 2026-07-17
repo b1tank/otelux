@@ -1,4 +1,4 @@
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { createEngine } from '@otelux/engine';
 import { type NodeSqliteStorage, createNodeSqliteStorage } from '@otelux/engine-node';
 import type {
@@ -13,12 +13,23 @@ import type {
 	StoragePathInfo,
 	UpdateSettingsResult,
 } from '@otelux/protocol';
+import { OTELUX_PROTOCOL_VERSION } from '@otelux/protocol';
+import { resolveOteluxDataDirectory } from './dataHome.js';
 import { createDemoTelemetry } from './demoData.js';
 import { McpHost } from './mcpHost.js';
 import { loadOrCreateMcpToken } from './mcpToken.js';
+import { type LegacyMigrationResult, prepareDataDirectory } from './migration.js';
 import { ReceiverHost } from './receiverHost.js';
+import {
+	type RuntimeLockOwner,
+	type RuntimeState,
+	claimRuntimeOwnership,
+	removeRuntimeState,
+	writeRuntimeState,
+} from './runtimeState.js';
 import { SettingsStore } from './settings.js';
 import { updateSettings } from './updateSettings.js';
+import { OTELUX_LOCAL_RUNTIME_VERSION } from './version.js';
 
 export interface RuntimeLogger {
 	info(message: string): void;
@@ -27,7 +38,9 @@ export interface RuntimeLogger {
 
 export interface CreateLocalRuntimeOptions {
 	/** Product-level per-user directory containing settings, token, and default database. */
-	readonly dataDirectory: string;
+	readonly dataDirectory?: string;
+	/** Previous Desktop user-data directories considered for one-time migration. */
+	readonly legacyDataDirectories?: readonly string[];
 	readonly host?: string;
 	/** One-shot bind override. `0` asks the OS for a free port and is intended for tests. */
 	readonly otlpPortOverride?: number;
@@ -39,10 +52,12 @@ export interface CreateLocalRuntimeOptions {
 export interface LocalRuntime extends DataSource {
 	readonly dataDirectory: string;
 	readonly mcpTokenFile: string;
+	readonly migration: LegacyMigrationResult;
 	getSettings(): Settings;
 	getReceiverStatus(): ReceiverStatus;
 	getMcpStatus(): McpStatus;
 	getStoragePath(): StoragePathInfo;
+	getRuntimeState(): RuntimeState;
 	updateSettings(patch: PartialSettings): Promise<UpdateSettingsResult>;
 	loadSampleData(): Promise<LoadSampleDataResult>;
 	clearData(): Promise<void>;
@@ -50,28 +65,119 @@ export interface LocalRuntime extends DataSource {
 	close(): Promise<void>;
 }
 
+export class RuntimeAlreadyRunningError extends Error {
+	constructor(
+		readonly owner: RuntimeLockOwner | undefined,
+		readonly state: RuntimeState | undefined,
+	) {
+		super(
+			state
+				? `OTelux runtime is already running at ${state.dataDirectory} (PID ${state.pid})`
+				: 'OTelux runtime ownership is already held by another process',
+		);
+		this.name = 'RuntimeAlreadyRunningError';
+	}
+}
+
 export async function createLocalRuntime(
 	options: CreateLocalRuntimeOptions,
 ): Promise<LocalRuntime> {
+	const dataDirectory = options.dataDirectory
+		? resolve(options.dataDirectory)
+		: resolveOteluxDataDirectory();
 	const host = options.host ?? '127.0.0.1';
 	const logger = options.logger ?? console;
-	const settingsFile = join(options.dataDirectory, 'settings.json');
-	const defaultDbPath = join(options.dataDirectory, 'otelux.db');
-	const mcpTokenFile = join(options.dataDirectory, 'mcp-token');
+	const ownership = await claimRuntimeOwnership({ dataDirectory });
+	if (ownership.role === 'client') {
+		throw new RuntimeAlreadyRunningError(ownership.owner, ownership.state);
+	}
+
+	try {
+		const migration = await prepareDataDirectory({
+			dataDirectory,
+			...(options.legacyDataDirectories !== undefined
+				? { legacyDataDirectories: options.legacyDataDirectories }
+				: {}),
+			logger,
+		});
+		return await createOwnedRuntime({
+			options,
+			dataDirectory,
+			host,
+			logger,
+			migration,
+			owner: ownership.owner,
+			releaseOwnership: ownership.release,
+		});
+	} catch (error) {
+		await ownership.release();
+		throw error;
+	}
+}
+
+interface CreateOwnedRuntimeOptions {
+	readonly options: CreateLocalRuntimeOptions;
+	readonly dataDirectory: string;
+	readonly host: string;
+	readonly logger: RuntimeLogger;
+	readonly migration: LegacyMigrationResult;
+	readonly owner: RuntimeLockOwner;
+	readonly releaseOwnership: () => Promise<void>;
+}
+
+async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<LocalRuntime> {
+	const { options, dataDirectory, host, logger, migration, owner, releaseOwnership } = input;
+	const settingsFile = join(dataDirectory, 'settings.json');
+	const defaultDbPath = join(dataDirectory, 'otelux.db');
+	const mcpTokenFile = join(dataDirectory, 'mcp-token');
+	const startedAt = new Date().toISOString();
+	const eventListeners = new Set<(event: RuntimeEvent) => void>();
+	let statePublishingEnabled = false;
+	let stateWriteQueue = Promise.resolve();
+	let closed = false;
+
 	const settings = await SettingsStore.open(settingsFile);
 	const mcpToken = await loadOrCreateMcpToken(mcpTokenFile);
 	const configuredDbPath = settings.get().storage.dbPath;
-	const { storage, activeDbPath } = openStorage(
+	const opened = openStorage(
 		configuredDbPath !== '' ? configuredDbPath : defaultDbPath,
 		defaultDbPath,
 		settings.get().retention,
 		logger,
 	);
+	const storage = opened.storage;
+	const activeDbPath = opened.activeDbPath;
 	const engine = createEngine({ storage });
 	const receiverHost = new ReceiverHost(engine, host, options.otlpMaxBodyBytes);
 	const mcpHost = new McpHost(engine, host, options.mcpMaxBodyBytes, mcpToken);
-	const eventListeners = new Set<(event: RuntimeEvent) => void>();
-	let closed = false;
+
+	const runtimeState = (): RuntimeState => ({
+		version: 1,
+		runtimeVersion: OTELUX_LOCAL_RUNTIME_VERSION,
+		protocolVersion: OTELUX_PROTOCOL_VERSION,
+		instanceId: owner.instanceId,
+		pid: owner.pid,
+		startedAt,
+		dataDirectory,
+		databasePath: activeDbPath,
+		mcpTokenFile,
+		receiver: receiverHost.status,
+		mcp: mcpHost.status,
+	});
+
+	const scheduleStateWrite = (): void => {
+		if (!statePublishingEnabled) {
+			return;
+		}
+		const snapshot = runtimeState();
+		stateWriteQueue = stateWriteQueue
+			.then(() => writeRuntimeState(dataDirectory, snapshot))
+			.catch((error) => {
+				logger.error(
+					`[otelux] failed to update runtime state: ${error instanceof Error ? error.message : String(error)}`,
+				);
+			});
+	};
 
 	const emit = (event: RuntimeEvent): void => {
 		for (const listener of eventListeners) {
@@ -86,48 +192,79 @@ export async function createLocalRuntime(
 	const offEngine = engine.subscribe(emit);
 	const offReceiver = receiverHost.onChange((status) => {
 		emit({ kind: 'receiver-status-changed', status });
+		scheduleStateWrite();
 	});
 	const offMcp = mcpHost.onChange((status) => {
 		emit({ kind: 'mcp-status-changed', status });
+		scheduleStateWrite();
 	});
 	const offSettings = settings.onChange((next) => {
 		storage.applyRetention(next.retention);
 		emit({ kind: 'settings-changed', settings: next });
+		scheduleStateWrite();
 	});
 
-	const initialPort = options.otlpPortOverride ?? settings.get().otlp.port;
-	const receiverStatus = await receiverHost.start(initialPort);
-	if (receiverStatus.kind === 'running') {
-		logger.info(
-			`[otelux] OTLP/HTTP receiver listening on http://${receiverStatus.host}:${receiverStatus.port}/v1/{traces,logs,metrics}`,
-		);
-	} else if (receiverStatus.kind === 'error') {
-		logger.error(
-			`[otelux] OTLP/HTTP receiver failed to bind on ${receiverStatus.host}:${receiverStatus.port}: ${receiverStatus.message}`,
-		);
-	}
+	const stopResources = async (): Promise<unknown> => {
+		let failure: unknown;
+		for (const operation of [() => receiverHost.stop(), () => mcpHost.stop(), () => engine.close()]) {
+			try {
+				await operation();
+			} catch (error) {
+				failure ??= error;
+			}
+		}
+		return failure;
+	};
 
-	const current = settings.get();
-	if (current.mcp.enabled) {
-		const mcpStatus = await mcpHost.start(current.mcp.port);
-		if (mcpStatus.kind === 'running') {
-			logger.info(`[otelux] MCP server listening on http://${mcpStatus.host}:${mcpStatus.port}/`);
+	try {
+		const initialPort = options.otlpPortOverride ?? settings.get().otlp.port;
+		const receiverStatus = await receiverHost.start(initialPort);
+		if (receiverStatus.kind === 'running') {
 			logger.info(
-				`[otelux] MCP requires an Authorization: Bearer token; read it from ${mcpTokenFile}`,
+				`[otelux] OTLP/HTTP receiver listening on http://${receiverStatus.host}:${receiverStatus.port}/v1/{traces,logs,metrics}`,
 			);
-		} else if (mcpStatus.kind === 'error') {
+		} else if (receiverStatus.kind === 'error') {
 			logger.error(
-				`[otelux] MCP server failed to bind on ${mcpStatus.host}:${mcpStatus.port}: ${mcpStatus.message}`,
+				`[otelux] OTLP/HTTP receiver failed to bind on ${receiverStatus.host}:${receiverStatus.port}: ${receiverStatus.message}`,
 			);
 		}
-	} else {
-		await mcpHost.disable();
+
+		const current = settings.get();
+		if (current.mcp.enabled) {
+			const mcpStatus = await mcpHost.start(current.mcp.port);
+			if (mcpStatus.kind === 'running') {
+				logger.info(`[otelux] MCP server listening on http://${mcpStatus.host}:${mcpStatus.port}/`);
+				logger.info(
+					`[otelux] MCP requires an Authorization: Bearer token; read it from ${mcpTokenFile}`,
+				);
+			} else if (mcpStatus.kind === 'error') {
+				logger.error(
+					`[otelux] MCP server failed to bind on ${mcpStatus.host}:${mcpStatus.port}: ${mcpStatus.message}`,
+				);
+			}
+		} else {
+			await mcpHost.disable();
+		}
+		await writeRuntimeState(dataDirectory, runtimeState());
+		statePublishingEnabled = true;
+	} catch (error) {
+		statePublishingEnabled = false;
+		offEngine.dispose();
+		offReceiver();
+		offMcp();
+		offSettings();
+		eventListeners.clear();
+		await stateWriteQueue;
+		await stopResources();
+		await removeRuntimeState(dataDirectory, owner.instanceId);
+		throw error;
 	}
 
 	return {
 		kind: 'otelux/datasource',
-		dataDirectory: options.dataDirectory,
+		dataDirectory,
 		mcpTokenFile,
+		migration,
 		listTraces: (query) => engine.listTraces(query),
 		getTrace: (query) => engine.getTrace(query),
 		getSpanDetails: (query) => engine.getSpanDetails(query),
@@ -138,6 +275,7 @@ export async function createLocalRuntime(
 		getReceiverStatus: () => receiverHost.status,
 		getMcpStatus: () => mcpHost.status,
 		getStoragePath: () => ({ activePath: activeDbPath, defaultPath: defaultDbPath }),
+		getRuntimeState: runtimeState,
 		updateSettings: (patch) => updateSettings(settings, receiverHost, mcpHost, patch),
 		async loadSampleData(): Promise<LoadSampleDataResult> {
 			const status = receiverHost.status;
@@ -165,14 +303,22 @@ export async function createLocalRuntime(
 				return;
 			}
 			closed = true;
+			statePublishingEnabled = false;
 			offEngine.dispose();
 			offReceiver();
 			offMcp();
 			offSettings();
 			eventListeners.clear();
-			await receiverHost.stop();
-			await mcpHost.stop();
-			await engine.close();
+			await stateWriteQueue;
+			const failure = await stopResources();
+			try {
+				await removeRuntimeState(dataDirectory, owner.instanceId);
+			} finally {
+				await releaseOwnership();
+			}
+			if (failure) {
+				throw failure;
+			}
 		},
 	};
 }
