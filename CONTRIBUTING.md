@@ -60,6 +60,10 @@ npm run build
 
 For user-visible desktop changes, run the relevant sections of [docs/test.md](docs/test.md) against the desktop app. Release-facing changes must also satisfy its [Release Qualification](docs/test.md#release-qualification) requirements.
 
+## Desktop Releases
+
+`apps/desktop/package.json` is the release version source. Any patch, minor, major, or prerelease version change must produce the matching `v<version>` GitHub Release from the same commit. After full validation and pushing `main`, the Release workflow detects the version change, waits for any configured `release` environment approval, builds and smokes the `.deb`, and publishes checksums plus an SBOM. Do not merge a desktop version bump when no release is intended.
+
 ## Pull Requests
 
 - Explain the problem, approach, user-visible impact, and validation.

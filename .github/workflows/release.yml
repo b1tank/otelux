@@ -1,10 +1,10 @@
 name: Release
 
-# Tag-driven Linux release. Pushing a version tag (or a manual dispatch)
-# builds the Debian package, runs the packaged smoke test, produces
-# checksums and an SBOM, attests build provenance, and publishes a GitHub
-# prerelease. The job runs in the approval-protected `release` environment,
-# so a maintainer must approve before anything is built or published.
+# Linux release pipeline. Changing the desktop version on `main`, pushing a
+# matching version tag, or manually dispatching a version builds the Debian
+# package, runs the packaged smoke test, produces checksums and an SBOM,
+# attests build provenance, and publishes a GitHub prerelease. A resolver job
+# enforces that the source package version and release tag are identical.
 #
 # The `release` environment's required reviewers are configured in the
 # repository settings (Settings -> Environments -> release); this file only
@@ -12,24 +12,67 @@ name: Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
+    paths:
+      - "apps/desktop/package.json"
   workflow_dispatch:
     inputs:
       tag:
         description: "Version tag to release (e.g. v0.1.0-beta.1)"
         required: true
+      target:
+        description: "Optional commit SHA containing that version (defaults to the selected ref)"
+        required: false
 
 permissions:
   contents: read
 
-concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
+  resolve:
+    name: Resolve release version
+    runs-on: ubuntu-latest
+    outputs:
+      should-release: ${{ steps.version.outputs.should-release }}
+      tag: ${{ steps.version.outputs.tag }}
+      target: ${{ steps.version.outputs.target }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+
+      - name: Test release automation
+        run: node --test apps/desktop/scripts/*.node-test.mjs
+
+      - name: Resolve and validate version
+        id: version
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_SHA: ${{ github.sha }}
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_TARGET: ${{ inputs.target }}
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: node apps/desktop/scripts/resolve-release-version.mjs
+
   linux:
     name: Build and publish Linux release
+    needs: resolve
+    if: needs.resolve.outputs.should-release == 'true'
+    concurrency:
+      group: release-${{ needs.resolve.outputs.tag }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 30
     environment: release
@@ -42,6 +85,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
+          ref: ${{ needs.resolve.outputs.target }}
           persist-credentials: false
 
       - name: Setup Node
@@ -49,22 +93,6 @@ jobs:
         with:
           node-version: "22"
           cache: "npm"
-
-      - name: Resolve version
-        id: version
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            TAG="${{ inputs.tag }}"
-          else
-            TAG="${{ github.ref_name }}"
-          fi
-          case "$TAG" in
-            v*) : ;;
-            *) echo "Tag '$TAG' must start with 'v'." >&2; exit 1 ;;
-          esac
-          VERSION="${TAG#v}"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Install
         run: npm ci
@@ -84,8 +112,14 @@ jobs:
             libatspi2.0-0 libsecret-1-0 libgbm1
           sudo apt-get install -y libasound2t64 || sudo apt-get install -y libasound2
 
-      - name: Set application version from tag
-        run: npm pkg set version="${{ steps.version.outputs.version }}" -w @otelux/desktop
+      - name: Verify source version metadata
+        env:
+          EXPECTED_VERSION: ${{ needs.resolve.outputs.version }}
+        run: |
+          PACKAGE_VERSION="$(node -p "require('./apps/desktop/package.json').version")"
+          LOCK_VERSION="$(node -p "require('./package-lock.json').packages['apps/desktop'].version")"
+          test "$PACKAGE_VERSION" = "$EXPECTED_VERSION"
+          test "$LOCK_VERSION" = "$EXPECTED_VERSION"
 
       - name: Build icons
         run: bash scripts/build-icons.sh
@@ -107,7 +141,7 @@ jobs:
       - name: Generate SBOM
         run: |
           npm sbom --sbom-format cyclonedx --omit=dev -w @otelux/desktop \
-            > "apps/desktop/release/otelux-${{ steps.version.outputs.version }}-sbom.cdx.json"
+            > "apps/desktop/release/otelux-${{ needs.resolve.outputs.version }}-sbom.cdx.json"
 
       - name: Compute checksums
         working-directory: apps/desktop/release
@@ -118,15 +152,26 @@ jobs:
         # repositories (user-owned private repos return "Feature not
         # available"). Skip it while the repo is private; it runs
         # automatically once the repository is made public.
-        if: ${{ !github.event.repository.private }}
+        # Standard provenance claims `github.sha`. Historical manual releases
+        # package another immutable commit, so skip rather than attest the
+        # wrong source. Future automatic version bumps satisfy this equality.
+        if: ${{ !github.event.repository.private && needs.resolve.outputs.target == github.sha }}
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
           subject-path: apps/desktop/release/OTelux-*.deb
 
       - name: Write release notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.resolve.outputs.tag }}
+          RELEASE_TARGET: ${{ needs.resolve.outputs.target }}
         run: |
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+            -f tag_name="$RELEASE_TAG" \
+            -f target_commitish="$RELEASE_TARGET" \
+            --jq .body > "${RUNNER_TEMP}/generated-notes.md"
           cat > "${RUNNER_TEMP}/release-notes.md" <<'EOF'
-          OTelux ${{ steps.version.outputs.tag }} — Linux prerelease.
+          OTelux ${{ needs.resolve.outputs.tag }} — Linux prerelease.
 
           ## Install (Debian/Ubuntu)
 
@@ -137,26 +182,38 @@ jobs:
           sudo apt install ./OTelux-*.deb
           ```
 
-          ## Beta limitations
+          ## Supported package
 
-          - Telemetry is held in memory for the current session only; it is not
-            persisted across restarts.
-          - Ingest accepts OTLP/HTTP JSON only (no protobuf or gRPC yet).
-          - The MCP server requires the per-install bearer token from
-            `<userData>/mcp-token`.
+          - Linux x64 `.deb`; updates are installed manually with the package manager.
+          - OTLP/HTTP JSON and protobuf are supported for traces, logs, and metrics.
+          - OTLP/gRPC is not supported yet.
+          - Telemetry is stored locally in SQLite under the configured retention limits.
 
           Artifacts include the package, `SHA256SUMS`, and a CycloneDX SBOM.
-          Build provenance is attested for the `.deb`.
+          Build provenance is attested for the `.deb` when the repository and release event support it.
+
+          ## Changes
+
           EOF
+          cat "${RUNNER_TEMP}/generated-notes.md" >> "${RUNNER_TEMP}/release-notes.md"
+
+      - name: Checkout release automation
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.sha }}
+          path: .release-automation
+          persist-credentials: false
 
       - name: Publish prerelease
         env:
           GH_TOKEN: ${{ github.token }}
-        working-directory: apps/desktop/release
         run: |
-          gh release create "${{ steps.version.outputs.tag }}" \
-            --repo "${{ github.repository }}" \
-            --prerelease \
-            --title "OTelux ${{ steps.version.outputs.tag }}" \
+          node .release-automation/apps/desktop/scripts/publish-github-release.mjs \
+            --repository "${{ github.repository }}" \
+            --tag "${{ needs.resolve.outputs.tag }}" \
+            --target "${{ needs.resolve.outputs.target }}" \
+            --title "OTelux ${{ needs.resolve.outputs.tag }}" \
             --notes-file "${RUNNER_TEMP}/release-notes.md" \
-            OTelux-*.deb SHA256SUMS otelux-*-sbom.cdx.json
+            --asset "apps/desktop/release/OTelux-${{ needs.resolve.outputs.version }}-amd64.deb" \
+            --asset "apps/desktop/release/SHA256SUMS" \
+            --asset "apps/desktop/release/otelux-${{ needs.resolve.outputs.version }}-sbom.cdx.json"

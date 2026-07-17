@@ -17,7 +17,7 @@
 		"dev": "electron-vite dev",
 		"build": "electron-vite build && node scripts/verify-preload.mjs",
 		"typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
-		"test": "vitest run --passWithNoTests",
+		"test": "vitest run --passWithNoTests && node --test scripts/*.node-test.mjs",
 		"clean": "rm -rf out release .turbo",
 		"start": "electron-vite preview",
 		"generate:notices": "node scripts/generate-notices.mjs",

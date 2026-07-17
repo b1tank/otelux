@@ -35,9 +35,10 @@ The sprint is complete when:
 - Linux x64 `.deb` is the first beta target. AppImage remains blocked until its launcher can fail closed when Chromium sandbox prerequisites are unavailable. Windows x64 and macOS arm64/x64 follow from the same release workflow.
 - The first public binary is `v0.1.0-beta.1`. The cross-platform launch is `v0.1.0` unless beta evidence requires another prerelease.
 - GitHub Releases is the canonical artifact source. A product website may provide friendly download links but must resolve to immutable versioned artifacts.
+- Every desktop version bump, including patch releases, must produce a matching `v<version>` tag and GitHub Release from the same commit. The version-bump release workflow is the enforcement path.
 - The `v0.1.0` channels follow the [distribution requirements](spec.md#distribution-requirements): `.deb` installation uses the package manager after download and verification; a future portable Linux artifact must preserve Chromium's sandbox or refuse to start.
 - Manual updates are acceptable for `v0.1.0`. Auto-update is reconsidered after the release process is stable.
-- A Linux beta may disclose memory-only storage and JSON-only OTLP as preview limitations. Broad marketing requires durable storage and OTLP/HTTP protobuf support.
+- Release notes must be generated from the matching source version and describe current capabilities; superseded limitations must never be copied forward.
 - OTLP/gRPC, npm publication, Marketplace publication, an apt repository, Flatpak, Snap, and crash reporting are not `v0.1.0` gates.
 - `v0.1.0` makes no exception to the specification's no-unsolicited-egress principle and documents the explicit MCP/LM client boundary.
 

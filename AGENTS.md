@@ -34,6 +34,13 @@ New plan/spec/proposal/test material belongs under `docs/`, never the root.
 - Lint/format with Biome, but **only check the files you edited** (`biome check --write <paths>`) — a bare `biome check --write .` reformats unrelated files via `organizeImports`.
 - `exactOptionalPropertyTypes` is ON: never pass an explicit `undefined` to an optional prop; use a conditional spread `...(x !== undefined ? { x } : {})`.
 
+## Desktop version releases
+
+- Every change to `apps/desktop/package.json`'s version is a release operation, including patch bumps.
+- A version bump must ship from the same commit as GitHub tag `v<version>` and a GitHub Release with the `.deb`, `SHA256SUMS`, and SBOM.
+- Push the validated version commit to `main`; the Release workflow detects the version change and queues the matching release. Verify the workflow and published assets before finishing.
+- Never bump the desktop version only to distinguish a local build. Leave the version unchanged unless a GitHub Release will be cut.
+
 ## Run the desktop app
 
 `cd apps/desktop && DISPLAY=:1 npm run dev` (X11 display `:1`). The receiver listens on OTLP/HTTP **4319** (`/v1/traces`, `/v1/logs`); the MCP server on **4320**. electron-vite HMR consumes `packages/ui/dist`, so **rebuild `@otelux/ui`** for the desktop to pick up UI changes.
