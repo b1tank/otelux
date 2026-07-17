@@ -17,13 +17,6 @@ import type {
 	StoragePathInfo,
 	UpdateSettingsResult,
 } from '@otelux/protocol';
-export {
-	DEFAULT_SETTINGS,
-	MAX_PORT,
-	MAX_RETENTION_AGE_HOURS,
-	MAX_RETENTION_SIZE_MB,
-	MIN_PORT,
-} from '@otelux/protocol';
 export type {
 	LoadSampleDataResult,
 	McpStatus,

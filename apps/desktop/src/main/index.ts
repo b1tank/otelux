@@ -1,24 +1,18 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createLocalRuntime, resolveOteluxDataDirectory } from '@otelux/local-runtime';
-import { BrowserWindow, app, ipcMain, shell } from 'electron';
+import { MAX_PORT, MIN_PORT } from '@otelux/protocol';
+import { BrowserWindow, Menu, Tray, app, ipcMain, shell } from 'electron';
 import {
 	type InvokeMessage,
-	MAX_PORT,
-	MIN_PORT,
 	OTELUX_EVENT_CHANNEL,
 	OTELUX_INVOKE_CHANNEL,
 	type OteluxEvent,
 } from '../shared/ipc.js';
 import { isAllowedExternalUrl, isAllowedNavigation } from './security.js';
+import { createDesktopWindowLifecycle } from './windowLifecycle.js';
 
 const isDev = !app.isPackaged;
-
-// Process managers and packaged smoke tests stop Electron with signals rather
-// than a window action. Route them through app.quit() so `will-quit` closes the
-// runtime and releases runtime.json/runtime.lock before the process exits.
-process.once('SIGTERM', () => app.quit());
-process.once('SIGINT', () => app.quit());
 
 // Renderers that have finished loading and haven't started navigating away.
 // `webContents.send` does NOT throw when the underlying render frame is
@@ -166,15 +160,21 @@ async function startBackend(): Promise<{
 	};
 }
 
-function createWindow(): void {
-	// Window icon source. In dev `__dirname` is `out/main/`, so we walk
-	// two levels up to reach the project root (`apps/desktop/`). In a
-	// packaged build, electron-builder copies `build/icon.png` next to
-	// the asar and Electron picks it up automatically from the resource
-	// path the platform expects — we still pass it explicitly so the
-	// taskbar/dock identity is correct on Linux where the desktop file
-	// is the only ambient icon source.
-	const iconPath = join(__dirname, '..', '..', 'build', 'icon.png');
+function resolveIconPath(kind: 'app' | 'tray'): string {
+	if (app.isPackaged) {
+		return join(process.resourcesPath, kind === 'app' ? 'app-icon.png' : 'tray-icon.png');
+	}
+	return join(
+		__dirname,
+		'..',
+		'..',
+		'build',
+		kind === 'app' ? 'icon.png' : join('icons', '32x32.png'),
+	);
+}
+
+function createWindow(): BrowserWindow {
+	const iconPath = resolveIconPath('app');
 
 	const win = new BrowserWindow({
 		width: 1280,
@@ -198,6 +198,12 @@ function createWindow(): void {
 
 	win.once('ready-to-show', () => {
 		win.show();
+	});
+	win.on('close', (event) => {
+		windowLifecycle.handleWindowClose(event, win);
+	});
+	win.on('closed', () => {
+		windowLifecycle.forgetWindow(win);
 	});
 
 	registerReceiver(win.webContents);
@@ -265,7 +271,38 @@ function createWindow(): void {
 	} else {
 		void win.loadFile(join(__dirname, '../renderer/index.html'));
 	}
+
+	return win;
 }
+
+const windowLifecycle = createDesktopWindowLifecycle(createWindow, () => app.quit());
+
+let tray: Tray | undefined;
+
+function createTray(): void {
+	tray = new Tray(resolveIconPath('tray'));
+	tray.setToolTip('OTelux is running and receiving telemetry');
+	tray.setContextMenu(
+		Menu.buildFromTemplate([
+			{
+				label: 'Open OTelux',
+				click: () => windowLifecycle.showWindow(),
+			},
+			{ type: 'separator' },
+			{
+				label: 'Quit OTelux',
+				click: () => windowLifecycle.requestQuit(),
+			},
+		]),
+	);
+	tray.on('click', () => windowLifecycle.showWindow());
+}
+
+// Process managers and packaged smoke tests stop Electron with signals rather
+// than a tray action. Use the same explicit-quit path so window close is not
+// intercepted and `will-quit` can release listeners, SQLite, and ownership.
+process.once('SIGTERM', () => windowLifecycle.requestQuit());
+process.once('SIGINT', () => windowLifecycle.requestQuit());
 
 // Single-instance lock so we never double-bind the OTLP port.
 const gotLock = app.requestSingleInstanceLock();
@@ -273,47 +310,71 @@ if (!gotLock) {
 	app.quit();
 } else {
 	app.on('second-instance', () => {
-		const [existing] = BrowserWindow.getAllWindows();
-		if (existing) {
-			if (existing.isMinimized()) {
-				existing.restore();
-			}
-			existing.focus();
-		}
+		windowLifecycle.showWindow();
 	});
 
 	let backendStop: (() => Promise<void>) | undefined;
+	let backendStartup: Promise<() => Promise<void>> | undefined;
+	let shutdownStarted = false;
+	let shutdownComplete = false;
 
 	void app.whenReady().then(async () => {
-		const backend = await startBackend();
-		backendStop = backend.stop;
+		backendStartup = startBackend().then((backend) => backend.stop);
+		backendStop = await backendStartup;
+		if (windowLifecycle.isQuitting()) {
+			app.quit();
+			return;
+		}
 
-		createWindow();
+		createTray();
+		windowLifecycle.markReady();
+		windowLifecycle.showWindow();
 		app.on('activate', () => {
-			if (BrowserWindow.getAllWindows().length === 0) {
-				createWindow();
-			}
+			windowLifecycle.showWindow();
 		});
 	});
 
-	app.on('window-all-closed', () => {
-		if (process.platform !== 'darwin') {
-			app.quit();
-		}
+	app.on('before-quit', () => {
+		windowLifecycle.beginQuit();
+		tray?.destroy();
+		tray = undefined;
 	});
 
+	// Electron exits by default when the last window is closed unless this
+	// event has a listener. The tray owns the process lifetime; explicit Quit
+	// paths above still reach `will-quit` and stop the runtime.
+	app.on('window-all-closed', () => {});
+
 	app.on('will-quit', (event) => {
-		if (!backendStop) {
+		if (shutdownComplete) {
+			return;
+		}
+		if (!backendStop && !backendStartup) {
 			return;
 		}
 		event.preventDefault();
-		const stop = backendStop;
-		backendStop = undefined;
-		void stop()
+		if (shutdownStarted) {
+			return;
+		}
+		shutdownStarted = true;
+		void (async () => {
+			let stop = backendStop;
+			if (!stop && backendStartup) {
+				try {
+					stop = await backendStartup;
+				} catch {
+					// Startup failed before a runtime handle was returned.
+				}
+			}
+			backendStop = undefined;
+			backendStartup = undefined;
+			await stop?.();
+		})()
 			.catch((err) => {
 				console.error('[otelux] error shutting down backend', err);
 			})
 			.finally(() => {
+				shutdownComplete = true;
 				app.quit();
 			});
 	});

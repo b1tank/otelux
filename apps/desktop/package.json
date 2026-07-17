@@ -1,6 +1,6 @@
 {
 	"name": "@otelux/desktop",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"private": true,
 	"description": "OTelux desktop app — Electron shell hosting the receiver and the React workbench.",
 	"author": "OTelux contributors",
@@ -15,14 +15,14 @@
 	"main": "out/main/index.js",
 	"scripts": {
 		"dev": "electron-vite dev",
-		"build": "electron-vite build",
+		"build": "electron-vite build && node scripts/verify-preload.mjs",
 		"typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
 		"test": "vitest run --passWithNoTests",
 		"clean": "rm -rf out release .turbo",
 		"start": "electron-vite preview",
 		"generate:notices": "node scripts/generate-notices.mjs",
-		"package": "npm run generate:notices && electron-vite build && electron-builder --linux --publish=never",
-		"package:dir": "npm run generate:notices && electron-vite build && electron-builder --linux dir",
+		"package": "npm run generate:notices && npm run build && electron-builder --linux --publish=never",
+		"package:dir": "npm run generate:notices && npm run build && electron-builder --linux dir",
 		"smoke": "node scripts/smoke.mjs"
 	},
 	"engines": {

@@ -21,7 +21,7 @@ Test quality is measured by release-risk coverage rather than by pursuing 100% l
 - Desktop main/preload integration tests cover settings validation and migration, port rebinding, rollback after bind or persistence failure, IPC runtime validation, lifecycle cleanup, and the exposed context-bridge surface.
 - Electron security tests assert sandboxing, context isolation, disabled Node integration, the narrow preload surface, rejected malformed IPC, blocked navigation and window creation, denied non-allowlisted permissions, and HTTPS-only external-link handling.
 - MCP transport tests assert explicit enablement or authentication and reject missing or invalid credentials without returning telemetry.
-- Packaged end-to-end tests launch release artifacts, ingest traces, logs, and metrics, exercise one inspection path per signal, restart, verify persistence, clear data, and exit without orphaned listeners.
+- Packaged end-to-end tests launch release artifacts, assert the sandboxed preload bridge loads and the workbench visibly renders, close the window while ingest remains live, ingest traces, logs, and metrics, exercise one inspection path per signal, restart, verify persistence, clear data, and fully quit without orphaned listeners.
 - Accessibility checks combine automated scans with keyboard-only testing, focus order and return, dialog trapping, accessible names, both themes, high contrast, and 200% zoom.
 - Performance checks use a checked-in representative workload and enforce the budgets in [spec.md](spec.md); large result sets remain responsive through bounds, pagination, or virtualization.
 - CI publishes coverage for release-critical packages. Stable releases require checked-in thresholds of at least 80% line coverage and 70% branch coverage for `engine`, `engine-node`, `receiver`, `protocol`, `mcp-server`, and desktop main/preload code unless a documented exception demonstrates equivalent behavioral coverage.
@@ -45,7 +45,7 @@ Qualification profiles:
 | 0.2 | `node --version` | `v22.x` (matches `.nvmrc`) |
 | 0.3 | `npm run lint && npm run typecheck` | both exit 0, no errors |
 | 0.4 | `npm run test` | all configured test projects pass with no unexplained warnings |
-| 0.5 | `npm run build` | `apps/desktop/out/{main,preload,renderer}` exist; renderer `assets/index-*.js` >100 KB |
+| 0.5 | `npm run build` | `apps/desktop/out/{main,preload,renderer}` exist; renderer `assets/index-*.js` >100 KB; preload verification reports only sandbox-supported `require()` calls |
 | 0.6 | `rm -rf /tmp/otelux-userdata /tmp/otelux-electron-userdata` *(only if you want a clean profile)* | no error |
 | 0.7 | `if ss -ltn \| grep -q -e ':4319 ' -e ':4320 '; then exit 1; fi` | exits 0 because neither default port is listening |
 
@@ -221,7 +221,7 @@ For step 4.11.6, reuse the Python listener from step 4.10 with port `14331`, the
 ## 5. Settings persistence
 
 ### 5.1 Survives restart
-1. Quit the app: close the last window on Linux/Windows; use Command+Q or the application menu on macOS.
+1. Fully quit the app from **Quit OTelux** in the tray menu (or Command+Q on macOS).
 2. Confirm both listeners are released: `ss -ltnp | grep -e ':14320 ' -e ':4320 '` → empty.
 3. Relaunch without a port override: `cd apps/desktop && OTELUX_DATA_DIR=/tmp/otelux-userdata npx electron out/main/index.js --user-data-dir=/tmp/otelux-electron-userdata`
 - **Expected**: log shows OTLP listening on `http://127.0.0.1:14320/v1/{traces,logs,metrics}` and MCP listening on `http://127.0.0.1:4320/`; both EndpointBar pills reflect those persisted settings.
@@ -491,8 +491,12 @@ curl -s -D /tmp/otelux-origin-headers.txt -X POST \
 - **Expected**: receiver keeps running (verify with curl from another terminal).
 
 ### 12.2 Close window
-- **Expected on Linux and Windows**: closing the last window quits the app, both OTLP and MCP ports are released within 1 s, and settings.json is preserved.
-- **Expected on macOS**: closing the window leaves the app and both listeners running. Quit with Command+Q or the application menu; both ports are then released and settings.json is preserved.
+- Close the window with its close button or Alt+F4.
+- **Expected**: the workbench hides to the system tray; the process, SQLite connection, OTLP listener, and enabled MCP listener remain active. Sending telemetry while hidden succeeds and persists.
+- Choose **Open OTelux** from the tray menu.
+- **Expected**: the workbench returns with telemetry received while hidden.
+- Choose **Quit OTelux** from the tray menu.
+- **Expected**: the window and tray item disappear, both OTLP and MCP ports are released within 1 s, SQLite and runtime ownership are closed cleanly, and settings/data remain persisted.
 
 ### 12.3 DevTools open
 - F12 or Ctrl+Shift+I on Linux/Windows; F12 or Command+Shift+I on macOS.

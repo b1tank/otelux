@@ -1,14 +1,16 @@
-import { type JSX, useEffect, useRef, useState } from 'react';
 import {
 	MAX_PORT,
 	MAX_RETENTION_AGE_HOURS,
 	MAX_RETENTION_SIZE_MB,
 	MIN_PORT,
-	type McpStatus,
-	type PartialSettings,
-	type Settings,
-	type StoragePathInfo,
-	type UpdateSettingsResult,
+} from '@otelux/protocol';
+import { type JSX, useEffect, useRef, useState } from 'react';
+import type {
+	McpStatus,
+	PartialSettings,
+	Settings,
+	StoragePathInfo,
+	UpdateSettingsResult,
 } from '../../shared/ipc.js';
 
 interface SettingsModalProps {

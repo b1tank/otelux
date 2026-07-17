@@ -105,6 +105,8 @@ Open the Traces, Logs, and Metrics rail tabs to inspect the records. All reposit
 
 To explore the UI before wiring any exporter, launch the desktop app and click **Load sample data** in the empty Traces view. It seeds the store with a small, clearly-labelled synthetic dataset (a distributed trace with an error, correlated logs, and a counter/histogram/gauge) across all three signals. The sample data persists like real telemetry and is removed by retention or by deleting the database.
 
+Closing the OTelux window hides it to the system tray; OTLP ingest and MCP remain active. Use the tray icon to reopen the workbench or choose **Quit OTelux** to stop both listeners and close the SQLite database. The **Pause** control freezes live list refreshes only: telemetry continues to enter SQLite, and resuming catches the UI up. **Clear data** permanently deletes stored traces, logs, metrics, resources, and instrumentation scopes while preserving settings and the MCP token.
+
 For Codex CLI and other real exporters, see the recipes below.
 
 ## Configure Your Own Exporter
@@ -276,7 +278,7 @@ Packaging is under active release hardening. The current target is `.deb`; AppIm
 
 ## Remove The Local Source Installation
 
-Close OTelux, then remove the optional launcher files:
+Fully quit OTelux from the tray, then remove the optional launcher files:
 
 ```bash
 DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"

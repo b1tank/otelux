@@ -28,6 +28,10 @@ extraResources:
     to: "LICENSE"
   - from: "build/THIRD-PARTY-NOTICES.txt"
     to: "THIRD-PARTY-NOTICES.txt"
+  - from: "build/icon.png"
+    to: "app-icon.png"
+  - from: "build/icons/32x32.png"
+    to: "tray-icon.png"
 asar: true
 # App icon (master SVG: build/icon.svg). Rasterize with
 # `./scripts/build-icons.sh` after editing the SVG. electron-builder picks

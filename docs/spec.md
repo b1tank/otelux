@@ -35,6 +35,7 @@ The repository currently contains:
 - Live Traces, Logs, and Metrics rail surfaces in `@otelux/ui`.
 - A one-click "Load sample data" seed in the empty Traces view populates every surface with clearly-labelled synthetic telemetry, so a first-run user can evaluate the UI before wiring an exporter.
 - A shared live/paused (live-tail) control and result footers across all three views, plus a confirmed "Clear data" action that deletes all stored telemetry.
+- Desktop close-to-tray lifecycle: closing the window keeps OTLP/MCP and SQLite active; tray Open restores the workbench, and tray Quit stops listeners and closes the runtime.
 - Direct in-process and Electron IPC `DataSource` adapters.
 - MCP tool plumbing over the same query layer.
 - A shared OTelux plugin under `plugins/otelux` installs into Claude Code and Codex with four observability skills plus a secure stdio bridge to the desktop MCP listener. This is the current companion implementation; see [arch.md](arch.md#current-implementation) for the target shared-runtime architecture.
@@ -243,6 +244,7 @@ A supported stable desktop release must let a user:
 - Receive traces, logs, and metrics through the documented OTLP encodings without restarting the app.
 - Complete the trace, log, metric, and cross-signal workflows defined above without dead controls, misleading status, or unexplained console errors.
 - Preserve telemetry and settings across restart, bound disk growth through retention, and recover safely from missing, old, or corrupt local state.
+- Keep receiving while the desktop window is hidden in the system tray, and stop every listener/database handle after explicit full quit.
 - Use only agent tools that are implemented, bounded, read-only, and accurately described. Incomplete tools are excluded from the supported surface or explicitly marked experimental.
 - Complete core workflows with keyboard input, visible focus, readable contrast, and no pointer-only interaction.
 
