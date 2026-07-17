@@ -65,7 +65,7 @@ export interface NodeSqliteStorage extends Storage {
 	writeSpans(spans: readonly Span[]): void;
 	listTraces(query: ListTracesQuery): ListTracesResult;
 	getTraceSpans(traceId: TraceId): readonly Span[];
-	getSpan(spanId: SpanId): Span | undefined;
+	getSpan(traceId: TraceId, spanId: SpanId): Span | undefined;
 	writeLogs(logs: readonly LogRecord[]): void;
 	listLogs(query: ListLogsQuery): ListLogsResult;
 	writeMetrics(metrics: readonly Metric[]): void;
@@ -120,8 +120,8 @@ export function createNodeSqliteStorage(options: NodeSqliteStorageOptions): Node
 		getTraceSpans(traceId: TraceId): readonly Span[] {
 			return spans.getTraceSpans(traceId);
 		},
-		getSpan(spanId: SpanId): Span | undefined {
-			return spans.getSpan(spanId);
+		getSpan(traceId: TraceId, spanId: SpanId): Span | undefined {
+			return spans.getSpan(traceId, spanId);
 		},
 
 		writeLogs(input: readonly LogRecord[]): void {

@@ -1,7 +1,12 @@
 import { existsSync, renameSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import type { DatabaseSync } from 'node:sqlite';
-import { SCHEMA_SQL, SCHEMA_VERSION } from './schema.js';
+import {
+	SCHEMA_SQL,
+	SCHEMA_VERSION,
+	SPAN_COLUMN_DEFINITIONS,
+	SPAN_COLUMN_NAMES,
+} from './schema.js';
 
 type SqliteModule = typeof import('node:sqlite');
 
@@ -22,6 +27,17 @@ export class SchemaVersionError extends Error {
 	}
 }
 
+class SchemaMigrationError extends Error {
+	constructor(
+		readonly from: number,
+		readonly to: number,
+		cause: unknown,
+	) {
+		super(`Failed to migrate OTelux database schema from version ${from} to ${to}`, { cause });
+		this.name = 'SchemaMigrationError';
+	}
+}
+
 interface Migration {
 	/** Target `user_version` this migration produces. */
 	readonly to: number;
@@ -30,13 +46,89 @@ interface Migration {
 }
 
 /**
- * Ordered forward migrations, each bumping the schema by one version. Empty
- * today (v1 is the initial schema); future versions append an entry, e.g.
- *   { to: 2, apply: (db) => db.exec('ALTER TABLE logs ADD COLUMN ...') }
- * The framework exists now so the first real bump is a one-line change with a
- * ready-made test path.
+ * Ordered forward migrations, each bumping the schema by one version.
  */
-const MIGRATIONS: readonly Migration[] = [];
+const MIGRATIONS: readonly Migration[] = [
+	{
+		to: 2,
+		apply: migrateSpansToCompositeIdentity,
+	},
+];
+
+/**
+ * OTLP span IDs are unique only within a trace. Schema v1 incorrectly used
+ * `span_id` as the sole primary key, allowing a span from another trace to
+ * overwrite it. SQLite cannot alter a primary key in place, so rebuild the
+ * table transactionally and copy every column unchanged.
+ */
+function migrateSpansToCompositeIdentity(db: DatabaseSync): void {
+	db.exec(`
+BEGIN IMMEDIATE;
+CREATE TABLE spans_v2 (
+${SPAN_COLUMN_DEFINITIONS},
+  PRIMARY KEY (trace_id, span_id)
+);
+INSERT INTO spans_v2 (${SPAN_COLUMN_NAMES})
+SELECT ${SPAN_COLUMN_NAMES} FROM spans;
+DROP TABLE spans;
+ALTER TABLE spans_v2 RENAME TO spans;
+CREATE INDEX idx_spans_trace    ON spans(trace_id, start_unix_nano, span_id);
+CREATE INDEX idx_spans_parent   ON spans(trace_id, parent_span_id);
+CREATE INDEX idx_spans_start    ON spans(start_unix_nano);
+CREATE INDEX idx_spans_ingested ON spans(ingested_unix_nano);
+DELETE FROM traces
+WHERE NOT EXISTS (SELECT 1 FROM spans s WHERE s.trace_id = traces.trace_id);
+UPDATE traces
+SET root_span_id = (
+			SELECT s.span_id FROM spans s
+			WHERE s.trace_id = traces.trace_id
+			ORDER BY
+				CASE WHEN s.parent_span_id IS NULL OR NOT EXISTS (
+					SELECT 1 FROM spans parent
+					WHERE parent.trace_id = s.trace_id AND parent.span_id = s.parent_span_id
+				) THEN 0 ELSE 1 END,
+				s.start_unix_nano,
+				s.span_id
+			LIMIT 1
+		),
+		root_name = (
+			SELECT s.name FROM spans s
+			WHERE s.trace_id = traces.trace_id
+			ORDER BY
+				CASE WHEN s.parent_span_id IS NULL OR NOT EXISTS (
+					SELECT 1 FROM spans parent
+					WHERE parent.trace_id = s.trace_id AND parent.span_id = s.parent_span_id
+				) THEN 0 ELSE 1 END,
+				s.start_unix_nano,
+				s.span_id
+			LIMIT 1
+		),
+		start_unix_nano = (SELECT MIN(s.start_unix_nano) FROM spans s WHERE s.trace_id = traces.trace_id),
+		end_unix_nano = (SELECT MAX(s.end_unix_nano) FROM spans s WHERE s.trace_id = traces.trace_id),
+		duration_nanos = (
+			SELECT MAX(s.end_unix_nano) - MIN(s.start_unix_nano)
+			FROM spans s WHERE s.trace_id = traces.trace_id
+		),
+		span_count = (SELECT COUNT(*) FROM spans s WHERE s.trace_id = traces.trace_id),
+		error_count = (
+			SELECT COUNT(*) FROM spans s
+			WHERE s.trace_id = traces.trace_id AND s.status_code = 2
+		),
+		services = COALESCE((
+			SELECT json_group_array(service_name)
+			FROM (
+				SELECT DISTINCT s.service_name AS service_name
+				FROM spans s
+				WHERE s.trace_id = traces.trace_id AND s.service_name <> ''
+				ORDER BY s.service_name
+			)
+		), '[]'),
+		ingested_unix_nano = (
+			SELECT MAX(s.ingested_unix_nano) FROM spans s WHERE s.trace_id = traces.trace_id
+		);
+COMMIT;
+`);
+}
 
 /**
  * Load the built-in `node:sqlite` module at runtime.
@@ -80,7 +172,11 @@ function initSchema(db: DatabaseSync): void {
 	if (version < SCHEMA_VERSION) {
 		for (const migration of MIGRATIONS) {
 			if (migration.to > version && migration.to <= SCHEMA_VERSION) {
-				migration.apply(db);
+				try {
+					migration.apply(db);
+				} catch (err) {
+					throw new SchemaMigrationError(version, migration.to, err);
+				}
 			}
 		}
 		db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
@@ -144,7 +240,10 @@ export function openDatabaseWithRecovery(path: string): DatabaseSync {
 	try {
 		return openDatabase(path);
 	} catch (err) {
-		if (path === ':memory:') {
+		// A failed forward migration has already rolled back when openDatabase
+		// closed its handle. Keep the legacy database at its canonical path so a
+		// corrected or transient failure can be retried on the next launch.
+		if (path === ':memory:' || err instanceof SchemaMigrationError) {
 			throw err;
 		}
 		try {

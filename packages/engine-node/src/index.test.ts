@@ -128,9 +128,9 @@ describe('@otelux/engine-node spans', () => {
 		};
 		storage.writeSpans([full]);
 
-		expect(storage.getSpan('1'.repeat(16))).toEqual(full);
+		expect(storage.getSpan(TRACE_A, '1'.repeat(16))).toEqual(full);
 		expect(storage.getTraceSpans(TRACE_A)).toEqual([full]);
-		expect(storage.getSpan('deadbeefdeadbeef')).toBeUndefined();
+		expect(storage.getSpan(TRACE_A, 'deadbeefdeadbeef')).toBeUndefined();
 	});
 
 	it('filters, sorts, and pages the trace list', () => {

@@ -12,7 +12,7 @@ OTelux uses SQLite as a local telemetry engine, not as a JSON file cabinet. The 
 4. List queries return summaries, not full detail graphs or metric histories.
 5. Detail queries batch related records. No per-row SQL query is allowed in a list or waterfall loop.
 6. Every result is bounded by row count, time window, or both.
-7. Schema migrations are forward-only, transactional where SQLite permits, and covered by old-database fixtures.
+7. Schema migrations are forward-only, transactional where SQLite permits, and covered by old-database fixtures. A failed upgrade leaves the legacy database at its canonical path for retry; it is not treated as corruption.
 8. Query plans and statement counts are tested, not inferred from code review alone.
 
 ## Current Strengths
@@ -31,7 +31,7 @@ OTelux uses SQLite as a local telemetry engine, not as a JSON file cabinet. The 
 
 | Severity | Finding | Impact | Required correction |
 |---|---|---|---|
-| P0 | `spans.span_id` is the primary key, `Storage.getSpan` accepts only `spanId`, and `DataSource.getSpanDetails` carries only `spanId`. OTLP span IDs are unique only within a trace. | Both memory and SQLite contracts are wrong; SQLite can overwrite another trace's span and return stale rollups/details. | Change the shared contract first, then schema v2 uses `PRIMARY KEY(trace_id, span_id)` and every span lookup requires both IDs. |
+| Resolved P0 | Schema v1 used global `span_id` identity across storage and detail contracts, although OTLP span IDs are unique only within a trace. | SQLite could overwrite another trace's span and return stale rollups/details. | Fixed: schema v2 uses `PRIMARY KEY(trace_id, span_id)`, migrates v1 transactionally, repairs surviving rollups, preserves v1 for retry if migration fails, and all detail APIs require both IDs. |
 | P1 | Trace service filtering occurs after SQL `LIMIT/OFFSET`; the count query omits the service filter. | Short/empty pages and incorrect totals. | Normalize `trace_services(trace_id, service_name)` and apply an indexed `EXISTS` predicate to both count and page queries. |
 | P1 | `listMetrics` selects points once per returned instrument. | $N+2$ SQL statements, up to 500 eager histories in the current UI. | Split instrument metadata from point history; batch or query points only for the selected instrument/window. |
 | P1 | Metric list results can carry up to 10,000 points per instrument. | Very large IPC/HTTP payloads, decoding cost, and renderer memory pressure. | `listMetricInstruments` returns metadata/latest summary only; `getMetricPoints` is windowed and paged. |
@@ -48,7 +48,7 @@ The two highest-severity correctness findings were reproduced directly against t
 {"totalCount":2,"rowCount":0,"names":[]}
 ```
 
-The first result follows two traces written with the same `span_id`; trace A keeps a stale rollup after its row is replaced by trace B. The second follows `services=["beta"]`, `limit=1` when a newer alpha trace occupies the SQL page before the post-query service filter runs.
+The first result captured the now-fixed schema v1 behavior after two traces were written with the same `span_id`; trace A kept a stale rollup after its row was replaced by trace B. The second remains open and follows `services=["beta"]`, `limit=1` when a newer alpha trace occupies the SQL page before the post-query service filter runs.
 
 ## Target Schema Direction
 

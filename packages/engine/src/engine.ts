@@ -103,9 +103,9 @@ export function createEngine(options: EngineOptions): Engine {
 		},
 
 		async getSpanDetails(query: GetSpanDetailsQuery): Promise<SpanDetails> {
-			const span = await storage.getSpan(query.spanId);
+			const span = await storage.getSpan(query.traceId, query.spanId);
 			if (!span) {
-				throw new Error(`OTelux engine: span ${query.spanId} not found`);
+				throw new Error(`OTelux engine: span ${query.traceId}/${query.spanId} not found`);
 			}
 			return span;
 		},

@@ -53,6 +53,7 @@ export interface GetTraceQuery {
 }
 
 export interface GetSpanDetailsQuery {
+	traceId: TraceId;
 	spanId: SpanId;
 }
 
@@ -237,4 +238,4 @@ export type RuntimeEvent =
 	| { readonly kind: 'receiver-status-changed'; readonly status: ReceiverStatus }
 	| { readonly kind: 'mcp-status-changed'; readonly status: McpStatus };
 
-export const OTELUX_PROTOCOL_VERSION = '0.1.0' as const;
+export const OTELUX_PROTOCOL_VERSION = '0.2.0' as const;

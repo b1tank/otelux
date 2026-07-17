@@ -31,7 +31,7 @@ The repository currently contains:
 - `@otelux/local-runtime`: backend composition for SQLite, retention, engine queries, OTLP, authenticated MCP, settings, sample data, and lifecycle events.
 - Canonical platform data-home resolution, resumable copy-only migration from legacy Electron state, and nonce-protected `runtime.lock` / `runtime.json` ownership metadata.
 - OTLP/HTTP JSON and protobuf ingest for traces, logs, and metrics.
-- Durable local storage for all signals via `@otelux/engine-node` (Node `node:sqlite`), with user-configurable retention (age and size). The store versions its schema (forward-only migrations) and self-heals an unreadable or newer-version file by quarantining it and starting fresh. `@otelux/engine` still ships an in-memory store for tests and small workloads; both back ends pass a shared storage-contract suite.
+- Durable local storage for all signals via `@otelux/engine-node` (Node `node:sqlite`), with user-configurable retention (age and size). The store versions its schema with forward-only transactional migrations; a failed upgrade leaves the legacy database in place for retry, while an unreadable or newer-version file is quarantined before starting fresh. `@otelux/engine` still ships an in-memory store for tests and small workloads; both back ends pass a shared storage-contract suite.
 - Live Traces, Logs, and Metrics rail surfaces in `@otelux/ui`.
 - A one-click "Load sample data" seed in the empty Traces view populates every surface with clearly-labelled synthetic telemetry, so a first-run user can evaluate the UI before wiring an exporter.
 - A shared live/paused (live-tail) control and result footers across all three views, plus a confirmed "Clear data" action that deletes all stored telemetry.
@@ -45,7 +45,7 @@ Important current limits:
 - OTLP/gRPC ingest is planned, not shipped (OTLP/HTTP JSON and protobuf are live).
 - Dense trace modes and detail search need polish.
 - Agent-run correlation and service overview tools are schema-stable but not fully implemented.
-- The storage audit found three pre-daemon blockers: span identity is incorrectly global by `spanId`, trace service filtering occurs after SQL pagination with an inconsistent count, and metric listing performs one point-history query per instrument. See [storage.md](storage.md#audit-findings).
+- The storage audit's span-identity P0 is fixed in schema v2. Two P1 pre-daemon blockers remain: trace service filtering occurs after SQL pagination with an inconsistent count, and metric listing performs one point-history query per instrument. See [storage.md](storage.md#audit-findings).
 - `@otelux/protocol` is currently an in-memory TypeScript contract, not a validated JSON wire contract. Runtime RPC/SSE DTOs and schema snapshots are required before Desktop becomes a daemon client. See [protocol.md](protocol.md#current-gaps).
 
 ## Signals In Scope
@@ -291,7 +291,7 @@ Initial MCP tools shared by the agent plugin, direct MCP, CLI, and Desktop:
 | `otel_get_slowest_spans` | Live | What is slow? |
 | `otel_search_logs` | Live | Why did this log fire? |
 | `otel_get_trace` | Live | Show this trace. |
-| `otel_get_span_details` | Live | Show this span. |
+| `otel_get_span_details` | Live | Show one span by trace ID and span ID. |
 | `otel_correlate_agent_run` | Experimental stub | What was my app doing during this agent run? |
 | `otel_get_service_overview` | Experimental, approximate | What services emitted telemetry? |
 

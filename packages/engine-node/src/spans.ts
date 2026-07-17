@@ -72,7 +72,7 @@ INSERT OR REPLACE INTO spans (
 		);
 		this.selectByTrace.setReadBigInts(true);
 
-		this.selectById = db.prepare(`${SPAN_SELECT} WHERE s.span_id = ?`);
+		this.selectById = db.prepare(`${SPAN_SELECT} WHERE s.trace_id = ? AND s.span_id = ?`);
 		this.selectById.setReadBigInts(true);
 
 		// Minimal columns needed to recompute a trace rollup.
@@ -270,8 +270,8 @@ FROM traces ${whereSql} ORDER BY ${sortColumn} ${direction} LIMIT ? OFFSET ?`,
 		return rows.map(spanFromRow);
 	}
 
-	getSpan(spanId: SpanId): Span | undefined {
-		const row = this.selectById.get(spanId) as unknown as SpanRow | undefined;
+	getSpan(traceId: TraceId, spanId: SpanId): Span | undefined {
+		const row = this.selectById.get(traceId, spanId) as unknown as SpanRow | undefined;
 		return row ? spanFromRow(row) : undefined;
 	}
 }

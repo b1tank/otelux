@@ -15,7 +15,7 @@ This file is the durable verification source of truth. Release-specific executio
 Test quality is measured by release-risk coverage rather than by pursuing 100% line coverage:
 
 - Unit tests cover parsing, formatting, filtering, layout, state transitions, and failure branches in shared packages.
-- Storage contract tests run unchanged against memory and durable implementations, including migration, retention, corruption recovery, and interrupted writes.
+- Storage contract tests run unchanged against memory and durable implementations, including migration, failed-upgrade rollback/retry, retention, corruption recovery, and interrupted writes.
 - Receiver integration tests cover every supported signal and encoding, malformed and oversized requests, partial and empty payloads, bursts, concurrent ingest, and shutdown.
 - OTLP and MCP transport tests reject unlisted browser origins by default, verify exact allowed-origin matching and `Vary: Origin`, and prove rejected requests neither invoke tools nor ingest telemetry.
 - Desktop main/preload integration tests cover settings validation and migration, port rebinding, rollback after bind or persistence failure, IPC runtime validation, lifecycle cleanup, and the exposed context-bridge surface.

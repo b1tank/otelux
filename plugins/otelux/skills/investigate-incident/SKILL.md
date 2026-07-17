@@ -10,7 +10,7 @@ Use the OTelux MCP tools to investigate the user's local OpenTelemetry data. The
 1. Establish scope. Infer a service and time window from the request; ask one concise question only if neither can be inferred. Default to the last 15 minutes.
 2. Call `otel_find_recent_errors` with the service/window. If no errors are found, say so and broaden the window once when reasonable.
 3. For the most relevant error traces, call `otel_get_trace`. Compare failing and healthy siblings, identify the first error span, and note critical-path latency.
-4. Call `otel_get_span_details` for the error span and any suspicious parent/child spans. Inspect status, attributes, events, links, resource, and timing.
+4. Call `otel_get_span_details` with both the trace ID and span ID for the error span and any suspicious parent/child spans. Inspect status, attributes, events, links, resource, and timing.
 5. Call `otel_search_logs` using concrete error text, operation names, trace IDs, or relevant attributes. Prefer trace-correlated logs; label time-only correlation as circumstantial.
 6. When latency might be causal, call `otel_get_slowest_spans` for the affected service.
 7. Return:

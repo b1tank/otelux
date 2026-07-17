@@ -217,7 +217,7 @@ The local product has no required account or cloud service. Telemetry stays on t
 
 ## Current Implementation
 
-The shipped `0.1.4` agent plugin is still a Desktop companion:
+The shipped `0.1.5` agent plugin is still a Desktop companion:
 
 ```mermaid
 flowchart LR

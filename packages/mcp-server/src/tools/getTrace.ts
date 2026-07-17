@@ -47,20 +47,24 @@ export const getTraceTool: ToolDefinition = {
 export const getSpanDetailsTool: ToolDefinition = {
 	name: 'otel_get_span_details',
 	description:
-		'Return the full attributes, events, links, and resource for a single span. Drill-down primitive paired with otel_get_trace.',
+		'Return the full attributes, events, links, and resource for one span identified within its trace. Drill-down primitive paired with otel_get_trace.',
 	inputSchema: {
 		type: 'object',
 		properties: {
+			traceId: { type: 'string' },
 			spanId: { type: 'string' },
 		},
-		required: ['spanId'],
+		required: ['traceId', 'spanId'],
 	},
 	handler: async (raw, { engine }) => {
-		const input = (raw ?? {}) as { spanId?: string };
-		if (!input.spanId) {
-			throw new Error('otel_get_span_details: missing spanId');
+		const input = (raw ?? {}) as { traceId?: string; spanId?: string };
+		if (!input.traceId || !input.spanId) {
+			throw new Error('otel_get_span_details: missing traceId or spanId');
 		}
-		const span = await engine.getSpanDetails({ spanId: input.spanId as SpanId });
+		const span = await engine.getSpanDetails({
+			traceId: input.traceId as TraceId,
+			spanId: input.spanId as SpanId,
+		});
 		// BigInt fields get downgraded to strings by the dispatcher's
 		// JSON replacer, so we can pass the span through directly.
 		return { span };

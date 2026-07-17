@@ -126,10 +126,68 @@ function runStorageContract(label: string, make: () => Storage): void {
 			};
 			await storage.writeSpans([full]);
 
-			expect(await storage.getSpan('1'.repeat(16))).toEqual(full);
-			expect(await storage.getSpan('deadbeefdeadbeef')).toBeUndefined();
+			expect(await storage.getSpan(TRACE_A, '1'.repeat(16))).toEqual(full);
+			expect(await storage.getSpan(TRACE_A, 'deadbeefdeadbeef')).toBeUndefined();
 			const spans = await storage.getTraceSpans(TRACE_A);
 			expect(spans).toEqual([full]);
+		});
+
+		it('keeps equal span IDs isolated across traces', async () => {
+			const sharedSpanId = 'f'.repeat(16);
+			const spanA = makeSpan({
+				traceId: TRACE_A,
+				spanId: sharedSpanId,
+				name: 'trace-a-span',
+				start: 10n,
+				end: 20n,
+			});
+			const spanB = makeSpan({
+				traceId: TRACE_B,
+				spanId: sharedSpanId,
+				name: 'trace-b-span',
+				start: 30n,
+				end: 40n,
+			});
+
+			await storage.writeSpans([spanA, spanB]);
+
+			expect(await storage.getSpan(TRACE_A, sharedSpanId)).toEqual(spanA);
+			expect(await storage.getSpan(TRACE_B, sharedSpanId)).toEqual(spanB);
+			expect(await storage.getTraceSpans(TRACE_A)).toEqual([spanA]);
+			expect(await storage.getTraceSpans(TRACE_B)).toEqual([spanB]);
+			expect((await storage.listTraces({})).totalCount).toBe(2);
+		});
+
+		it('replaces a repeated span identity within one trace', async () => {
+			const spanId = 'e'.repeat(16);
+			const initial = makeSpan({
+				traceId: TRACE_A,
+				spanId,
+				name: 'initial',
+				start: 10n,
+				end: 20n,
+				status: SpanStatusCode.Ok,
+			});
+			const updated = makeSpan({
+				traceId: TRACE_A,
+				spanId,
+				name: 'updated',
+				start: 10n,
+				end: 30n,
+				status: SpanStatusCode.Error,
+			});
+
+			await storage.writeSpans([initial]);
+			await storage.writeSpans([updated]);
+
+			expect(await storage.getTraceSpans(TRACE_A)).toEqual([updated]);
+			expect(await storage.getSpan(TRACE_A, spanId)).toEqual(updated);
+			expect((await storage.listTraces({})).rows[0]).toMatchObject({
+				rootName: 'updated',
+				spanCount: 1,
+				errorCount: 1,
+				durationNanos: 20n,
+			});
 		});
 
 		it('filters, sorts, and pages the trace list', async () => {

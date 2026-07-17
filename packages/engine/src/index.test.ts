@@ -75,7 +75,10 @@ describe('createMemoryStorage + createEngine', () => {
 		expect(trace.rootSpan?.spanId).toBe('1111111111111111');
 		expect(trace.spanCount).toBe(2);
 
-		const details = await engine.getSpanDetails({ spanId: '2222222222222222' });
+		const details = await engine.getSpanDetails({
+			traceId: TRACE,
+			spanId: '2222222222222222',
+		});
 		expect(details.name).toBe('auth.verify');
 
 		await engine.close();
@@ -108,6 +111,39 @@ describe('createMemoryStorage + createEngine', () => {
 			}),
 		]);
 		expect(events).toEqual(['tracesChanged']); // unchanged after dispose
+		await engine.close();
+	});
+
+	it('resolves equal span IDs within their trace identity', async () => {
+		const engine = createEngine({ storage: createMemoryStorage() });
+		const sharedSpanId = 'f'.repeat(16);
+		const traceA = 'a'.repeat(32);
+		const traceB = 'b'.repeat(32);
+		await engine.ingestSpans([
+			makeSpan({
+				traceId: traceA,
+				spanId: sharedSpanId,
+				name: 'span-a',
+				startUnixNano: 1n,
+				endUnixNano: 2n,
+			}),
+			makeSpan({
+				traceId: traceB,
+				spanId: sharedSpanId,
+				name: 'span-b',
+				startUnixNano: 3n,
+				endUnixNano: 4n,
+			}),
+		]);
+
+		expect(await engine.getSpanDetails({ traceId: traceA, spanId: sharedSpanId })).toMatchObject({
+			traceId: traceA,
+			name: 'span-a',
+		});
+		expect(await engine.getSpanDetails({ traceId: traceB, spanId: sharedSpanId })).toMatchObject({
+			traceId: traceB,
+			name: 'span-b',
+		});
 		await engine.close();
 	});
 

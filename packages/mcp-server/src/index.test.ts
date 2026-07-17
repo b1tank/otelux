@@ -158,6 +158,32 @@ describe('createMcpServer', () => {
 		expect(payload.slowestTraces.map((trace) => trace.rootName)).toEqual(['POST /broken', 'GET /ok']);
 	});
 
+	it('requires traceId and spanId for span detail', async () => {
+		const server = await fixtureServer();
+		const listed = await server.handle({
+			jsonrpc: JSON_RPC_VERSION,
+			id: 30,
+			method: 'tools/list',
+		});
+		const tools = (listed as { result: { tools: Array<{ name: string; inputSchema: unknown }> } })
+			.result.tools;
+		expect(tools.find((tool) => tool.name === 'otel_get_span_details')?.inputSchema).toMatchObject({
+			required: ['traceId', 'spanId'],
+		});
+
+		const response = await server.handle({
+			jsonrpc: JSON_RPC_VERSION,
+			id: 31,
+			method: 'tools/call',
+			params: {
+				name: 'otel_get_span_details',
+				arguments: { traceId: 'b'.repeat(32), spanId: '2'.repeat(16) },
+			},
+		});
+		const payload = parseToolResult<{ span: Span }>(response);
+		expect(payload.span).toMatchObject({ traceId: 'b'.repeat(32), name: 'POST /broken' });
+	});
+
 	it('reports stub tools as supported:false rather than throwing', async () => {
 		const server = await fixtureServer();
 		const response = await server.handle({

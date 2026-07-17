@@ -16,26 +16,17 @@
  * per-row storage.
  */
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
-export const SCHEMA_SQL = `
-CREATE TABLE IF NOT EXISTS resources (
-  id            INTEGER PRIMARY KEY,
-  hash          TEXT    NOT NULL UNIQUE,
-  service_name  TEXT    NOT NULL DEFAULT '',
-  attributes    TEXT    NOT NULL
-);
+export const SPAN_COLUMN_NAMES = `
+  span_id, trace_id, parent_span_id, name, kind,
+  start_unix_nano, end_unix_nano, status_code, status_message, trace_state,
+  attributes, events, links, dropped_attributes, dropped_events, dropped_links,
+  resource_id, scope_id, service_name, ingested_unix_nano
+`;
 
-CREATE TABLE IF NOT EXISTS scopes (
-  id            INTEGER PRIMARY KEY,
-  hash          TEXT    NOT NULL UNIQUE,
-  name          TEXT    NOT NULL DEFAULT '',
-  version       TEXT,
-  attributes    TEXT
-);
-
-CREATE TABLE IF NOT EXISTS spans (
-  span_id             TEXT    PRIMARY KEY,
+export const SPAN_COLUMN_DEFINITIONS = `
+  span_id             TEXT    NOT NULL,
   trace_id            TEXT    NOT NULL,
   parent_span_id      TEXT,
   name                TEXT    NOT NULL,
@@ -55,8 +46,30 @@ CREATE TABLE IF NOT EXISTS spans (
   scope_id            INTEGER NOT NULL REFERENCES scopes(id),
   service_name        TEXT    NOT NULL DEFAULT '',
   ingested_unix_nano  INTEGER NOT NULL
+`;
+
+export const SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS resources (
+  id            INTEGER PRIMARY KEY,
+  hash          TEXT    NOT NULL UNIQUE,
+  service_name  TEXT    NOT NULL DEFAULT '',
+  attributes    TEXT    NOT NULL
 );
-CREATE INDEX IF NOT EXISTS idx_spans_trace    ON spans(trace_id);
+
+CREATE TABLE IF NOT EXISTS scopes (
+  id            INTEGER PRIMARY KEY,
+  hash          TEXT    NOT NULL UNIQUE,
+  name          TEXT    NOT NULL DEFAULT '',
+  version       TEXT,
+  attributes    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS spans (
+${SPAN_COLUMN_DEFINITIONS},
+  PRIMARY KEY (trace_id, span_id)
+);
+CREATE INDEX IF NOT EXISTS idx_spans_trace    ON spans(trace_id, start_unix_nano, span_id);
+CREATE INDEX IF NOT EXISTS idx_spans_parent   ON spans(trace_id, parent_span_id);
 CREATE INDEX IF NOT EXISTS idx_spans_start    ON spans(start_unix_nano);
 CREATE INDEX IF NOT EXISTS idx_spans_ingested ON spans(ingested_unix_nano);
 
