@@ -1,6 +1,6 @@
 # @otelux/protocol
 
-The `DataSource` interface and query/result shapes that connect `@otelux/ui` to any backend, including an in-process engine and the VS Code postMessage bridge.
+Browser-safe contracts shared by OTelux clients and the local runtime. The package defines the `DataSource` query surface plus runtime settings, lifecycle statuses, control results, and events.
 
 The current contract covers traces, logs, and metrics:
 

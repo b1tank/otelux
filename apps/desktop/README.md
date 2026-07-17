@@ -1,6 +1,6 @@
 # @otelux/desktop
 
-The OTelux desktop app. Electron shell hosting `@otelux/receiver` and `@otelux/engine` in the main process, and `@otelux/ui` in the renderer.
+The OTelux desktop app. Its Electron main process embeds `@otelux/local-runtime`, while the renderer hosts `@otelux/ui`. Desktop owns only Electron IPC, windows, and native shell integration; backend composition lives in the runtime package.
 
 ## Develop
 

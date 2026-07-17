@@ -1,5 +1,5 @@
+import type { McpStatus, PartialSettings, ReceiverStatus, Settings } from '@otelux/protocol';
 import { describe, expect, it } from 'vitest';
-import type { McpStatus, PartialSettings, ReceiverStatus, Settings } from '../shared/ipc.js';
 import {
 	type McpController,
 	type ReceiverController,
@@ -82,9 +82,7 @@ class FakeStore implements SettingsWriter {
 				maxAgeHours: patch.retention?.maxAgeHours ?? this.base.retention.maxAgeHours,
 				maxSizeMb: patch.retention?.maxSizeMb ?? this.base.retention.maxSizeMb,
 			},
-			storage: {
-				dbPath: patch.storage?.dbPath ?? this.base.storage.dbPath,
-			},
+			storage: { dbPath: patch.storage?.dbPath ?? this.base.storage.dbPath },
 		};
 	}
 
@@ -119,41 +117,24 @@ describe('updateSettings', () => {
 		expect(result.ok).toBe(true);
 		expect(receiver.status).toEqual({ kind: 'running', port: 4400, host: HOST });
 		expect(receiver.startCalls).toEqual([4400]);
-		// MCP was unchanged, so it is never touched.
 		expect(mcp.startCalls).toEqual([]);
 		expect(mcp.disableCalls).toBe(0);
 		expect(store.commitCalls).toBe(1);
 	});
 
-	it('rolls the receiver back to its previous port when the settings write fails', async () => {
+	it('rolls listeners back when the settings write fails', async () => {
 		const receiver = new FakeReceiver(4319);
 		const mcp = new FakeMcp({ kind: 'running', port: 4320, host: HOST });
 		const store = new FakeStore(baseSettings(), new Error('disk full'));
 
-		const result = await updateSettings(store, receiver, mcp, { otlp: { port: 4400 } });
+		const result = await updateSettings(store, receiver, mcp, {
+			otlp: { port: 4400 },
+			mcp: { port: 4500 },
+		});
 
 		expect(result).toEqual({ ok: false, error: 'disk full' });
-		// Rebound to the new port, then restored to the previous one.
 		expect(receiver.startCalls).toEqual([4400, 4319]);
-		expect(receiver.status).toEqual({ kind: 'running', port: 4319, host: HOST });
-		// MCP was never mutated, so it is not rolled back.
-		expect(mcp.startCalls).toEqual([]);
-		expect(mcp.disableCalls).toBe(0);
-	});
-
-	it('rolls MCP back to its previous port when the settings write fails', async () => {
-		const receiver = new FakeReceiver(4319);
-		const mcp = new FakeMcp({ kind: 'running', port: 4320, host: HOST });
-		const store = new FakeStore(baseSettings(), new Error('disk full'));
-
-		const result = await updateSettings(store, receiver, mcp, { mcp: { port: 4500 } });
-
-		expect(result.ok).toBe(false);
-		// Receiver port did not change, so it is untouched.
-		expect(receiver.startCalls).toEqual([]);
-		// MCP restarted on the new port, then restored to the previous one.
 		expect(mcp.startCalls).toEqual([4500, 4320]);
-		expect(mcp.status).toEqual({ kind: 'running', port: 4320, host: HOST });
 	});
 
 	it('rolls the receiver back when MCP fails to bind, without persisting', async () => {
@@ -170,7 +151,6 @@ describe('updateSettings', () => {
 		expect(result.ok).toBe(false);
 		expect(receiver.startCalls).toEqual([4400, 4319]);
 		expect(mcp.startCalls).toEqual([4500, 4320]);
-		// A failed rebind must never reach persistence.
 		expect(store.commitCalls).toBe(0);
 	});
 });

@@ -105,7 +105,8 @@ Tasks:
 - [x] Ship one dual Claude/Codex plugin package with shared skills and a secure bridge to the desktop MCP listener.
 - [x] Publish local Claude and Codex marketplace catalogs and validate/install both plugins.
 - [x] Add MCP safety annotations required by agent hosts and public plugin review.
-- Extract the Desktop backend into a single-instance local runtime that alone owns SQLite, migrations, retention, OTLP, and MCP.
+- [x] Extract backend composition into `@otelux/local-runtime`; Desktop now delegates SQLite, migrations, retention, OTLP, MCP, settings, and sample data to it.
+- Run `@otelux/local-runtime` as a single-instance per-user daemon instead of embedding it in Electron.
 - Add canonical per-user data-home resolution, atomic state/locking, version negotiation, and safe legacy Desktop migration.
 - Add an HTTP/event `DataSource` adapter, serve the existing `@otelux/ui` as a loopback browser workbench, and convert Desktop into a client of that runtime.
 - Add the OTelux CLI for runtime lifecycle, status, settings, dashboard launch, and diagnostics.

@@ -19,7 +19,7 @@ This document describes the target architecture. The [Current Implementation](#c
 | Agent plugin | Install OTelux in Claude or Codex, use analysis skills and MCP tools, configure telemetry, and open the visual workbench. | Shared skills, host manifests, and a small stdio MCP launcher that ensures the local runtime is running. | Desktop-companion version shipped; self-contained runtime target. |
 | Direct MCP | Register OTelux as an MCP server without installing agent skills or a desktop UI. | The same stdio MCP launcher used by the plugins. It ensures and connects to the local runtime. | Target packaging; the current bridge requires Desktop. |
 | CLI | Run, inspect, configure, stop, and open OTelux from a terminal or headless environment. | The local runtime plus commands such as `otelux serve`, `otelux status`, and `otelux open`. | Planned. |
-| Desktop app | Install a native workbench with receiver and storage settings. | Electron UI plus the shared local runtime. Desktop is a client of that runtime, not a second backend owner. | Desktop shipped; shared-runtime conversion planned. |
+| Desktop app | Install a native workbench with receiver and storage settings. | Electron UI plus the shared local runtime. Desktop is a client of that runtime, not a second backend owner. | Runtime package embedded; standalone-daemon connection planned. |
 
 These forms are distribution and entry-point choices. They do not create separate telemetry stores. Browser delivery is an implementation detail of the plugin and CLI experiences, not a separately installed or published artifact.
 
@@ -117,7 +117,7 @@ All listeners bind to loopback by default. LAN exposure requires a future explic
 | Browser-safe workbench | `@otelux/ui` | Runtime-served browser mode and Desktop renderer. |
 | In-process adapter | `@otelux/adapter-direct` | Tests and deliberately embedded hosts. |
 | HTTP/event adapter | Planned `@otelux/adapter-http` | Runtime-served workbench and Desktop client. |
-| Runtime composition | Planned local-runtime app/package | CLI, plugin launcher, direct MCP, and Desktop installation. |
+| Runtime composition | `@otelux/local-runtime` | Embedded by Desktop now; CLI, plugin launcher, and direct MCP after daemon lifecycle lands. |
 | Analysis workflows | `plugins/otelux/skills` | Claude and Codex plugin manifests. |
 
 The `DataSource` interface remains the load-bearing UI boundary. The workbench asks for traces, logs, metrics, details, and change events through that contract; host adapters decide whether those calls are direct, Electron IPC, or local HTTP/event traffic.
@@ -204,19 +204,19 @@ The shipped `0.1.4` agent plugin is still a Desktop companion:
 flowchart LR
     Claude[Claude plugin] --> Bridge[stdio MCP bridge]
     Codex[Codex plugin] --> Bridge
-    Bridge -->|authenticated loopback HTTP| Desktop[Desktop-owned MCP]
-    Desktop --> Engine[Desktop-owned engine]
-    Engine --> LegacyDB[(Electron user-data otelux.db)]
+    Bridge -->|authenticated loopback HTTP| Runtime[Local runtime embedded in Electron]
+    Desktop[Desktop IPC and workbench] --> Runtime
+    Runtime --> LegacyDB[(Electron user-data otelux.db)]
 ```
 
-Today, Electron opens SQLite and owns the OTLP and MCP listeners. The bridge discovers Desktop settings and its owner-only token, and `otel_open_dashboard` launches or focuses Electron. Desktop must therefore be installed and running.
+Today, `@otelux/local-runtime` owns SQLite, retention, engine queries, OTLP, MCP, settings, sample data, and lifecycle events. Electron embeds that package and forwards its existing IPC contract to it. The bridge still discovers Desktop settings and its owner-only token, and `otel_open_dashboard` still launches or focuses Electron, so Desktop must remain installed and running until the runtime becomes a separately managed daemon.
 
 The next implementation sequence is:
 
-1. Extract Desktop backend composition into the single per-user local runtime.
-2. Add canonical data-home resolution, single-instance state/locking, and legacy Desktop migration.
+1. Add canonical data-home resolution, single-instance state/locking, and legacy Desktop migration.
+2. Run the runtime as a separately managed per-user daemon.
 3. Add the HTTP/event `DataSource` adapter and serve the shared workbench in browser mode.
-4. Convert Desktop into a runtime client while retaining native shell integration.
+4. Convert Desktop from an embedded runtime host into a daemon client while retaining native shell integration.
 5. Add the CLI and package the same launcher for direct MCP use.
 6. Make the Claude/Codex plugin self-contained and change dashboard launch to the browser URL.
 7. Add confirmation-backed agent and application telemetry setup workflows.

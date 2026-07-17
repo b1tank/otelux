@@ -1,8 +1,8 @@
 {
-	"name": "@otelux/protocol",
+	"name": "@otelux/local-runtime",
 	"version": "0.0.0",
 	"private": true,
-	"description": "Browser-safe query and runtime control contracts for OTelux clients.",
+	"description": "Single-process local OTelux runtime for storage, OTLP ingest, MCP, and client queries.",
 	"license": "MIT",
 	"type": "module",
 	"main": "./dist/index.cjs",
@@ -23,10 +23,20 @@
 		"test": "vitest run",
 		"clean": "rm -rf dist .turbo"
 	},
+	"engines": {
+		"node": ">=22.12.0"
+	},
 	"dependencies": {
+		"@hono/node-server": "1.19.14",
+		"@otelux/engine": "*",
+		"@otelux/engine-node": "*",
+		"@otelux/mcp-server": "*",
+		"@otelux/protocol": "*",
+		"@otelux/receiver": "*",
 		"@otelux/types": "*"
 	},
 	"devDependencies": {
+		"@types/node": "22.20.1",
 		"tsup": "8.5.1",
 		"typescript": "5.7.2",
 		"vitest": "4.1.10"

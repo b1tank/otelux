@@ -1,7 +1,6 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { createEngine } from '@otelux/engine';
-import { type NodeSqliteStorage, createNodeSqliteStorage } from '@otelux/engine-node';
+import { createLocalRuntime } from '@otelux/local-runtime';
 import { BrowserWindow, app, ipcMain, shell } from 'electron';
 import {
 	type InvokeMessage,
@@ -10,15 +9,8 @@ import {
 	OTELUX_EVENT_CHANNEL,
 	OTELUX_INVOKE_CHANNEL,
 	type OteluxEvent,
-	type Settings,
 } from '../shared/ipc.js';
-import { createDemoTelemetry } from './demoData.js';
-import { McpHost } from './mcpHost.js';
-import { loadOrCreateMcpToken } from './mcpToken.js';
-import { ReceiverHost } from './receiverHost.js';
 import { isAllowedExternalUrl, isAllowedNavigation } from './security.js';
-import { SettingsStore } from './settings.js';
-import { updateSettings } from './updateSettings.js';
 
 const isDev = !app.isPackaged;
 
@@ -54,20 +46,18 @@ function isReceiverReady(wc: Electron.WebContents): boolean {
  * Resolve the OTLP port to bind at startup. Precedence:
  *   1. `OTELUX_OTLP_PORT` env var (one-shot dev/CI override; does NOT
  *      mutate the persisted settings).
- *   2. Persisted settings (`<userData>/settings.json`).
- *   3. Default {@link DEFAULT_SETTINGS}.otlp.port (4319).
+ *   2. `undefined`, which lets the runtime use persisted settings and then
+ *      its default port.
  */
-function resolveStartupPort(persisted: number): number {
+function resolveStartupPortOverride(): number | undefined {
 	const raw = process.env.OTELUX_OTLP_PORT;
 	if (raw === undefined || raw === '') {
-		return persisted;
+		return undefined;
 	}
 	const parsed = Number.parseInt(raw, 10);
 	if (!Number.isInteger(parsed) || parsed < MIN_PORT || parsed > MAX_PORT) {
-		console.warn(
-			`[otelux] ignoring invalid OTELUX_OTLP_PORT=${raw}; falling back to persisted ${persisted}`,
-		);
-		return persisted;
+		console.warn(`[otelux] ignoring invalid OTELUX_OTLP_PORT=${raw}; using persisted settings`);
+		return undefined;
 	}
 	return parsed;
 }
@@ -103,77 +93,18 @@ function resolveMaxBodyBytes(envName: string): number | undefined {
 	return parsed;
 }
 
-/**
- * Open the durable store at `preferredPath`, falling back to the default
- * location if that fails. A user-configured `storage.dbPath` that points at an
- * unwritable or invalid location (bad drive, permission denied, a directory)
- * would otherwise throw during startup and brick the app the same way a bad
- * persisted port used to — so a failed custom path degrades to the default
- * rather than preventing launch. Returns the path that was actually opened so
- * the UI can report the real active location.
- */
-function openStorage(
-	preferredPath: string,
-	defaultPath: string,
-	retention: Settings['retention'],
-): { storage: NodeSqliteStorage; activeDbPath: string } {
-	try {
-		return {
-			storage: createNodeSqliteStorage({ path: preferredPath, retention }),
-			activeDbPath: preferredPath,
-		};
-	} catch (err) {
-		if (preferredPath === defaultPath) {
-			// The default location itself failed; nothing left to fall back to.
-			throw err;
-		}
-		console.error(
-			`[otelux] failed to open database at ${preferredPath}; falling back to ${defaultPath}: ${
-				err instanceof Error ? err.message : String(err)
-			}`,
-		);
-		return {
-			storage: createNodeSqliteStorage({ path: defaultPath, retention }),
-			activeDbPath: defaultPath,
-		};
-	}
-}
-
 async function startBackend(): Promise<{
 	stop: () => Promise<void>;
 }> {
-	const settingsFile = join(app.getPath('userData'), 'settings.json');
-	const settings = await SettingsStore.open(settingsFile);
-
-	// Durable, on-disk store (node:sqlite). By default the DB lives in the
-	// platform user-data directory so it survives restarts and app updates; the
-	// user can point `storage.dbPath` at a custom absolute path. Retention is
-	// seeded from settings and re-applied whenever the user changes it.
-	const defaultDbPath = join(app.getPath('userData'), 'otelux.db');
-	const configuredDbPath = settings.get().storage.dbPath;
-	const { storage, activeDbPath } = openStorage(
-		configuredDbPath !== '' ? configuredDbPath : defaultDbPath,
-		defaultDbPath,
-		settings.get().retention,
-	);
-	const engine = createEngine({ storage });
-
-	const receiverHost = new ReceiverHost(
-		engine,
-		'127.0.0.1',
-		resolveMaxBodyBytes('OTELUX_OTLP_MAX_BODY_BYTES'),
-	);
-	// The MCP listener is loopback but shares the host with other local
-	// processes; a per-install bearer token keeps it from becoming an
-	// unauthenticated telemetry read API for anything that can reach the port.
-	const mcpTokenFile = join(app.getPath('userData'), 'mcp-token');
-	const mcpToken = await loadOrCreateMcpToken(mcpTokenFile);
-	const mcpHost = new McpHost(
-		engine,
-		'127.0.0.1',
-		resolveMaxBodyBytes('OTELUX_MCP_MAX_BODY_BYTES'),
-		mcpToken,
-	);
+	const otlpPortOverride = resolveStartupPortOverride();
+	const otlpMaxBodyBytes = resolveMaxBodyBytes('OTELUX_OTLP_MAX_BODY_BYTES');
+	const mcpMaxBodyBytes = resolveMaxBodyBytes('OTELUX_MCP_MAX_BODY_BYTES');
+	const runtime = await createLocalRuntime({
+		dataDirectory: app.getPath('userData'),
+		...(otlpPortOverride !== undefined ? { otlpPortOverride } : {}),
+		...(otlpMaxBodyBytes !== undefined ? { otlpMaxBodyBytes } : {}),
+		...(mcpMaxBodyBytes !== undefined ? { mcpMaxBodyBytes } : {}),
+	});
 
 	const broadcast = (event: OteluxEvent): void => {
 		for (const wc of readyReceivers) {
@@ -185,108 +116,43 @@ async function startBackend(): Promise<{
 		}
 	};
 
-	const offEngine = engine.subscribe((event) => {
-		broadcast(event);
-	});
-	const offStatus = receiverHost.onChange((status) => {
-		broadcast({ kind: 'receiver-status-changed', status });
-	});
-	const offMcp = mcpHost.onChange((status) => {
-		broadcast({ kind: 'mcp-status-changed', status });
-	});
-	const offSettings = settings.onChange((next) => {
-		// Retention is enforced by the storage layer; re-apply on every change so
-		// tightening the bound prunes immediately rather than at the next timer.
-		storage.applyRetention(next.retention);
-		broadcast({ kind: 'settings-changed', settings: next });
-	});
+	const events = runtime.onEvent(broadcast);
 
 	// Single-channel dispatch. The discriminated union forces the switch
 	// to stay exhaustive when the protocol grows.
 	ipcMain.handle(OTELUX_INVOKE_CHANNEL, async (_event, message: InvokeMessage) => {
 		switch (message.kind) {
 			case 'listTraces':
-				return engine.listTraces(message.query);
+				return runtime.listTraces(message.query);
 			case 'getTrace':
-				return engine.getTrace(message.query);
+				return runtime.getTrace(message.query);
 			case 'getSpanDetails':
-				return engine.getSpanDetails(message.query);
+				return runtime.getSpanDetails(message.query);
 			case 'listLogs':
-				return engine.listLogs(message.query);
+				return runtime.listLogs(message.query);
 			case 'listMetrics':
-				return engine.listMetrics(message.query);
+				return runtime.listMetrics(message.query);
 			case 'getSettings':
-				return settings.get();
+				return runtime.getSettings();
 			case 'getReceiverStatus':
-				return receiverHost.status;
+				return runtime.getReceiverStatus();
 			case 'getMcpStatus':
-				return mcpHost.status;
+				return runtime.getMcpStatus();
 			case 'getStoragePath':
-				return { activePath: activeDbPath, defaultPath: defaultDbPath };
-			case 'loadSampleData': {
-				// Seed the store with obviously-labelled sample telemetry so a
-				// first-run user can explore every surface without wiring an
-				// exporter. Ingested through the engine so it persists and fires
-				// change events that refresh the open views.
-				const demo = createDemoTelemetry(
-					receiverHost.status.kind === 'running' ? { otlpPort: receiverHost.status.port } : {},
-				);
-				await engine.ingestSpans(demo.spans);
-				await engine.ingestLogs(demo.logs);
-				await engine.ingestMetrics(demo.metrics);
-				return {
-					traces: new Set(demo.spans.map((s) => s.traceId)).size,
-					logs: demo.logs.length,
-					metrics: demo.metrics.length,
-				};
-			}
+				return runtime.getStoragePath();
+			case 'loadSampleData':
+				return runtime.loadSampleData();
 			case 'updateSettings':
-				return updateSettings(settings, receiverHost, mcpHost, message.patch);
+				return runtime.updateSettings(message.patch);
 			case 'clearData':
-				// Delete all stored telemetry. The engine notifies subscribers so
-				// open views refetch to their empty state.
-				return engine.clear();
+				return runtime.clearData();
 		}
 	});
 
-	const initialPort = resolveStartupPort(settings.get().otlp.port);
-	const status = await receiverHost.start(initialPort);
-	if (status.kind === 'running') {
-		console.log(
-			`[otelux] OTLP/HTTP receiver listening on http://${status.host}:${status.port}/v1/{traces,logs,metrics}`,
-		);
-	} else if (status.kind === 'error') {
-		console.error(
-			`[otelux] OTLP/HTTP receiver failed to bind on ${status.host}:${status.port}: ${status.message}`,
-		);
-	}
-
-	const current = settings.get();
-	if (current.mcp.enabled) {
-		const mcpStatus = await mcpHost.start(current.mcp.port);
-		if (mcpStatus.kind === 'running') {
-			console.log(`[otelux] MCP server listening on http://${mcpStatus.host}:${mcpStatus.port}/`);
-			console.log(
-				`[otelux] MCP requires an Authorization: Bearer token; read it from ${mcpTokenFile}`,
-			);
-		} else if (mcpStatus.kind === 'error') {
-			console.error(
-				`[otelux] MCP server failed to bind on ${mcpStatus.host}:${mcpStatus.port}: ${mcpStatus.message}`,
-			);
-		}
-	} else {
-		await mcpHost.disable();
-	}
-
 	return {
 		stop: async () => {
-			offEngine.dispose();
-			offStatus();
-			offMcp();
-			offSettings();
-			await receiverHost.stop();
-			await mcpHost.stop();
-			await engine.close();
+			events.dispose();
+			await runtime.close();
 			ipcMain.removeHandler(OTELUX_INVOKE_CHANNEL);
 		},
 	};

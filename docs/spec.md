@@ -27,7 +27,8 @@ The **Current Baseline** and status tables are descriptive and must match the co
 
 The repository currently contains:
 
-- `apps/desktop`: Electron app hosting the receiver, engine, MCP server, IPC, settings, and React renderer.
+- `apps/desktop`: Electron shell hosting IPC/windows and the React renderer; its main process currently embeds `@otelux/local-runtime`.
+- `@otelux/local-runtime`: backend composition for SQLite, retention, engine queries, OTLP, authenticated MCP, settings, sample data, and lifecycle events.
 - OTLP/HTTP JSON and protobuf ingest for traces, logs, and metrics.
 - Durable local storage for all signals via `@otelux/engine-node` (Node `node:sqlite`), with user-configurable retention (age and size). The store versions its schema (forward-only migrations) and self-heals an unreadable or newer-version file by quarantining it and starting fresh. `@otelux/engine` still ships an in-memory store for tests and small workloads; both back ends pass a shared storage-contract suite.
 - Live Traces, Logs, and Metrics rail surfaces in `@otelux/ui`.
@@ -36,7 +37,7 @@ The repository currently contains:
 - Direct in-process and Electron IPC `DataSource` adapters.
 - MCP tool plumbing over the same query layer.
 - A shared OTelux plugin under `plugins/otelux` installs into Claude Code and Codex with four observability skills plus a secure stdio bridge to the desktop MCP listener. This is the current companion implementation; see [arch.md](arch.md#current-implementation) for the target shared-runtime architecture.
-- The desktop app is the current release product. The agent plugin is currently its companion; direct MCP and CLI become independent forms after the shared-runtime extraction.
+- The desktop app is the current release product. The agent plugin is currently its companion; direct MCP and CLI become independent forms after the runtime moves into a separately managed daemon.
 
 Important current limits:
 
@@ -86,6 +87,7 @@ The runtime is the only process that opens the active database and binds the rec
 | `@otelux/protocol` | `DataSource` interface and query/result contracts. | Live for traces/logs/metrics. |
 | `@otelux/engine` | Pure TypeScript ingest, query, layout, subscriptions, memory storage. | Live. |
 | `@otelux/engine-node` | Durable Node storage adapter (`node:sqlite`) with retention (age/size). | Live. |
+| `@otelux/local-runtime` | Backend composition and control API for storage, engine, OTLP, MCP, settings, and lifecycle. | Live; currently embedded by Desktop. |
 | `@otelux/receiver` | OTLP/HTTP receiver and single-instance helper. | JSON routes live for traces/logs/metrics. |
 | `@otelux/ui` | React workbench and primitives. | Traces/logs/metrics live; polish ongoing around details, grouping controls, and footer controls. |
 | `@otelux/adapter-direct` | In-process `DataSource` wrapper. | Live. |
@@ -156,7 +158,7 @@ Planned receiver work:
 
 | Runtime | OTLP/HTTP | MCP HTTP | Notes |
 |---|---:|---:|---|
-| Shared local runtime | `4319` | `4320` by default | Avoids colliding with a user's standard collector on `4318`; both listeners are configurable and MCP can be disabled. Desktop owns these listeners until the runtime extraction lands. |
+| Shared local runtime | `4319` | `4320` by default | Avoids colliding with a user's standard collector on `4318`; both listeners are configurable and MCP can be disabled. The runtime is currently embedded in the Desktop process. |
 
 Ports are host settings. The receiver package also exposes single-instance claiming so hosts can handle collisions deliberately.
 OTLP and MCP listeners must use different ports. The desktop exposes a copyable OTLP base URL and, while MCP is enabled, a copyable MCP endpoint; failed listener binds leave the previous healthy listener and persisted settings intact.

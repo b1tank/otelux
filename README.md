@@ -13,7 +13,7 @@ The browser workbench is not a separate product. The plugin and CLI open the sha
 | Agent plugin | Install in Claude or Codex to get OTelux skills, MCP tools, telemetry setup workflows, and a dashboard command. | Desktop-companion `0.1.4` exists; self-contained runtime is planned. |
 | Direct MCP | Register OTelux as an MCP server without plugin skills or Electron. | Planned standalone packaging; current bridge connects to Desktop. |
 | CLI | Run OTelux headlessly, inspect health and endpoints, manage settings, and open the browser workbench. | Planned. |
-| Desktop app | Use the native traces, logs, and metrics workbench with receiver and retention settings. | Pre-release implementation exists; conversion to the shared runtime is planned. |
+| Desktop app | Use the native traces, logs, and metrics workbench with receiver and retention settings. | Pre-release app embeds the shared runtime package; daemon-client conversion is planned. |
 
 ```mermaid
 flowchart LR
@@ -65,6 +65,7 @@ otelux/
     protocol/           # DataSource interface and query/result shapes
     engine/             # Ingest, query, layout, subscriptions, storage boundary
     engine-node/        # Node local-storage adapter
+    local-runtime/      # Storage, engine, OTLP, MCP, settings, lifecycle
     receiver/           # OTLP receiver
     mcp-server/         # Read-only MCP JSON-RPC tools
     adapter-direct/     # In-process DataSource adapter
@@ -122,7 +123,7 @@ npm run -w @otelux/desktop package
 
 ## Current Status
 
-Pre-release. Desktop currently owns the local backend, and the `0.1.4` plugin is its companion; the shared runtime, CLI, direct MCP package, and runtime-served workbench are planned rather than shipped. Start with [docs/getting-started.md](docs/getting-started.md). See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities, [docs/arch.md](docs/arch.md#current-implementation) for the architecture transition, [docs/plan.md](docs/plan.md) for future work, and [docs/release-sprint.md](docs/release-sprint.md) for temporary `v0.1.0` launch execution.
+Pre-release. `@otelux/local-runtime` now owns storage, engine, OTLP, MCP, settings, and lifecycle, but Desktop still embeds it in Electron and the `0.1.4` plugin remains a Desktop companion. The standalone daemon, CLI, direct MCP package, and runtime-served workbench are planned. Start with [docs/getting-started.md](docs/getting-started.md). See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities, [docs/arch.md](docs/arch.md#current-implementation) for the architecture transition, [docs/plan.md](docs/plan.md) for future work, and [docs/release-sprint.md](docs/release-sprint.md) for temporary `v0.1.0` launch execution.
 
 ## License
 

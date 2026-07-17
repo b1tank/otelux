@@ -136,4 +136,105 @@ export interface DataSource {
 	subscribe(handler: (event: ChangeEvent) => void): Disposable;
 }
 
+/** User-controllable settings owned by the shared local runtime. */
+export interface Settings {
+	readonly version: 1;
+	readonly otlp: {
+		readonly port: number;
+	};
+	readonly mcp: {
+		readonly enabled: boolean;
+		readonly port: number;
+	};
+	readonly retention: {
+		/** Drop telemetry older than this many hours. `0` disables the age limit. */
+		readonly maxAgeHours: number;
+		/** Prune oldest telemetry above this size. `0` disables the size limit. */
+		readonly maxSizeMb: number;
+	};
+	readonly storage: {
+		/** Absolute database path, or an empty string for the runtime default. */
+		readonly dbPath: string;
+	};
+}
+
+/** Patch accepted by the runtime settings update operation. */
+export interface PartialSettings {
+	readonly otlp?: {
+		readonly port?: number;
+	};
+	readonly mcp?: {
+		readonly enabled?: boolean;
+		readonly port?: number;
+	};
+	readonly retention?: {
+		readonly maxAgeHours?: number;
+		readonly maxSizeMb?: number;
+	};
+	readonly storage?: {
+		readonly dbPath?: string;
+	};
+}
+
+export const DEFAULT_SETTINGS: Settings = {
+	version: 1,
+	otlp: { port: 4319 },
+	mcp: { enabled: true, port: 4320 },
+	retention: { maxAgeHours: 72, maxSizeMb: 512 },
+	storage: { dbPath: '' },
+};
+
+export const MIN_PORT = 1;
+export const MAX_PORT = 65_535;
+export const MAX_RETENTION_AGE_HOURS = 43_800;
+export const MAX_RETENTION_SIZE_MB = 1_048_576;
+
+export interface StoragePathInfo {
+	readonly activePath: string;
+	readonly defaultPath: string;
+}
+
+export interface LoadSampleDataResult {
+	readonly traces: number;
+	readonly logs: number;
+	readonly metrics: number;
+}
+
+export type ReceiverStatus =
+	| { readonly kind: 'starting' }
+	| { readonly kind: 'running'; readonly port: number; readonly host: string }
+	| {
+			readonly kind: 'error';
+			readonly port: number;
+			readonly host: string;
+			readonly message: string;
+	  };
+
+export type McpStatus =
+	| { readonly kind: 'starting' }
+	| { readonly kind: 'running'; readonly port: number; readonly host: string }
+	| { readonly kind: 'disabled' }
+	| {
+			readonly kind: 'error';
+			readonly port: number;
+			readonly host: string;
+			readonly message: string;
+	  };
+
+export type UpdateSettingsResult =
+	| {
+			readonly ok: true;
+			readonly settings: Settings;
+			readonly status: ReceiverStatus;
+			readonly mcpStatus: McpStatus;
+	  }
+	| { readonly ok: false; readonly error: string };
+
+/** Every event emitted by the shared runtime to its clients. */
+export type RuntimeEvent =
+	| ChangeEvent
+	| { readonly kind: 'settings-changed'; readonly settings: Settings }
+	| { readonly kind: 'receiver-status-changed'; readonly status: ReceiverStatus }
+	| { readonly kind: 'mcp-status-changed'; readonly status: McpStatus };
+
 export const OTELUX_PROTOCOL_VERSION = '0.1.0' as const;

@@ -1,14 +1,7 @@
 import type { Engine } from '@otelux/engine';
+import type { ReceiverStatus } from '@otelux/protocol';
 import { type Receiver, createReceiver } from '@otelux/receiver';
-import type { ReceiverStatus } from '../shared/ipc.js';
 
-/**
- * Wraps {@link createReceiver} with start/stop/restart and reified
- * lifecycle state. Bind failures (EADDRINUSE, EACCES) become
- * `{ kind: 'error', ... }` status rather than thrown exceptions so the
- * app stays usable when a port is taken — the renderer can show the
- * error and let the user pick a different port.
- */
 export class ReceiverHost {
 	private receiver: Receiver | undefined;
 	private currentStatus: ReceiverStatus = { kind: 'starting' };
@@ -31,11 +24,6 @@ export class ReceiverHost {
 		};
 	}
 
-	/**
-	 * Bind on the requested port. Tears down a previously-running receiver
-	 * first so callers can safely use this for restarts. Returns the new
-	 * status so the caller can branch on success/error without subscribing.
-	 */
 	async start(port: number): Promise<ReceiverStatus> {
 		await this.stop();
 		this.setStatus({ kind: 'starting' });
@@ -49,18 +37,18 @@ export class ReceiverHost {
 			await receiver.start();
 			this.receiver = receiver;
 			this.setStatus({ kind: 'running', port: receiver.port, host: this.host });
-		} catch (err) {
-			const message = err instanceof Error ? err.message : String(err);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
 			this.setStatus({ kind: 'error', port, host: this.host, message });
 		}
 		return this.currentStatus;
 	}
 
 	async stop(): Promise<void> {
-		const r = this.receiver;
+		const receiver = this.receiver;
 		this.receiver = undefined;
-		if (r) {
-			await r.stop();
+		if (receiver) {
+			await receiver.stop();
 		}
 	}
 

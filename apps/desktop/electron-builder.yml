@@ -15,6 +15,7 @@ files:
   # everywhere and the workspace packages' `src/` (including tests) and
   # build config. This keeps source, tests, and maps out of the artifact.
   - "!**/*.map"
+  - "!node_modules/@otelux/*/.turbo/**"
   - "!node_modules/@otelux/*/src/**"
   - "!node_modules/@otelux/*/tsconfig*.json"
   - "!node_modules/@otelux/*/tsup.config.*"

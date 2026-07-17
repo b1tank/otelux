@@ -40,6 +40,6 @@ New plan/spec/proposal/test material belongs under `docs/`, never the root.
 
 ## Layout
 
-- `packages/` — `types`, `protocol`, `engine`, `engine-node`, `receiver`, `mcp-server`, `ui`, `adapter-direct`.
+- `packages/` — `types`, `protocol`, `engine`, `engine-node`, `local-runtime`, `receiver`, `mcp-server`, `ui`, `adapter-direct`.
 - `apps/` — `desktop` (Electron).
 - Adding a `DataSource` method means updating **all** consumers: `ipcDataSource`, `adapter-direct`, and the `ui`/adapter test fakes.
