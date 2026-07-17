@@ -135,8 +135,18 @@ jobs:
       - name: Build and package .deb
         run: npm run package -w @otelux/desktop
 
+      - name: Checkout release automation
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ github.sha }}
+          path: .release-automation
+          persist-credentials: false
+
       - name: Smoke-test the packaged app
-        run: xvfb-run -a npm run smoke -w @otelux/desktop
+        env:
+          OTELUX_SMOKE_DESKTOP_DIR: ${{ github.workspace }}/apps/desktop
+          OTELUX_SMOKE_REPO_ROOT: ${{ github.workspace }}
+        run: xvfb-run -a node .release-automation/apps/desktop/scripts/smoke.mjs
 
       - name: Generate SBOM
         run: |
@@ -196,13 +206,6 @@ jobs:
 
           EOF
           cat "${RUNNER_TEMP}/generated-notes.md" >> "${RUNNER_TEMP}/release-notes.md"
-
-      - name: Checkout release automation
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          ref: ${{ github.sha }}
-          path: .release-automation
-          persist-credentials: false
 
       - name: Publish prerelease
         env:

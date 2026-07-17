@@ -24,8 +24,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const desktopDir = join(here, '..');
-const repoRoot = join(desktopDir, '..', '..');
+const desktopDir = process.env.OTELUX_SMOKE_DESKTOP_DIR ?? join(here, '..');
+const repoRoot = process.env.OTELUX_SMOKE_REPO_ROOT ?? join(desktopDir, '..', '..');
 const binary = join(desktopDir, 'release', 'linux-unpacked', 'otelux');
 const fixture = join(repoRoot, 'fixtures', 'sample_trace.json');
 
@@ -135,6 +135,56 @@ function evaluateRenderer(webSocketDebuggerUrl, expression) {
 	});
 }
 
+function closeRenderer(webSocketDebuggerUrl) {
+	return new Promise((resolve, reject) => {
+		const socket = new WebSocket(webSocketDebuggerUrl);
+		let sent = false;
+		let finished = false;
+		const finish = (callback) => {
+			if (finished) {
+				return;
+			}
+			finished = true;
+			clearTimeout(timer);
+			socket.close();
+			callback();
+		};
+		const timer = setTimeout(() => {
+			finish(() => (sent ? resolve() : reject(new Error('renderer CDP close command was not sent'))));
+		}, 1_000);
+
+		socket.addEventListener('open', () => {
+			sent = true;
+			socket.send(
+				JSON.stringify({
+					id: 1,
+					method: 'Runtime.evaluate',
+					params: { expression: 'window.close()' },
+				}),
+			);
+		});
+		socket.addEventListener('message', () => finish(resolve));
+		socket.addEventListener('close', () => {
+			finish(() => (sent ? resolve() : reject(new Error('renderer CDP closed before command'))));
+		});
+		socket.addEventListener('error', () => {
+			finish(() => (sent ? resolve() : reject(new Error('renderer CDP connection failed'))));
+		});
+	});
+}
+
+function versionAtLeast(version, minimum) {
+	const actual = version.split('.').map(Number);
+	const required = minimum.split('.').map(Number);
+	for (let index = 0; index < Math.max(actual.length, required.length); index++) {
+		const difference = (actual[index] ?? 0) - (required[index] ?? 0);
+		if (difference !== 0) {
+			return difference > 0;
+		}
+	}
+	return true;
+}
+
 async function waitForRenderer(timeoutMs) {
 	const deadline = Date.now() + timeoutMs;
 	while (Date.now() < deadline) {
@@ -146,6 +196,7 @@ async function waitForRenderer(timeoutMs) {
 					page.webSocketDebuggerUrl,
 					`JSON.stringify({
 							hasBridge: typeof window.otelux?.invoke === 'function',
+							version: window.otelux?.version,
 							rootChildren: document.getElementById('root')?.childElementCount ?? 0,
 							text: document.body.innerText
 						})`,
@@ -257,20 +308,24 @@ try {
 			fail('preload bridge or rendered workbench was not available within 45s');
 		} else {
 			console.log('OK: preload bridge loaded and workbench rendered');
-			const storageUsage = await evaluateRenderer(
-				renderer.webSocketDebuggerUrl,
-				`(async () => JSON.stringify(await window.otelux.invoke({ kind: 'getStorageUsage' })))()`,
-			);
-			if (
-				storageUsage.retentionBytes <= 0 ||
-				storageUsage.totalBytes !==
-					storageUsage.databaseFileBytes + storageUsage.walBytes + storageUsage.sharedMemoryBytes
-			) {
-				fail('storage usage IPC returned an incoherent SQLite footprint');
+			if (versionAtLeast(renderer.state.version, '0.1.2')) {
+				const storageUsage = await evaluateRenderer(
+					renderer.webSocketDebuggerUrl,
+					`(async () => JSON.stringify(await window.otelux.invoke({ kind: 'getStorageUsage' })))()`,
+				);
+				if (
+					storageUsage.retentionBytes <= 0 ||
+					storageUsage.totalBytes !==
+						storageUsage.databaseFileBytes + storageUsage.walBytes + storageUsage.sharedMemoryBytes
+				) {
+					fail('storage usage IPC returned an incoherent SQLite footprint');
+				} else {
+					console.log('OK: storage usage IPC returned a coherent SQLite footprint');
+				}
 			} else {
-				console.log('OK: storage usage IPC returned a coherent SQLite footprint');
+				console.log(`OK: storage usage IPC is not part of desktop ${renderer.state.version}`);
 			}
-			await evaluateRenderer(renderer.webSocketDebuggerUrl, 'window.close(); true');
+			await closeRenderer(renderer.webSocketDebuggerUrl);
 			await new Promise((resolve) => setTimeout(resolve, 500));
 			const hiddenHealth = await fetch(`${baseUrl}/healthz`);
 			if (hiddenHealth.status !== 200) {
