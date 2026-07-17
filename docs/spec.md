@@ -6,7 +6,7 @@ OTelux is a local-first OpenTelemetry workbench. It receives local telemetry, ke
 
 This document is the source of truth for what the product is, what is implemented now, and what behavior a supported release must provide. [plan.md](plan.md) owns future work, [test.md](test.md) owns release verification, and [proposal.md](proposal.md) owns the product rationale.
 
-User operation lives in [getting-started.md](getting-started.md), system architecture in [arch.md](arch.md), data handling in [privacy.md](privacy.md), and trust boundaries in [security-model.md](security-model.md).
+User operation lives in [getting-started.md](getting-started.md), system architecture in [arch.md](arch.md), communication contracts in [protocol.md](protocol.md), storage/query invariants in [storage.md](storage.md), data handling in [privacy.md](privacy.md), and trust boundaries in [security-model.md](security-model.md).
 
 The **Current Baseline** and status tables are descriptive and must match the code. Sections labeled **Requirements** are normative product targets; an item there is not shipped unless the Current Baseline says it is live. Release-specific platform and feature limitations belong in release notes.
 
@@ -45,6 +45,8 @@ Important current limits:
 - OTLP/gRPC ingest is planned, not shipped (OTLP/HTTP JSON and protobuf are live).
 - Dense trace modes and detail search need polish.
 - Agent-run correlation and service overview tools are schema-stable but not fully implemented.
+- The storage audit found three pre-daemon blockers: span identity is incorrectly global by `spanId`, trace service filtering occurs after SQL pagination with an inconsistent count, and metric listing performs one point-history query per instrument. See [storage.md](storage.md#audit-findings).
+- `@otelux/protocol` is currently an in-memory TypeScript contract, not a validated JSON wire contract. Runtime RPC/SSE DTOs and schema snapshots are required before Desktop becomes a daemon client. See [protocol.md](protocol.md#current-gaps).
 
 ## Signals In Scope
 
@@ -79,6 +81,8 @@ Agent plugin    Direct MCP    CLI    Desktop
 The load-bearing boundary is `DataSource` from `@otelux/protocol`. The UI asks for telemetry through this interface. Hosts decide whether the request is served directly, over Electron IPC, or over local HTTP/events. The browser is a delivery mode opened by the plugin or CLI, not a separate product form.
 
 The runtime is the only process that opens the active database and binds the receiver. The engine is the source of truth for ingest, query, layout, and subscriptions. The receiver writes into it; the shared workbench and agent tools read from it. See [arch.md](arch.md) for lifecycle and migration details.
+
+The daemon transport and storage implementations must conform to [protocol.md](protocol.md) and [storage.md](storage.md); package types alone are not evidence that a JSON or SQL boundary is compatible or efficient.
 
 ## Packages
 

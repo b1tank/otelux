@@ -12,6 +12,8 @@ The core invariant is:
 
 This document describes the target architecture. The [Current Implementation](#current-implementation) section distinguishes what is shipped today from what still needs to be built.
 
+The detailed communication contract is [protocol.md](protocol.md). SQLite schema and query invariants are [storage.md](storage.md). Those documents are normative for daemon and storage work; this document owns the system shape.
+
 ## Product Forms
 
 | Form | User experience | What it installs or starts | Status |
@@ -65,6 +67,19 @@ flowchart LR
     Engine --> Storage[SQLite storage and retention]
     Storage --> DB[(One otelux.db)]
 ```
+
+### Communication Boundaries
+
+OTelux uses one protocol per boundary:
+
+- OTLP/HTTP protobuf or JSON for external telemetry ingest;
+- direct typed calls between runtime, engine, and storage in one process;
+- MCP JSON-RPC over stdio/Streamable HTTP for agent tools only;
+- JSON-RPC 2.0 over loopback HTTP for the planned Desktop/CLI/browser Runtime API;
+- Server-Sent Events for one-way live invalidations;
+- Electron IPC only as a temporary Desktop bridge while the runtime remains embedded.
+
+MCP is not reused as the workbench API, and WebSocket/internal gRPC are not introduced without a demonstrated bidirectional-streaming requirement. See [protocol.md](protocol.md) for method families, wire encodings, authentication, errors, and version negotiation.
 
 ### Runtime Ownership
 
@@ -123,6 +138,8 @@ All listeners bind to loopback by default. LAN exposure requires a future explic
 The `DataSource` interface remains the load-bearing UI boundary. The workbench asks for traces, logs, metrics, details, and change events through that contract; host adapters decide whether those calls are direct, Electron IPC, or local HTTP/event traffic.
 
 The runtime-served workbench and Desktop renderer use the same compiled React application. Desktop may add native window, menu, and update integration, but it must not fork observability views or query behavior.
+
+Storage must obey the statement-count, identity, pagination, and bounded-payload rules in [storage.md](storage.md). In particular, span identity is `(traceId, spanId)`, list predicates must apply before count/pagination, and metric metadata queries must not load each instrument's full point history.
 
 ## Local Data And Migration
 

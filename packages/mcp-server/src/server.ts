@@ -19,9 +19,9 @@ import { defaultTools } from './tools/index.js';
 
 /**
  * Implementation of a single MCP tool. `inputSchema` is sent verbatim
- * to clients during `tools/list` so they can drive a UI / completion;
- * `handler` receives the (already-validated against the schema) input
- * and returns whatever JSON-serializable value the spec calls for.
+ * to clients during `tools/list` so they can drive a UI / completion.
+ * Inputs are not runtime-validated against it yet; handlers currently own
+ * validation until the protocol-hardening work adds one shared validator.
  *
  * Tools are passed an {@link McpToolContext} rather than the raw engine
  * so we can later layer auth, rate-limiting, or read-only enforcement

@@ -41,6 +41,8 @@ The runtime is the only process that opens SQLite, applies migrations and retent
 - [docs/privacy.md](docs/privacy.md) — local data handling and safe telemetry sharing.
 - [docs/security-model.md](docs/security-model.md) — trust boundaries, current safeguards, and release blockers.
 - [docs/arch.md](docs/arch.md) — the four product forms, shared local runtime, UI delivery, data ownership, and end-user scenarios.
+- [docs/protocol.md](docs/protocol.md) — channel matrix, transport choices, Runtime RPC/SSE wire rules, versioning, and schema requirements.
+- [docs/storage.md](docs/storage.md) — SQLite identity, indexing, pagination, query budgets, audit findings, and performance verification.
 - [docs/proposal.md](docs/proposal.md) — project rationale, audience, and product direction.
 - [docs/test.md](docs/test.md) — manual desktop verification plan.
 - [design/README.md](design/README.md) — UI mockup philosophy and design notes.

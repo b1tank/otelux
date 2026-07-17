@@ -32,7 +32,7 @@ Done when:
 
 Goal: replace the current memory-backed storage with a real local store that survives restarts.
 
-Status: **delivered.** `@otelux/engine-node` is a durable `node:sqlite` store wired into the desktop app, with user-configurable retention, a forward-migration framework, corruption recovery, and a contract suite shared with the memory backend.
+Status: **foundation delivered; audited hardening required before daemon release.** `@otelux/engine-node` is a durable `node:sqlite` store wired into the desktop app, with user-configurable retention, a forward-migration framework, corruption recovery, and a contract suite shared with the memory backend. The schema/query audit in [storage.md](storage.md) found correctness and N+1 issues that block treating this phase as complete for multi-client use.
 
 Tasks:
 
@@ -42,12 +42,21 @@ Tasks:
 - [x] Add retention controls by age and size (default 72h / 512 MB; `0` disables either bound), exposed in Settings and enforced by a background prune + on-change.
 - [x] Add schema migration framework (versioned, forward-only) and corruption-tolerance recovery (quarantine the bad file, start fresh), with tests for bootstrap, newer-version, and corrupt-file cases.
 - [x] Run the storage contract test suite against both memory and SQLite backends.
+- Change span identity and every detail lookup to `(traceId, spanId)`; migrate schema v1 safely and add duplicate-span-ID-across-traces coverage.
+- Normalize trace services and apply the same indexed service predicate before count and cursor pagination.
+- Split metric instrument metadata from point history; remove the per-instrument point-query N+1 and bound point windows/payloads.
+- Add grouped facet queries so the workbench does not fetch 500 raw records per signal to discover filters.
+- Add keyset cursor pagination for live lists and optional exact counts.
+- Add statement-count and `EXPLAIN QUERY PLAN` tests enforcing the budgets in [storage.md](storage.md#query-contracts-and-statement-budgets).
+- Add FTS5 log search only after tokenizer/fallback parity tests define exact semantics.
 
 Done when:
 
 - [x] Desktop data survives restart.
 - [x] Existing engine tests pass against both memory and SQLite storage (shared contract suite).
 - [x] Retention can bound disk growth (age and size) without blocking ingest.
+- Span identity, filtered count/page results, and memory/SQLite behavior are correct under the adversarial fixtures in [storage.md](storage.md#verification).
+- Trace, log, metric, facet, and detail operations satisfy their SQL statement and payload budgets.
 
 ## Phase 3 — Agent And Service Intelligence
 
@@ -108,12 +117,15 @@ Tasks:
 - [x] Extract backend composition into `@otelux/local-runtime`; Desktop now delegates SQLite, migrations, retention, OTLP, MCP, settings, and sample data to it.
 - Run `@otelux/local-runtime` as a single-instance per-user daemon instead of embedding it in Electron.
 - [x] Add canonical per-user data-home resolution, nonce-protected state/locking, protocol/runtime version metadata, and resumable copy-only legacy Desktop migration.
-- Add an HTTP/event `DataSource` adapter, serve the existing `@otelux/ui` as a loopback browser workbench, and convert Desktop into a client of that runtime.
+- Define wire DTOs and codecs in `@otelux/protocol`, generate checked-in JSON Schema snapshots, and add backward/forward compatibility fixtures.
+- Add JSON-RPC 2.0 Runtime RPC over loopback HTTP plus SSE invalidations, following [protocol.md](protocol.md); do not expose MCP as the UI API.
+- Add an authenticated HTTP/SSE `DataSource` adapter, serve the existing `@otelux/ui` as a same-origin loopback workbench, and convert Desktop into a client of that runtime.
+- Add dedicated runtime/API and MCP tokens/scopes plus one-time browser session bootstrap; tokens must never appear in dashboard URLs or `runtime.json`.
 - Add the OTelux CLI for runtime lifecycle, status, settings, dashboard launch, and diagnostics.
 - Package the shared stdio MCP launcher for direct-MCP users and make the Claude/Codex plugin ensure the runtime without requiring Desktop.
 - Add confirmation-backed skills for configuring Claude, Codex, OpenTelemetry SDKs, and Collectors, with sensitive telemetry capture disabled by default.
 - Validate plugin-first, Desktop-first, direct-MCP, CLI-only, multi-agent, upgrade, port-conflict, and uninstall scenarios on every supported platform.
-- Add stable output schemas and paginated UI query tools/resources for traces, logs, and metrics.
+- Add validated MCP input and output schemas; keep agent summaries separate from paginated UI query DTOs.
 - Publish prebuilt CLI, direct-MCP, and self-contained Claude/Codex plugin artifacts that require no install-time compilation or separate Desktop installation.
 - Complete marketplace metadata, support/privacy material, clean-install evidence, and Claude/Codex publishing workflows.
 

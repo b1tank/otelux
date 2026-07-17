@@ -5,9 +5,8 @@
  * one JSON-RPC request per line on stdin, one response per line on
  * stdout. Lines that are not valid JSON return a `-32700 Parse error`.
  *
- * Spawn-on-demand clients (Codex CLI, Claude Code, Cursor) launch the
- * extension/desktop's `--mcp-stdio` mode and pipe through it. Tests
- * inject in-memory streams in lieu of `process.stdin/stdout`.
+ * Spawn-on-demand clients and plugin bridges can launch this transport
+ * directly. Tests inject in-memory streams in lieu of `process.stdin/stdout`.
  */
 
 import { type Interface as ReadlineInterface, createInterface } from 'node:readline';
