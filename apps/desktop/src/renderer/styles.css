@@ -163,178 +163,325 @@ body,
 	cursor: default;
 }
 
-.modal {
+.settings-modal {
 	position: relative;
 	z-index: 1;
 	background: var(--otelux-bg-panel);
 	border: 1px solid var(--otelux-border);
-	border-radius: 6px;
-	min-width: 360px;
-	max-width: 480px;
-	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+	border-radius: 8px;
+	box-shadow: 0 20px 64px rgba(0, 0, 0, 0.58);
 	color: inherit;
 	padding: 0;
-	display: flex;
-	flex-direction: column;
-	max-height: calc(100vh - 32px);
-	width: min(480px, calc(100vw - 32px));
+	display: grid;
+	grid-template-columns: 200px minmax(0, 1fr);
+	overflow: hidden;
+	width: min(900px, calc(100vw - 48px));
+	height: min(640px, calc(100vh - 48px));
 }
 
-.modal__header {
+.settings-modal__sidebar {
+	display: flex;
+	flex-direction: column;
+	padding: 20px 12px;
+	background: color-mix(in srgb, var(--otelux-bg) 60%, var(--otelux-bg-panel));
+	border-right: 1px solid var(--otelux-border);
+}
+
+.settings-modal__brand {
+	padding: 0 10px 20px;
+	font-size: 14px;
+	font-weight: 650;
+}
+
+.settings-modal__nav-label {
+	padding: 0 10px 6px;
+	color: var(--otelux-fg-muted);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+.settings-modal__nav {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+
+.settings-modal__nav button {
+	width: 100%;
+	height: 36px;
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
-	padding: 12px 16px;
+	gap: 10px;
+	padding: 0 10px;
+	background: transparent;
+	border: 0;
+	border-radius: 5px;
+	color: var(--otelux-fg-muted);
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.settings-modal__nav button:hover:not(:disabled) {
+	background: var(--otelux-bg-hover);
+	color: var(--otelux-fg);
+}
+
+.settings-modal__nav button[aria-selected="true"] {
+	background: var(--otelux-bg-elevated);
+	color: var(--otelux-fg);
+}
+
+.settings-modal__nav button:focus-visible,
+.settings-modal__close:focus-visible,
+.settings-modal__actions button:focus-visible,
+.settings-modal__copy:focus-visible {
+	outline: 2px solid color-mix(in srgb, var(--otelux-accent) 55%, transparent);
+	outline-offset: 1px;
+}
+
+.settings-modal__shell {
+	min-width: 0;
+	min-height: 0;
+	display: grid;
+	grid-template-rows: 56px minmax(0, 1fr) minmax(56px, auto);
+}
+
+.settings-modal__header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 0 24px;
 	border-bottom: 1px solid var(--otelux-border);
 }
 
-.modal__header h2 {
+.settings-modal__header h2 {
 	margin: 0;
-	font-size: 14px;
-	font-weight: 600;
+	font-size: 15px;
+	font-weight: 650;
 }
 
-.modal__close {
-	background: none;
-	border: none;
+.settings-modal__close {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	margin-left: auto;
+	padding: 0;
+	background: transparent;
+	border: 0;
+	border-radius: 4px;
 	color: var(--otelux-fg-muted);
 	cursor: pointer;
-	font-size: 14px;
 }
 
-.modal__close:hover {
+.settings-modal__close:hover:not(:disabled) {
+	background: var(--otelux-bg-hover);
 	color: var(--otelux-fg);
 }
 
-.modal__body {
-	padding: 16px;
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
+.settings-modal__body {
+	min-height: 0;
 	overflow-y: auto;
+	padding: 24px;
 }
 
-.field {
+.settings-modal__panel[hidden] {
+	display: none;
+}
+
+.settings-modal__intro {
+	margin: 0 0 24px;
+	color: var(--otelux-fg-muted);
+	font-size: 12px;
+}
+
+.settings-modal__section {
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
+	gap: 4px;
 }
 
-.field__label {
-	font-size: 12px;
-	color: var(--otelux-fg);
+.settings-modal__section + .settings-modal__section {
+	margin-top: 28px;
+	padding-top: 24px;
+	border-top: 1px solid var(--otelux-border);
 }
 
-.field__hint {
-	font-size: 11px;
+.settings-modal__section h3 {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 650;
+}
+
+.settings-modal__section-description {
+	margin: 0 0 8px;
 	color: var(--otelux-fg-muted);
+	font-size: 11px;
+}
+
+.settings-modal__row {
+	min-height: 60px;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 220px;
+	align-items: center;
+	gap: 24px;
+	border-bottom: 1px solid var(--otelux-border);
+}
+
+.settings-modal__row:last-child {
+	border-bottom: 0;
+}
+
+.settings-modal__row-copy {
+	min-width: 0;
+}
+
+.settings-modal__row-title {
+	display: block;
+	color: var(--otelux-fg);
+	font-size: 12px;
+}
+
+.settings-modal__row-hint {
+	margin-top: 3px;
+	color: var(--otelux-fg-muted);
+	font-size: 11px;
 	line-height: 1.4;
 }
 
-.field__hint code {
-	background: rgba(255, 255, 255, 0.06);
-	padding: 1px 4px;
-	border-radius: 2px;
-	font-size: 11px;
+.settings-modal__row-hint code {
+	font-size: inherit;
 }
 
-.field input[type="number"] {
+.settings-modal__control {
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+.settings-modal__control input[type="number"],
+.settings-modal__control input[type="text"] {
+	box-sizing: border-box;
+	width: 100%;
+	height: 32px;
+	padding: 0 9px;
 	background: var(--otelux-bg);
-	border: 1px solid var(--otelux-border);
-	border-radius: 3px;
+	border: 1px solid var(--otelux-border-strong, var(--otelux-border));
+	border-radius: 4px;
 	color: var(--otelux-fg);
-	padding: 6px 8px;
 	font: inherit;
-	width: 120px;
+	font-variant-numeric: tabular-nums;
+}
+
+.settings-modal__control input[type="number"] {
 	appearance: textfield;
 }
 
-.field input[type="number"]::-webkit-inner-spin-button,
-.field input[type="number"]::-webkit-outer-spin-button {
+.settings-modal__control input[type="number"]::-webkit-inner-spin-button,
+.settings-modal__control input[type="number"]::-webkit-outer-spin-button {
 	appearance: none;
 	margin: 0;
 }
 
-.field input[type="number"]:focus {
-	outline: none;
+.settings-modal__control input:focus {
+	outline: 2px solid color-mix(in srgb, var(--otelux-accent) 55%, transparent);
+	outline-offset: 1px;
 	border-color: var(--otelux-accent);
 }
 
-.field input[type="text"] {
-	background: var(--otelux-bg);
-	border: 1px solid var(--otelux-border);
-	border-radius: 3px;
-	color: var(--otelux-fg);
-	padding: 6px 8px;
-	font: inherit;
-	width: 100%;
-}
-
-.field input[type="text"]:focus {
-	outline: none;
-	border-color: var(--otelux-accent);
-}
-
-/* Read-only path display with an adjacent Copy button. */
-.field__inline-row {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-}
-
-.field__path {
-	flex: 1 1 auto;
-	min-width: 0;
-	overflow-x: auto;
-	white-space: nowrap;
-	background: rgba(255, 255, 255, 0.06);
-	padding: 5px 8px;
-	border-radius: 3px;
-	font-size: 11px;
-}
-
-.field__copy {
-	flex: 0 0 auto;
-	background: var(--otelux-bg);
-	border: 1px solid var(--otelux-border);
-	border-radius: 3px;
-	color: var(--otelux-fg);
-	padding: 5px 10px;
-	font-size: 11px;
+.settings-modal__switch {
+	position: relative;
+	display: inline-flex;
 	cursor: pointer;
 }
 
-.field__copy:hover {
+.settings-modal__switch input {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	opacity: 0;
+}
+
+.settings-modal__switch span {
+	box-sizing: border-box;
+	width: 36px;
+	height: 22px;
+	padding: 2px;
+	background: var(--otelux-bg-elevated);
+	border: 1px solid var(--otelux-border-strong, var(--otelux-border));
+	border-radius: 11px;
+	transition: background 120ms ease, border-color 120ms ease;
+}
+
+.settings-modal__switch span::after {
+	content: "";
+	display: block;
+	width: 16px;
+	height: 16px;
+	background: var(--otelux-fg-muted);
+	border-radius: 50%;
+	transition: transform 120ms ease, background 120ms ease;
+}
+
+.settings-modal__switch input:checked + span {
+	background: var(--otelux-accent);
 	border-color: var(--otelux-accent);
 }
 
-/* Grouped settings (e.g. the MCP fieldset). A subtle bordered frame so
- * users scan "this whole block is one feature" without us needing a
- * second visual heading style. */
-.fieldset {
-	margin: 0;
-	padding: 12px 14px 14px;
-	border: 1px solid var(--otelux-border);
-	border-radius: 4px;
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
+.settings-modal__switch input:checked + span::after {
+	background: #ffffff;
+	transform: translateX(14px);
 }
 
-.fieldset > legend {
-	padding: 0 6px;
-	font-size: 12px;
+.settings-modal__switch input:focus-visible + span {
+	outline: 2px solid color-mix(in srgb, var(--otelux-accent) 55%, transparent);
+	outline-offset: 2px;
+}
+
+.settings-modal__switch:has(input:disabled) {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.settings-modal__path {
+	display: block;
+	margin-top: 4px;
+	overflow: hidden;
 	color: var(--otelux-fg-muted);
+	font-size: 11px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
-.retention-fields {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-	gap: 12px;
+.settings-modal__copy {
+	width: 32px;
+	height: 32px;
+	justify-content: center;
+	background: var(--otelux-bg);
+	border: 1px solid var(--otelux-border-strong, var(--otelux-border));
+	border-radius: 4px;
 }
 
-.retention-fields .field input[type="number"] {
-	width: 100%;
+.settings-modal__copy:hover {
+	border-color: var(--otelux-accent);
+}
+
+.settings-modal__status {
+	font-style: normal;
+}
+
+.settings-modal__status--ok {
+	color: var(--otelux-ok);
+}
+
+.settings-modal__status--error {
+	color: var(--otelux-error);
 }
 
 .storage-budget {
@@ -491,97 +638,84 @@ body,
 	background: var(--otelux-border);
 }
 
-@media (max-width: 520px) {
-	.retention-fields {
+.settings-modal__footer {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	min-height: 56px;
+	padding: 8px 24px;
+	background: var(--otelux-bg-panel);
+	border-top: 1px solid var(--otelux-border);
+}
+
+.settings-modal__error {
+	min-width: 0;
+	flex: 1;
+	margin: 0;
+	color: var(--otelux-error);
+	font-size: 11px;
+	line-height: 1.4;
+}
+
+.settings-modal__footer-spacer {
+	flex: 1;
+}
+
+.settings-modal__actions {
+	display: flex;
+	gap: 8px;
+	flex: 0 0 auto;
+}
+
+.settings-modal__actions button {
+	height: 32px;
+	padding: 0 14px;
+	background: var(--otelux-bg-elevated);
+	border: 1px solid var(--otelux-border);
+	border-radius: 4px;
+	color: var(--otelux-fg);
+	font: inherit;
+	cursor: pointer;
+}
+
+.settings-modal__actions button:hover:not(:disabled) {
+	background: var(--otelux-bg-hover);
+}
+
+.settings-modal button:disabled,
+.settings-modal input:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.settings-modal__actions .primary {
+	background: var(--otelux-accent);
+	border-color: var(--otelux-accent);
+	color: #0b0d18;
+	font-weight: 600;
+}
+
+.settings-modal__actions .primary:hover:not(:disabled) {
+	background: color-mix(in srgb, var(--otelux-accent) 85%, #ffffff);
+}
+
+@media (max-width: 720px) {
+	.settings-modal {
+		grid-template-columns: 164px minmax(0, 1fr);
+	}
+
+	.settings-modal__row {
 		grid-template-columns: 1fr;
+		gap: 8px;
+		padding: 12px 0;
+	}
+
+	.settings-modal__control {
+		justify-content: flex-start;
 	}
 
 	.storage-budget__foot {
 		flex-wrap: wrap;
 		white-space: normal;
 	}
-}
-
-/* Checkbox row: checkbox sits next to the label rather than the
- * default `.field` column layout, which stretches the checkbox to
- * the full input width. */
-.field--inline {
-	flex-direction: row;
-	align-items: center;
-	gap: 8px;
-}
-
-.field--inline input[type="checkbox"] {
-	width: 16px;
-	height: 16px;
-	margin: 0;
-	accent-color: var(--otelux-accent);
-	flex: 0 0 auto;
-}
-
-.field--inline > span {
-	font-size: 12px;
-	color: var(--otelux-fg);
-}
-
-.field__status {
-	font-style: normal;
-	padding: 0 4px;
-	border-radius: 2px;
-}
-
-.field__status--ok {
-	color: var(--otelux-status-ok, var(--otelux-accent));
-}
-
-.field__status--error {
-	color: var(--otelux-error);
-}
-
-.modal__error {
-	margin: 0;
-	padding: 8px 10px;
-	background: color-mix(in srgb, var(--otelux-error) 12%, transparent);
-	border: 1px solid color-mix(in srgb, var(--otelux-error) 40%, transparent);
-	color: var(--otelux-error);
-	border-radius: 3px;
-	font-size: 12px;
-}
-
-.modal__actions {
-	display: flex;
-	justify-content: flex-end;
-	gap: 8px;
-}
-
-.modal__actions button {
-	background: var(--otelux-bg-elevated);
-	border: 1px solid var(--otelux-border);
-	color: var(--otelux-fg);
-	padding: 6px 14px;
-	border-radius: 3px;
-	cursor: pointer;
-	font: inherit;
-}
-
-.modal__actions button:hover:not(:disabled) {
-	background: var(--otelux-bg-hover);
-}
-
-.modal__actions button:disabled {
-	opacity: 0.5;
-	cursor: not-allowed;
-}
-
-.modal__actions .primary {
-	background: var(--otelux-accent);
-	border-color: var(--otelux-accent);
-	/* Accent (#7aa2f7) is a saturated mid-blue; pure white text on it
-	 * looks washed out, while a deep ink-blue keeps the cap-and-stroke
-	 * contrast crisp. Matches the mockup's primary-button ink. */
-	color: #0b0d18;
-}
-
-.modal__actions .primary:hover:not(:disabled) {
-	background: color-mix(in srgb, var(--otelux-accent) 85%, #ffffff);
 }

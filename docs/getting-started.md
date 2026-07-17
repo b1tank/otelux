@@ -30,7 +30,7 @@ npm ci
 ${XDG_DATA_HOME:-$HOME/.local/share}/otelux/
 ```
 
-Set `OTELUX_DATA_DIR` to override this location for development or tests. Existing source/packaged Desktop data is copied into the canonical directory on first launch when no canonical database exists; source files are preserved. Two populated default databases are never merged or overwritten. Telemetry persists in SQLite, so received traces, logs, and metrics survive restarts. You can point the database at a custom absolute path in Settings → Database location (the current path is shown there with a Copy button; a change takes effect on the next launch). Old data is pruned by the retention setting (default 72 hours or 512 MB, whichever comes first; set either to `0` to disable that bound).
+Set `OTELUX_DATA_DIR` to override this location for development or tests. Existing source/packaged Desktop data is copied into the canonical directory on first launch when no canonical database exists; source files are preserved. Two populated default databases are never merged or overwritten. Telemetry persists in SQLite, so received traces, logs, and metrics survive restarts. You can point the database at a custom absolute path in Settings → Storage → Database location (the current path has a copy action; a change takes effect on the next launch). Old data is pruned by the retention setting (default 72 hours or 512 MB, whichever comes first; set either to `0` to disable that bound).
 
 After one successful build, launch the existing output without rebuilding:
 
@@ -71,7 +71,7 @@ Check the MCP server identity:
 curl --fail http://127.0.0.1:4320/
 ```
 
-The Settings dialog can change both ports and disable MCP. OTLP and MCP must use different ports. A listener bind failure rolls back to the previous healthy listener and does not alter saved settings. A later settings-file write failure is a known pre-release atomicity gap.
+Settings → Connections can change both ports and disable MCP. OTLP and MCP must use different ports. Listener bind or settings-file persistence failures roll back to the previous healthy listeners and do not alter saved settings.
 
 ## Send Synthetic Telemetry
 
@@ -270,9 +270,9 @@ The root build refreshes upstream workspace outputs before bundling the desktop 
 
 ### Telemetry disappeared after restart
 
-Telemetry persists to a local SQLite database, so a normal restart keeps your data. If data is missing, the retention setting may have pruned it: telemetry older than the age bound, or beyond the size bound (default 72 hours / 512 MB), is dropped. Adjust or disable retention in Settings → Data retention (`0` = no limit). If the database file was unreadable at startup (corrupt, or written by a newer OTelux), it is renamed aside with a `.corrupt-<timestamp>` suffix and a fresh database is created — the old file is preserved next to it for manual recovery, never deleted. Schema migration across future storage versions is tracked in [plan.md](plan.md#phase-2--durable-local-storage).
+Telemetry persists to a local SQLite database, so a normal restart keeps your data. If data is missing, the retention setting may have pruned it: telemetry older than the age bound, or beyond the size bound (default 72 hours / 512 MB), is dropped. Adjust or disable retention in Settings → Storage → Retention (`0` = no limit). If the database file was unreadable at startup (corrupt, or written by a newer OTelux), it is renamed aside with a `.corrupt-<timestamp>` suffix and a fresh database is created — the old file is preserved next to it for manual recovery, never deleted. Schema migration across future storage versions is tracked in [plan.md](plan.md#phase-2--durable-local-storage).
 
-Settings → Data retention includes a live SQLite budget meter. Its fill tracks the database-page count used by retention pruning; the line below reports actual disk footprint for the main database plus WAL and SHM sidecars. WAL overhead can temporarily raise physical disk usage without changing the retention fill.
+Settings → Storage → Retention includes a live SQLite budget meter. Its fill tracks the database-page count used by retention pruning; the line below reports actual disk footprint for the main database plus WAL and SHM sidecars. WAL overhead can temporarily raise physical disk usage without changing the retention fill.
 
 ### The Linux packaging command fails or produces incomplete artifacts
 

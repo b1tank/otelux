@@ -36,6 +36,7 @@ export {
 	ChevronDownIcon,
 	ChevronRightIcon,
 	CopyIcon,
+	DatabaseIcon,
 	DownloadIcon,
 	EyeIcon,
 	GithubIcon,

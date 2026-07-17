@@ -230,6 +230,7 @@ Queries should be bounded by limit and filters. Results should include counts wh
 - Pause/resume and clear data apply across traces, logs, and metrics.
 - Result footers show `Showing N ...` and live/paused state outside the scroll region.
 - Active filters show a count and a clear affordance.
+- Settings groups endpoint controls under Connections and retention/database controls under Storage, while preserving one atomic Save action. Exactly one category is visible, and validation reveals and focuses the category that owns the invalid value.
 - Service is the user-facing label. Raw OTel resource attributes belong in details.
 - OTelux keeps its own visual language. Interaction patterns can be borrowed; brand chrome should not be copied from other tools.
 - AI explain buttons are not a core feature. Hosts may layer assistance on top of deterministic local data.

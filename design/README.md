@@ -72,6 +72,7 @@ Min widths: list ≥ 280 px, waterfall ≥ 480 px. Splitter is 6 px wide with a 
 | **Deterministic service color** (hash → 1 of 8) | Same service is always the same color across all rows, all traces, the drawer header dot, and the dropdown option dot. |
 | **CSS variables for theme tokens** | Promote to `packages/ui/src/tokens.css` on port. One source of truth for colors, spacing, radii, type. |
 | **Retention meter tracks SQLite pages, not WAL overhead** | The battery fill matches the exact page budget used by pruning. Real DB/WAL/SHM disk footprint stays visible beneath it without falsely implying temporary WAL growth should trigger retention. |
+| **Settings uses a left category rail** | Connections and Storage are separate tasks. A fixed rail keeps the modal calm, preserves one Save path, and scales to future categories without stacking every control into one noisy column. |
 
 ---
 
@@ -90,6 +91,7 @@ These should be enforced in code, not in CSS.
 9. **Keyboard parity.** Every interactive control reachable by mouse must also be reachable by keyboard, with a visible focus state.
 10. **No layout shift on async data.** Skeleton or reserved height for rows that haven't loaded.
 11. **Storage pressure matches pruning.** The retention meter fill uses SQLite page bytes; physical DB/WAL/SHM bytes are a separate breakdown.
+12. **Settings category state is explicit.** Exactly one sidebar tab and panel is active; validation reveals the category containing the error.
 
 ---
 
@@ -128,6 +130,7 @@ If you edit the geometry, edit `icon.svg`, mirror the change in `OTeluxLogo.tsx`
 | `.overlay` + `.viewer` | `<ValueViewer>` | `@radix-ui/react-dialog` (full modal) |
 | `.empty` | `<EmptyState>` | none |
 | `.storage-meter` + `.storage-battery` | `<StorageBudgetMeter>` | native meter semantics with custom presentation |
+| `.settings__side` + `.settings__panel` | `<SettingsModal>` category tabs | ARIA vertical tabs; one persistent form/footer |
 | All icons | `lucide-react` (`PanelLeft`, `PanelRight`, `List`, `Search`, `X`, `Copy`, `Download`, `Eye`, `ChevronRight`, `ChevronDown`, `AlertCircle`) | [`lucide-react`](https://lucide.dev) |
 
 ---
@@ -187,4 +190,3 @@ Not because they're bad — because shipping fewer well-built features beats shi
 2. **Endpoint pulse** when paused — keep green, switch to yellow, or stop pulsing entirely?
 3. **Trace card row 3 overflow** — when a trace has 5+ services, do we ellipsize chips (`api-gateway · order-svc · +3`) or wrap to a second line?
 4. **Drawer width** — fixed 460 px, percent of viewport, or user-resizable like the main splitter?
-5. **What does Settings open?** Still a modal? A dedicated route? A drawer from the right rail?

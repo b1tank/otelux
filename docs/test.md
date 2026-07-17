@@ -134,7 +134,7 @@ cat /tmp/otelux-userdata/settings.json 2>/dev/null
 
 ### 2.5 Settings cog opens settings
 - Click the **Settings** cog at the bottom of the **rail** (not the topbar — the cog moved there in the redesign).
-- **Expected**: backdrop dims, settings dialog appears centered, OTLP/HTTP port input focused with value selected (cursor highlights `4319`).
+- **Expected**: backdrop dims, the wide settings dialog appears centered, **Connections** is selected in the left category rail, only the Connections panel is visible, and focus is on the **Connections** tab.
 
 ### 2.6 Theme switch
 - Click the **Theme** button above **GitHub** in the left rail.
@@ -153,7 +153,10 @@ For each of the close paths, reopen the modal via the rail's Settings cog before
 | 3.3 | Press **Escape** | modal closes; receiver unchanged |
 | 3.4 | Click anywhere on dimmed area outside the modal | modal closes; receiver unchanged |
 | 3.5 | Click on the modal body (e.g. on the heading) | modal stays open (no propagation to backdrop) |
-| 3.6 | Tab from OTLP port input | focus moves through MCP toggle, MCP port, Cancel, Save, Close, then returns to the OTLP input; Shift+Tab reverses the cycle |
+| 3.6 | Press ArrowDown/ArrowUp on the selected category | selection and focus move between **Connections** and **Storage**; exactly one matching panel is visible |
+| 3.7 | Press End/Home on a category | selection and focus move to **Storage**/**Connections** respectively |
+| 3.8 | Tab from the Connections category | focus moves through Close, visible panel controls, Cancel, and Save, then returns to the selected category; Shift+Tab reverses the cycle |
+| 3.9 | Close with Escape, Cancel, or Close | focus returns to the Settings cog that opened the dialog |
 
 ---
 
@@ -172,6 +175,8 @@ Open settings (rail → Settings cog) before each row. After each row hit Cancel
 | 4.7 | `12.5` | Save | native number validation or the app rejects the non-integer; accepting or silently truncating it is a FAIL |
 | 4.8 | `14320` | Save | modal closes; receiver dot transitions starting→running; URL updates to `http://127.0.0.1:14320`; `cat /tmp/otelux-userdata/settings.json` has `{"version":1,"otlp":{"port":14320},"mcp":{"enabled":true,"port":4320}}` |
 | 4.9 | `14320` again | Save | no-op rebind (still running on 14320), modal closes |
+
+To verify category-aware validation, enter an invalid **Maximum size** under **Storage**, switch back to **Connections**, and click Save. **Storage** must become selected, its panel must become visible, and focus must move to **Maximum size** before the inline error is announced.
 
 ### 4.10 Port already in use and rollback
 Open a second listener:
@@ -262,19 +267,19 @@ For step 4.11.6, reuse the Python listener from step 4.10 with port `14331`, the
 - **Expected**: the previously ingested traces, logs, and metrics are still listed after restart (they are read back from the canonical `otelux.db`, not re-received). `ls /tmp/otelux-userdata/otelux.db*` shows the database file.
 
 ### 5.8 Data retention
-1. Open Settings → **Data retention**. Confirm defaults: **Keep for (hours)** `72`, **Max database size (MB)** `512`.
+1. Open Settings → **Storage** → **Retention**. Confirm defaults: **Keep for** `72`, **Maximum size** `512`.
 2. Confirm the **SQLite budget** meter shows current page usage against `512 MB`, a percentage, `72h window`, and an **On disk / DB / WAL / SHM** breakdown.
 3. While Settings remains open, ingest telemetry. Within 2 seconds, page usage and/or the physical breakdown updates without shifting the modal layout.
 4. Set **Keep for (hours)** to `0` → the meter previews **No age limit** before Save.
-5. Set **Max database size (MB)** to `0` → the meter previews **No size limit** and infinity rather than a fake percentage; Save is accepted.
+5. Set **Maximum size** to `0` → the meter previews **No size limit** and infinity rather than a fake percentage; Save is accepted.
 6. Enter a negative or non-integer value → inline validation error, nothing persisted.
 7. Restore defaults (`72` / `512`) before continuing.
 - **Expected**: meter fill uses SQLite page bytes (the same quantity size retention enforces), while DB/WAL/SHM are a separate physical footprint. Valid values persist under `"retention"`; invalid values do not mutate the file or running store.
 
 ### 5.9 Database location
-1. Open Settings → **Database location**. Confirm the **Active database file** shows `/tmp/otelux-userdata/otelux.db` and the **Copy** button copies that path to the clipboard.
+1. Open Settings → **Storage** → **Database location**. Confirm the **Active database file** shows `/tmp/otelux-userdata/otelux.db` and its copy icon copies that path to the clipboard.
 2. In **Custom database path**, enter a relative path (e.g. `foo.db`) → inline validation error, nothing persisted.
-3. Enter an absolute path in a writable directory (e.g. `/tmp/otelux-alt/otelux.db`) and Save → accepted; the hint shows "Restart required to switch to this path" and `settings.json` records `"storage":{"dbPath":"/tmp/otelux-alt/otelux.db"}`.
+3. Enter an absolute path in a writable directory (e.g. `/tmp/otelux-alt/otelux.db`) and Save → accepted; the hint shows "Restart required" and `settings.json` records `"storage":{"dbPath":"/tmp/otelux-alt/otelux.db"}`.
 4. Quit and relaunch with the same `OTELUX_DATA_DIR` → the **Active database file** now shows `/tmp/otelux-alt/otelux.db` and `ls /tmp/otelux-alt/otelux.db*` exists.
 5. Clear the custom path (blank) and Save, then restart → the active DB returns to the default location.
 - **Expected**: path changes are validated inline, persisted under `"storage"`, applied on the next launch (not mid-session), and a bad/unwritable custom path falls back to the default without crashing (log shows the fallback).

@@ -20,7 +20,7 @@ Treat an OTelux process and its local data with the same care as application log
 
 ## Current Storage
 
-The desktop stores traces, logs, and metrics in a local SQLite database (`otelux.db`) so they survive restarts. Open **Settings → Database location** to see and copy the exact active path or configure a custom absolute path.
+The desktop stores traces, logs, and metrics in a local SQLite database (`otelux.db`) so they survive restarts. Open **Settings → Storage → Database location** to see and copy the exact active path or configure a custom absolute path.
 
 Retention bounds disk growth. The defaults remove telemetry after 72 hours or when the database exceeds 512 MB, whichever happens first. Either bound can be changed or disabled in Settings. Clear data deletes every stored trace, log, metric, resource, and instrumentation scope after an explicit confirmation.
 
@@ -80,4 +80,4 @@ rm -rf "${XDG_DATA_HOME:-$HOME/.local/share}/otelux"
 rm -rf "${XDG_CONFIG_HOME:-$HOME/.config}/otelux/local"
 ```
 
-Inspect **Settings → Database location** before deleting files. Removing `otelux.db`, `settings.json`, and `mcp-token` resets telemetry, settings, and plugin authentication respectively. Stop OTelux before deleting the database or its `-wal`/`-shm` sidecars. Legacy Electron files are copied, not deleted, during migration.
+Inspect **Settings → Storage → Database location** before deleting files. Removing `otelux.db`, `settings.json`, and `mcp-token` resets telemetry, settings, and plugin authentication respectively. Stop OTelux before deleting the database or its `-wal`/`-shm` sidecars. Legacy Electron files are copied, not deleted, during migration.
