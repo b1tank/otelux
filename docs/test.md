@@ -21,6 +21,7 @@ Test quality is measured by release-risk coverage rather than by pursuing 100% l
 - Desktop main/preload integration tests cover settings validation and migration, port rebinding, rollback after bind or persistence failure, IPC runtime validation, lifecycle cleanup, and the exposed context-bridge surface.
 - Electron security tests assert sandboxing, context isolation, disabled Node integration, the narrow preload surface, rejected malformed IPC, blocked navigation and window creation, denied non-allowlisted permissions, and HTTPS-only external-link handling.
 - MCP transport tests assert explicit enablement or authentication and reject missing or invalid credentials without returning telemetry.
+- Pi package smoke verification loads `plugins/otelux`, exposes `/otelux-status`, and registers the bridge's `otel_*` tools without a second MCP implementation.
 - Packaged end-to-end tests launch release artifacts, assert the sandboxed preload bridge loads and the workbench visibly renders, close the window while ingest remains live, ingest traces, logs, and metrics, exercise one inspection path per signal, restart, verify persistence, clear data, and fully quit without orphaned listeners.
 - Accessibility checks combine automated scans with keyboard-only testing, focus order and return, dialog trapping, accessible names, both themes, high contrast, and 200% zoom.
 - Performance checks use a checked-in representative workload and enforce the budgets in [spec.md](spec.md); large result sets remain responsive through bounds, pagination, or virtualization.

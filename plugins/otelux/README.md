@@ -1,12 +1,13 @@
 # OTelux plugin
 
-Shared plugin for Claude Code and Codex.
+Shared plugin for Claude Code, Codex, and Pi.
 
 ## What it includes
 
 - Four shared skills: incident investigation, trace analysis, service health, and a real dashboard launch/focus action.
 - A bundled MCP stdio bridge that discovers and authenticates to the running OTelux desktop MCP listener. Claude resolves the bridge via `${CLAUDE_PLUGIN_ROOT}`; Codex starts it relative to the installed plugin root (`cwd: "."`). Both invoke the same bridge.
 - Dual manifests: `.claude-plugin/plugin.json` and `.codex-plugin/plugin.json`.
+- A thin Pi extension that registers the same MCP tools natively while keeping the MCP server as the single implementation.
 
 ## Prerequisites
 
@@ -39,6 +40,16 @@ Verify from a terminal:
 ```bash
 claude mcp get otelux
 ```
+
+## Pi
+
+Install this directory as a local Pi package:
+
+```bash
+pi install /absolute/path/to/otelux/plugins/otelux
+```
+
+The extension starts the existing MCP bridge, registers its `otel_*` tools with Pi, and closes the bridge with the Pi session. Use `/otelux-status` to verify the connection. Start the OTelux desktop app and keep MCP enabled before starting Pi.
 
 ## Local Codex marketplace
 

@@ -18,7 +18,7 @@ The detailed communication contract is [protocol.md](protocol.md). SQLite schema
 
 | Form | User experience | What it installs or starts | Status |
 |---|---|---|---|
-| Agent plugin | Install OTelux in Claude or Codex, use analysis skills and MCP tools, configure telemetry, and open the visual workbench. | Shared skills, host manifests, and a small stdio MCP launcher that ensures the local runtime is running. | Desktop-companion version shipped; self-contained runtime target. |
+| Agent plugin | Install OTelux in Claude, Codex, or Pi, use analysis skills and MCP tools, configure telemetry, and open the visual workbench. | Shared skills, host manifests, a small stdio MCP launcher, and a thin native Pi adapter over that launcher. | Desktop-companion version shipped; self-contained runtime target. |
 | Direct MCP | Register OTelux as an MCP server without installing agent skills or a desktop UI. | The same stdio MCP launcher used by the plugins. It ensures and connects to the local runtime. | Target packaging; the current bridge requires Desktop. |
 | CLI | Run, inspect, configure, stop, and open OTelux from a terminal or headless environment. | The local runtime plus commands such as `otelux serve`, `otelux status`, and `otelux open`. | Planned. |
 | Desktop app | Install a native workbench with receiver and storage settings. | Electron UI plus the shared local runtime. Desktop is a client of that runtime, not a second backend owner. | Runtime package embedded; standalone-daemon connection planned. |
@@ -35,7 +35,7 @@ These forms are distribution and entry-point choices. They do not create separat
 | A user installs only Desktop. | Desktop ensures the local runtime exists and connects to it. The same receiver, database, settings, and UI behavior are available without an agent plugin. |
 | A plugin user installs Desktop later. | Desktop discovers the existing runtime and immediately shows the telemetry already collected by the plugin. No second database is created. |
 | A Desktop user installs a plugin later. | The plugin connects to the existing runtime and exposes skills and MCP analysis over the telemetry already visible in Desktop. |
-| A user installs OTelux in both Claude and Codex. | Both launchers reuse one runtime, receiver, and database. Concurrent agent sessions do not bind duplicate ports. |
+| A user installs OTelux in Claude, Codex, and Pi. | All launchers reuse one runtime, receiver, and database. Pi registers the bridge tools natively; concurrent agent sessions do not bind duplicate ports. |
 | A user wants only MCP. | They register the standalone OTelux stdio launcher. It exposes the same tools and store without installing plugin skills or Electron. |
 | A headless user installs the CLI. | `otelux serve` runs the receiver, storage, MCP service, and browser assets without a desktop environment. |
 
@@ -133,7 +133,7 @@ All listeners bind to loopback by default. LAN exposure requires a future explic
 | In-process adapter | `@otelux/adapter-direct` | Tests and deliberately embedded hosts. |
 | HTTP/event adapter | Planned `@otelux/adapter-http` | Runtime-served workbench and Desktop client. |
 | Runtime composition | `@otelux/local-runtime` | Embedded by Desktop now; CLI, plugin launcher, and direct MCP after daemon lifecycle lands. |
-| Analysis workflows | `plugins/otelux/skills` | Claude and Codex plugin manifests. |
+| Analysis workflows | `plugins/otelux/skills` | Claude and Codex plugin manifests plus the Pi package adapter. |
 
 The `DataSource` interface remains the load-bearing UI boundary. The workbench asks for traces, logs, metrics, details, and change events through that contract; host adapters decide whether those calls are direct, Electron IPC, or local HTTP/event traffic.
 
@@ -167,12 +167,14 @@ Plugin-first users need no migration when they later install Desktop; Desktop si
 
 ## Agent Plugin And MCP
 
-The Claude and Codex manifests remain thin host-specific wrappers over one plugin payload:
+The Claude, Codex, and Pi integrations remain thin host-specific wrappers over one plugin payload:
 
 ```text
 plugins/otelux/
 ├── .claude-plugin/plugin.json
 ├── .codex-plugin/plugin.json
+├── package.json
+├── extensions/otelux.ts
 ├── .mcp.json
 ├── .mcp.codex.json
 ├── bin/otelux-mcp-launcher.mjs
@@ -185,7 +187,7 @@ plugins/otelux/
     └── configure-telemetry/
 ```
 
-The launcher is a per-session stdio MCP process, not the telemetry backend. It ensures the shared runtime is available and proxies MCP messages to it. This keeps agent host integration simple while preventing each Claude or Codex session from binding OTLP and browser ports.
+The launcher is a per-session stdio MCP process, not the telemetry backend. It ensures the shared runtime is available and proxies MCP messages to it. This keeps agent host integration simple while preventing each Claude, Codex, or Pi session from binding OTLP and browser ports. Pi's extension adapts MCP schemas and results into Pi's native tool API while leaving query behavior in the MCP server.
 
 Plugin packages must include prebuilt runtime and UI assets. Codex npm plugin installation does not run lifecycle scripts, so installation cannot depend on `postinstall`, compilation, or an `npx` download at startup.
 
@@ -223,6 +225,7 @@ The shipped `0.1.5` agent plugin is still a Desktop companion:
 flowchart LR
     Claude[Claude plugin] --> Bridge[stdio MCP bridge]
     Codex[Codex plugin] --> Bridge
+    Pi[Pi native adapter] --> Bridge
     Bridge -->|authenticated loopback HTTP| Runtime[Local runtime embedded in Electron]
     Desktop[Desktop IPC and workbench] --> Runtime
     Runtime --> DB[(Canonical data-home otelux.db)]

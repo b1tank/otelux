@@ -39,7 +39,7 @@ The repository currently contains:
 - Desktop close-to-tray lifecycle: closing the window keeps OTLP/MCP and SQLite active; tray Open restores the workbench, and tray Quit stops listeners and closes the runtime.
 - Direct in-process and Electron IPC `DataSource` adapters.
 - MCP tool plumbing over the same query layer.
-- A shared OTelux plugin under `plugins/otelux` installs into Claude Code and Codex with four observability skills plus a secure stdio bridge to the desktop MCP listener. This is the current companion implementation; see [arch.md](arch.md#current-implementation) for the target shared-runtime architecture.
+- A shared OTelux plugin under `plugins/otelux` installs into Claude Code, Codex, and Pi with four observability skills plus a secure stdio bridge to the desktop MCP listener. Pi's thin extension registers the same bridge tools natively; it does not fork the MCP implementation. This is the current companion implementation; see [arch.md](arch.md#current-implementation) for the target shared-runtime architecture.
 - The desktop app is the current release product. The agent plugin is currently its companion; direct MCP and CLI become independent forms after the runtime moves into a separately managed daemon.
 
 Important current limits:
@@ -112,6 +112,7 @@ Plugin distributions are thin hosts over the same packages:
 |---|---|---|
 | Claude Code | Shared skills + local desktop MCP bridge. | Built, validated, locally installed. |
 | Codex | Shared skills + local desktop MCP bridge. | Built, locally installed; marketplace entry live in-repo. |
+| Pi | Shared skills + native adapter over the local desktop MCP bridge. | Built and locally installable as a Pi package. |
 
 Future packages or apps should be added to this spec only when they support one of the four product forms and enter active implementation.
 

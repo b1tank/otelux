@@ -20,7 +20,7 @@ OTelux has these local product forms:
 
 | Surface | Role |
 |---|---|
-| Agent plugin | Claude/Codex skills, MCP tools, telemetry setup workflows, and browser-workbench launch over the local runtime. |
+| Agent plugin | Claude/Codex/Pi skills, MCP tools, telemetry setup workflows, and browser-workbench launch over the local runtime. Pi uses a thin native adapter over the same MCP bridge. |
 | Direct MCP | Read-only OTelux tools for users who want agent access without packaged skills or Electron. |
 | CLI | Headless runtime, lifecycle, status, configuration, diagnostics, and browser launch. |
 | Desktop app | Native traces, logs, metrics, settings, and ingest-status workbench over the shared runtime. |
