@@ -1,5 +1,6 @@
 ---
-name: design description: Iterate on the OTelux UI design — edit the single-file HTML mockup at `design/redesign-mockup.html`, verify changes in the integrated browser, and keep `design/README.md` (philosophy / invariants / deferred backlog) honest. Use when asked to tweak, extend, refine, polish, redesign, or mockup any user-visible UI surface. Not for implementing the design in React (a separate task) and not for verifying the live app (use `self-verify`).
+name: design
+description: Iterate on the OTelux UI design — edit the single-file HTML mockup at `design/redesign-mockup.html`, verify changes in the integrated browser, and keep `design/README.md` (philosophy / invariants / deferred backlog) honest. Use when asked to tweak, extend, refine, polish, redesign, or mock up any user-visible UI surface. Not for implementing the design in React (a separate task) and not for verifying the live app (use `self-verify`).
 ---
 
 # Skill — Iterate on the OTelux UI design

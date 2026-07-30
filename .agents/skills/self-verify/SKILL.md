@@ -1,5 +1,6 @@
 ---
-name: self-verify description: Verify the OTelux desktop app — either a FULL docs/test.md regression OR a quick smoke-check of one new/changed UI surface. Use whenever asked to test, verify, smoke-test, regress, or QA the app, INCLUDING "verify the feature I just built" / "check the X view renders", or after changes to apps/desktop/** or packages/ui/** that affect runtime behavior. ALWAYS drive the app through deskpal (OCR + virtual input) — never hand-roll xdotool/import/screenshots. CDP is the escape hatch only for invisible-to-the-eye state. Reports per-step PASS/FAIL.
+name: self-verify
+description: Verify the OTelux desktop app — either a FULL docs/test.md regression OR a quick smoke-check of one new/changed UI surface. Use whenever asked to test, verify, smoke-test, regress, or QA the app, INCLUDING "verify the feature I just built" / "check the X view renders", or after changes to apps/desktop/** or packages/ui/** that affect runtime behavior. ALWAYS drive the app through deskpal (OCR + virtual input) — never hand-roll xdotool/import/screenshots. CDP is the escape hatch only for invisible-to-the-eye state. Reports per-step PASS/FAIL.
 ---
 
 # Skill — Self-verify the OTelux desktop app
