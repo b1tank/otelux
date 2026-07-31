@@ -35,7 +35,7 @@ The repository currently contains:
 - A live SQLite budget meter in Settings shows retention-page pressure against the configured size limit and separately reports physical DB, WAL, and SHM footprint.
 - Live Traces, Logs, and Metrics rail surfaces in `@otelux/ui`.
 - A one-click "Load sample data" seed in the empty Traces view populates every surface with clearly-labelled synthetic telemetry, so a first-run user can evaluate the UI before wiring an exporter.
-- A shared live/paused (live-tail) control and result footers across all three views, plus a confirmed "Clear data" action that deletes all stored telemetry. Live invalidations are signal-scoped and query bursts are coalesced to one active plus one trailing refresh so exporters cannot fan out concurrent renderer queries.
+- A shared live/paused (live-tail) control and result footers across all three views, plus a confirmed "Clear data" action that deletes all stored telemetry. Live invalidations are signal-scoped and query bursts are coalesced to one active plus one trailing refresh so exporters cannot fan out concurrent renderer queries. New arrivals never steal inspection focus: the waterfall labels the explicitly selected trace until the user chooses another.
 - Desktop close-to-tray lifecycle: closing the window keeps OTLP/MCP and SQLite active; tray Open restores the workbench, and tray Quit stops listeners and closes the runtime.
 - Direct in-process and Electron IPC `DataSource` adapters.
 - MCP tool plumbing over the same query layer.

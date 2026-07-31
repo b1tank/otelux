@@ -61,6 +61,7 @@ Min widths: list ≥ 280 px, waterfall ≥ 480 px. Splitter is 6 px wide with a 
 | **Search is one input** (not two) | The waterfall's "find-in-trace" overlapped with the global filter. One search is simpler and good enough until traces are very large. Find-in-trace returns in v2. |
 | **Custom dropdown** (not `<select>`) | Native chrome leaks bright OS colors on dark theme. Same reason Jaeger and SigNoz ship their own. |
 | **Drawer**, not modal, for span detail | Lets the user keep the waterfall in view while inspecting a span. Modal would force a context switch on every click. |
+| **Selected trace stays pinned during live ingest** | New arrivals update the list without stealing inspection focus; a compact waterfall badge makes that contract visible instead of making stable details look frozen. |
 | **Accordion sections** in the drawer (not tabs) | We have few sections (Span / Attributes / Resource / Events) and they're all useful at once. Tabs hide content; accordions reveal-on-need. |
 | **Value viewer is a modal** | A long JSON blob deserves a focused, big canvas with Copy / Download. The drawer is too narrow. |
 | **Pane collapse buttons inside each pane's header**, not on the splitter | The splitter is a drag affordance, not a button-host. In-header chevrons are easier to hit and don't confuse the drag gesture. |
@@ -92,6 +93,7 @@ These should be enforced in code, not in CSS.
 10. **No layout shift on async data.** Skeleton or reserved height for rows that haven't loaded.
 11. **Storage pressure matches pruning.** The retention meter fill uses SQLite page bytes; physical DB/WAL/SHM bytes are a separate breakdown.
 12. **Settings category state is explicit.** Exactly one sidebar tab and panel is active; validation reveals the category containing the error.
+13. **Live arrivals never steal selection.** The waterfall labels the selected trace; only an explicit row/keyboard selection replaces it.
 
 ---
 

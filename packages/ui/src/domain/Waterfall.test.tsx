@@ -96,6 +96,13 @@ describe('Waterfall', () => {
 		expect(ticks.length).toBe(6);
 	});
 
+	it('labels the inspected trace as selected during live ingest', () => {
+		const trace = makeTrace([makeSpan({ spanId: 'root', name: 'GET /' })]);
+		const { getByText } = render(<Waterfall trace={trace} onSpanSelect={() => {}} />);
+		const badge = getByText('Selected trace');
+		expect(badge.getAttribute('title')).toContain('Live arrivals update the list');
+	});
+
 	it('marks selected and error rows via class names', () => {
 		const root = makeSpan({
 			spanId: 'root',

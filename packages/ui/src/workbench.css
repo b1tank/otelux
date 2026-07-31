@@ -1635,6 +1635,24 @@
 	color: var(--otelux-fg);
 }
 
+.otelux-waterfall__selected {
+	display: inline-flex;
+	align-items: center;
+	flex: 0 0 auto;
+	height: 20px;
+	padding: 0 8px;
+	border: 1px solid var(--otelux-border-strong);
+	border-radius: 10px;
+	background: var(--otelux-bg-elevated);
+	color: var(--otelux-fg-secondary);
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	line-height: 1;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
 .otelux-waterfall__spacer {
 	flex: 1 1 auto;
 }

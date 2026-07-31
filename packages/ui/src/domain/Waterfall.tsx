@@ -144,6 +144,12 @@ export function Waterfall(props: WaterfallProps): JSX.Element {
 					{trace.spanCount}
 				</span>
 				<HeaderServiceChips services={services} max={HEADER_SERVICE_CHIP_MAX} />
+				<span
+					className="otelux-waterfall__selected"
+					title="Live arrivals update the list without replacing this trace"
+				>
+					Selected trace
+				</span>
 				<span className="otelux-waterfall__spacer" />
 				{collapsibleIds.length > 0 ? (
 					<IconButton

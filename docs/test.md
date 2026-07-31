@@ -84,7 +84,7 @@ cd apps/desktop && OTELUX_DATA_DIR=/tmp/otelux-userdata npx electron out/main/in
 3. While paused, send a new trace (e.g. `curl -X POST http://127.0.0.1:4319/v1/traces …`).
 - **Expected**: the list does NOT change — the new trace is stored but the frozen view keeps its current rows and count.
 4. Click the control to **resume (Live)**.
-- **Expected**: the list refetches and now includes the trace that arrived while paused; the footer returns to `Live`. The paused/live state is global — pausing on any view keeps the others frozen too. Ingest is never dropped; only the view stops following the stream. Trace, log, and metric invalidations refresh only their matching queries; a burst during an in-flight query produces at most one trailing refresh rather than concurrent duplicate queries.
+- **Expected**: the list refetches and now includes the trace that arrived while paused; the footer returns to `Live`. The paused/live state is global — pausing on any view keeps the others frozen too. Ingest is never dropped; only the view stops following the stream. Trace, log, and metric invalidations refresh only their matching queries; a burst during an in-flight query produces at most one trailing refresh rather than concurrent duplicate queries. If a trace is selected, new arrivals do not replace it; the waterfall keeps a visible **Selected trace** badge until the user explicitly chooses another row.
 
 ### 1.2c Clear data (with confirmation)
 1. With data present, click **Clear** (trash icon) in the FilterBar.
