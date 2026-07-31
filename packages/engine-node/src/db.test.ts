@@ -198,6 +198,14 @@ PRAGMA user_version = 2;
 		expect(
 			migrated.prepare('SELECT service_name FROM trace_services ORDER BY service_name').all(),
 		).toEqual([{ service_name: 'api' }, { service_name: 'worker' }]);
+		const plan = migrated
+			.prepare(`EXPLAIN QUERY PLAN
+SELECT trace_id FROM traces
+WHERE trace_id IN (
+  SELECT trace_id FROM trace_services WHERE service_name IN (?)
+)`)
+			.all('worker') as Array<{ detail: string }>;
+		expect(plan.some((row) => row.detail.includes('idx_trace_services_service'))).toBe(true);
 		migrated.close();
 	});
 

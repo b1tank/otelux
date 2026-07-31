@@ -226,9 +226,9 @@ INSERT OR REPLACE INTO traces (
 		}
 		if (query.services && query.services.length > 0) {
 			const placeholders = query.services.map(() => '?').join(', ');
-			where.push(`EXISTS (
-  SELECT 1 FROM trace_services ts
-  WHERE ts.trace_id = traces.trace_id AND ts.service_name IN (${placeholders})
+			where.push(`trace_id IN (
+  SELECT ts.trace_id FROM trace_services ts
+  WHERE ts.service_name IN (${placeholders})
 )`);
 			params.push(...query.services);
 		}
