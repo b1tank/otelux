@@ -32,7 +32,14 @@ export async function publishGitHubRelease(options, fetchImpl = fetch) {
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ ref: `refs/tags/${tag}`, sha: target }),
 		});
-		tagTarget = await readTagCommit(request, api, tag);
+		// GitHub's ref creation API can be briefly eventually consistent. Retry
+		// the read so a successful create is not misreported as an undefined tag.
+		for (let attempt = 0; attempt < 5 && !tagTarget; attempt++) {
+			tagTarget = await readTagCommit(request, api, tag);
+			if (!tagTarget && attempt < 4) {
+				await new Promise((resolve) => setTimeout(resolve, 250 * 2 ** attempt));
+			}
+		}
 	}
 	if (tagTarget !== target) {
 		throw new Error(`Tag ${tag} points at ${tagTarget}, expected ${target}.`);

@@ -1,6 +1,6 @@
 {
 	"name": "@otelux/desktop",
-	"version": "0.1.6",
+	"version": "0.1.7",
 	"private": true,
 	"description": "OTelux desktop app — Electron shell hosting the receiver and the React workbench.",
 	"author": "OTelux contributors",
