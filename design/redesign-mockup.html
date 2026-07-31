@@ -418,6 +418,27 @@
   .btn.primary:hover { filter: brightness(1.08); }
 
   /* ---------- settings + SQLite retention meter ---------- */
+  .about-overlay { position: fixed; inset: 0; z-index: 80; display: none;
+                   place-items: center; background: rgba(7,9,16,.72); padding: 24px; }
+  .about-overlay.is-open { display: grid; }
+  .about { width: min(440px, calc(100vw - 48px)); overflow: hidden; background: var(--bg-1);
+           border: 1px solid var(--border-1); border-radius: 8px;
+           box-shadow: 0 20px 64px rgba(0,0,0,.58); }
+  .about__head { display: flex; align-items: flex-start; justify-content: space-between;
+                 gap: 20px; padding: 24px; border-bottom: 1px solid var(--border); }
+  .about__brand { display: flex; align-items: center; gap: 14px; }
+  .about__mark { width: 42px; height: 42px; display: grid; place-items: center; color: var(--accent-2); }
+  .about__brand h2 { margin: 0 0 4px; font-size: 18px; font-weight: 650; }
+  .about__brand p { margin: 0; color: var(--fg-mute); font-size: 12px; }
+  .about__details { margin: 0; padding: 12px 24px; }
+  .about__row { display: grid; grid-template-columns: 110px minmax(0,1fr); gap: 16px;
+                padding: 9px 0; border-bottom: 1px dashed var(--border); }
+  .about__row:last-child { border-bottom: 0; }
+  .about__row dt { color: var(--fg-mute); }
+  .about__row dd { margin: 0; font-family: "JetBrains Mono",ui-monospace,monospace; }
+  .about__foot { display: flex; justify-content: flex-end; padding: 12px 24px;
+                 border-top: 1px solid var(--border); }
+
   .settings-overlay { position: fixed; inset: 0; z-index: 70; display: none;
                       place-items: center; background: rgba(7,9,16,.72); padding: 24px; }
   .settings-overlay.is-open { display: grid; }
@@ -568,6 +589,9 @@
       </a>
     </nav>
     <nav class="rail__items rail__items--end">
+      <button class="rail__item" type="button" title="About OTelux" aria-label="About OTelux" id="open-about">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 11v5M12 8h.01"/></svg>
+      </button>
       <a class="rail__item" title="GitHub" href="https://github.com/b1tank/otelux" target="_blank" rel="noopener">
         <svg class="ico" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.3.8-.6v-2c-3.2.7-3.9-1.5-3.9-1.5-.5-1.3-1.3-1.7-1.3-1.7-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.7.4-1.3.7-1.5-2.5-.3-5.2-1.3-5.2-5.7 0-1.3.4-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2.9-.3 2-.4 3-.4s2.1.1 3 .4c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.2 5.7.4.4.8 1.1.8 2.2v3.2c0 .3.2.7.8.6 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5z"/>
@@ -1134,6 +1158,27 @@
   </div>
 </aside>
 
+<!-- ============ ABOUT MODAL ============ -->
+<div class="about-overlay" id="about-overlay">
+  <section class="about" role="dialog" aria-modal="true" aria-labelledby="about-title">
+    <header class="about__head">
+      <div class="about__brand">
+        <div class="about__mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="10" height="3" rx="1"/><rect x="6" y="11" width="10" height="3" rx="1"/><rect x="9" y="17" width="10" height="3" rx="1"/></svg></div>
+        <div><h2 id="about-title">OTelux</h2><p>Local-first OpenTelemetry workbench</p></div>
+      </div>
+      <button class="icon-btn" id="close-about" title="Close About OTelux" aria-label="Close About OTelux"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </header>
+    <dl class="about__details">
+      <div class="about__row"><dt>Version</dt><dd>0.1.6</dd></div>
+      <div class="about__row"><dt>Electron</dt><dd>39.2.7</dd></div>
+      <div class="about__row"><dt>Chromium</dt><dd>142.0.7444.235</dd></div>
+      <div class="about__row"><dt>Node.js</dt><dd>22.21.1</dd></div>
+      <div class="about__row"><dt>Platform</dt><dd>linux x64</dd></div>
+    </dl>
+    <footer class="about__foot"><button class="btn primary" id="ok-about">OK</button></footer>
+  </section>
+</div>
+
 <!-- ============ SETTINGS MODAL ============ -->
 <div class="settings-overlay" id="settings-overlay">
   <section class="settings" role="dialog" aria-modal="true" aria-labelledby="settings-title">
@@ -1287,6 +1332,7 @@
   // small interactivity so the user can play with the mockup
   const $ = (s) => document.querySelector(s);
   const settingsOverlay = $('#settings-overlay');
+  const aboutOverlay = $('#about-overlay');
   const settingsTabs = [...document.querySelectorAll('[data-settings-tab]')];
   const settingsPanels = [...document.querySelectorAll('[data-settings-panel]')];
   function activateSettingsTab(name, focus = false) {
@@ -1301,6 +1347,12 @@
   }
   function openSettings() { settingsOverlay.classList.add('is-open'); activateSettingsTab('connections', true); }
   function closeSettings() { settingsOverlay.classList.remove('is-open'); $('#open-settings').focus(); }
+  function openAbout() { aboutOverlay.classList.add('is-open'); $('#ok-about').focus(); }
+  function closeAbout() { aboutOverlay.classList.remove('is-open'); $('#open-about').focus(); }
+  $('#open-about').addEventListener('click', openAbout);
+  $('#close-about').addEventListener('click', closeAbout);
+  $('#ok-about').addEventListener('click', closeAbout);
+  aboutOverlay.addEventListener('click', (e) => { if (e.target === aboutOverlay) closeAbout(); });
   $('#open-settings').addEventListener('click', openSettings);
   $('#close-settings').addEventListener('click', closeSettings);
   $('#cancel-settings').addEventListener('click', closeSettings);
@@ -1426,7 +1478,8 @@
   $('#close-viewer').addEventListener('click', () => $('#overlay').style.display = 'none');
   $('#overlay').addEventListener('click', (e) => { if (e.target === $('#overlay')) $('#overlay').style.display = 'none'; });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && settingsOverlay.classList.contains('is-open')) closeSettings();
+    if (e.key === 'Escape' && aboutOverlay.classList.contains('is-open')) closeAbout();
+    else if (e.key === 'Escape' && settingsOverlay.classList.contains('is-open')) closeSettings();
   });
 
   // ---- draggable splitter between trace list and waterfall ----

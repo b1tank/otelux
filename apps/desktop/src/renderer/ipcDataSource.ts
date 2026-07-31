@@ -22,6 +22,13 @@ import type { InvokeMessage, OteluxEvent } from '../shared/ipc.js';
  * — we get the typed surface from `window.otelux` and the rest is IPC.
  */
 export interface OteluxWindowBridge {
+	readonly version: string;
+	readonly runtime: {
+		readonly electron: string;
+		readonly chromium: string;
+		readonly node: string;
+		readonly platform: string;
+	};
 	invoke(message: InvokeMessage): Promise<unknown>;
 	onEvent(listener: (event: OteluxEvent) => void): () => void;
 }

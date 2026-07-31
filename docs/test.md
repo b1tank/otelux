@@ -67,7 +67,7 @@ cd apps/desktop && OTELUX_DATA_DIR=/tmp/otelux-userdata npx electron out/main/in
 
 ### 1.2 Initial UI
 - **Visible chrome (top → bottom, left → right)**
-  1. Left **Rail** — narrow icon strip with the **Traces** tab active, enabled **Metrics** and **Logs** tabs below it, and a footer with the **Theme** switch above **GitHub** (external link) and the **Settings** cog (opens the settings modal).
+  1. Left **Rail** — narrow icon strip with the **Traces** tab active, enabled **Metrics** and **Logs** tabs below it, and a footer with the **Theme** switch above **About OTelux**, **GitHub** (external link), and the **Settings** cog.
   2. **Topbar** — `Traces` heading on the left, **EndpointBar** on the right (status dot, `OTLP/HTTP` label, URL `http://127.0.0.1:4319` as a click-to-copy pill, plus a green `MCP :4320` copy pill while MCP is enabled, and a `BETA` badge at the far right). The OTLP pill copies the receiver base URL; traces, logs, and metrics use the same host and port at `/v1/traces`, `/v1/logs`, and `/v1/metrics`. The MCP pill copies `http://127.0.0.1:4320/`. Hovering the `BETA` badge shows the current limitations (local database storage pruned by the retention setting, OTLP/HTTP JSON-or-protobuf ingest with no gRPC). The settings cog lives on the rail, not in the topbar.
   3. **FilterBar** — hidden on cold start for Traces; it appears once at least one trace has been received and exposes a Service dropdown, an `Errors only` toggle chip, and a search field. Logs and Metrics expose their own filter controls when those tabs are active.
   4. **Workbench** body — right pane is collapsed (no waterfall yet); the left pane fills the width and shows the trace list with the `Traces` header, count `0`, and "Waiting for traces…" empty-state copy (or "No traces match. Point an OTel exporter at http://127.0.0.1:4319/v1/traces" once the first probe completes). When the store is genuinely empty (no active filters) a **Load sample data** button appears below the endpoint hint.
@@ -133,11 +133,17 @@ cat /tmp/otelux-userdata/settings.json 2>/dev/null
 - Click the `MCP :4320` pill.
 - **Expected**: the clipboard contains exactly `http://127.0.0.1:4320/`, and the pill remains green and stable while its copied state is visible.
 
-### 2.5 Settings cog opens settings
+### 2.5 About reports the installed build
+- Click **About OTelux** in the rail footer.
+- **Expected**: a centered About dialog shows the OTelux logo and product description plus non-empty values for **Version**, **Electron**, **Chromium**, **Node.js**, and **Platform**. For a release package, Version exactly matches `dpkg-query -W -f='${Version}' otelux` and the GitHub tag without its leading `v`.
+- Press Escape; reopen and click OK; reopen and click the close icon; reopen and click the backdrop.
+- **Expected**: every path closes the dialog and returns focus to the About rail button.
+
+### 2.6 Settings cog opens settings
 - Click the **Settings** cog at the bottom of the **rail** (not the topbar — the cog moved there in the redesign).
 - **Expected**: backdrop dims, the wide settings dialog appears centered, **Connections** is selected in the left category rail, only the Connections panel is visible, and focus is on the **Connections** tab.
 
-### 2.6 Theme switch
+### 2.7 Theme switch
 - Click the **Theme** button above **GitHub** in the left rail.
 - **Expected**: the title cycles `Theme: Auto (...)` → `Theme: Light` → `Theme: Dark` → `Theme: Auto (...)`. Light mode uses a bright workbench surface, dark mode returns to the dark surface, and muted labels/timestamps stay readable in both themes.
 

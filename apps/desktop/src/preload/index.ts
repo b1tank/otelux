@@ -18,6 +18,12 @@ declare const __OTELUX_APP_VERSION__: string;
  */
 const bridge = {
 	version: __OTELUX_APP_VERSION__,
+	runtime: {
+		electron: process.versions.electron ?? '-',
+		chromium: process.versions.chrome ?? '-',
+		node: process.versions.node,
+		platform: `${process.platform} ${process.arch}`,
+	},
 	invoke: (message: InvokeMessage): Promise<unknown> => {
 		return ipcRenderer.invoke(OTELUX_INVOKE_CHANNEL, message);
 	},

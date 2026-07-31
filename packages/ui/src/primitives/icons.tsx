@@ -219,6 +219,16 @@ export function GithubIcon(props: IconProps): JSX.Element {
 	);
 }
 
+export function InfoIcon(props: IconProps): JSX.Element {
+	return (
+		<Icon {...props}>
+			<circle cx="12" cy="12" r="10" />
+			<line x1="12" x2="12" y1="11" y2="16" />
+			<line x1="12" x2="12.01" y1="8" y2="8" />
+		</Icon>
+	);
+}
+
 export function AlertCircleIcon(props: IconProps): JSX.Element {
 	return (
 		<Icon {...props}>

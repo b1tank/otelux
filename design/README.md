@@ -94,6 +94,7 @@ These should be enforced in code, not in CSS.
 10. **No layout shift on async data.** Skeleton or reserved height for rows that haven't loaded.
 11. **Storage pressure matches pruning.** The retention meter fill uses SQLite page bytes; physical DB/WAL/SHM bytes are a separate breakdown.
 12. **Settings category state is explicit.** Exactly one sidebar tab and panel is active; validation reveals the category containing the error.
+13. **Build identity is inspectable.** The rail's About action opens a compact diagnostic dialog with the packaged app version and Electron, Chromium, Node.js, and platform versions; it never competes with signal navigation or endpoint status.
 13. **Live arrivals never steal selection.** The waterfall labels the selected trace; only an explicit row/keyboard selection replaces it.
 
 ---
@@ -134,6 +135,7 @@ If you edit the geometry, edit `icon.svg`, mirror the change in `OTeluxLogo.tsx`
 | `.empty` | `<EmptyState>` | none |
 | `.storage-meter` + `.storage-battery` | `<StorageBudgetMeter>` | native meter semantics with custom presentation |
 | `.settings__side` + `.settings__panel` | `<SettingsModal>` category tabs | ARIA vertical tabs; one persistent form/footer |
+| `.about` + `.about__row` | `<AboutModal>` diagnostics | modal dialog; package-defined version plus preload runtime versions |
 | All icons | `lucide-react` (`PanelLeft`, `PanelRight`, `List`, `Search`, `X`, `Copy`, `Download`, `Eye`, `ChevronRight`, `ChevronDown`, `AlertCircle`) | [`lucide-react`](https://lucide.dev) |
 
 ---

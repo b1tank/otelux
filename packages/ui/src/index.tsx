@@ -24,6 +24,7 @@ import {
 	Dropdown,
 	type DropdownOption,
 	GithubIcon,
+	InfoIcon,
 	LivePauseToggle,
 	LogsIcon,
 	MonitorIcon,
@@ -76,6 +77,11 @@ export interface OTeluxWorkbenchProps {
 	 * cog is rendered disabled.
 	 */
 	onOpenSettings?: () => void;
+	/**
+	 * Invoked when the user clicks the About button at the bottom of the
+	 * left rail. Hosts provide their own build and runtime diagnostics surface.
+	 */
+	onOpenAbout?: () => void;
 	/**
 	 * Invoked when the user clicks "Load sample data" in the empty Traces
 	 * view. Hosts that can seed synthetic telemetry (the desktop app) wire
@@ -187,6 +193,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		endpointUrl,
 		topbarEnd,
 		onOpenSettings,
+		onOpenAbout,
 		onLoadSampleData,
 		onClearData,
 	} = props;
@@ -514,6 +521,10 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 								onOpenSettings();
 								return;
 							}
+							if (id === 'about' && onOpenAbout) {
+								onOpenAbout();
+								return;
+							}
 							if (id === 'traces' || id === 'logs' || id === 'metrics') {
 								activateSignalView(id);
 							}
@@ -523,6 +534,12 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 								id: 'theme',
 								label: themeLabel,
 								icon: themeIcon,
+							},
+							{
+								id: 'about',
+								label: 'About OTelux',
+								icon: <InfoIcon size={18} />,
+								disabled: onOpenAbout === undefined,
 							},
 							{
 								id: 'github',

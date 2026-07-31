@@ -1,6 +1,7 @@
 import { OTeluxWorkbench } from '@otelux/ui';
 import { type JSX, useCallback, useMemo, useState } from 'react';
 import type { PartialSettings, UpdateSettingsResult } from '../shared/ipc.js';
+import { AboutModal } from './components/AboutModal.js';
 import { EndpointBar } from './components/EndpointBar.js';
 import { SettingsModal } from './components/SettingsModal.js';
 import {
@@ -27,6 +28,7 @@ export function App(): JSX.Element {
 	const settings = useSettings(bridge);
 	const storagePath = useStoragePath(bridge);
 	const [settingsOpen, setSettingsOpen] = useState(false);
+	const [aboutOpen, setAboutOpen] = useState(false);
 	const storageUsage = useStorageUsage(bridge, settingsOpen);
 
 	const endpointUrl = useMemo<string | undefined>(() => {
@@ -61,9 +63,17 @@ export function App(): JSX.Element {
 				{...(endpointUrl !== undefined ? { endpointUrl } : {})}
 				topbarEnd={<EndpointBar status={status} mcpStatus={mcpStatus} />}
 				onOpenSettings={() => setSettingsOpen(true)}
+				onOpenAbout={() => setAboutOpen(true)}
 				onLoadSampleData={onLoadSampleData}
 				onClearData={onClearData}
 			/>
+			{aboutOpen ? (
+				<AboutModal
+					version={bridge.version}
+					runtime={bridge.runtime}
+					onClose={() => setAboutOpen(false)}
+				/>
+			) : null}
 			{settingsOpen && settings ? (
 				<SettingsModal
 					settings={settings}

@@ -40,6 +40,7 @@ export {
 	DownloadIcon,
 	EyeIcon,
 	GithubIcon,
+	InfoIcon,
 	ListIcon,
 	LogsIcon,
 	MonitorIcon,

@@ -33,6 +33,7 @@ The repository currently contains:
 - OTLP/HTTP JSON and protobuf ingest for traces, logs, and metrics.
 - Durable local storage for all signals via `@otelux/engine-node` (Node `node:sqlite`), with user-configurable retention (age and size). The store versions its schema with forward-only transactional migrations; a failed upgrade leaves the legacy database in place for retry, while an unreadable or newer-version file is quarantined before starting fresh. `@otelux/engine` still ships an in-memory store for tests and small workloads; both back ends pass a shared storage-contract suite.
 - A live SQLite budget meter in Settings shows retention-page pressure against the configured size limit and separately reports physical DB, WAL, and SHM footprint.
+- An About surface opened from the desktop rail reports the packaged OTelux version plus Electron, Chromium, Node.js, and platform versions for support diagnostics. The displayed app version comes from the same package-version build define used by packaging.
 - Live Traces, Logs, and Metrics rail surfaces in `@otelux/ui`.
 - A one-click "Load sample data" seed in the empty Traces view populates every surface with clearly-labelled synthetic telemetry, so a first-run user can evaluate the UI before wiring an exporter.
 - A shared live/paused (live-tail) control and result footers across all three views, plus a confirmed "Clear data" action that deletes all stored telemetry. Live invalidations are signal-scoped and query bursts are coalesced to one active plus one trailing refresh so exporters cannot fan out concurrent renderer queries. New arrivals never steal inspection focus: the waterfall labels the explicitly selected trace until the user chooses another.
@@ -199,6 +200,7 @@ Queries should be bounded by limit and filters. Results should include counts wh
 - Endpoint state is explicit: listening port, health, paused/live state, and local trust posture are visible to the user.
 - Copyable endpoint controls reflect the listeners that are actually running and disappear or become non-actionable when their service is disabled or unavailable.
 - Theme mode is user-switchable from the left rail: Auto follows the OS color scheme, while Light and Dark force a specific token set. Text contrast must stay readable in both explicit themes.
+- The rail exposes About, GitHub, and Settings as distinct support/navigation actions. About is keyboard-dismissible, restores focus to its opener, and shows build/runtime diagnostics without reading telemetry or settings.
 
 ### Logs Requirements
 
