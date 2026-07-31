@@ -117,6 +117,32 @@ describe('SpanDetail', () => {
 });
 
 describe('OTeluxWorkbench', () => {
+	it('does not fetch hidden log or metric payloads on the traces view', async () => {
+		const engine = createEngine({ storage: createMemoryStorage() });
+		const calls = { logs: 0, metrics: 0, facetSignals: [] as string[] };
+		const dataSource = {
+			...engine,
+			listLogs: async (query: Parameters<typeof engine.listLogs>[0]) => {
+				calls.logs++;
+				return engine.listLogs(query);
+			},
+			listMetrics: async (query: Parameters<typeof engine.listMetrics>[0]) => {
+				calls.metrics++;
+				return engine.listMetrics(query);
+			},
+			listServiceFacets: async (query: Parameters<typeof engine.listServiceFacets>[0]) => {
+				calls.facetSignals.push(query.signal);
+				return engine.listServiceFacets(query);
+			},
+		};
+		render(<OTeluxWorkbench dataSource={dataSource} />);
+		await waitFor(() => expect(screen.getByText(/No traces match/i)).not.toBeNull());
+		expect(calls.logs).toBe(0);
+		expect(calls.metrics).toBe(0);
+		expect(new Set(calls.facetSignals)).toEqual(new Set(['traces']));
+		await engine.close();
+	});
+
 	it('renders an empty state until traces arrive, then shows them', async () => {
 		const engine = createEngine({ storage: createMemoryStorage() });
 		render(<OTeluxWorkbench dataSource={engine} />);

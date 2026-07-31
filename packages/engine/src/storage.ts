@@ -5,6 +5,8 @@ import type {
 	ListLogsResult,
 	ListMetricsQuery,
 	ListMetricsResult,
+	ListServiceFacetsQuery,
+	ListServiceFacetsResult,
 	ListTracesQuery,
 	ListTracesResult,
 } from '@otelux/protocol';
@@ -30,6 +32,9 @@ export interface Storage {
 	listLogs(query: ListLogsQuery): Promise<ListLogsResult> | ListLogsResult;
 	writeMetrics(metrics: readonly Metric[]): Promise<void> | void;
 	listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult> | ListMetricsResult;
+	listServiceFacets(
+		query: ListServiceFacetsQuery,
+	): Promise<ListServiceFacetsResult> | ListServiceFacetsResult;
 	/** Delete all stored telemetry (traces, logs, metrics) but keep the store open for reuse. */
 	clear(): Promise<void> | void;
 	close(): Promise<void> | void;
@@ -103,6 +108,16 @@ function tail<T>(items: readonly T[], cap: number): T[] {
  * `incoming` last keeps the newest metadata (description, unit,
  * temporality, monotonicity) while concatenating data points.
  */
+function limitMetricPoints(metric: Metric, limit: number): Metric {
+	if (metric.type === 'histogram') {
+		return { ...metric, dataPoints: tail(metric.dataPoints, limit) };
+	}
+	if (metric.type === 'gauge') {
+		return { ...metric, dataPoints: tail(metric.dataPoints, limit) };
+	}
+	return { ...metric, dataPoints: tail(metric.dataPoints, limit) };
+}
+
 function mergeMetric(existing: Metric, incoming: Metric): Metric {
 	if (existing.type !== incoming.type) {
 		// Identity collision across kinds (should not happen — `type` is part
@@ -400,9 +415,43 @@ export function createMemoryStorage(): Storage {
 			const totalCount = filtered.length;
 			const offset = query.offset ?? 0;
 			const limit = query.limit ?? 500;
-			const page = filtered.slice(offset, offset + limit);
+			const pointLimit = Math.max(1, Math.min(query.pointLimit ?? 120, MAX_POINTS_PER_INSTRUMENT));
+			const page = filtered
+				.slice(offset, offset + limit)
+				.map((metric) => limitMetricPoints(metric, pointLimit));
 
 			return { rows: page, totalCount };
+		},
+
+		listServiceFacets(query: ListServiceFacetsQuery): ListServiceFacetsResult {
+			const counts = new Map<string, number>();
+			const add = (name: string): void => {
+				if (name) counts.set(name, (counts.get(name) ?? 0) + 1);
+			};
+			if (query.signal === 'traces') {
+				for (const spans of byTrace.values()) {
+					const services = new Set<string>();
+					for (const span of spans.values()) {
+						const service = span.resource.attributes['service.name'];
+						if (typeof service === 'string') services.add(service);
+					}
+					for (const service of services) add(service);
+				}
+			} else if (query.signal === 'logs') {
+				for (const log of logs) {
+					const service = log.resource.attributes['service.name'];
+					if (typeof service === 'string') add(service);
+				}
+			} else {
+				for (const metric of metrics.values()) add(metricServiceName(metric));
+			}
+			const limit = query.limit ?? 500;
+			return {
+				rows: [...counts.entries()]
+					.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+					.slice(0, limit)
+					.map(([name, count]) => ({ name, count })),
+			};
 		},
 
 		clear(): void {

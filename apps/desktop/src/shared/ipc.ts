@@ -5,6 +5,8 @@ import type {
 	ListLogsResult,
 	ListMetricsQuery,
 	ListMetricsResult,
+	ListServiceFacetsQuery,
+	ListServiceFacetsResult,
 	ListTracesQuery,
 	ListTracesResult,
 	LoadSampleDataResult,
@@ -53,6 +55,7 @@ export type InvokeMessage =
 	| { kind: 'getSpanDetails'; query: GetSpanDetailsQuery }
 	| { kind: 'listLogs'; query: ListLogsQuery }
 	| { kind: 'listMetrics'; query: ListMetricsQuery }
+	| { kind: 'listServiceFacets'; query: ListServiceFacetsQuery }
 	| { kind: 'getSettings' }
 	| { kind: 'updateSettings'; patch: PartialSettings }
 	| { kind: 'getReceiverStatus' }
@@ -72,23 +75,25 @@ export type InvokeResultFor<M extends InvokeMessage> = M extends { kind: 'listTr
 				? ListLogsResult
 				: M extends { kind: 'listMetrics' }
 					? ListMetricsResult
-					: M extends { kind: 'getSettings' }
-						? Settings
-						: M extends { kind: 'updateSettings' }
-							? UpdateSettingsResult
-							: M extends { kind: 'getReceiverStatus' }
-								? ReceiverStatus
-								: M extends { kind: 'getMcpStatus' }
-									? McpStatus
-									: M extends { kind: 'getStoragePath' }
-										? StoragePathInfo
-										: M extends { kind: 'getStorageUsage' }
-											? StorageUsageInfo
-											: M extends { kind: 'loadSampleData' }
-												? LoadSampleDataResult
-												: M extends { kind: 'clearData' }
-													? undefined
-													: never;
+					: M extends { kind: 'listServiceFacets' }
+						? ListServiceFacetsResult
+						: M extends { kind: 'getSettings' }
+							? Settings
+							: M extends { kind: 'updateSettings' }
+								? UpdateSettingsResult
+								: M extends { kind: 'getReceiverStatus' }
+									? ReceiverStatus
+									: M extends { kind: 'getMcpStatus' }
+										? McpStatus
+										: M extends { kind: 'getStoragePath' }
+											? StoragePathInfo
+											: M extends { kind: 'getStorageUsage' }
+												? StorageUsageInfo
+												: M extends { kind: 'loadSampleData' }
+													? LoadSampleDataResult
+													: M extends { kind: 'clearData' }
+														? undefined
+														: never;
 
 /**
  * Discriminated union of every main→renderer push. The existing engine

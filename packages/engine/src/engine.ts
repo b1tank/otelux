@@ -8,6 +8,8 @@ import type {
 	ListLogsResult,
 	ListMetricsQuery,
 	ListMetricsResult,
+	ListServiceFacetsQuery,
+	ListServiceFacetsResult,
 	ListTracesQuery,
 	ListTracesResult,
 	SpanDetails,
@@ -116,6 +118,10 @@ export function createEngine(options: EngineOptions): Engine {
 
 		async listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult> {
 			return await storage.listMetrics(query);
+		},
+
+		async listServiceFacets(query: ListServiceFacetsQuery): Promise<ListServiceFacetsResult> {
+			return await storage.listServiceFacets(query);
 		},
 
 		subscribe(handler: (event: ChangeEvent) => void): Disposable {

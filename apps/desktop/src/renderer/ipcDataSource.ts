@@ -7,6 +7,8 @@ import type {
 	ListLogsResult,
 	ListMetricsQuery,
 	ListMetricsResult,
+	ListServiceFacetsQuery,
+	ListServiceFacetsResult,
 	ListTracesQuery,
 	ListTracesResult,
 	SpanDetails,
@@ -53,6 +55,9 @@ export function createIpcDataSource(bridge: OteluxWindowBridge): DataSource {
 		},
 		async listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult> {
 			return (await bridge.invoke({ kind: 'listMetrics', query })) as ListMetricsResult;
+		},
+		async listServiceFacets(query: ListServiceFacetsQuery): Promise<ListServiceFacetsResult> {
+			return (await bridge.invoke({ kind: 'listServiceFacets', query })) as ListServiceFacetsResult;
 		},
 		subscribe(handler): Disposable {
 			// The bridge surface delivers a wider event union (settings and

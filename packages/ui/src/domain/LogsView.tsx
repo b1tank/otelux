@@ -60,7 +60,7 @@ export interface LogsViewProps {
 	sortDirection?: SortDirection;
 }
 
-const DEFAULT_LIMIT = 500;
+const DEFAULT_LIMIT = 100;
 const DEFAULT_ENDPOINT = 'http://localhost:4319/v1/logs';
 const LOG_COLUMNS = ['Level', 'Time', 'Service', 'Message', 'Trace', 'Actions'] as const;
 
@@ -106,6 +106,9 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 		queryKey,
 		paused,
 		'logsChanged',
+		true,
+		undefined,
+		500,
 	);
 
 	const rows = query.value?.rows ?? [];

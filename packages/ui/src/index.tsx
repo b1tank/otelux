@@ -250,45 +250,45 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		`trace:${selectedTraceId ?? ''}`,
 		false,
 		'tracesChanged',
+		activeView === 'traces' && selectedTraceId !== undefined,
+		(event) =>
+			event.kind === 'tracesChanged' &&
+			(event.traceIds.length === 0 ||
+				(selectedTraceId !== undefined && event.traceIds.includes(selectedTraceId))),
+		100,
 	);
 
 	const trace = traceQuery.value;
 
-	// Unfiltered probe used for two purposes:
-	//   1. detect cold-start (hasAnyTrace) so we can hide the FilterBar
-	//      and collapse the right pane before any data arrives.
-	//   2. populate the Service dropdown with available services and
-	//      per-service counts. Counts are derived from the row sample;
-	//      good enough for current local workloads — a future iteration can move
-	//      this to a dedicated `listServices()` data source method.
-	//
-	// limit=500 caps the work; trace counts above that round down in
-	// the dropdown but never affect the filtered TraceList itself
-	// (which has its own query).
+	// Cold-start only needs one summary row. Service dropdown counts use a
+	// dedicated grouped query instead of transferring hundreds of traces.
 	const summaryProbe = useDataSourceQuery(
 		dataSource,
-		(ds) => ds.listTraces({ limit: 500, sortBy: 'startTime', sortDirection: 'desc' }),
+		(ds) => ds.listTraces({ limit: 1, sortBy: 'startTime', sortDirection: 'desc' }),
 		'workbench:summary-probe',
 		false,
 		'tracesChanged',
+		activeView === 'traces',
+		undefined,
+		100,
 	);
-	const summaryRows = summaryProbe.value?.rows ?? [];
-	const hasAnyTrace = summaryRows.length > 0;
-
-	const { serviceCounts, sortedServices } = useMemo(() => {
-		const counts = new Map<string, number>();
-		for (const row of summaryRows) {
-			for (const s of row.services) {
-				counts.set(s, (counts.get(s) ?? 0) + 1);
-			}
-		}
-		// Order by count descending, then alphabetically so the dropdown
-		// reads stably even when two services tie.
-		const sorted = Array.from(counts.entries())
-			.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-			.map(([name]) => name);
-		return { serviceCounts: counts, sortedServices: sorted };
-	}, [summaryRows]);
+	const hasAnyTrace = (summaryProbe.value?.totalCount ?? 0) > 0;
+	const traceFacets = useDataSourceQuery(
+		dataSource,
+		(ds) => ds.listServiceFacets({ signal: 'traces' }),
+		'workbench:trace-service-facets',
+		false,
+		'tracesChanged',
+		activeView === 'traces',
+		undefined,
+		100,
+	);
+	const traceFacetRows = traceFacets.value?.rows ?? [];
+	const serviceCounts = useMemo(
+		() => new Map(traceFacetRows.map((row) => [row.name, row.count] as const)),
+		[traceFacetRows],
+	);
+	const sortedServices = useMemo(() => traceFacetRows.map((row) => row.name), [traceFacetRows]);
 
 	const serviceOptions = useMemo<readonly DropdownOption[]>(() => {
 		const opts: DropdownOption[] = [];
@@ -326,32 +326,22 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 	const serviceTriggerCount =
 		selectedService === 'all' ? sortedServices.length : serviceCounts.get(selectedService);
 
-	// Logs service dropdown: probe an unfiltered sample to learn which
-	// services emit logs and how many records each contributes. Mirrors
-	// the trace summary probe; good enough for current local workloads (a
-	// future iteration can move this to a dedicated `listServices()`).
-	const logsProbe = useDataSourceQuery(
+	const logsFacets = useDataSourceQuery(
 		dataSource,
-		(ds) => ds.listLogs({ limit: 500, sortBy: 'time', sortDirection: 'desc' }),
-		'workbench:logs-service-probe',
+		(ds) => ds.listServiceFacets({ signal: 'logs' }),
+		'workbench:logs-service-facets',
 		false,
 		'logsChanged',
+		activeView === 'logs',
+		undefined,
+		500,
 	);
-	const logsRows = logsProbe.value?.rows ?? [];
-
-	const { logsServiceCounts, sortedLogServices } = useMemo(() => {
-		const counts = new Map<string, number>();
-		for (const row of logsRows) {
-			const svc = row.resource.attributes['service.name'];
-			if (typeof svc === 'string') {
-				counts.set(svc, (counts.get(svc) ?? 0) + 1);
-			}
-		}
-		const sorted = Array.from(counts.entries())
-			.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-			.map(([name]) => name);
-		return { logsServiceCounts: counts, sortedLogServices: sorted };
-	}, [logsRows]);
+	const logsFacetRows = logsFacets.value?.rows ?? [];
+	const logsServiceCounts = useMemo(
+		() => new Map(logsFacetRows.map((row) => [row.name, row.count] as const)),
+		[logsFacetRows],
+	);
+	const sortedLogServices = useMemo(() => logsFacetRows.map((row) => row.name), [logsFacetRows]);
 
 	const logsServiceOptions = useMemo<readonly DropdownOption[]>(() => {
 		const opts: DropdownOption[] = [];
@@ -372,31 +362,25 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 	const logsServiceTriggerCount =
 		logsService === 'all' ? sortedLogServices.length : logsServiceCounts.get(logsService);
 
-	// Metrics service dropdown: probe an unfiltered sample to learn which
-	// services emit instruments and how many each contributes. Mirrors the
-	// logs/trace summary probes.
-	const metricsProbe = useDataSourceQuery(
+	const metricsFacets = useDataSourceQuery(
 		dataSource,
-		(ds) => ds.listMetrics({ limit: 500 }),
-		'workbench:metrics-service-probe',
+		(ds) => ds.listServiceFacets({ signal: 'metrics' }),
+		'workbench:metrics-service-facets',
 		false,
 		'metricsChanged',
+		activeView === 'metrics',
+		undefined,
+		2_000,
 	);
-	const metricsRows = metricsProbe.value?.rows ?? [];
-
-	const { metricsServiceCounts, sortedMetricServices } = useMemo(() => {
-		const counts = new Map<string, number>();
-		for (const row of metricsRows) {
-			const svc = row.resource.attributes['service.name'];
-			if (typeof svc === 'string') {
-				counts.set(svc, (counts.get(svc) ?? 0) + 1);
-			}
-		}
-		const sorted = Array.from(counts.entries())
-			.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-			.map(([name]) => name);
-		return { metricsServiceCounts: counts, sortedMetricServices: sorted };
-	}, [metricsRows]);
+	const metricFacetRows = metricsFacets.value?.rows ?? [];
+	const metricsServiceCounts = useMemo(
+		() => new Map(metricFacetRows.map((row) => [row.name, row.count] as const)),
+		[metricFacetRows],
+	);
+	const sortedMetricServices = useMemo(
+		() => metricFacetRows.map((row) => row.name),
+		[metricFacetRows],
+	);
 
 	const metricsServiceOptions = useMemo<readonly DropdownOption[]>(() => {
 		const opts: DropdownOption[] = [];

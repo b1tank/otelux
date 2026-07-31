@@ -125,6 +125,9 @@ export function TraceList(props: TraceListProps): JSX.Element {
 		queryKey,
 		paused,
 		'tracesChanged',
+		true,
+		undefined,
+		100,
 	);
 
 	const rows = query.value?.rows ?? [];

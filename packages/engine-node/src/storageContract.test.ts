@@ -261,6 +261,53 @@ function runStorageContract(label: string, make: () => Storage): void {
 			expect(result.rows.map((row) => row.rootName)).toEqual(['older-beta']);
 		});
 
+		it('returns grouped service facets without transferring raw telemetry', async () => {
+			await storage.writeSpans([
+				makeSpan({
+					traceId: TRACE_A,
+					spanId: '1'.repeat(16),
+					name: 'a',
+					start: 1n,
+					end: 2n,
+					service: 'api',
+				}),
+				makeSpan({
+					traceId: TRACE_B,
+					spanId: '2'.repeat(16),
+					name: 'b',
+					start: 3n,
+					end: 4n,
+					service: 'api',
+				}),
+			]);
+			await storage.writeLogs([
+				makeLog({ time: 1n, severity: 9, service: 'api' }),
+				makeLog({ time: 2n, severity: 9, service: 'worker' }),
+			]);
+			await storage.writeMetrics([
+				{
+					type: 'gauge',
+					name: 'queue.depth',
+					resource: { attributes: { 'service.name': 'worker' } },
+					scope: { name: 'meter' },
+					dataPoints: [{ timeUnixNano: 1n, value: 1, attributes: {} }],
+				},
+			]);
+
+			expect(await storage.listServiceFacets({ signal: 'traces' })).toEqual({
+				rows: [{ name: 'api', count: 2 }],
+			});
+			expect(await storage.listServiceFacets({ signal: 'logs' })).toEqual({
+				rows: [
+					{ name: 'api', count: 1 },
+					{ name: 'worker', count: 1 },
+				],
+			});
+			expect(await storage.listServiceFacets({ signal: 'metrics' })).toEqual({
+				rows: [{ name: 'worker', count: 1 }],
+			});
+		});
+
 		it('filters logs by severity, trace, service, scope, and attribute text', async () => {
 			await storage.writeLogs([
 				makeLog({ time: 10n, severity: 9, body: 'info line', service: 'a', scope: 's1' }),
@@ -323,6 +370,8 @@ function runStorageContract(label: string, make: () => Storage): void {
 			const metric = list.rows[0] as SumMetric;
 			expect(metric.type).toBe('sum');
 			expect(metric.dataPoints.map((p) => p.value)).toEqual([5, 7]);
+			const recent = (await storage.listMetrics({ pointLimit: 1 })).rows[0] as SumMetric;
+			expect(recent.dataPoints.map((p) => p.value)).toEqual([7]);
 		});
 
 		it('stores gauge and histogram instruments and filters by service/meter', async () => {

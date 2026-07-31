@@ -33,9 +33,10 @@ OTelux uses SQLite as a local telemetry engine, not as a JSON file cabinet. The 
 |---|---|---|---|
 | Resolved P0 | Schema v1 used global `span_id` identity across storage and detail contracts, although OTLP span IDs are unique only within a trace. | SQLite could overwrite another trace's span and return stale rollups/details. | Fixed: schema v2 uses `PRIMARY KEY(trace_id, span_id)`, migrates v1 transactionally, repairs surviving rollups, preserves v1 for retry if migration fails, and all detail APIs require both IDs. |
 | Resolved P1 | Trace service filtering occurred after SQL `LIMIT/OFFSET`; the count query omitted the service filter. | Short/empty pages and incorrect totals. | Fixed: schema v3 normalizes `trace_services(trace_id, service_name)`, migrates existing service JSON, updates membership transactionally with trace rollups, and applies one service-indexed membership subquery to count and page queries. |
-| P1 | `listMetrics` selects points once per returned instrument. | $N+2$ SQL statements, up to 500 eager histories in the current UI. | Split instrument metadata from point history; batch or query points only for the selected instrument/window. |
-| P1 | Metric list results can carry up to 10,000 points per instrument. | Very large IPC/HTTP payloads, decoding cost, and renderer memory pressure. | `listMetricInstruments` returns metadata/latest summary only; `getMetricPoints` is windowed and paged. |
-| P2 | UI discovers service/meter facets by fetching 500 traces, 500 logs, and 500 full metric instruments. | Redundant queries and payloads on startup/change. | Add grouped facet queries and one `telemetry/getFacets` RPC. |
+| Resolved P1 | `listMetrics` selected points once per returned instrument. | $N+2$ SQL statements and multi-second responses. | Fixed: one compound indexed statement fetches a bounded tail for every requested instrument; the workbench list asks for one latest point and loads the selected instrument's 120-point history separately. |
+| Resolved P1 | Metric list results could carry up to 10,000 points per instrument. | An 81.5 MB IPC payload retained hundreds of MB in the renderer. | Fixed: `pointLimit` is bounded to 10,000, defaults to 120, and the workbench list/detail split transfers about 60 KB plus one selected series instead of every history. |
+| Resolved P2 | UI discovered service facets by fetching 500 traces, 500 logs, and 500 full metric instruments. | Redundant startup queries and payloads in hidden views. | Fixed in protocol 0.4: `listServiceFacets` executes grouped SQL; inactive views do not fetch or subscribe. |
+| P2 | Durable SQLite queries and structured-clone serialization still execute through Electron's main process. | A future accidentally unbounded query can stall ingest and renderer IPC together. | Keep every current query bounded and budget-tested; move storage/query execution behind the planned local runtime daemon/worker boundary before adding heavier analysis queries. |
 | P2 | Offset pagination is used while new telemetry arrives. | Duplicate or skipped rows between pages. | Use opaque keyset cursors with stable ID tie-breakers. |
 | P2 | Trace rollup is fully recomputed from all spans after every affected write. | Repeated $O(n)$ work for large traces arriving in many batches. | Keep correctness first; measure and introduce bounded dirty-trace coalescing or incremental aggregates only if budgets fail. |
 | P2 | `search_text LIKE '%term%'` cannot use a normal B-tree index. | Full log scan for substring search. | Add FTS5 with explicit tokenizer/versioning, retaining deterministic fallback semantics. |
@@ -160,7 +161,23 @@ Its experiment is useful as a warning, not a target:
 - Trace detail still reads the old in-memory repository, so persistence is not a complete source of truth after restart.
 - The branch's shipping in-memory waterfall calls a full-span child scan for each span, producing $O(n^2)$ work, and trace logs are fetched without an explicit limit.
 
-OTelux already has a stronger normalized baseline, materialized trace summaries, retention, migrations, and three-signal parity. The unresolved metric-history, facet, pagination, and search findings above must still be fixed before claiming an efficient daemon API.
+OTelux already has a stronger normalized baseline, materialized trace summaries, retention, migrations, signal-scoped/coalesced UI invalidation, grouped service facets, and bounded metric histories. The remaining main-process isolation, cursor pagination, FTS, and query-budget harness work must land before claiming a hardened daemon API.
+
+## Measured renderer incident (2026-07-31)
+
+The production 124 MB dogfood database exposed an architectural payload failure rather than a React rendering algorithm problem:
+
+| Probe | Before | After bounded/faceted architecture |
+|---|---:|---:|
+| Renderer heap after GC on Traces startup | ~667 MB | ~6.4 MB |
+| Hidden metrics probe | 81.5 MB, ~4.9 s over IPC | not issued |
+| Hidden logs probe | 5.9 MB, ~2.4 s over IPC | not issued |
+| Trace list IPC while main was saturated | ~2.3 s | ~8 ms |
+| Service facet payload | sampled raw records | 165–173 bytes grouped in SQL |
+| Metric instrument list | all histories | ~60 KB with one latest point each |
+| Selected-trace row interaction | effectively starved | ~26 ms pointer-to-selection |
+
+The renderer DOM was not the primary memory owner: about 4,200 trace-view elements remained after the fix while heap fell by two orders of magnitude. The root cause was eagerly retaining full hidden-view query results and repeatedly serializing them through the main process. Logs are now capped at 100 visible rows; metrics refresh no faster than every two seconds and load only the selected series history.
 
 ## Verification
 

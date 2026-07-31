@@ -36,6 +36,7 @@ interface InstrumentRow {
 }
 
 interface PointRow {
+	instrument_id: bigint;
 	time_unix_nano: bigint;
 	start_time_unix_nano: bigint | null;
 	flags: bigint | null;
@@ -56,7 +57,6 @@ export class MetricStore {
 	private readonly insertPoint: StatementSync;
 	private readonly countPoints: StatementSync;
 	private readonly prunePoints: StatementSync;
-	private readonly selectPoints: StatementSync;
 
 	constructor(
 		private readonly db: DatabaseSync,
@@ -87,10 +87,6 @@ WHERE instrument_id = ?
   AND id NOT IN (
     SELECT id FROM metric_points WHERE instrument_id = ? ORDER BY id DESC LIMIT ?
   )`);
-		this.selectPoints = db.prepare(
-			'SELECT * FROM metric_points WHERE instrument_id = ? ORDER BY id ASC',
-		);
-		this.selectPoints.setReadBigInts(true);
 	}
 
 	write(metrics: readonly Metric[], ingestedUnixNano: bigint): void {
@@ -222,11 +218,45 @@ ORDER BY i.scope_name ASC, i.name ASC
 LIMIT ? OFFSET ?`);
 		stmt.setReadBigInts(true);
 		const rows = stmt.all(...params, BigInt(limit), BigInt(offset)) as unknown as InstrumentRow[];
-		const metrics = rows.map((row) => this.metricFromRow(row));
+		const pointLimit = Math.max(1, Math.min(query.pointLimit ?? 120, MAX_POINTS_PER_INSTRUMENT));
+		const pointsByInstrument = this.selectRecentPoints(rows, pointLimit);
+		const metrics = rows.map((row) => this.metricFromRow(row, pointsByInstrument.get(row.id) ?? []));
 		return { rows: metrics, totalCount: countRow.n };
 	}
 
-	private metricFromRow(row: InstrumentRow): Metric {
+	private selectRecentPoints(
+		instruments: readonly InstrumentRow[],
+		pointLimit: number,
+	): ReadonlyMap<bigint, readonly PointRow[]> {
+		const byInstrument = new Map<bigint, PointRow[]>();
+		if (instruments.length === 0) return byInstrument;
+		// One compound statement, one indexed tail per instrument. A window
+		// function over the whole point table ranked every historical point even
+		// when the UI requested one latest value; these UNION branches seek
+		// directly through (instrument_id, id) and remain one SQL round trip.
+		const branches = instruments.map(
+			() => `SELECT * FROM (
+  SELECT * FROM metric_points
+  WHERE instrument_id = ?
+  ORDER BY id DESC
+  LIMIT ?
+)`,
+		);
+		const stmt = this.db.prepare(`
+SELECT * FROM (${branches.join('\nUNION ALL\n')})
+ORDER BY instrument_id ASC, id ASC`);
+		stmt.setReadBigInts(true);
+		const queryParams = instruments.flatMap((instrument) => [instrument.id, BigInt(pointLimit)]);
+		const rows = stmt.all(...queryParams) as unknown as PointRow[];
+		for (const row of rows) {
+			const points = byInstrument.get(row.instrument_id);
+			if (points) points.push(row);
+			else byInstrument.set(row.instrument_id, [row]);
+		}
+		return byInstrument;
+	}
+
+	private metricFromRow(row: InstrumentRow, pointRows: readonly PointRow[]): Metric {
 		const resource: Resource = { attributes: decodeAttributes(row.resource_attributes) };
 		const scope: InstrumentationScope = {
 			name: row.scope_name,
@@ -240,7 +270,6 @@ LIMIT ? OFFSET ?`);
 			resource,
 			scope,
 		};
-		const pointRows = this.selectPoints.all(row.id) as unknown as PointRow[];
 		if (row.type === 'histogram') {
 			const metric: HistogramMetric = {
 				...base,

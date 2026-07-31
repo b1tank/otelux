@@ -23,6 +23,9 @@ export function useDataSourceQuery<T>(
 	depsKey: string,
 	paused = false,
 	refreshKind?: ChangeEvent['kind'],
+	enabled = true,
+	refreshWhen?: (event: ChangeEvent) => boolean,
+	minRefreshIntervalMs = 0,
 ): { value: T | undefined; loading: boolean; error: Error | undefined } {
 	const [value, setValue] = useState<T | undefined>(undefined);
 	const [error, setError] = useState<Error | undefined>(undefined);
@@ -31,6 +34,8 @@ export function useDataSourceQuery<T>(
 	// `depsKey` changes — callers control invalidation explicitly.
 	const fetcherRef = useRef(fetcher);
 	fetcherRef.current = fetcher;
+	const refreshWhenRef = useRef(refreshWhen);
+	refreshWhenRef.current = refreshWhen;
 	// Track the latest dep key so out-of-order fetch resolutions are dropped.
 	const latestKey = useRef(depsKey);
 
@@ -38,35 +43,57 @@ export function useDataSourceQuery<T>(
 		let cancelled = false;
 		let running = false;
 		let trailingRefresh = false;
+		let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+		let lastStartedAt = Number.NEGATIVE_INFINITY;
 		latestKey.current = depsKey;
+		if (!enabled) {
+			setLoading(false);
+			return;
+		}
 		setLoading(true);
+
+		function schedule(): void {
+			if (running) {
+				trailingRefresh = true;
+				return;
+			}
+			if (refreshTimer !== undefined) return;
+			const elapsed = performance.now() - lastStartedAt;
+			const delay = Math.max(0, minRefreshIntervalMs - elapsed);
+			if (delay === 0) {
+				void run();
+				return;
+			}
+			refreshTimer = setTimeout(() => {
+				refreshTimer = undefined;
+				void run();
+			}, delay);
+		}
 
 		async function run(): Promise<void> {
 			// Live exporters can notify faster than IPC/storage can answer. Never
-			// fan those hints out into concurrent copies of the same query: retain
-			// one trailing refresh so the settled value still catches up.
+			// fan those hints out into concurrent copies of the same query.
 			if (running) {
 				trailingRefresh = true;
 				return;
 			}
 			running = true;
-			do {
-				trailingRefresh = false;
-				try {
-					const result = await fetcherRef.current(dataSource);
-					if (!cancelled && latestKey.current === depsKey) {
-						setValue(result);
-						setError(undefined);
-					}
-				} catch (err) {
-					if (!cancelled && latestKey.current === depsKey) {
-						setError(err instanceof Error ? err : new Error(String(err)));
-					}
+			trailingRefresh = false;
+			lastStartedAt = performance.now();
+			try {
+				const result = await fetcherRef.current(dataSource);
+				if (!cancelled && latestKey.current === depsKey) {
+					setValue(result);
+					setError(undefined);
 				}
-			} while (!cancelled && trailingRefresh);
-			running = false;
-			if (!cancelled && latestKey.current === depsKey) {
-				setLoading(false);
+			} catch (err) {
+				if (!cancelled && latestKey.current === depsKey) {
+					setError(err instanceof Error ? err : new Error(String(err)));
+				}
+			} finally {
+				running = false;
+				if (!cancelled && trailingRefresh) schedule();
+				else if (!cancelled && latestKey.current === depsKey) setLoading(false);
 			}
 		}
 
@@ -77,17 +104,22 @@ export function useDataSourceQuery<T>(
 		const sub = dataSource.subscribe((event) => {
 			// Frozen: ignore live notifications until the view is resumed. Signal
 			// scoping also prevents log/metric traffic from re-running trace SQL.
-			if (paused || (refreshKind !== undefined && event.kind !== refreshKind)) {
+			if (
+				paused ||
+				(refreshKind !== undefined && event.kind !== refreshKind) ||
+				(refreshWhenRef.current !== undefined && !refreshWhenRef.current(event))
+			) {
 				return;
 			}
-			void run();
+			schedule();
 		});
 
 		return () => {
 			cancelled = true;
+			if (refreshTimer !== undefined) clearTimeout(refreshTimer);
 			sub.dispose();
 		};
-	}, [dataSource, depsKey, paused, refreshKind]);
+	}, [dataSource, depsKey, paused, refreshKind, enabled, minRefreshIntervalMs]);
 
 	return { value, loading, error };
 }

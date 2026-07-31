@@ -86,7 +86,7 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 	const query = useDataSourceQuery<ListMetricsResult>(
 		dataSource,
 		(ds) => {
-			const q: Parameters<DataSource['listMetrics']>[0] = { limit };
+			const q: Parameters<DataSource['listMetrics']>[0] = { limit, pointLimit: 1 };
 			if (services && services.length > 0) {
 				q.services = services;
 			}
@@ -101,11 +101,41 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 		queryKey,
 		paused,
 		'metricsChanged',
+		true,
+		undefined,
+		2_000,
 	);
 
 	const rows = query.value?.rows ?? [];
 	const groups = groupByMeter(rows);
 	const selection = resolveMetricSelection(groups, selectedMeter, selectedMetricKey);
+	const selectedSummary = selection.activeMetric;
+	const selectedKey = selectedSummary ? metricKey(selectedSummary) : '';
+	const detailQuery = useDataSourceQuery<Metric | undefined>(
+		dataSource,
+		async (ds) => {
+			if (!selectedSummary) return undefined;
+			const service = metricService(selectedSummary);
+			const result = await ds.listMetrics({
+				limit: 20,
+				pointLimit: 120,
+				meters: [meterName(selectedSummary)],
+				search: selectedSummary.name,
+				...(service ? { services: [service] } : {}),
+			});
+			return result.rows.find((metric) => metricKey(metric) === selectedKey);
+		},
+		`metric-detail:${selectedKey}`,
+		paused,
+		'metricsChanged',
+		selectedSummary !== undefined,
+		undefined,
+		2_000,
+	);
+	const activeMetric =
+		detailQuery.value && metricKey(detailQuery.value) === selectedKey
+			? detailQuery.value
+			: selectedSummary;
 
 	return (
 		<>
@@ -139,12 +169,12 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 								}}
 							/>
 							<div className="otelux-metrics__workspace">
-								{selection.activeMetric ? (
+								{activeMetric ? (
 									<MetricWorkspace
-										metric={selection.activeMetric}
+										metric={activeMetric}
 										mode={mode}
 										onModeChange={setMode}
-										onShowDetails={() => setDetailsMetric(selection.activeMetric ?? null)}
+										onShowDetails={() => setDetailsMetric(activeMetric)}
 									/>
 								) : selection.activeGroup ? (
 									<MeterInstrumentTable

@@ -47,7 +47,7 @@ Important current limits:
 - OTLP/gRPC ingest is planned, not shipped (OTLP/HTTP JSON and protobuf are live).
 - Dense trace modes and detail search need polish.
 - Agent-run correlation and service overview tools are schema-stable but not fully implemented.
-- The storage audit's span-identity P0 is fixed in schema v2 and trace-service count/page correctness is fixed in schema v3 with normalized indexed membership. Metric listing still performs one point-history query per instrument and remains the P1 pre-daemon blocker. See [storage.md](storage.md#audit-findings).
+- The storage audit's span-identity P0 is fixed in schema v2; trace-service count/page correctness is fixed in schema v3; and metric histories are bounded and fetched in one compound indexed statement. Protocol 0.4 grouped service facets replace hidden raw-record probes. Main-process query isolation, keyset pagination, and the full query-budget harness remain pre-daemon hardening work. See [storage.md](storage.md#audit-findings).
 - `@otelux/protocol` is currently an in-memory TypeScript contract, not a validated JSON wire contract. Runtime RPC/SSE DTOs and schema snapshots are required before Desktop becomes a daemon client. See [protocol.md](protocol.md#current-gaps).
 
 ## Signals In Scope
@@ -91,7 +91,7 @@ The daemon transport and storage implementations must conform to [protocol.md](p
 | Package | Purpose | Current state |
 |---|---|---|
 | `@otelux/types` | Shared trace, log, metric, resource, scope, and attribute types. | Live. |
-| `@otelux/protocol` | `DataSource` interface and query/result contracts. | Live for traces/logs/metrics. |
+| `@otelux/protocol` | `DataSource` interface and query/result contracts. | Live for traces/logs/metrics and grouped service facets (v0.4). |
 | `@otelux/engine` | Pure TypeScript ingest, query, layout, subscriptions, memory storage. | Live. |
 | `@otelux/engine-node` | Durable Node storage adapter (`node:sqlite`) with retention (age/size). | Live. |
 | `@otelux/local-runtime` | Backend composition and control API for storage, engine, OTLP, MCP, settings, and lifecycle. | Live; currently embedded by Desktop. |
@@ -349,6 +349,9 @@ Treat these as targets until benchmark coverage exists:
 | Trace list query | < 100 ms for common local workloads. |
 | Log search | < 150 ms for indexed local workloads. |
 | Metric chart query | < 150 ms for common local workloads. |
+| Inactive-view query traffic | Zero raw list/detail queries or subscriptions. |
+| Renderer retained heap | < 100 MB after GC on the representative dogfood database. |
+| Bounded list payload | < 2 MiB per active list query; facets < 16 KiB. |
 | Waterfall layout | One frame for visible rows in typical traces. |
 | UI interaction | No intentional blocking over one frame. |
 

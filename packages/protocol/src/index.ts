@@ -100,6 +100,8 @@ export interface ListLogsResult {
 export interface ListMetricsQuery {
 	limit?: number;
 	offset?: number;
+	/** Most-recent points returned per instrument. Defaults to 120; maximum 10,000. */
+	pointLimit?: number;
 	services?: readonly string[];
 	meters?: readonly string[];
 	search?: string;
@@ -108,6 +110,22 @@ export interface ListMetricsQuery {
 export interface ListMetricsResult {
 	rows: readonly Metric[];
 	totalCount: number;
+}
+
+export type TelemetrySignal = 'traces' | 'logs' | 'metrics';
+
+export interface ListServiceFacetsQuery {
+	signal: TelemetrySignal;
+	limit?: number;
+}
+
+export interface ServiceFacet {
+	name: string;
+	count: number;
+}
+
+export interface ListServiceFacetsResult {
+	rows: readonly ServiceFacet[];
 }
 
 /**
@@ -134,6 +152,7 @@ export interface DataSource {
 	getSpanDetails(query: GetSpanDetailsQuery): Promise<SpanDetails>;
 	listLogs(query: ListLogsQuery): Promise<ListLogsResult>;
 	listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult>;
+	listServiceFacets(query: ListServiceFacetsQuery): Promise<ListServiceFacetsResult>;
 	subscribe(handler: (event: ChangeEvent) => void): Disposable;
 }
 
@@ -249,4 +268,4 @@ export type RuntimeEvent =
 	| { readonly kind: 'receiver-status-changed'; readonly status: ReceiverStatus }
 	| { readonly kind: 'mcp-status-changed'; readonly status: McpStatus };
 
-export const OTELUX_PROTOCOL_VERSION = '0.3.0' as const;
+export const OTELUX_PROTOCOL_VERSION = '0.4.0' as const;

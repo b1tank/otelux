@@ -87,6 +87,9 @@ class FakeDataSource implements DataSource {
 		this.calls.push(query);
 		return Promise.resolve({ rows: this.rows, totalCount: this.rows.length });
 	}
+	listServiceFacets() {
+		return Promise.resolve({ rows: [] });
+	}
 	subscribe(_handler: (e: ChangeEvent) => void): { dispose(): void } {
 		return { dispose: () => {} };
 	}
@@ -109,6 +112,16 @@ describe('MetricsView', () => {
 		expect(container.querySelectorAll('.otelux-metric').length).toBe(1);
 		expect(container.textContent).toContain('Counter');
 		expect(container.textContent).toContain('Histogram');
+	});
+
+	it('splits the instrument summary from the selected history query', async () => {
+		const ds = new FakeDataSource();
+		ds.rows = [makeSum(), makeHistogram()];
+		render(<MetricsView dataSource={ds} />);
+		await waitFor(() => {
+			expect(ds.calls.some((query) => query.pointLimit === 1)).toBe(true);
+			expect(ds.calls.some((query) => query.pointLimit === 120)).toBe(true);
+		});
 	});
 
 	it('shows a meter instrument table when selecting a meter', async () => {

@@ -134,6 +134,8 @@ async function startBackend(): Promise<{
 				return runtime.listLogs(message.query);
 			case 'listMetrics':
 				return runtime.listMetrics(message.query);
+			case 'listServiceFacets':
+				return runtime.listServiceFacets(message.query);
 			case 'getSettings':
 				return runtime.getSettings();
 			case 'getReceiverStatus':

@@ -44,8 +44,8 @@ Tasks:
 - [x] Run the storage contract test suite against both memory and SQLite backends.
 - [x] Change span identity and every detail lookup to `(traceId, spanId)`; schema v2 transactionally rebuilds v1 spans, repairs surviving rollups, and has duplicate-span-ID-across-traces coverage for memory and SQLite.
 - [x] Normalize trace services in schema v3 and apply the same indexed service predicate before count and offset pagination; reuse it when cursor pagination lands.
-- Split metric instrument metadata from point history; remove the per-instrument point-query N+1 and bound point windows/payloads.
-- Add grouped facet queries so the workbench does not fetch 500 raw records per signal to discover filters.
+- [x] Split metric list metadata from selected-series history, replace the point-query N+1 with one compound indexed tail query, and bound point windows/payloads.
+- [x] Add grouped service facet queries so inactive workbench views do not fetch raw records to discover filters.
 - Add keyset cursor pagination for live lists and optional exact counts.
 - Add statement-count and `EXPLAIN QUERY PLAN` tests enforcing the budgets in [storage.md](storage.md#query-contracts-and-statement-budgets).
 - Add FTS5 log search only after tokenizer/fallback parity tests define exact semantics.

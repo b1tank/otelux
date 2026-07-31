@@ -42,6 +42,9 @@ class DeferredTraceSource implements DataSource {
 	listMetrics(_query: ListMetricsQuery): Promise<ListMetricsResult> {
 		throw new Error('not used');
 	}
+	listServiceFacets() {
+		return Promise.reject(new Error('not used'));
+	}
 	subscribe(handler: (event: ChangeEvent) => void): { dispose(): void } {
 		this.handlers.add(handler);
 		return { dispose: () => this.handlers.delete(handler) };
@@ -51,18 +54,27 @@ class DeferredTraceSource implements DataSource {
 	}
 }
 
-function Harness({ source }: { source: DeferredTraceSource }) {
+function Harness({ source, enabled = true }: { source: DeferredTraceSource; enabled?: boolean }) {
 	const query = useDataSourceQuery(
 		source,
 		(ds) => ds.listTraces({ limit: 10 }),
 		'test',
 		false,
 		'tracesChanged',
+		enabled,
 	);
 	return <output>{query.value?.totalCount ?? 'loading'}</output>;
 }
 
 describe('useDataSourceQuery', () => {
+	it('does not fetch or subscribe while disabled', async () => {
+		const source = new DeferredTraceSource();
+		render(<Harness source={source} enabled={false} />);
+		await Promise.resolve();
+		source.notify({ kind: 'tracesChanged', traceIds: [] });
+		expect(source.calls).toBe(0);
+	});
+
 	it('coalesces a burst during an in-flight query into one trailing refresh', async () => {
 		const source = new DeferredTraceSource();
 		const { getByText } = render(<Harness source={source} />);
