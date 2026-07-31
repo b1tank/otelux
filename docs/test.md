@@ -344,6 +344,11 @@ for i in {1..20}; do PORT=14320 ./scripts/send-traces.sh >/dev/null; done
 
 ## 7. Trace list (selection + visuals)
 
+### 7.0 Service-filter count and pagination
+
+- Ingest at least two traces from different services, with the target service's trace older than a non-target trace, then select the target service.
+- **Expected**: the header/footer count equals the number of matching traces, and the page includes the matching older trace. Filtering occurs before count, sort, limit, and offset; the unfiltered total never appears in the filtered UI.
+
 ### 7.1 Selection toggles highlight
 - Click first row.
 - **Expected**: row gains the `is-selected` modifier (the `<li>` is `otelux-trace-row is-selected`) and visibly changes background, main pane switches from placeholder to waterfall.

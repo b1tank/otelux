@@ -16,7 +16,7 @@
  * per-row storage.
  */
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const SPAN_COLUMN_NAMES = `
   span_id, trace_id, parent_span_id, name, kind,
@@ -89,6 +89,16 @@ CREATE TABLE IF NOT EXISTS traces (
 );
 CREATE INDEX IF NOT EXISTS idx_traces_start    ON traces(start_unix_nano);
 CREATE INDEX IF NOT EXISTS idx_traces_ingested ON traces(ingested_unix_nano);
+
+-- Normalized service membership keeps service filters inside the indexed SQL
+-- page/count query. The JSON array on traces remains the wire-ready projection.
+CREATE TABLE IF NOT EXISTS trace_services (
+  trace_id      TEXT NOT NULL REFERENCES traces(trace_id) ON DELETE CASCADE,
+  service_name TEXT NOT NULL,
+  PRIMARY KEY (trace_id, service_name)
+);
+CREATE INDEX IF NOT EXISTS idx_trace_services_service
+  ON trace_services(service_name, trace_id);
 
 CREATE TABLE IF NOT EXISTS logs (
   id                       INTEGER PRIMARY KEY AUTOINCREMENT,

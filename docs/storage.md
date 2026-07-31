@@ -1,6 +1,6 @@
 # OTelux Storage And Query Design
 
-Updated: 2026-07-16
+Updated: 2026-07-31
 
 OTelux uses SQLite as a local telemetry engine, not as a JSON file cabinet. The schema and query API are designed together so every supported UI or agent workflow has a bounded, indexed path with a known SQL statement budget.
 
@@ -32,7 +32,7 @@ OTelux uses SQLite as a local telemetry engine, not as a JSON file cabinet. The 
 | Severity | Finding | Impact | Required correction |
 |---|---|---|---|
 | Resolved P0 | Schema v1 used global `span_id` identity across storage and detail contracts, although OTLP span IDs are unique only within a trace. | SQLite could overwrite another trace's span and return stale rollups/details. | Fixed: schema v2 uses `PRIMARY KEY(trace_id, span_id)`, migrates v1 transactionally, repairs surviving rollups, preserves v1 for retry if migration fails, and all detail APIs require both IDs. |
-| P1 | Trace service filtering occurs after SQL `LIMIT/OFFSET`; the count query omits the service filter. | Short/empty pages and incorrect totals. | Normalize `trace_services(trace_id, service_name)` and apply an indexed `EXISTS` predicate to both count and page queries. |
+| Resolved P1 | Trace service filtering occurred after SQL `LIMIT/OFFSET`; the count query omitted the service filter. | Short/empty pages and incorrect totals. | Fixed: schema v3 normalizes `trace_services(trace_id, service_name)`, migrates existing service JSON, updates membership transactionally with trace rollups, and applies one indexed `EXISTS` predicate to count and page queries. |
 | P1 | `listMetrics` selects points once per returned instrument. | $N+2$ SQL statements, up to 500 eager histories in the current UI. | Split instrument metadata from point history; batch or query points only for the selected instrument/window. |
 | P1 | Metric list results can carry up to 10,000 points per instrument. | Very large IPC/HTTP payloads, decoding cost, and renderer memory pressure. | `listMetricInstruments` returns metadata/latest summary only; `getMetricPoints` is windowed and paged. |
 | P2 | UI discovers service/meter facets by fetching 500 traces, 500 logs, and 500 full metric instruments. | Redundant queries and payloads on startup/change. | Add grouped facet queries and one `telemetry/getFacets` RPC. |
@@ -41,16 +41,16 @@ OTelux uses SQLite as a local telemetry engine, not as a JSON file cabinet. The 
 | P2 | `search_text LIKE '%term%'` cannot use a normal B-tree index. | Full log scan for substring search. | Add FTS5 with explicit tokenizer/versioning, retaining deterministic fallback semantics. |
 | P3 | Dynamic count/page SQL is prepared for every list call. | Avoidable parse/prepare overhead. | Cache statements by finite query shape after higher-impact fixes. |
 
-The two highest-severity correctness findings were reproduced directly against the current built SQLite package:
+The two highest-severity correctness findings were reproduced directly during the audit:
 
 ```json
 {"traceList":[{"id":"bbbb...","count":1},{"id":"aaaa...","count":1}],"traceASpans":0,"traceBSpans":1}
 {"totalCount":2,"rowCount":0,"names":[]}
 ```
 
-The first result captured the now-fixed schema v1 behavior after two traces were written with the same `span_id`; trace A kept a stale rollup after its row was replaced by trace B. The second remains open and follows `services=["beta"]`, `limit=1` when a newer alpha trace occupies the SQL page before the post-query service filter runs.
+The first result captured the now-fixed schema v1 behavior after two traces were written with the same `span_id`; trace A kept a stale rollup after its row was replaced by trace B. The second captured the now-fixed pre-v3 service-filter bug where `services=["beta"]`, `limit=1` returned an empty page when a newer alpha trace occupied the SQL page.
 
-## Target Schema Direction
+## Schema Direction
 
 ### Trace identity and services
 
@@ -76,7 +76,7 @@ CREATE INDEX idx_trace_services_service_trace
   ON trace_services(service_name, trace_id);
 ```
 
-The materialized `traces` row remains the list source. `services` may remain as display JSON temporarily, but filtering and facets use `trace_services`.
+The materialized `traces` row remains the list source. `services` remains as display JSON, while filtering uses the schema-v3 `trace_services` relation. Facets should reuse that normalized relation when grouped facet queries land.
 
 ### Logs
 
@@ -160,7 +160,7 @@ Its experiment is useful as a warning, not a target:
 - Trace detail still reads the old in-memory repository, so persistence is not a complete source of truth after restart.
 - The branch's shipping in-memory waterfall calls a full-span child scan for each span, producing $O(n^2)$ work, and trace logs are fetched without an explicit limit.
 
-OTelux already has a stronger normalized baseline, materialized trace summaries, retention, migrations, and three-signal parity. The audit findings above must still be fixed before claiming an efficient daemon API.
+OTelux already has a stronger normalized baseline, materialized trace summaries, retention, migrations, and three-signal parity. The unresolved metric-history, facet, pagination, and search findings above must still be fixed before claiming an efficient daemon API.
 
 ## Verification
 

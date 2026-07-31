@@ -47,7 +47,7 @@ Important current limits:
 - OTLP/gRPC ingest is planned, not shipped (OTLP/HTTP JSON and protobuf are live).
 - Dense trace modes and detail search need polish.
 - Agent-run correlation and service overview tools are schema-stable but not fully implemented.
-- The storage audit's span-identity P0 is fixed in schema v2. Two P1 pre-daemon blockers remain: trace service filtering occurs after SQL pagination with an inconsistent count, and metric listing performs one point-history query per instrument. See [storage.md](storage.md#audit-findings).
+- The storage audit's span-identity P0 is fixed in schema v2 and trace-service count/page correctness is fixed in schema v3 with normalized indexed membership. Metric listing still performs one point-history query per instrument and remains the P1 pre-daemon blocker. See [storage.md](storage.md#audit-findings).
 - `@otelux/protocol` is currently an in-memory TypeScript contract, not a validated JSON wire contract. Runtime RPC/SSE DTOs and schema snapshots are required before Desktop becomes a daemon client. See [protocol.md](protocol.md#current-gaps).
 
 ## Signals In Scope

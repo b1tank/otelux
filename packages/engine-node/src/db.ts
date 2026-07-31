@@ -53,6 +53,10 @@ const MIGRATIONS: readonly Migration[] = [
 		to: 2,
 		apply: migrateSpansToCompositeIdentity,
 	},
+	{
+		to: 3,
+		apply: migrateTraceServices,
+	},
 ];
 
 /**
@@ -61,6 +65,24 @@ const MIGRATIONS: readonly Migration[] = [
  * overwrite it. SQLite cannot alter a primary key in place, so rebuild the
  * table transactionally and copy every column unchanged.
  */
+function migrateTraceServices(db: DatabaseSync): void {
+	db.exec(`
+BEGIN IMMEDIATE;
+CREATE TABLE IF NOT EXISTS trace_services (
+  trace_id      TEXT NOT NULL REFERENCES traces(trace_id) ON DELETE CASCADE,
+  service_name TEXT NOT NULL,
+  PRIMARY KEY (trace_id, service_name)
+);
+INSERT OR IGNORE INTO trace_services (trace_id, service_name)
+SELECT traces.trace_id, json_each.value
+FROM traces, json_each(traces.services)
+WHERE json_each.type = 'text' AND json_each.value <> '';
+CREATE INDEX IF NOT EXISTS idx_trace_services_service
+  ON trace_services(service_name, trace_id);
+COMMIT;
+`);
+}
+
 function migrateSpansToCompositeIdentity(db: DatabaseSync): void {
 	db.exec(`
 BEGIN IMMEDIATE;

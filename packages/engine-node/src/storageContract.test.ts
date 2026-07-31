@@ -231,6 +231,36 @@ function runStorageContract(label: string, make: () => Storage): void {
 			expect(paged.rows.map((r) => r.rootName)).toEqual(['sad path']);
 		});
 
+		it('applies trace service filtering before count and pagination', async () => {
+			await storage.writeSpans([
+				makeSpan({
+					traceId: TRACE_A,
+					spanId: '1'.repeat(16),
+					name: 'older-beta',
+					start: 10n,
+					end: 20n,
+					service: 'beta',
+				}),
+				makeSpan({
+					traceId: TRACE_B,
+					spanId: '2'.repeat(16),
+					name: 'newer-alpha',
+					start: 30n,
+					end: 40n,
+					service: 'alpha',
+				}),
+			]);
+
+			const result = await storage.listTraces({
+				services: ['beta'],
+				limit: 1,
+				sortBy: 'startTime',
+				sortDirection: 'desc',
+			});
+			expect(result.totalCount).toBe(1);
+			expect(result.rows.map((row) => row.rootName)).toEqual(['older-beta']);
+		});
+
 		it('filters logs by severity, trace, service, scope, and attribute text', async () => {
 			await storage.writeLogs([
 				makeLog({ time: 10n, severity: 9, body: 'info line', service: 'a', scope: 's1' }),

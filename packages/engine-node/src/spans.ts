@@ -54,6 +54,8 @@ export class SpanStore {
 	private readonly selectById: StatementSync;
 	private readonly selectTraceSpanSummary: StatementSync;
 	private readonly upsertTrace: StatementSync;
+	private readonly deleteTraceServices: StatementSync;
+	private readonly insertTraceService: StatementSync;
 
 	constructor(
 		private readonly db: DatabaseSync,
@@ -86,6 +88,10 @@ INSERT OR REPLACE INTO traces (
   trace_id, root_span_id, root_name, start_unix_nano, end_unix_nano,
   duration_nanos, span_count, error_count, services, ingested_unix_nano
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+		this.deleteTraceServices = db.prepare('DELETE FROM trace_services WHERE trace_id = ?');
+		this.insertTraceService = db.prepare(
+			'INSERT INTO trace_services (trace_id, service_name) VALUES (?, ?)',
+		);
 	}
 
 	write(spans: readonly Span[], ingestedUnixNano: bigint): void {
@@ -183,6 +189,7 @@ INSERT OR REPLACE INTO traces (
 				errorCount++;
 			}
 		}
+		const serviceNames = [...services].sort();
 		this.upsertTrace.run(
 			traceId,
 			root.span_id,
@@ -192,9 +199,13 @@ INSERT OR REPLACE INTO traces (
 			end - start,
 			rows.length,
 			errorCount,
-			encodeJson([...services]),
+			encodeJson(serviceNames),
 			ingestedUnixNano,
 		);
+		this.deleteTraceServices.run(traceId);
+		for (const serviceName of serviceNames) {
+			this.insertTraceService.run(traceId, serviceName);
+		}
 	}
 
 	listTraces(query: ListTracesQuery): ListTracesResult {
@@ -212,6 +223,14 @@ INSERT OR REPLACE INTO traces (
 			where.push('error_count > 0');
 		} else if (query.hasError === false) {
 			where.push('error_count = 0');
+		}
+		if (query.services && query.services.length > 0) {
+			const placeholders = query.services.map(() => '?').join(', ');
+			where.push(`EXISTS (
+  SELECT 1 FROM trace_services ts
+  WHERE ts.trace_id = traces.trace_id AND ts.service_name IN (${placeholders})
+)`);
+			params.push(...query.services);
 		}
 		if (query.search) {
 			// Match root name or any service name (services is a JSON array).
@@ -244,10 +263,6 @@ FROM traces ${whereSql} ORDER BY ${sortColumn} ${direction} LIMIT ? OFFSET ?`,
 			services: string;
 		}>;
 
-		// service filter (OR over the JSON array) is applied post-query because
-		// SQLite has no first-class array-membership operator; the page is
-		// already small so this is cheap. Applied before slicing would need a
-		// json_each join — deferred until it shows up in a profile.
 		const mapped: ListTracesResultRow[] = rows.map((r) => ({
 			traceId: r.trace_id,
 			rootName: r.root_name,
@@ -257,11 +272,6 @@ FROM traces ${whereSql} ORDER BY ${sortColumn} ${direction} LIMIT ? OFFSET ?`,
 			spanCount: Number(r.span_count),
 			errorCount: Number(r.error_count),
 		}));
-		if (query.services && query.services.length > 0) {
-			const set = new Set(query.services);
-			const filtered = mapped.filter((row) => row.services.some((s) => set.has(s)));
-			return { rows: filtered, totalCount: countRow.n };
-		}
 		return { rows: mapped, totalCount: countRow.n };
 	}
 

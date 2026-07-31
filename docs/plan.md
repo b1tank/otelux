@@ -43,7 +43,7 @@ Tasks:
 - [x] Add schema migration framework (versioned, forward-only) and corruption-tolerance recovery: failed upgrades roll back and remain in place for retry; unreadable or newer-version files are quarantined before starting fresh. Cover bootstrap, retry, newer-version, and corrupt-file cases.
 - [x] Run the storage contract test suite against both memory and SQLite backends.
 - [x] Change span identity and every detail lookup to `(traceId, spanId)`; schema v2 transactionally rebuilds v1 spans, repairs surviving rollups, and has duplicate-span-ID-across-traces coverage for memory and SQLite.
-- Normalize trace services and apply the same indexed service predicate before count and cursor pagination.
+- [x] Normalize trace services in schema v3 and apply the same indexed service predicate before count and offset pagination; reuse it when cursor pagination lands.
 - Split metric instrument metadata from point history; remove the per-instrument point-query N+1 and bound point windows/payloads.
 - Add grouped facet queries so the workbench does not fetch 500 raw records per signal to discover filters.
 - Add keyset cursor pagination for live lists and optional exact counts.
