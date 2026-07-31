@@ -6,7 +6,7 @@ Keep the workbench responsive under continuous high-content OTLP traffic, make f
 
 ## Prioritized tasks
 
-- [ ] **P1 — Coalesce and scope live query invalidations.** Route trace/log/metric change events only to matching queries, allow at most one active fetch plus one trailing refresh, and test pause/resume and burst behavior.
+- [x] **P1 — Coalesce and scope live query invalidations.** Trace/log/metric queries now ignore unrelated signals and collapse any in-flight notification burst to one trailing refresh; pause/resume, unrelated-event, and burst behavior are covered.
 - [ ] **P1 — Normalize trace-service filtering in durable storage.** Add a forward SQLite migration and indexed `trace_services` relation; apply service predicates before count, sort, limit, and offset; preserve memory/SQLite contract parity.
 - [ ] **P1 — Break Pi OTel self-observation feedback loops.** Redact observability-tool results from captured messages/provider payloads by default while preserving spans, metrics, arguments, and an explicit override.
 - [ ] **P2 — Clarify live list versus pinned trace selection.** Update the mockup and workbench to label the inspected trace as selected/pinned so new live arrivals do not look like a stale detail bug; retain keyboard and no-layout-shift invariants.

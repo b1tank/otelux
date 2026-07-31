@@ -105,6 +105,7 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 		},
 		queryKey,
 		paused,
+		'logsChanged',
 	);
 
 	const rows = query.value?.rows ?? [];

@@ -2,8 +2,9 @@
  * Subscribe to a DataSource and keep a query result in sync.
  *
  * Refetches when the DataSource notifies (`subscribe`) and when the
- * query dependency string changes. Returns the latest result plus a
- * `loading` flag for first-fetch UI states.
+ * query dependency string changes. Callers scope notifications with
+ * `refreshKind`; bursts are coalesced to one active plus one trailing fetch.
+ * Returns the latest result plus a `loading` flag for first-fetch UI states.
  *
  * When `paused` is true the live subscription no longer triggers refetches,
  * so the view freezes on its current result set (a "pause live tail"). An
@@ -13,7 +14,7 @@
  * frozen. Ingest is unaffected; only the view stops following it.
  */
 
-import type { DataSource } from '@otelux/protocol';
+import type { ChangeEvent, DataSource } from '@otelux/protocol';
 import { useEffect, useRef, useState } from 'react';
 
 export function useDataSourceQuery<T>(
@@ -21,6 +22,7 @@ export function useDataSourceQuery<T>(
 	fetcher: (ds: DataSource) => Promise<T>,
 	depsKey: string,
 	paused = false,
+	refreshKind?: ChangeEvent['kind'],
 ): { value: T | undefined; loading: boolean; error: Error | undefined } {
 	const [value, setValue] = useState<T | undefined>(undefined);
 	const [error, setError] = useState<Error | undefined>(undefined);
@@ -34,24 +36,37 @@ export function useDataSourceQuery<T>(
 
 	useEffect(() => {
 		let cancelled = false;
+		let running = false;
+		let trailingRefresh = false;
 		latestKey.current = depsKey;
 		setLoading(true);
 
 		async function run(): Promise<void> {
-			try {
-				const result = await fetcherRef.current(dataSource);
-				if (!cancelled && latestKey.current === depsKey) {
-					setValue(result);
-					setError(undefined);
+			// Live exporters can notify faster than IPC/storage can answer. Never
+			// fan those hints out into concurrent copies of the same query: retain
+			// one trailing refresh so the settled value still catches up.
+			if (running) {
+				trailingRefresh = true;
+				return;
+			}
+			running = true;
+			do {
+				trailingRefresh = false;
+				try {
+					const result = await fetcherRef.current(dataSource);
+					if (!cancelled && latestKey.current === depsKey) {
+						setValue(result);
+						setError(undefined);
+					}
+				} catch (err) {
+					if (!cancelled && latestKey.current === depsKey) {
+						setError(err instanceof Error ? err : new Error(String(err)));
+					}
 				}
-			} catch (err) {
-				if (!cancelled && latestKey.current === depsKey) {
-					setError(err instanceof Error ? err : new Error(String(err)));
-				}
-			} finally {
-				if (!cancelled && latestKey.current === depsKey) {
-					setLoading(false);
-				}
+			} while (!cancelled && trailingRefresh);
+			running = false;
+			if (!cancelled && latestKey.current === depsKey) {
+				setLoading(false);
 			}
 		}
 
@@ -59,9 +74,10 @@ export function useDataSourceQuery<T>(
 		// effect re-runs when `paused` flips, so a resume catches up).
 		void run();
 
-		const sub = dataSource.subscribe(() => {
-			// Frozen: ignore live notifications until the view is resumed.
-			if (paused) {
+		const sub = dataSource.subscribe((event) => {
+			// Frozen: ignore live notifications until the view is resumed. Signal
+			// scoping also prevents log/metric traffic from re-running trace SQL.
+			if (paused || (refreshKind !== undefined && event.kind !== refreshKind)) {
 				return;
 			}
 			void run();
@@ -71,7 +87,7 @@ export function useDataSourceQuery<T>(
 			cancelled = true;
 			sub.dispose();
 		};
-	}, [dataSource, depsKey, paused]);
+	}, [dataSource, depsKey, paused, refreshKind]);
 
 	return { value, loading, error };
 }

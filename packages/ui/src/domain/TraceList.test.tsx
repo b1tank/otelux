@@ -60,9 +60,9 @@ class FakeDataSource implements DataSource {
 		this.handlers.add(handler);
 		return { dispose: () => this.handlers.delete(handler) };
 	}
-	notify(): void {
+	notify(event: ChangeEvent = { kind: 'tracesChanged', traceIds: [] }): void {
 		for (const h of this.handlers) {
-			h({ kind: 'tracesChanged', traceIds: [] });
+			h(event);
 		}
 	}
 }
@@ -151,6 +151,20 @@ describe('TraceList', () => {
 		await findByText('GET /api/users');
 		const before = ds.calls.length;
 		act(() => ds.notify());
+		await Promise.resolve();
+		expect(ds.calls.length).toBe(before);
+	});
+
+	it('ignores log and metric invalidations', async () => {
+		const ds = new FakeDataSource();
+		ds.rows = [makeRow({ traceId: 'a' })];
+		const { findByText } = render(<TraceList dataSource={ds} onSelect={() => {}} />);
+		await findByText('GET /api/users');
+		const before = ds.calls.length;
+		act(() => {
+			ds.notify({ kind: 'logsChanged', count: 1 });
+			ds.notify({ kind: 'metricsChanged', count: 1 });
+		});
 		await Promise.resolve();
 		expect(ds.calls.length).toBe(before);
 	});

@@ -248,6 +248,8 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 			return ds.getTrace({ traceId: selectedTraceId });
 		},
 		`trace:${selectedTraceId ?? ''}`,
+		false,
+		'tracesChanged',
 	);
 
 	const trace = traceQuery.value;
@@ -267,6 +269,8 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		dataSource,
 		(ds) => ds.listTraces({ limit: 500, sortBy: 'startTime', sortDirection: 'desc' }),
 		'workbench:summary-probe',
+		false,
+		'tracesChanged',
 	);
 	const summaryRows = summaryProbe.value?.rows ?? [];
 	const hasAnyTrace = summaryRows.length > 0;
@@ -330,6 +334,8 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		dataSource,
 		(ds) => ds.listLogs({ limit: 500, sortBy: 'time', sortDirection: 'desc' }),
 		'workbench:logs-service-probe',
+		false,
+		'logsChanged',
 	);
 	const logsRows = logsProbe.value?.rows ?? [];
 
@@ -373,6 +379,8 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		dataSource,
 		(ds) => ds.listMetrics({ limit: 500 }),
 		'workbench:metrics-service-probe',
+		false,
+		'metricsChanged',
 	);
 	const metricsRows = metricsProbe.value?.rows ?? [];
 

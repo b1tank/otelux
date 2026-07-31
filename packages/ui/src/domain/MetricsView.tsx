@@ -100,6 +100,7 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 		},
 		queryKey,
 		paused,
+		'metricsChanged',
 	);
 
 	const rows = query.value?.rows ?? [];
