@@ -5,8 +5,8 @@ import type {
 	ListLogsResult,
 	ListMetricsQuery,
 	ListMetricsResult,
-	ListServiceFacetsQuery,
-	ListServiceFacetsResult,
+	ListResourceFacetsQuery,
+	ListResourceFacetsResult,
 	ListTracesQuery,
 	ListTracesResult,
 } from '@otelux/protocol';
@@ -32,9 +32,9 @@ export interface Storage {
 	listLogs(query: ListLogsQuery): Promise<ListLogsResult> | ListLogsResult;
 	writeMetrics(metrics: readonly Metric[]): Promise<void> | void;
 	listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult> | ListMetricsResult;
-	listServiceFacets(
-		query: ListServiceFacetsQuery,
-	): Promise<ListServiceFacetsResult> | ListServiceFacetsResult;
+	listResourceFacets(
+		query: ListResourceFacetsQuery,
+	): Promise<ListResourceFacetsResult> | ListResourceFacetsResult;
 	/** Delete all stored telemetry (traces, logs, metrics) but keep the store open for reuse. */
 	clear(): Promise<void> | void;
 	close(): Promise<void> | void;
@@ -74,9 +74,25 @@ function logMatchesText(log: LogRecord, needle: string): boolean {
  * Resource `service.name` for an instrument, or `''` when unset. Used as
  * part of the instrument identity and for the `services` filter.
  */
+function resourceServiceName(resource: {
+	attributes: Readonly<Record<string, AttributeValue>>;
+}): string {
+	const service = resource.attributes['service.name'];
+	return typeof service === 'string' ? service : '';
+}
+
+/** Application-level source: explicit OTel namespace, then exact service fallback. */
+function resourceSourceName(resource: {
+	attributes: Readonly<Record<string, AttributeValue>>;
+}): string {
+	const namespace = resource.attributes['service.namespace'];
+	return typeof namespace === 'string' && namespace !== ''
+		? namespace
+		: resourceServiceName(resource);
+}
+
 function metricServiceName(metric: Metric): string {
-	const svc = metric.resource.attributes['service.name'];
-	return typeof svc === 'string' ? svc : '';
+	return resourceServiceName(metric.resource);
 }
 
 /**
@@ -88,7 +104,7 @@ function metricServiceName(metric: Metric): string {
  * it cannot appear in any of the component strings.
  */
 function metricIdentity(metric: Metric): string {
-	return `${metricServiceName(metric)}\u0000${metric.scope.name}\u0000${metric.name}\u0000${metric.type}`;
+	return `${resourceSourceName(metric.resource)}\u0000${metricServiceName(metric)}\u0000${metric.scope.name}\u0000${metric.name}\u0000${metric.type}`;
 }
 
 /**
@@ -161,6 +177,7 @@ export function createMemoryStorage(): Storage {
 				startTimeUnixNano: bigint;
 				durationNanos: bigint;
 				services: readonly string[];
+				sources: readonly string[];
 				spanCount: number;
 				errorCount: number;
 		  }
@@ -190,6 +207,7 @@ export function createMemoryStorage(): Storage {
 		let start = first.startTimeUnixNano;
 		let end = first.endTimeUnixNano;
 		const services = new Set<string>();
+		const sources = new Set<string>();
 		let errorCount = 0;
 		for (const s of spans) {
 			if (s.startTimeUnixNano < start) {
@@ -198,10 +216,10 @@ export function createMemoryStorage(): Storage {
 			if (s.endTimeUnixNano > end) {
 				end = s.endTimeUnixNano;
 			}
-			const svc = s.resource.attributes['service.name'];
-			if (typeof svc === 'string') {
-				services.add(svc);
-			}
+			const service = resourceServiceName(s.resource);
+			const source = resourceSourceName(s.resource);
+			if (service) services.add(service);
+			if (source) sources.add(source);
 			if (s.status.code === 2 /* Error */) {
 				errorCount++;
 			}
@@ -212,6 +230,7 @@ export function createMemoryStorage(): Storage {
 			startTimeUnixNano: start,
 			durationNanos: end - start,
 			services: [...services],
+			sources: [...sources],
 			spanCount: spans.length,
 			errorCount,
 		};
@@ -253,6 +272,10 @@ export function createMemoryStorage(): Storage {
 				}
 				if (query.hasError === false && row.errorCount > 0) {
 					return false;
+				}
+				if (query.sources && query.sources.length > 0) {
+					const set = new Set(query.sources);
+					if (!row.sources.some((source) => set.has(source))) return false;
 				}
 				if (query.services && query.services.length > 0) {
 					const set = new Set(query.services);
@@ -337,6 +360,13 @@ export function createMemoryStorage(): Storage {
 				if (query.traceId !== undefined && log.traceId !== query.traceId) {
 					return false;
 				}
+				if (
+					query.sources &&
+					query.sources.length > 0 &&
+					!query.sources.includes(resourceSourceName(log.resource))
+				) {
+					return false;
+				}
 				if (query.services && query.services.length > 0) {
 					const svc = log.resource.attributes['service.name'];
 					if (typeof svc !== 'string' || !query.services.includes(svc)) {
@@ -389,6 +419,13 @@ export function createMemoryStorage(): Storage {
 
 		listMetrics(query: ListMetricsQuery): ListMetricsResult {
 			const filtered = [...metrics.values()].filter((metric) => {
+				if (
+					query.sources &&
+					query.sources.length > 0 &&
+					!query.sources.includes(resourceSourceName(metric.resource))
+				) {
+					return false;
+				}
 				if (query.services && query.services.length > 0) {
 					if (!query.services.includes(metricServiceName(metric))) {
 						return false;
@@ -423,29 +460,35 @@ export function createMemoryStorage(): Storage {
 			return { rows: page, totalCount };
 		},
 
-		listServiceFacets(query: ListServiceFacetsQuery): ListServiceFacetsResult {
+		listResourceFacets(query: ListResourceFacetsQuery): ListResourceFacetsResult {
 			const counts = new Map<string, number>();
 			const add = (name: string): void => {
 				if (name) counts.set(name, (counts.get(name) ?? 0) + 1);
 			};
+			const includedSource = (source: string): boolean =>
+				!query.sources || query.sources.length === 0 || query.sources.includes(source);
+			const facetName = (resource: {
+				attributes: Readonly<Record<string, AttributeValue>>;
+			}): string =>
+				query.facet === 'source' ? resourceSourceName(resource) : resourceServiceName(resource);
 			if (query.signal === 'traces') {
 				for (const spans of byTrace.values()) {
-					const services = new Set<string>();
+					const names = new Set<string>();
 					for (const span of spans.values()) {
-						const service = span.resource.attributes['service.name'];
-						if (typeof service === 'string') services.add(service);
+						if (includedSource(resourceSourceName(span.resource))) names.add(facetName(span.resource));
 					}
-					for (const service of services) add(service);
+					for (const name of names) add(name);
 				}
 			} else if (query.signal === 'logs') {
 				for (const log of logs) {
-					const service = log.resource.attributes['service.name'];
-					if (typeof service === 'string') add(service);
+					if (includedSource(resourceSourceName(log.resource))) add(facetName(log.resource));
 				}
 			} else {
-				for (const metric of metrics.values()) add(metricServiceName(metric));
+				for (const metric of metrics.values()) {
+					if (includedSource(resourceSourceName(metric.resource))) add(facetName(metric.resource));
+				}
 			}
-			const limit = query.limit ?? 500;
+			const limit = Math.max(1, Math.min(query.limit ?? 500, 1000));
 			return {
 				rows: [...counts.entries()]
 					.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))

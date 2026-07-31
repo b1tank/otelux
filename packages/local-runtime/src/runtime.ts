@@ -272,7 +272,7 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 		getSpanDetails: (query) => engine.getSpanDetails(query),
 		listLogs: (query) => engine.listLogs(query),
 		listMetrics: (query) => engine.listMetrics(query),
-		listServiceFacets: (query) => engine.listServiceFacets(query),
+		listResourceFacets: (query) => engine.listResourceFacets(query),
 		subscribe: (handler) => engine.subscribe(handler),
 		getSettings: () => settings.get(),
 		getReceiverStatus: () => receiverHost.status,

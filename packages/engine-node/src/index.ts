@@ -22,15 +22,15 @@ import type {
 	ListLogsResult,
 	ListMetricsQuery,
 	ListMetricsResult,
-	ListServiceFacetsQuery,
-	ListServiceFacetsResult,
+	ListResourceFacetsQuery,
+	ListResourceFacetsResult,
 	ListTracesQuery,
 	ListTracesResult,
 	StorageUsageInfo,
 } from '@otelux/protocol';
 import type { LogRecord, Metric, Span, SpanId, TraceId } from '@otelux/types';
 import { openDatabaseWithRecovery } from './db.js';
-import { listServiceFacets } from './facets.js';
+import { listResourceFacets } from './facets.js';
 import { Interner } from './intern.js';
 import { LogStore } from './logs.js';
 import { MetricStore } from './metrics.js';
@@ -75,7 +75,7 @@ export interface NodeSqliteStorage extends Storage {
 	listLogs(query: ListLogsQuery): ListLogsResult;
 	writeMetrics(metrics: readonly Metric[]): void;
 	listMetrics(query: ListMetricsQuery): ListMetricsResult;
-	listServiceFacets(query: ListServiceFacetsQuery): ListServiceFacetsResult;
+	listResourceFacets(query: ListResourceFacetsQuery): ListResourceFacetsResult;
 	getStorageUsage(): StorageUsageInfo;
 	clear(): void;
 	close(): void;
@@ -155,8 +155,8 @@ export function createNodeSqliteStorage(options: NodeSqliteStorageOptions): Node
 		listMetrics(query: ListMetricsQuery): ListMetricsResult {
 			return metrics.listMetrics(query);
 		},
-		listServiceFacets(query: ListServiceFacetsQuery): ListServiceFacetsResult {
-			return listServiceFacets(db, query);
+		listResourceFacets(query: ListResourceFacetsQuery): ListResourceFacetsResult {
+			return listResourceFacets(db, query);
 		},
 		getStorageUsage(): StorageUsageInfo {
 			const inMemory = options.path === ':memory:';

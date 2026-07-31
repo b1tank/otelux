@@ -1,12 +1,39 @@
 import { existsSync, renameSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import type { DatabaseSync } from 'node:sqlite';
-import {
-	SCHEMA_SQL,
-	SCHEMA_VERSION,
-	SPAN_COLUMN_DEFINITIONS,
-	SPAN_COLUMN_NAMES,
-} from './schema.js';
+import { SCHEMA_SQL, SCHEMA_VERSION } from './schema.js';
+
+// Schema v2 predates the source_name column introduced by migration v4.
+// Keep its rebuild shape frozen so a v1 database can still migrate one step
+// at a time before v4 adds and backfills the new column.
+const V2_SPAN_COLUMN_NAMES = `
+  span_id, trace_id, parent_span_id, name, kind,
+  start_unix_nano, end_unix_nano, status_code, status_message, trace_state,
+  attributes, events, links, dropped_attributes, dropped_events, dropped_links,
+  resource_id, scope_id, service_name, ingested_unix_nano
+`;
+const V2_SPAN_COLUMN_DEFINITIONS = `
+  span_id             TEXT    NOT NULL,
+  trace_id            TEXT    NOT NULL,
+  parent_span_id      TEXT,
+  name                TEXT    NOT NULL,
+  kind                INTEGER NOT NULL,
+  start_unix_nano     INTEGER NOT NULL,
+  end_unix_nano       INTEGER NOT NULL,
+  status_code         INTEGER NOT NULL,
+  status_message      TEXT,
+  trace_state         TEXT,
+  attributes          TEXT    NOT NULL,
+  events              TEXT,
+  links               TEXT,
+  dropped_attributes  INTEGER,
+  dropped_events      INTEGER,
+  dropped_links       INTEGER,
+  resource_id         INTEGER NOT NULL REFERENCES resources(id),
+  scope_id            INTEGER NOT NULL REFERENCES scopes(id),
+  service_name        TEXT    NOT NULL DEFAULT '',
+  ingested_unix_nano  INTEGER NOT NULL
+`;
 
 type SqliteModule = typeof import('node:sqlite');
 
@@ -57,7 +84,65 @@ const MIGRATIONS: readonly Migration[] = [
 		to: 3,
 		apply: migrateTraceServices,
 	},
+	{
+		to: 4,
+		apply: migrateResourceSources,
+	},
 ];
+
+/**
+ * Promote the standard service.namespace resource attribute into an indexed
+ * application-level source. Exact service.name is the fallback; no vendor or
+ * name-prefix inference is performed.
+ */
+function migrateResourceSources(db: DatabaseSync): void {
+	const hasColumn = (table: string, column: string): boolean =>
+		(db.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>).some(
+			(info) => info.name === column,
+		);
+	const instrumentSourceWasPresent = hasColumn('metric_instruments', 'source_name');
+	db.exec('BEGIN IMMEDIATE');
+	try {
+		for (const table of ['resources', 'spans', 'logs', 'metric_instruments']) {
+			if (!hasColumn(table, 'source_name')) {
+				db.exec(`ALTER TABLE ${table} ADD COLUMN source_name TEXT NOT NULL DEFAULT ''`);
+			}
+		}
+		db.exec(`
+UPDATE resources
+SET source_name = COALESCE(NULLIF(json_extract(attributes, '$."service.namespace"'), ''), service_name);
+UPDATE spans
+SET source_name = COALESCE((SELECT r.source_name FROM resources r WHERE r.id = spans.resource_id), service_name);
+UPDATE logs
+SET source_name = COALESCE((SELECT r.source_name FROM resources r WHERE r.id = logs.resource_id), service_name);
+UPDATE metric_instruments
+SET source_name = COALESCE(
+  (SELECT r.source_name FROM resources r WHERE r.id = metric_instruments.resource_id),
+  service_name
+);
+CREATE TABLE IF NOT EXISTS trace_sources (
+  trace_id    TEXT NOT NULL REFERENCES traces(trace_id) ON DELETE CASCADE,
+  source_name TEXT NOT NULL,
+  PRIMARY KEY (trace_id, source_name)
+);
+INSERT OR IGNORE INTO trace_sources (trace_id, source_name)
+SELECT spans.trace_id, spans.source_name
+FROM spans JOIN traces ON traces.trace_id = spans.trace_id
+WHERE spans.source_name <> '';
+CREATE INDEX IF NOT EXISTS idx_trace_sources_source ON trace_sources(source_name, trace_id);
+CREATE INDEX IF NOT EXISTS idx_logs_source ON logs(source_name, time_unix_nano);
+CREATE INDEX IF NOT EXISTS idx_metric_instruments_source
+  ON metric_instruments(source_name, service_name, scope_name);
+`);
+		if (!instrumentSourceWasPresent) {
+			db.exec('UPDATE metric_instruments SET identity = source_name || char(0) || identity');
+		}
+		db.exec('COMMIT');
+	} catch (error) {
+		db.exec('ROLLBACK');
+		throw error;
+	}
+}
 
 /**
  * OTLP span IDs are unique only within a trace. Schema v1 incorrectly used
@@ -87,11 +172,11 @@ function migrateSpansToCompositeIdentity(db: DatabaseSync): void {
 	db.exec(`
 BEGIN IMMEDIATE;
 CREATE TABLE spans_v2 (
-${SPAN_COLUMN_DEFINITIONS},
+${V2_SPAN_COLUMN_DEFINITIONS},
   PRIMARY KEY (trace_id, span_id)
 );
-INSERT INTO spans_v2 (${SPAN_COLUMN_NAMES})
-SELECT ${SPAN_COLUMN_NAMES} FROM spans;
+INSERT INTO spans_v2 (${V2_SPAN_COLUMN_NAMES})
+SELECT ${V2_SPAN_COLUMN_NAMES} FROM spans;
 DROP TABLE spans;
 ALTER TABLE spans_v2 RENAME TO spans;
 CREATE INDEX idx_spans_trace    ON spans(trace_id, start_unix_nano, span_id);
@@ -189,8 +274,8 @@ function initSchema(db: DatabaseSync): void {
 	if (version > SCHEMA_VERSION) {
 		throw new SchemaVersionError(version, SCHEMA_VERSION);
 	}
-	// Same-version open: ensure every table/index exists (self-heal).
-	db.exec(SCHEMA_SQL);
+	// Migrate before running current-schema self-healing DDL: new indexes may
+	// reference columns that do not exist until the migration adds them.
 	if (version < SCHEMA_VERSION) {
 		for (const migration of MIGRATIONS) {
 			if (migration.to > version && migration.to <= SCHEMA_VERSION) {
@@ -203,6 +288,8 @@ function initSchema(db: DatabaseSync): void {
 		}
 		db.exec(`PRAGMA user_version = ${SCHEMA_VERSION}`);
 	}
+	// Same-version/current post-migration open: ensure every table/index exists.
+	db.exec(SCHEMA_SQL);
 }
 
 /**

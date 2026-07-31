@@ -130,9 +130,9 @@ describe('OTeluxWorkbench', () => {
 				calls.metrics++;
 				return engine.listMetrics(query);
 			},
-			listServiceFacets: async (query: Parameters<typeof engine.listServiceFacets>[0]) => {
+			listResourceFacets: async (query: Parameters<typeof engine.listResourceFacets>[0]) => {
 				calls.facetSignals.push(query.signal);
-				return engine.listServiceFacets(query);
+				return engine.listResourceFacets(query);
 			},
 		};
 		render(<OTeluxWorkbench dataSource={dataSource} />);
@@ -160,6 +160,43 @@ describe('OTeluxWorkbench', () => {
 			expect(screen.getByText('GET /')).not.toBeNull();
 		});
 
+		await engine.close();
+	});
+
+	it('groups component services under their standard source namespace', async () => {
+		const engine = createEngine({ storage: createMemoryStorage() });
+		await engine.ingestSpans([
+			makeSpan({
+				traceId: '1'.repeat(32),
+				spanId: '1'.repeat(16),
+				name: 'exec trace',
+				resource: {
+					attributes: { 'service.namespace': 'codex', 'service.name': 'codex_exec' },
+				},
+			}),
+			makeSpan({
+				traceId: '2'.repeat(32),
+				spanId: '2'.repeat(16),
+				name: 'app server trace',
+				resource: {
+					attributes: { 'service.namespace': 'codex', 'service.name': 'codex-app-server' },
+				},
+			}),
+		]);
+		render(<OTeluxWorkbench dataSource={engine} />);
+
+		const sourceFilter = await screen.findByLabelText('Filter by source');
+		expect(sourceFilter.textContent).toContain('All sources');
+		fireEvent.click(sourceFilter);
+		const codexOption = (await screen.findByText('codex')).closest('[role="option"]');
+		expect(codexOption).not.toBeNull();
+		fireEvent.mouseDown(codexOption as Element);
+
+		const serviceFilter = await screen.findByLabelText('Filter by service');
+		expect(serviceFilter.textContent).toContain('All services');
+		fireEvent.click(serviceFilter);
+		expect((await screen.findAllByText('codex_exec')).length).toBeGreaterThanOrEqual(2);
+		expect((await screen.findAllByText('codex-app-server')).length).toBeGreaterThanOrEqual(2);
 		await engine.close();
 	});
 

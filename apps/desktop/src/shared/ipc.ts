@@ -5,8 +5,8 @@ import type {
 	ListLogsResult,
 	ListMetricsQuery,
 	ListMetricsResult,
-	ListServiceFacetsQuery,
-	ListServiceFacetsResult,
+	ListResourceFacetsQuery,
+	ListResourceFacetsResult,
 	ListTracesQuery,
 	ListTracesResult,
 	LoadSampleDataResult,
@@ -55,7 +55,7 @@ export type InvokeMessage =
 	| { kind: 'getSpanDetails'; query: GetSpanDetailsQuery }
 	| { kind: 'listLogs'; query: ListLogsQuery }
 	| { kind: 'listMetrics'; query: ListMetricsQuery }
-	| { kind: 'listServiceFacets'; query: ListServiceFacetsQuery }
+	| { kind: 'listResourceFacets'; query: ListResourceFacetsQuery }
 	| { kind: 'getSettings' }
 	| { kind: 'updateSettings'; patch: PartialSettings }
 	| { kind: 'getReceiverStatus' }
@@ -75,8 +75,8 @@ export type InvokeResultFor<M extends InvokeMessage> = M extends { kind: 'listTr
 				? ListLogsResult
 				: M extends { kind: 'listMetrics' }
 					? ListMetricsResult
-					: M extends { kind: 'listServiceFacets' }
-						? ListServiceFacetsResult
+					: M extends { kind: 'listResourceFacets' }
+						? ListResourceFacetsResult
 						: M extends { kind: 'getSettings' }
 							? Settings
 							: M extends { kind: 'updateSettings' }

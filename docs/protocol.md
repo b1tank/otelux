@@ -71,9 +71,9 @@ Static identity and health checks remain ordinary `GET` routes. The Runtime RPC 
 
 Current live traffic is server-to-client invalidation only. Clients refetch a bounded query after a signal changes. SSE is browser-native, reconnectable, inspectable, and simpler to secure than a bidirectional WebSocket. WebSocket becomes justified only if a real low-latency bidirectional workflow appears; it is not required for telemetry invalidations.
 
-Events are hints, not an authoritative data stream. Delivery is at-least-once and may be coalesced. After reconnect or a revision gap, a client refetches its active queries. The current protocol 0.4 client scopes each invalidation to its signal, permits one active plus one trailing fetch, throttles expensive views, and does not subscribe inactive views.
+Events are hints, not an authoritative data stream. Delivery is at-least-once and may be coalesced. After reconnect or a revision gap, a client refetches its active queries. The current protocol 0.5 client scopes each invalidation to its signal, permits one active plus one trailing fetch, throttles expensive views, and does not subscribe inactive views.
 
-Service dropdowns use `listServiceFacets({ signal })`, a grouped bounded result, rather than sampling raw telemetry. Metric lists request one latest point per instrument; a second bounded query loads the selected instrument's recent history. These payload-shape rules are part of the DataSource contract and must survive the HTTP/SSE adapter.
+Source and service dropdowns use `listResourceFacets({ signal, facet, sources? })`, a grouped bounded result, rather than sampling raw telemetry. `source` is resource `service.namespace` with exact `service.name` fallback; selecting a source scopes the secondary service facet. Trace membership is deduplicated before counting. Metric lists request one latest point per instrument; a second bounded query loads the selected instrument's recent history. These payload-shape rules are part of the DataSource contract and must survive the HTTP/SSE adapter.
 
 ### No internal gRPC
 

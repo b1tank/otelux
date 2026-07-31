@@ -30,7 +30,7 @@ describe('db schema versioning and recovery', () => {
 
 	it('bootstraps a fresh database to the current schema version', () => {
 		const db = openDatabase(join(dir, 'otelux.db'));
-		expect(userVersion(db)).toBe(3);
+		expect(userVersion(db)).toBe(4);
 		db.close();
 	});
 
@@ -43,7 +43,7 @@ INSERT INTO scopes (id, hash, name) VALUES (1, 'scope', 'test');
 `);
 		db
 			.prepare(`INSERT INTO spans (${SPAN_COLUMN_NAMES}) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )`)
 			.run(
 				'1'.repeat(16),
@@ -64,6 +64,7 @@ INSERT INTO scopes (id, hash, name) VALUES (1, 'scope', 'test');
 				null,
 				1,
 				1,
+				'svc',
 				'svc',
 				3n,
 			);
@@ -88,7 +89,7 @@ INSERT INTO scopes (id, hash, name) VALUES (1, 'scope', 'test');
 		db.close();
 
 		const migrated = openDatabase(path);
-		expect(userVersion(migrated)).toBe(3);
+		expect(userVersion(migrated)).toBe(4);
 		expect(migrated.prepare('SELECT trace_id, span_id, name FROM spans').get()).toEqual({
 			trace_id: 'a'.repeat(32),
 			span_id: '1'.repeat(16),
@@ -135,7 +136,7 @@ INSERT INTO scopes (id, hash, name) VALUES (1, 'scope', 'test');
 `);
 		db
 			.prepare(`INSERT INTO spans (${SPAN_COLUMN_NAMES}) VALUES (
-  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
 )`)
 			.run(
 				'1'.repeat(16),
@@ -157,6 +158,7 @@ INSERT INTO scopes (id, hash, name) VALUES (1, 'scope', 'test');
 				1,
 				1,
 				'svc',
+				'svc',
 				3n,
 			);
 		rebuildSpanTableAsV1(db);
@@ -173,7 +175,7 @@ INSERT INTO scopes (id, hash, name) VALUES (1, 'scope', 'test');
 		db.exec('DROP TABLE spans_v2');
 		db.close();
 		const retried = openDatabaseWithRecovery(path);
-		expect(userVersion(retried)).toBe(3);
+		expect(userVersion(retried)).toBe(4);
 		expect(retried.prepare('SELECT name FROM spans').get()).toEqual({
 			name: 'preserved-v1-span',
 		});
@@ -194,7 +196,7 @@ PRAGMA user_version = 2;
 		db.close();
 
 		const migrated = openDatabase(path);
-		expect(userVersion(migrated)).toBe(3);
+		expect(userVersion(migrated)).toBe(4);
 		expect(
 			migrated.prepare('SELECT service_name FROM trace_services ORDER BY service_name').all(),
 		).toEqual([{ service_name: 'api' }, { service_name: 'worker' }]);
@@ -206,6 +208,38 @@ WHERE trace_id IN (
 )`)
 			.all('worker') as Array<{ detail: string }>;
 		expect(plan.some((row) => row.detail.includes('idx_trace_services_service'))).toBe(true);
+		migrated.close();
+	});
+
+	it('migrates a real v3 table shape before creating v4 source indexes', () => {
+		const path = join(dir, 'otelux.db');
+		const db = openDatabase(path);
+		db.exec(`
+DROP INDEX idx_trace_sources_source;
+DROP INDEX idx_logs_source;
+DROP INDEX idx_metric_instruments_source;
+DROP TABLE trace_sources;
+ALTER TABLE resources DROP COLUMN source_name;
+ALTER TABLE spans DROP COLUMN source_name;
+ALTER TABLE logs DROP COLUMN source_name;
+ALTER TABLE metric_instruments DROP COLUMN source_name;
+PRAGMA user_version = 3;
+`);
+		db.close();
+
+		const migrated = openDatabase(path);
+		expect(userVersion(migrated)).toBe(4);
+		for (const table of ['resources', 'spans', 'logs', 'metric_instruments']) {
+			const columns = migrated.prepare(`PRAGMA table_info(${table})`).all() as Array<{
+				name: string;
+			}>;
+			expect(columns.some((column) => column.name === 'source_name')).toBe(true);
+		}
+		expect(
+			migrated
+				.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'trace_sources'")
+				.get(),
+		).toEqual({ name: 'trace_sources' });
 		migrated.close();
 	});
 
@@ -236,7 +270,7 @@ WHERE trace_id IN (
 		db.close();
 
 		const recovered = openDatabaseWithRecovery(path);
-		expect(userVersion(recovered)).toBe(3);
+		expect(userVersion(recovered)).toBe(4);
 		recovered.close();
 
 		const quarantined = readdirSync(dir).filter((f) => f.startsWith('otelux.db.corrupt-'));

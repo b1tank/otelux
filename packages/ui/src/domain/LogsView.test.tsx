@@ -56,7 +56,7 @@ class FakeDataSource implements DataSource {
 	listMetrics(_query: ListMetricsQuery): Promise<ListMetricsResult> {
 		return Promise.resolve({ rows: [], totalCount: 0 });
 	}
-	listServiceFacets() {
+	listResourceFacets() {
 		return Promise.resolve({ rows: [] });
 	}
 	subscribe(_handler: (e: ChangeEvent) => void): { dispose(): void } {

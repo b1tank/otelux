@@ -47,6 +47,8 @@ import { useDataSourceQuery } from '../useDataSourceQuery.js';
 
 export interface MetricsViewProps {
 	dataSource: DataSource;
+	/** Restrict to instruments emitted by any of these application-level sources. */
+	sources?: readonly string[];
 	/** Restrict to instruments emitted by any of these service names. */
 	services?: readonly string[];
 	/** Restrict to instruments emitted by any of these meter (scope) names. */
@@ -67,6 +69,7 @@ const DEFAULT_ENDPOINT = 'http://localhost:4319/v1/metrics';
 export function MetricsView(props: MetricsViewProps): JSX.Element {
 	const {
 		dataSource,
+		sources,
 		services,
 		meters,
 		search,
@@ -82,11 +85,14 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 
 	// The serialization key must include every input that changes the
 	// result set; otherwise the hook reuses a stale fetch when filters change.
-	const queryKey = `metrics:${limit}:${(services ?? []).join(',')}:${(meters ?? []).join(',')}:${search ?? ''}`;
+	const queryKey = `metrics:${limit}:${(sources ?? []).join(',')}:${(services ?? []).join(',')}:${(meters ?? []).join(',')}:${search ?? ''}`;
 	const query = useDataSourceQuery<ListMetricsResult>(
 		dataSource,
 		(ds) => {
 			const q: Parameters<DataSource['listMetrics']>[0] = { limit, pointLimit: 1 };
+			if (sources && sources.length > 0) {
+				q.sources = sources;
+			}
 			if (services && services.length > 0) {
 				q.services = services;
 			}
@@ -116,11 +122,13 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 		async (ds) => {
 			if (!selectedSummary) return undefined;
 			const service = metricService(selectedSummary);
+			const source = metricSource(selectedSummary);
 			const result = await ds.listMetrics({
 				limit: 20,
 				pointLimit: 120,
 				meters: [meterName(selectedSummary)],
 				search: selectedSummary.name,
+				...(source ? { sources: [source] } : {}),
 				...(service ? { services: [service] } : {}),
 			});
 			return result.rows.find((metric) => metricKey(metric) === selectedKey);
@@ -246,13 +254,14 @@ function groupByMeter(rows: readonly Metric[]): MeterGroup[] {
 	for (const metric of rows) {
 		const meter = meterName(metric);
 		const service = metricService(metric) ?? '(no service)';
+		const source = metricSource(metric) ?? service;
 		const key = metricGroupKey(metric);
 		const existing = groups.get(key);
 		if (existing) existing.metrics.push(metric);
 		else {
 			groups.set(key, {
 				key,
-				label: `${service} / ${meter}`,
+				label: source === service ? `${service} / ${meter}` : `${source} / ${service} / ${meter}`,
 				meter,
 				service,
 				metrics: [metric],
@@ -537,7 +546,7 @@ function metricKey(metric: Metric): string {
 }
 
 function metricGroupKey(metric: Metric): string {
-	return `${metricService(metric) ?? ''}\u0000${meterName(metric)}`;
+	return `${metricSource(metric) ?? ''}\u0000${metricService(metric) ?? ''}\u0000${meterName(metric)}`;
 }
 
 function meterName(metric: Metric): string {
@@ -1112,6 +1121,11 @@ function temporalityLabel(metric: Metric): string | undefined {
 function metricService(metric: Metric): string | undefined {
 	const v = metric.resource.attributes['service.name'];
 	return typeof v === 'string' ? v : undefined;
+}
+
+function metricSource(metric: Metric): string | undefined {
+	const namespace = metric.resource.attributes['service.namespace'];
+	return typeof namespace === 'string' && namespace !== '' ? namespace : metricService(metric);
 }
 
 // Compact number formatting: keep small integers exact, abbreviate large

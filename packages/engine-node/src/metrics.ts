@@ -13,6 +13,7 @@ import type {
 } from '@otelux/types';
 import { decodeAttributes, decodeJson, encodeAttributes, encodeJson } from './attributes.js';
 import type { Interner } from './intern.js';
+import { serviceNameOf, sourceNameOf } from './resource.js';
 
 /**
  * Per-instrument data-point cap. Matches the memory backend: retain the most
@@ -64,9 +65,9 @@ export class MetricStore {
 	) {
 		this.insertInstrument = db.prepare(`
 INSERT OR IGNORE INTO metric_instruments (
-  identity, service_name, scope_name, name, description, unit, type,
+  identity, service_name, source_name, scope_name, name, description, unit, type,
   is_monotonic, temporality, resource_id, scope_id, updated_unix_nano
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
 		this.selectInstrumentId = db.prepare('SELECT id FROM metric_instruments WHERE identity = ?');
 		// Later exports carry the freshest metadata (description/unit/temporality).
 		this.updateInstrument = db.prepare(`
@@ -96,12 +97,16 @@ WHERE instrument_id = ?
 				const resourceId = this.interner.internResource(metric.resource);
 				const scopeId = this.interner.internScope(metric.scope);
 				const serviceName = serviceNameOf(metric.resource);
-				const identity = [serviceName, metric.scope.name, metric.name, metric.type].join('\u0000');
+				const sourceName = sourceNameOf(metric.resource);
+				const identity = [sourceName, serviceName, metric.scope.name, metric.name, metric.type].join(
+					'\u0000',
+				);
 				const isMonotonic = metric.type === 'sum' ? (metric.isMonotonic ? 1 : 0) : null;
 				const temporality = metric.type === 'gauge' ? null : metric.temporality;
 				this.insertInstrument.run(
 					identity,
 					serviceName,
+					sourceName,
 					metric.scope.name,
 					metric.name,
 					metric.description ?? null,
@@ -185,6 +190,10 @@ WHERE instrument_id = ?
 	listMetrics(query: ListMetricsQuery): ListMetricsResult {
 		const where: string[] = [];
 		const params: Array<string | number | bigint> = [];
+		if (query.sources && query.sources.length > 0) {
+			where.push(`i.source_name IN (${query.sources.map(() => '?').join(', ')})`);
+			params.push(...query.sources);
+		}
 		if (query.services && query.services.length > 0) {
 			where.push(`i.service_name IN (${query.services.map(() => '?').join(', ')})`);
 			params.push(...query.services);
@@ -214,7 +223,7 @@ FROM metric_instruments i
 JOIN resources r ON r.id = i.resource_id
 JOIN scopes sc   ON sc.id = i.scope_id
 ${whereSql}
-ORDER BY i.scope_name ASC, i.name ASC
+ORDER BY i.source_name ASC, i.service_name ASC, i.scope_name ASC, i.name ASC
 LIMIT ? OFFSET ?`);
 		stmt.setReadBigInts(true);
 		const rows = stmt.all(...params, BigInt(limit), BigInt(offset)) as unknown as InstrumentRow[];
@@ -321,9 +330,4 @@ function histogramPointFromRow(row: PointRow): HistogramDataPoint {
 		attributes: decodeAttributes(row.attributes),
 		...(row.flags !== null ? { flags: Number(row.flags) } : {}),
 	};
-}
-
-function serviceNameOf(resource: Resource): string {
-	const svc = resource.attributes['service.name'];
-	return typeof svc === 'string' ? svc : '';
 }

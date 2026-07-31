@@ -28,6 +28,8 @@ export interface ListTracesQuery {
 	sortDirection?: SortDirection;
 	timeFromUnixNano?: bigint;
 	timeToUnixNano?: bigint;
+	/** Application-level source (`service.namespace`, falling back to `service.name`). */
+	sources?: readonly string[];
 	services?: readonly string[];
 	hasError?: boolean;
 	search?: string;
@@ -76,6 +78,8 @@ export interface ListLogsQuery {
 	timeFromUnixNano?: bigint;
 	timeToUnixNano?: bigint;
 	minSeverity?: number;
+	/** Application-level source (`service.namespace`, falling back to `service.name`). */
+	sources?: readonly string[];
 	services?: readonly string[];
 	scopes?: readonly string[];
 	traceId?: TraceId;
@@ -102,6 +106,8 @@ export interface ListMetricsQuery {
 	offset?: number;
 	/** Most-recent points returned per instrument. Defaults to 120; maximum 10,000. */
 	pointLimit?: number;
+	/** Application-level source (`service.namespace`, falling back to `service.name`). */
+	sources?: readonly string[];
 	services?: readonly string[];
 	meters?: readonly string[];
 	search?: string;
@@ -114,18 +120,23 @@ export interface ListMetricsResult {
 
 export type TelemetrySignal = 'traces' | 'logs' | 'metrics';
 
-export interface ListServiceFacetsQuery {
+export type ResourceFacetKind = 'source' | 'service';
+
+export interface ListResourceFacetsQuery {
 	signal: TelemetrySignal;
+	facet: ResourceFacetKind;
+	/** Restrict service facets to these application-level sources. */
+	sources?: readonly string[];
 	limit?: number;
 }
 
-export interface ServiceFacet {
+export interface ResourceFacet {
 	name: string;
 	count: number;
 }
 
-export interface ListServiceFacetsResult {
-	rows: readonly ServiceFacet[];
+export interface ListResourceFacetsResult {
+	rows: readonly ResourceFacet[];
 }
 
 /**
@@ -152,7 +163,7 @@ export interface DataSource {
 	getSpanDetails(query: GetSpanDetailsQuery): Promise<SpanDetails>;
 	listLogs(query: ListLogsQuery): Promise<ListLogsResult>;
 	listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult>;
-	listServiceFacets(query: ListServiceFacetsQuery): Promise<ListServiceFacetsResult>;
+	listResourceFacets(query: ListResourceFacetsQuery): Promise<ListResourceFacetsResult>;
 	subscribe(handler: (event: ChangeEvent) => void): Disposable;
 }
 
@@ -268,4 +279,4 @@ export type RuntimeEvent =
 	| { readonly kind: 'receiver-status-changed'; readonly status: ReceiverStatus }
 	| { readonly kind: 'mcp-status-changed'; readonly status: McpStatus };
 
-export const OTELUX_PROTOCOL_VERSION = '0.4.0' as const;
+export const OTELUX_PROTOCOL_VERSION = '0.5.0' as const;

@@ -8,8 +8,8 @@ import type {
 	ListLogsResult,
 	ListMetricsQuery,
 	ListMetricsResult,
-	ListServiceFacetsQuery,
-	ListServiceFacetsResult,
+	ListResourceFacetsQuery,
+	ListResourceFacetsResult,
 	ListTracesQuery,
 	ListTracesResult,
 	SpanDetails,
@@ -120,8 +120,8 @@ export function createEngine(options: EngineOptions): Engine {
 			return await storage.listMetrics(query);
 		},
 
-		async listServiceFacets(query: ListServiceFacetsQuery): Promise<ListServiceFacetsResult> {
-			return await storage.listServiceFacets(query);
+		async listResourceFacets(query: ListResourceFacetsQuery): Promise<ListResourceFacetsResult> {
+			return await storage.listResourceFacets(query);
 		},
 
 		subscribe(handler: (event: ChangeEvent) => void): Disposable {

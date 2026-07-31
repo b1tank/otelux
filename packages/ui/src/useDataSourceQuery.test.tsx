@@ -42,7 +42,7 @@ class DeferredTraceSource implements DataSource {
 	listMetrics(_query: ListMetricsQuery): Promise<ListMetricsResult> {
 		throw new Error('not used');
 	}
-	listServiceFacets() {
+	listResourceFacets() {
 		return Promise.reject(new Error('not used'));
 	}
 	subscribe(handler: (event: ChangeEvent) => void): { dispose(): void } {

@@ -1,6 +1,7 @@
 import type { DatabaseSync, StatementSync } from 'node:sqlite';
 import type { InstrumentationScope, Resource } from '@otelux/types';
 import { encodeAttributes } from './attributes.js';
+import { serviceNameOf, sourceNameOf } from './resource.js';
 
 /**
  * Interns resources and scopes: identical bags collapse to one row shared by
@@ -24,7 +25,7 @@ export class Interner {
 
 	constructor(db: DatabaseSync) {
 		this.insertResource = db.prepare(
-			'INSERT OR IGNORE INTO resources (hash, service_name, attributes) VALUES (?, ?, ?)',
+			'INSERT OR IGNORE INTO resources (hash, service_name, source_name, attributes) VALUES (?, ?, ?, ?)',
 		);
 		this.selectResource = db.prepare('SELECT id FROM resources WHERE hash = ?');
 		this.insertScope = db.prepare(
@@ -45,14 +46,14 @@ export class Interner {
 	}
 
 	internResource(resource: Resource): number {
-		const svc = resource.attributes['service.name'];
-		const serviceName = typeof svc === 'string' ? svc : '';
+		const serviceName = serviceNameOf(resource);
+		const sourceName = sourceNameOf(resource);
 		const hash = canonicalJson({ service: serviceName, attributes: resource.attributes });
 		const cached = this.resourceCache.get(hash);
 		if (cached !== undefined) {
 			return cached;
 		}
-		this.insertResource.run(hash, serviceName, encodeAttributes(resource.attributes));
+		this.insertResource.run(hash, serviceName, sourceName, encodeAttributes(resource.attributes));
 		const row = this.selectResource.get(hash) as { id: number };
 		this.resourceCache.set(hash, row.id);
 		return row.id;

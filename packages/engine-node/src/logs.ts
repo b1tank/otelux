@@ -9,6 +9,7 @@ import {
 	encodeOptionalValue,
 } from './attributes.js';
 import type { Interner } from './intern.js';
+import { serviceNameOf, sourceNameOf } from './resource.js';
 
 const LOG_SELECT = `
 SELECT l.time_unix_nano, l.observed_time_unix_nano, l.severity_number, l.severity_text,
@@ -50,8 +51,8 @@ export class LogStore {
 INSERT INTO logs (
   time_unix_nano, observed_time_unix_nano, severity_number, severity_text,
   event_name, body, attributes, flags, trace_id, span_id, dropped_attributes,
-  resource_id, scope_id, service_name, scope_name, search_text, ingested_unix_nano
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  resource_id, scope_id, service_name, source_name, scope_name, search_text, ingested_unix_nano
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
 	}
 
 	write(records: readonly LogRecord[], ingestedUnixNano: bigint): void {
@@ -75,6 +76,7 @@ INSERT INTO logs (
 					resourceId,
 					scopeId,
 					serviceNameOf(log.resource),
+					sourceNameOf(log.resource),
 					log.scope.name,
 					buildSearchText(log),
 					ingestedUnixNano,
@@ -105,6 +107,10 @@ INSERT INTO logs (
 		if (query.traceId !== undefined) {
 			where.push('l.trace_id = ?');
 			params.push(query.traceId);
+		}
+		if (query.sources && query.sources.length > 0) {
+			where.push(`l.source_name IN (${query.sources.map(() => '?').join(', ')})`);
+			params.push(...query.sources);
 		}
 		if (query.services && query.services.length > 0) {
 			where.push(`l.service_name IN (${query.services.map(() => '?').join(', ')})`);
@@ -159,11 +165,6 @@ function buildSearchText(log: LogRecord): string {
 		parts.push(attributeValueToSearchText(value));
 	}
 	return parts.join(' ').toLowerCase();
-}
-
-function serviceNameOf(resource: Resource): string {
-	const svc = resource.attributes['service.name'];
-	return typeof svc === 'string' ? svc : '';
 }
 
 function logFromRow(row: LogRow): LogRecord {

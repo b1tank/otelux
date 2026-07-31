@@ -69,7 +69,7 @@ cd apps/desktop && OTELUX_DATA_DIR=/tmp/otelux-userdata npx electron out/main/in
 - **Visible chrome (top → bottom, left → right)**
   1. Left **Rail** — narrow icon strip with the **Traces** tab active, enabled **Metrics** and **Logs** tabs below it, and a footer with the **Theme** switch above **About OTelux**, **GitHub** (external link), and the **Settings** cog.
   2. **Topbar** — `Traces` heading on the left, **EndpointBar** on the right (status dot, `OTLP/HTTP` label, URL `http://127.0.0.1:4319` as a click-to-copy pill, plus a green `MCP :4320` copy pill while MCP is enabled, and a `BETA` badge at the far right). The OTLP pill copies the receiver base URL; traces, logs, and metrics use the same host and port at `/v1/traces`, `/v1/logs`, and `/v1/metrics`. The MCP pill copies `http://127.0.0.1:4320/`. Hovering the `BETA` badge shows the current limitations (local database storage pruned by the retention setting, OTLP/HTTP JSON-or-protobuf ingest with no gRPC). The settings cog lives on the rail, not in the topbar.
-  3. **FilterBar** — hidden on cold start for Traces; it appears once at least one trace has been received and exposes a Service dropdown, an `Errors only` toggle chip, and a search field. Logs and Metrics expose their own filter controls when those tabs are active.
+  3. **FilterBar** — hidden on cold start for Traces; it appears once at least one trace has been received and exposes a Source dropdown, an `Errors only` toggle chip, and a search field. Selecting a Source reveals its contextual Service dropdown. Logs and Metrics expose the same Source → Service pattern alongside their own controls.
   4. **Workbench** body — right pane is collapsed (no waterfall yet); the left pane fills the width and shows the trace list with the `Traces` header, count `0`, and "Waiting for traces…" empty-state copy (or "No traces match. Point an OTel exporter at http://127.0.0.1:4319/v1/traces" once the first probe completes). When the store is genuinely empty (no active filters) a **Load sample data** button appears below the endpoint hint.
   5. No drawer / value-viewer modal is visible.
 - **PASS** if the dot is green and the URL renders inside the topbar (no separate header strip above the workbench).
@@ -143,7 +143,14 @@ cat /tmp/otelux-userdata/settings.json 2>/dev/null
 - Click the **Settings** cog at the bottom of the **rail** (not the topbar — the cog moved there in the redesign).
 - **Expected**: backdrop dims, the wide settings dialog appears centered, **Connections** is selected in the left category rail, only the Connections panel is visible, and focus is on the **Connections** tab.
 
-### 2.7 Theme switch
+### 2.7 Source and component-service filtering
+- Ingest two records whose resources use `service.namespace=codex` and different `service.name` values such as `codex_exec` and `codex-app-server`.
+- Open **Source**. **Expected**: one `codex` row contains the combined signal count; the component names are not separate top-level sources.
+- Select `codex`. **Expected**: a secondary **Service** filter appears with `codex_exec` and `codex-app-server`; selecting either narrows the result list correctly.
+- Clear Source. **Expected**: Service disappears and the unfiltered result set returns. Repeat on Logs and Metrics.
+- Ingest a resource with no `service.namespace`. **Expected**: its exact `service.name` appears as the fallback source. No name-prefix or vendor inference occurs.
+
+### 2.8 Theme switch
 - Click the **Theme** button above **GitHub** in the left rail.
 - **Expected**: the title cycles `Theme: Auto (...)` → `Theme: Light` → `Theme: Dark` → `Theme: Auto (...)`. Light mode uses a bright workbench surface, dark mode returns to the dark surface, and muted labels/timestamps stay readable in both themes.
 
@@ -566,7 +573,7 @@ curl -s -X POST -H 'Content-Type: application/json' \
 - **Expected**: `Msg`, `Trace`, and `Span` copy actions copy the message and full IDs without opening the drawer. The waterfall pivot action switches to Traces and opens the matching span drawer when trace data for that ID is present. Rows without trace context omit trace/span copy and pivot actions so the Actions cell only shows controls that can work.
 
 ### 14.5 Filters
-- Use the FilterBar service dropdown / severity / search.
+- Use the FilterBar source/service dropdowns / severity / search.
 - **Expected**: the row set narrows; the query is forwarded to the data source (count in the header reflects the filtered result).
 
 ---

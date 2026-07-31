@@ -35,7 +35,7 @@ OTelux uses SQLite as a local telemetry engine, not as a JSON file cabinet. The 
 | Resolved P1 | Trace service filtering occurred after SQL `LIMIT/OFFSET`; the count query omitted the service filter. | Short/empty pages and incorrect totals. | Fixed: schema v3 normalizes `trace_services(trace_id, service_name)`, migrates existing service JSON, updates membership transactionally with trace rollups, and applies one service-indexed membership subquery to count and page queries. |
 | Resolved P1 | `listMetrics` selected points once per returned instrument. | $N+2$ SQL statements and multi-second responses. | Fixed: one compound indexed statement fetches a bounded tail for every requested instrument; the workbench list asks for one latest point and loads the selected instrument's 120-point history separately. |
 | Resolved P1 | Metric list results could carry up to 10,000 points per instrument. | An 81.5 MB IPC payload retained hundreds of MB in the renderer. | Fixed: `pointLimit` is bounded to 10,000, defaults to 120, and the workbench list/detail split transfers about 60 KB plus one selected series instead of every history. |
-| Resolved P2 | UI discovered service facets by fetching 500 traces, 500 logs, and 500 full metric instruments. | Redundant startup queries and payloads in hidden views. | Fixed in protocol 0.4: `listServiceFacets` executes grouped SQL; inactive views do not fetch or subscribe. |
+| Resolved P2 | UI discovered service facets by fetching 500 traces, 500 logs, and 500 full metric instruments. | Redundant startup queries and payloads in hidden views. | Fixed in protocol 0.4 and generalized in 0.5: `listResourceFacets` executes grouped source/service SQL; inactive views do not fetch or subscribe. |
 | P2 | Durable SQLite queries and structured-clone serialization still execute through Electron's main process. | A future accidentally unbounded query can stall ingest and renderer IPC together. | Keep every current query bounded and budget-tested; move storage/query execution behind the planned local runtime daemon/worker boundary before adding heavier analysis queries. |
 | P2 | Offset pagination is used while new telemetry arrives. | Duplicate or skipped rows between pages. | Use opaque keyset cursors with stable ID tie-breakers. |
 | P2 | Trace rollup is fully recomputed from all spans after every affected write. | Repeated $O(n)$ work for large traces arriving in many batches. | Keep correctness first; measure and introduce bounded dirty-trace coalescing or incremental aggregates only if budgets fail. |
@@ -161,7 +161,7 @@ Its experiment is useful as a warning, not a target:
 - Trace detail still reads the old in-memory repository, so persistence is not a complete source of truth after restart.
 - The branch's shipping in-memory waterfall calls a full-span child scan for each span, producing $O(n^2)$ work, and trace logs are fetched without an explicit limit.
 
-OTelux already has a stronger normalized baseline, materialized trace summaries, retention, migrations, signal-scoped/coalesced UI invalidation, grouped service facets, and bounded metric histories. The remaining main-process isolation, cursor pagination, FTS, and query-budget harness work must land before claiming a hardened daemon API.
+OTelux already has a stronger normalized baseline, materialized trace summaries, retention, migrations, signal-scoped/coalesced UI invalidation, grouped resource facets, and bounded metric histories. The remaining main-process isolation, cursor pagination, FTS, and query-budget harness work must land before claiming a hardened daemon API.
 
 ## Measured renderer incident (2026-07-31)
 
@@ -176,6 +176,8 @@ The production 124 MB dogfood database exposed an architectural payload failure 
 | Service facet payload | sampled raw records | 165–173 bytes grouped in SQL |
 | Metric instrument list | all histories | ~60 KB with one latest point each |
 | Selected-trace row interaction | effectively starved | ~26 ms pointer-to-selection |
+
+Schema v4 promotes application source into indexed `source_name` columns and `trace_sources(trace_id, source_name)`. Source is the standard resource `service.namespace` when present and exact `service.name` otherwise. Existing records therefore migrate deterministically without vendor mappings; records that never carried a namespace remain separate services/sources.
 
 The renderer DOM was not the primary memory owner: about 4,200 trace-view elements remained after the fix while heap fell by two orders of magnitude. The root cause was eagerly retaining full hidden-view query results and repeatedly serializing them through the main process. Logs are now capped at 100 visible rows; metrics refresh no faster than every two seconds and load only the selected series history.
 

@@ -7,7 +7,7 @@ describe('@otelux/protocol', () => {
 		expectTypeOf<DataSource>().toHaveProperty('listTraces');
 		expectTypeOf<DataSource>().toHaveProperty('getTrace');
 		expectTypeOf<DataSource>().toHaveProperty('getSpanDetails');
-		expectTypeOf<DataSource>().toHaveProperty('listServiceFacets');
+		expectTypeOf<DataSource>().toHaveProperty('listResourceFacets');
 		expectTypeOf<DataSource>().toHaveProperty('subscribe');
 	});
 
@@ -26,7 +26,7 @@ describe('@otelux/protocol', () => {
 		expect(r.totalCount).toBe(0);
 	});
 
-	it('exports a 0.4.0 protocol version', () => {
-		expect(OTELUX_PROTOCOL_VERSION).toBe('0.4.0');
+	it('exports a 0.5.0 protocol version', () => {
+		expect(OTELUX_PROTOCOL_VERSION).toBe('0.5.0');
 	});
 });

@@ -87,7 +87,7 @@ class FakeDataSource implements DataSource {
 		this.calls.push(query);
 		return Promise.resolve({ rows: this.rows, totalCount: this.rows.length });
 	}
-	listServiceFacets() {
+	listResourceFacets() {
 		return Promise.resolve({ rows: [] });
 	}
 	subscribe(_handler: (e: ChangeEvent) => void): { dispose(): void } {

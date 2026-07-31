@@ -10,10 +10,16 @@
  * domain components MUST NOT import each other.
  */
 
-import type { DataSource, LogListSort, SortDirection, TraceListSort } from '@otelux/protocol';
+import type {
+	DataSource,
+	LogListSort,
+	ResourceFacet,
+	SortDirection,
+	TraceListSort,
+} from '@otelux/protocol';
 import type { AttributeValue, Span, SpanId, Trace, TraceId } from '@otelux/types';
 import { SpanKind } from '@otelux/types';
-import { type JSX, useEffect, useMemo, useState } from 'react';
+import { type JSX, useEffect, useState } from 'react';
 import { LogsView, MetricsView, SpanDetail, TraceList, Waterfall } from './domain/index.js';
 import { serviceColorVar, serviceIndex } from './format.js';
 import { AppShell, FilterBar, Rail, type RailItem, Topbar, Workbench } from './layout/index.js';
@@ -186,6 +192,30 @@ interface ViewValueTarget {
 	value: AttributeValue;
 }
 
+function buildFacetControl(
+	rows: readonly ResourceFacet[],
+	selected: string,
+	plural: 'sources' | 'services',
+): { readonly options: readonly DropdownOption[]; readonly triggerCount: number | undefined } {
+	const counts = new Map(rows.map((row) => [row.name, row.count] as const));
+	const options: DropdownOption[] = [];
+	if (selected !== 'all') {
+		options.push({ value: 'all', label: `All ${plural}`, count: rows.length });
+	}
+	for (const row of rows) {
+		options.push({
+			value: row.name,
+			label: row.name,
+			count: row.count,
+			colorIndex: serviceIndex(row.name),
+		});
+	}
+	return {
+		options,
+		triggerCount: selected === 'all' ? rows.length : counts.get(selected),
+	};
+}
+
 export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 	const {
 		dataSource,
@@ -209,18 +239,21 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 	const [selectedTraceId, setSelectedTraceIdRaw] = useState<TraceId | undefined>(undefined);
 	const [selectedSpanId, setSelectedSpanId] = useState<SpanId | undefined>(undefined);
 	const [errorsOnly, setErrorsOnly] = useState(false);
+	const [selectedSource, setSelectedSource] = useState<string>('all');
 	const [selectedService, setSelectedService] = useState<string>('all');
 	const [searchQuery, setSearchQuery] = useState<string>('');
 	const [traceSort, setTraceSort] = useState<TraceSortKey>('recent');
 	// Logs-view filters. Kept separate from the trace filters so switching
 	// views doesn't carry one surface's filter state onto the other.
 	const [logsSeverity, setLogsSeverity] = useState<string>('all');
+	const [logsSource, setLogsSource] = useState<string>('all');
 	const [logsService, setLogsService] = useState<string>('all');
 	const [logsSearch, setLogsSearch] = useState<string>('');
 	const [logsSort, setLogsSort] = useState<LogSortKey>('newest');
 	// Metrics-view filters. Kept separate for the same reason as the logs
 	// filters — switching views must not bleed one surface's filter onto
 	// another.
+	const [metricsSource, setMetricsSource] = useState<string>('all');
 	const [metricsService, setMetricsService] = useState<string>('all');
 	const [metricsSearch, setMetricsSearch] = useState<string>('');
 	// Pane collapse state. Mutually exclusive (collapsing one side
@@ -280,133 +313,94 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		100,
 	);
 	const hasAnyTrace = (summaryProbe.value?.totalCount ?? 0) > 0;
-	const traceFacets = useDataSourceQuery(
+	const traceSourceFacets = useDataSourceQuery(
 		dataSource,
-		(ds) => ds.listServiceFacets({ signal: 'traces' }),
-		'workbench:trace-service-facets',
+		(ds) => ds.listResourceFacets({ signal: 'traces', facet: 'source' }),
+		'workbench:trace-source-facets',
 		false,
 		'tracesChanged',
 		activeView === 'traces',
 		undefined,
 		100,
 	);
-	const traceFacetRows = traceFacets.value?.rows ?? [];
-	const serviceCounts = useMemo(
-		() => new Map(traceFacetRows.map((row) => [row.name, row.count] as const)),
-		[traceFacetRows],
-	);
-	const sortedServices = useMemo(() => traceFacetRows.map((row) => row.name), [traceFacetRows]);
-
-	const serviceOptions = useMemo<readonly DropdownOption[]>(() => {
-		const opts: DropdownOption[] = [];
-		// When a specific service is filtered we surface an "All services"
-		// entry at the top so the user can clear back to the unfiltered
-		// view. The count here is the number of distinct services in scope
-		// (matching the trigger badge), so users can immediately tell how
-		// many services the unfiltered list spans. The absence of a colored
-		// dot is itself the visual cue that this row is the "all" peer;
-		// when the filter is already 'all', the row is redundant with the
-		// trigger label and omitted.
-		if (selectedService !== 'all') {
-			opts.push({
-				value: 'all',
-				label: 'All services',
-				count: sortedServices.length,
-			});
-		}
-		for (const name of sortedServices) {
-			opts.push({
-				value: name,
-				label: name,
-				count: serviceCounts.get(name) ?? 0,
-				colorIndex: serviceIndex(name),
-			});
-		}
-		return opts;
-	}, [sortedServices, serviceCounts, selectedService]);
-
-	// Trigger badge: when no service is filtered, show how many distinct
-	// services contribute to the visible trace set (matches the count
-	// the user would see if they opened the dropdown and counted rows).
-	// When a specific service is filtered, show how many traces touch
-	// that service — useful for confirming the filter took effect.
-	const serviceTriggerCount =
-		selectedService === 'all' ? sortedServices.length : serviceCounts.get(selectedService);
-
-	const logsFacets = useDataSourceQuery(
+	const traceServiceFacets = useDataSourceQuery(
 		dataSource,
-		(ds) => ds.listServiceFacets({ signal: 'logs' }),
-		'workbench:logs-service-facets',
+		(ds) => ds.listResourceFacets({ signal: 'traces', facet: 'service', sources: [selectedSource] }),
+		`workbench:trace-service-facets:${selectedSource}`,
+		false,
+		'tracesChanged',
+		activeView === 'traces' && selectedSource !== 'all',
+		undefined,
+		100,
+	);
+	const traceSources = buildFacetControl(
+		traceSourceFacets.value?.rows ?? [],
+		selectedSource,
+		'sources',
+	);
+	const traceServices = buildFacetControl(
+		traceServiceFacets.value?.rows ?? [],
+		selectedService,
+		'services',
+	);
+
+	const logsSourceFacets = useDataSourceQuery(
+		dataSource,
+		(ds) => ds.listResourceFacets({ signal: 'logs', facet: 'source' }),
+		'workbench:logs-source-facets',
 		false,
 		'logsChanged',
 		activeView === 'logs',
 		undefined,
 		500,
 	);
-	const logsFacetRows = logsFacets.value?.rows ?? [];
-	const logsServiceCounts = useMemo(
-		() => new Map(logsFacetRows.map((row) => [row.name, row.count] as const)),
-		[logsFacetRows],
-	);
-	const sortedLogServices = useMemo(() => logsFacetRows.map((row) => row.name), [logsFacetRows]);
-
-	const logsServiceOptions = useMemo<readonly DropdownOption[]>(() => {
-		const opts: DropdownOption[] = [];
-		if (logsService !== 'all') {
-			opts.push({ value: 'all', label: 'All services', count: sortedLogServices.length });
-		}
-		for (const name of sortedLogServices) {
-			opts.push({
-				value: name,
-				label: name,
-				count: logsServiceCounts.get(name) ?? 0,
-				colorIndex: serviceIndex(name),
-			});
-		}
-		return opts;
-	}, [sortedLogServices, logsServiceCounts, logsService]);
-
-	const logsServiceTriggerCount =
-		logsService === 'all' ? sortedLogServices.length : logsServiceCounts.get(logsService);
-
-	const metricsFacets = useDataSourceQuery(
+	const logsServiceFacets = useDataSourceQuery(
 		dataSource,
-		(ds) => ds.listServiceFacets({ signal: 'metrics' }),
-		'workbench:metrics-service-facets',
+		(ds) => ds.listResourceFacets({ signal: 'logs', facet: 'service', sources: [logsSource] }),
+		`workbench:logs-service-facets:${logsSource}`,
+		false,
+		'logsChanged',
+		activeView === 'logs' && logsSource !== 'all',
+		undefined,
+		500,
+	);
+	const logSources = buildFacetControl(logsSourceFacets.value?.rows ?? [], logsSource, 'sources');
+	const logServices = buildFacetControl(
+		logsServiceFacets.value?.rows ?? [],
+		logsService,
+		'services',
+	);
+
+	const metricsSourceFacets = useDataSourceQuery(
+		dataSource,
+		(ds) => ds.listResourceFacets({ signal: 'metrics', facet: 'source' }),
+		'workbench:metrics-source-facets',
 		false,
 		'metricsChanged',
 		activeView === 'metrics',
 		undefined,
 		2_000,
 	);
-	const metricFacetRows = metricsFacets.value?.rows ?? [];
-	const metricsServiceCounts = useMemo(
-		() => new Map(metricFacetRows.map((row) => [row.name, row.count] as const)),
-		[metricFacetRows],
+	const metricsServiceFacets = useDataSourceQuery(
+		dataSource,
+		(ds) => ds.listResourceFacets({ signal: 'metrics', facet: 'service', sources: [metricsSource] }),
+		`workbench:metrics-service-facets:${metricsSource}`,
+		false,
+		'metricsChanged',
+		activeView === 'metrics' && metricsSource !== 'all',
+		undefined,
+		2_000,
 	);
-	const sortedMetricServices = useMemo(
-		() => metricFacetRows.map((row) => row.name),
-		[metricFacetRows],
+	const metricSources = buildFacetControl(
+		metricsSourceFacets.value?.rows ?? [],
+		metricsSource,
+		'sources',
 	);
-
-	const metricsServiceOptions = useMemo<readonly DropdownOption[]>(() => {
-		const opts: DropdownOption[] = [];
-		if (metricsService !== 'all') {
-			opts.push({ value: 'all', label: 'All services', count: sortedMetricServices.length });
-		}
-		for (const name of sortedMetricServices) {
-			opts.push({
-				value: name,
-				label: name,
-				count: metricsServiceCounts.get(name) ?? 0,
-				colorIndex: serviceIndex(name),
-			});
-		}
-		return opts;
-	}, [sortedMetricServices, metricsServiceCounts, metricsService]);
-
-	const metricsServiceTriggerCount =
-		metricsService === 'all' ? sortedMetricServices.length : metricsServiceCounts.get(metricsService);
+	const metricServices = buildFacetControl(
+		metricsServiceFacets.value?.rows ?? [],
+		metricsService,
+		'services',
+	);
 
 	// The detail drawer is opened explicitly by the user clicking a span
 	// row in the Waterfall — not auto-opened when a trace is selected.
@@ -423,6 +417,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		paused: isPaused,
 		sortBy: TRACE_SORT_PRESETS[traceSort].sortBy,
 		sortDirection: TRACE_SORT_PRESETS[traceSort].sortDirection,
+		...(selectedSource !== 'all' ? { sources: [selectedSource] } : {}),
 		...(selectedService !== 'all' ? { services: [selectedService] } : {}),
 		...(searchQuery ? { search: searchQuery } : {}),
 		...(selectedTraceId !== undefined ? { selectedTraceId } : {}),
@@ -581,25 +576,32 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 										options={LOG_SEVERITY_OPTIONS}
 									/>
 									<Dropdown
-										aria-label="Filter logs by service"
-										triggerSlotLabel="Service"
-										triggerLabel={logsService === 'all' ? 'All services' : logsService}
-										triggerIcon={
-											logsService === 'all' ? undefined : (
-												<span
-													className="otelux-dropdown__color-dot"
-													style={{ background: `var(--otelux-svc-${serviceIndex(logsService)})` }}
-													aria-hidden
-												/>
-											)
-										}
-										{...(logsServiceTriggerCount !== undefined
-											? { triggerCount: logsServiceTriggerCount }
+										aria-label="Filter logs by source"
+										triggerSlotLabel="Source"
+										triggerLabel={logsSource === 'all' ? 'All sources' : logsSource}
+										{...(logSources.triggerCount !== undefined
+											? { triggerCount: logSources.triggerCount }
 											: {})}
-										value={logsService}
-										onChange={setLogsService}
-										options={logsServiceOptions}
+										value={logsSource}
+										onChange={(source) => {
+											setLogsSource(source);
+											setLogsService('all');
+										}}
+										options={logSources.options}
 									/>
+									{logsSource !== 'all' ? (
+										<Dropdown
+											aria-label="Filter logs by service"
+											triggerSlotLabel="Service"
+											triggerLabel={logsService === 'all' ? 'All services' : logsService}
+											{...(logServices.triggerCount !== undefined
+												? { triggerCount: logServices.triggerCount }
+												: {})}
+											value={logsService}
+											onChange={setLogsService}
+											options={logServices.options}
+										/>
+									) : null}
 									<Dropdown
 										aria-label="Sort logs"
 										triggerSlotLabel="Sort"
@@ -625,6 +627,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 							sortBy={LOG_SORT_PRESETS[logsSort].sortBy}
 							sortDirection={LOG_SORT_PRESETS[logsSort].sortDirection}
 							{...(logsSeverity !== 'all' ? { minSeverity: Number(logsSeverity) } : {})}
+							{...(logsSource !== 'all' ? { sources: [logsSource] } : {})}
 							{...(logsService !== 'all' ? { services: [logsService] } : {})}
 							{...(logsSearch ? { search: logsSearch } : {})}
 							{...(endpointUrl !== undefined
@@ -638,27 +641,32 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 							filters={
 								<>
 									<Dropdown
-										aria-label="Filter metrics by service"
-										triggerSlotLabel="Service"
-										triggerLabel={metricsService === 'all' ? 'All services' : metricsService}
-										triggerIcon={
-											metricsService === 'all' ? undefined : (
-												<span
-													className="otelux-dropdown__color-dot"
-													style={{
-														background: `var(--otelux-svc-${serviceIndex(metricsService)})`,
-													}}
-													aria-hidden
-												/>
-											)
-										}
-										{...(metricsServiceTriggerCount !== undefined
-											? { triggerCount: metricsServiceTriggerCount }
+										aria-label="Filter metrics by source"
+										triggerSlotLabel="Source"
+										triggerLabel={metricsSource === 'all' ? 'All sources' : metricsSource}
+										{...(metricSources.triggerCount !== undefined
+											? { triggerCount: metricSources.triggerCount }
 											: {})}
-										value={metricsService}
-										onChange={setMetricsService}
-										options={metricsServiceOptions}
+										value={metricsSource}
+										onChange={(source) => {
+											setMetricsSource(source);
+											setMetricsService('all');
+										}}
+										options={metricSources.options}
 									/>
+									{metricsSource !== 'all' ? (
+										<Dropdown
+											aria-label="Filter metrics by service"
+											triggerSlotLabel="Service"
+											triggerLabel={metricsService === 'all' ? 'All services' : metricsService}
+											{...(metricServices.triggerCount !== undefined
+												? { triggerCount: metricServices.triggerCount }
+												: {})}
+											value={metricsService}
+											onChange={setMetricsService}
+											options={metricServices.options}
+										/>
+									) : null}
 									<SearchField
 										value={metricsSearch}
 										onChange={setMetricsSearch}
@@ -672,6 +680,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 						<MetricsView
 							dataSource={dataSource}
 							paused={isPaused}
+							{...(metricsSource !== 'all' ? { sources: [metricsSource] } : {})}
 							{...(metricsService !== 'all' ? { services: [metricsService] } : {})}
 							{...(metricsSearch ? { search: metricsSearch } : {})}
 							{...(endpointUrl !== undefined
@@ -686,25 +695,32 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 								filters={
 									<>
 										<Dropdown
-											aria-label="Filter by service"
-											triggerSlotLabel="Service"
-											triggerLabel={selectedService === 'all' ? 'All services' : selectedService}
-											triggerIcon={
-												selectedService === 'all' ? undefined : (
-													<span
-														className="otelux-dropdown__color-dot"
-														style={{
-															background: `var(--otelux-svc-${serviceIndex(selectedService)})`,
-														}}
-														aria-hidden
-													/>
-												)
-											}
-											{...(serviceTriggerCount !== undefined ? { triggerCount: serviceTriggerCount } : {})}
-											value={selectedService}
-											onChange={setSelectedService}
-											options={serviceOptions}
+											aria-label="Filter by source"
+											triggerSlotLabel="Source"
+											triggerLabel={selectedSource === 'all' ? 'All sources' : selectedSource}
+											{...(traceSources.triggerCount !== undefined
+												? { triggerCount: traceSources.triggerCount }
+												: {})}
+											value={selectedSource}
+											onChange={(source) => {
+												setSelectedSource(source);
+												setSelectedService('all');
+											}}
+											options={traceSources.options}
 										/>
+										{selectedSource !== 'all' ? (
+											<Dropdown
+												aria-label="Filter by service"
+												triggerSlotLabel="Service"
+												triggerLabel={selectedService === 'all' ? 'All services' : selectedService}
+												{...(traceServices.triggerCount !== undefined
+													? { triggerCount: traceServices.triggerCount }
+													: {})}
+												value={selectedService}
+												onChange={setSelectedService}
+												options={traceServices.options}
+											/>
+										) : null}
 										<ToggleChip pressed={errorsOnly} onPressedChange={setErrorsOnly} pressedTone="error">
 											Errors only
 										</ToggleChip>

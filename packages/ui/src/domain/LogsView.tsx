@@ -42,6 +42,8 @@ export interface LogsViewProps {
 	dataSource: DataSource;
 	/** Severity floor (OTLP severity number); rows below are excluded. */
 	minSeverity?: number;
+	/** Restrict to logs emitted by any of these application-level sources. */
+	sources?: readonly string[];
 	/** Restrict to logs emitted by any of these service names. */
 	services?: readonly string[];
 	/** Free-text search applied by the data source. */
@@ -68,6 +70,7 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 	const {
 		dataSource,
 		minSeverity,
+		sources,
 		services,
 		search,
 		limit = DEFAULT_LIMIT,
@@ -83,7 +86,7 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 
 	// The serialization key must include every input that changes the
 	// result set; otherwise the hook reuses a stale fetch when filters change.
-	const queryKey = `logs:${limit}:${minSeverity ?? ''}:${(services ?? []).join(',')}:${search ?? ''}:${sortBy}:${sortDirection}`;
+	const queryKey = `logs:${limit}:${minSeverity ?? ''}:${(sources ?? []).join(',')}:${(services ?? []).join(',')}:${search ?? ''}:${sortBy}:${sortDirection}`;
 	const query = useDataSourceQuery<ListLogsResult>(
 		dataSource,
 		(ds) => {
@@ -94,6 +97,9 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 			};
 			if (minSeverity !== undefined) {
 				q.minSeverity = minSeverity;
+			}
+			if (sources && sources.length > 0) {
+				q.sources = sources;
 			}
 			if (services && services.length > 0) {
 				q.services = services;

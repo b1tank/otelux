@@ -27,6 +27,7 @@ function makeSpan(args: {
 	start: bigint;
 	end: bigint;
 	service?: string;
+	namespace?: string;
 	status?: 0 | 1 | 2;
 }): Span {
 	const base: Omit<Span, 'parentSpanId'> = {
@@ -38,7 +39,12 @@ function makeSpan(args: {
 		endTimeUnixNano: args.end,
 		status: { code: (args.status ?? SpanStatusCode.Unset) as 0 | 1 | 2 },
 		attributes: {},
-		resource: { attributes: { 'service.name': args.service ?? 'svc' } },
+		resource: {
+			attributes: {
+				'service.name': args.service ?? 'svc',
+				...(args.namespace !== undefined ? { 'service.namespace': args.namespace } : {}),
+			},
+		},
 		scope: { name: 'scope' },
 	};
 	return args.parentSpanId === undefined ? base : { ...base, parentSpanId: args.parentSpanId };
@@ -51,6 +57,7 @@ function makeLog(args: {
 	attributes?: Record<string, string | bigint>;
 	traceId?: string;
 	service?: string;
+	namespace?: string;
 	scope?: string;
 }): LogRecord {
 	return {
@@ -59,7 +66,12 @@ function makeLog(args: {
 		...(args.body !== undefined ? { body: args.body } : {}),
 		attributes: args.attributes ?? {},
 		...(args.traceId !== undefined ? { traceId: args.traceId } : {}),
-		resource: { attributes: { 'service.name': args.service ?? 'svc' } },
+		resource: {
+			attributes: {
+				'service.name': args.service ?? 'svc',
+				...(args.namespace !== undefined ? { 'service.namespace': args.namespace } : {}),
+			},
+		},
 		scope: { name: args.scope ?? 'log-scope' },
 	};
 }
@@ -261,7 +273,7 @@ function runStorageContract(label: string, make: () => Storage): void {
 			expect(result.rows.map((row) => row.rootName)).toEqual(['older-beta']);
 		});
 
-		it('returns grouped service facets without transferring raw telemetry', async () => {
+		it('returns standard source and service facets without transferring raw telemetry', async () => {
 			await storage.writeSpans([
 				makeSpan({
 					traceId: TRACE_A,
@@ -270,6 +282,7 @@ function runStorageContract(label: string, make: () => Storage): void {
 					start: 1n,
 					end: 2n,
 					service: 'api',
+					namespace: 'shop',
 				}),
 				makeSpan({
 					traceId: TRACE_B,
@@ -277,35 +290,53 @@ function runStorageContract(label: string, make: () => Storage): void {
 					name: 'b',
 					start: 3n,
 					end: 4n,
-					service: 'api',
+					service: 'worker',
+					namespace: 'shop',
 				}),
 			]);
 			await storage.writeLogs([
-				makeLog({ time: 1n, severity: 9, service: 'api' }),
+				makeLog({ time: 1n, severity: 9, service: 'api', namespace: 'shop' }),
 				makeLog({ time: 2n, severity: 9, service: 'worker' }),
 			]);
 			await storage.writeMetrics([
 				{
 					type: 'gauge',
 					name: 'queue.depth',
-					resource: { attributes: { 'service.name': 'worker' } },
+					resource: {
+						attributes: { 'service.name': 'worker', 'service.namespace': 'shop' },
+					},
 					scope: { name: 'meter' },
 					dataPoints: [{ timeUnixNano: 1n, value: 1, attributes: {} }],
 				},
 			]);
 
-			expect(await storage.listServiceFacets({ signal: 'traces' })).toEqual({
-				rows: [{ name: 'api', count: 2 }],
+			expect(await storage.listResourceFacets({ signal: 'traces', facet: 'source' })).toEqual({
+				rows: [{ name: 'shop', count: 2 }],
 			});
-			expect(await storage.listServiceFacets({ signal: 'logs' })).toEqual({
+			expect(
+				await storage.listResourceFacets({
+					signal: 'traces',
+					facet: 'service',
+					sources: ['shop'],
+				}),
+			).toEqual({
 				rows: [
 					{ name: 'api', count: 1 },
 					{ name: 'worker', count: 1 },
 				],
 			});
-			expect(await storage.listServiceFacets({ signal: 'metrics' })).toEqual({
-				rows: [{ name: 'worker', count: 1 }],
+			expect(await storage.listResourceFacets({ signal: 'logs', facet: 'source' })).toEqual({
+				rows: [
+					{ name: 'shop', count: 1 },
+					{ name: 'worker', count: 1 },
+				],
 			});
+			expect(await storage.listResourceFacets({ signal: 'metrics', facet: 'source' })).toEqual({
+				rows: [{ name: 'shop', count: 1 }],
+			});
+			expect((await storage.listTraces({ sources: ['shop'] })).totalCount).toBe(2);
+			expect((await storage.listLogs({ sources: ['shop'] })).totalCount).toBe(1);
+			expect((await storage.listMetrics({ sources: ['shop'] })).totalCount).toBe(1);
 		});
 
 		it('filters logs by severity, trace, service, scope, and attribute text', async () => {

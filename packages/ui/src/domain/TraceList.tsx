@@ -43,6 +43,8 @@ export interface TraceListProps {
 	density?: TraceListDensity;
 	/** When true, only traces with at least one error are shown. */
 	errorsOnly?: boolean;
+	/** Restrict to traces touching any of these application-level sources. */
+	sources?: readonly string[];
 	/** Restrict to traces touching any of these service names. */
 	services?: readonly string[];
 	/** Substring search applied by the data source. */
@@ -87,6 +89,7 @@ export function TraceList(props: TraceListProps): JSX.Element {
 		onSelect,
 		density = 'card',
 		errorsOnly,
+		sources,
 		services,
 		search,
 		limit = DEFAULT_LIMIT,
@@ -102,7 +105,7 @@ export function TraceList(props: TraceListProps): JSX.Element {
 	// Build the protocol-level query object. The serialization key below
 	// must include every input that changes the result set; otherwise the
 	// hook will reuse a stale fetch when filters change.
-	const queryKey = `list:${limit}:${errorsOnly ? '1' : '0'}:${(services ?? []).join(',')}:${search ?? ''}:${sortBy}:${sortDirection}`;
+	const queryKey = `list:${limit}:${errorsOnly ? '1' : '0'}:${(sources ?? []).join(',')}:${(services ?? []).join(',')}:${search ?? ''}:${sortBy}:${sortDirection}`;
 	const query = useDataSourceQuery(
 		dataSource,
 		(ds) => {
@@ -113,6 +116,9 @@ export function TraceList(props: TraceListProps): JSX.Element {
 			};
 			if (errorsOnly) {
 				q.hasError = true;
+			}
+			if (sources && sources.length > 0) {
+				q.sources = sources;
 			}
 			if (services && services.length > 0) {
 				q.services = services;
@@ -135,7 +141,11 @@ export function TraceList(props: TraceListProps): JSX.Element {
 	// Distinguish a genuinely empty store from a filtered-empty result: the
 	// "Load sample data" affordance only makes sense when nothing is stored,
 	// not when the user's filters happen to exclude everything.
-	const filtersActive = Boolean(errorsOnly) || (services?.length ?? 0) > 0 || Boolean(search);
+	const filtersActive =
+		Boolean(errorsOnly) ||
+		(sources?.length ?? 0) > 0 ||
+		(services?.length ?? 0) > 0 ||
+		Boolean(search);
 	const showSampleButton = onLoadSampleData !== undefined && !filtersActive;
 
 	return (

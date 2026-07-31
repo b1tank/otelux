@@ -16,13 +16,13 @@
  * per-row storage.
  */
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export const SPAN_COLUMN_NAMES = `
   span_id, trace_id, parent_span_id, name, kind,
   start_unix_nano, end_unix_nano, status_code, status_message, trace_state,
   attributes, events, links, dropped_attributes, dropped_events, dropped_links,
-  resource_id, scope_id, service_name, ingested_unix_nano
+  resource_id, scope_id, service_name, source_name, ingested_unix_nano
 `;
 
 export const SPAN_COLUMN_DEFINITIONS = `
@@ -45,6 +45,7 @@ export const SPAN_COLUMN_DEFINITIONS = `
   resource_id         INTEGER NOT NULL REFERENCES resources(id),
   scope_id            INTEGER NOT NULL REFERENCES scopes(id),
   service_name        TEXT    NOT NULL DEFAULT '',
+  source_name         TEXT    NOT NULL DEFAULT '',
   ingested_unix_nano  INTEGER NOT NULL
 `;
 
@@ -53,6 +54,7 @@ CREATE TABLE IF NOT EXISTS resources (
   id            INTEGER PRIMARY KEY,
   hash          TEXT    NOT NULL UNIQUE,
   service_name  TEXT    NOT NULL DEFAULT '',
+  source_name   TEXT    NOT NULL DEFAULT '',
   attributes    TEXT    NOT NULL
 );
 
@@ -100,6 +102,16 @@ CREATE TABLE IF NOT EXISTS trace_services (
 CREATE INDEX IF NOT EXISTS idx_trace_services_service
   ON trace_services(service_name, trace_id);
 
+-- Application-level membership uses explicit service.namespace when present,
+-- otherwise exact service.name. It never infers vendors from name prefixes.
+CREATE TABLE IF NOT EXISTS trace_sources (
+  trace_id    TEXT NOT NULL REFERENCES traces(trace_id) ON DELETE CASCADE,
+  source_name TEXT NOT NULL,
+  PRIMARY KEY (trace_id, source_name)
+);
+CREATE INDEX IF NOT EXISTS idx_trace_sources_source
+  ON trace_sources(source_name, trace_id);
+
 CREATE TABLE IF NOT EXISTS logs (
   id                       INTEGER PRIMARY KEY AUTOINCREMENT,
   time_unix_nano           INTEGER NOT NULL,
@@ -116,6 +128,7 @@ CREATE TABLE IF NOT EXISTS logs (
   resource_id              INTEGER NOT NULL REFERENCES resources(id),
   scope_id                 INTEGER NOT NULL REFERENCES scopes(id),
   service_name             TEXT    NOT NULL DEFAULT '',
+  source_name              TEXT    NOT NULL DEFAULT '',
   scope_name               TEXT    NOT NULL DEFAULT '',
   search_text              TEXT    NOT NULL,
   ingested_unix_nano       INTEGER NOT NULL
@@ -124,6 +137,7 @@ CREATE INDEX IF NOT EXISTS idx_logs_time     ON logs(time_unix_nano);
 CREATE INDEX IF NOT EXISTS idx_logs_severity ON logs(severity_number);
 CREATE INDEX IF NOT EXISTS idx_logs_trace    ON logs(trace_id);
 CREATE INDEX IF NOT EXISTS idx_logs_ingested ON logs(ingested_unix_nano);
+CREATE INDEX IF NOT EXISTS idx_logs_source   ON logs(source_name, time_unix_nano);
 
 -- One row per instrument identity (service|scope|name|type). Repeated exports
 -- of the same instrument update this row and append points below.
@@ -131,6 +145,7 @@ CREATE TABLE IF NOT EXISTS metric_instruments (
   id                  INTEGER PRIMARY KEY,
   identity            TEXT    NOT NULL UNIQUE,
   service_name        TEXT    NOT NULL DEFAULT '',
+  source_name         TEXT    NOT NULL DEFAULT '',
   scope_name          TEXT    NOT NULL DEFAULT '',
   name                TEXT    NOT NULL,
   description         TEXT,
@@ -142,6 +157,8 @@ CREATE TABLE IF NOT EXISTS metric_instruments (
   scope_id            INTEGER NOT NULL REFERENCES scopes(id),
   updated_unix_nano   INTEGER NOT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_metric_instruments_source
+  ON metric_instruments(source_name, service_name, scope_name);
 
 CREATE TABLE IF NOT EXISTS metric_points (
   id                    INTEGER PRIMARY KEY AUTOINCREMENT,

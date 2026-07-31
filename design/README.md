@@ -95,6 +95,7 @@ These should be enforced in code, not in CSS.
 11. **Storage pressure matches pruning.** The retention meter fill uses SQLite page bytes; physical DB/WAL/SHM bytes are a separate breakdown.
 12. **Settings category state is explicit.** Exactly one sidebar tab and panel is active; validation reveals the category containing the error.
 13. **Build identity is inspectable.** The rail's About action opens a compact diagnostic dialog with the packaged app version and Electron, Chromium, Node.js, and platform versions; it never competes with signal navigation or endpoint status.
+14. **Source and service are not conflated.** Source is the primary application filter (`service.namespace`, falling back to exact `service.name`). A selected source reveals its component-Service filter; the UI never groups names by vendor-specific prefixes.
 13. **Live arrivals never steal selection.** The waterfall labels the selected trace; only an explicit row/keyboard selection replaces it.
 
 ---

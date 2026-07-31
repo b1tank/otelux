@@ -77,7 +77,7 @@ OTelux succeeds when a developer can run an app locally, point its OTel exporter
 - What just broke?
 - What was slow?
 - What logs explain it?
-- Which service emitted the suspicious telemetry?
+- Which application source and component service emitted the suspicious telemetry?
 - What was my agent or tool doing at the same time?
 
 The same answers should be available to humans in the workbench and to agents through read-only local tools.

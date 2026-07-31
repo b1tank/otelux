@@ -48,7 +48,7 @@ Important current limits:
 - OTLP/gRPC ingest is planned, not shipped (OTLP/HTTP JSON and protobuf are live).
 - Dense trace modes and detail search need polish.
 - Agent-run correlation and service overview tools are schema-stable but not fully implemented.
-- The storage audit's span-identity P0 is fixed in schema v2; trace-service count/page correctness is fixed in schema v3; and metric histories are bounded and fetched in one compound indexed statement. Protocol 0.4 grouped service facets replace hidden raw-record probes. Main-process query isolation, keyset pagination, and the full query-budget harness remain pre-daemon hardening work. See [storage.md](storage.md#audit-findings).
+- The storage audit's span-identity P0 is fixed in schema v2; trace-service count/page correctness is fixed in schema v3; schema v4 indexes the standard `service.namespace` source dimension; and metric histories are bounded and fetched in one compound indexed statement. Protocol 0.5 grouped source/service facets replace hidden raw-record probes. Main-process query isolation, keyset pagination, and the full query-budget harness remain pre-daemon hardening work. See [storage.md](storage.md#audit-findings).
 - `@otelux/protocol` is currently an in-memory TypeScript contract, not a validated JSON wire contract. Runtime RPC/SSE DTOs and schema snapshots are required before Desktop becomes a daemon client. See [protocol.md](protocol.md#current-gaps).
 
 ## Signals In Scope
@@ -92,7 +92,7 @@ The daemon transport and storage implementations must conform to [protocol.md](p
 | Package | Purpose | Current state |
 |---|---|---|
 | `@otelux/types` | Shared trace, log, metric, resource, scope, and attribute types. | Live. |
-| `@otelux/protocol` | `DataSource` interface and query/result contracts. | Live for traces/logs/metrics and grouped service facets (v0.4). |
+| `@otelux/protocol` | `DataSource` interface and query/result contracts. | Live for traces/logs/metrics and grouped resource source/service facets (v0.5). |
 | `@otelux/engine` | Pure TypeScript ingest, query, layout, subscriptions, memory storage. | Live. |
 | `@otelux/engine-node` | Durable Node storage adapter (`node:sqlite`) with retention (age/size). | Live. |
 | `@otelux/local-runtime` | Backend composition and control API for storage, engine, OTLP, MCP, settings, and lifecycle. | Live; currently embedded by Desktop. |
@@ -190,7 +190,7 @@ Queries should be bounded by limit and filters. Results should include counts wh
 ### Workbench Principles
 
 - Every dense signal needs real grid behavior: sticky column headers, visible sort state, keyboardable headers, and predictable column widths.
-- Toolbars are operational controls, not decoration. Search, service filters, severity/status filters, pause/resume, and clear should be direct and visible.
+- Toolbars are operational controls, not decoration. Search, source/service filters, severity/status filters, pause/resume, and clear should be direct and visible.
 - Summary/detail is reusable. Selecting a trace, span, log, or metric preserves list context and opens a predictable details area.
 - Details panes are searchable. Span and log details need internal search over property names and values.
 - Property sections expose counts before expansion.
@@ -234,7 +234,7 @@ Queries should be bounded by limit and filters. Results should include counts wh
 - Result footers show `Showing N ...` and live/paused state outside the scroll region.
 - Active filters show a count and a clear affordance.
 - Settings groups endpoint controls under Connections and retention/database controls under Storage, while preserving one atomic Save action. Exactly one category is visible, and validation reveals and focuses the category that owns the invalid value.
-- Service is the user-facing label. Raw OTel resource attributes belong in details. Metric instrument identity is service + meter + name + type, and the explorer groups by service/meter so legitimate cross-service names never look like duplicates.
+- Source is the primary cross-signal application filter. It is exactly resource `service.namespace` when non-empty, otherwise exact `service.name`; OTelux never infers vendors or products from service-name prefixes. Selecting a source reveals its exact component services as a secondary filter. Raw OTel resource attributes belong in details. Metric instrument identity is source + service + meter + name + type, and the explorer groups accordingly so legitimate cross-service or cross-namespace names never collide.
 - OTelux keeps its own visual language. Interaction patterns can be borrowed; brand chrome should not be copied from other tools.
 - AI explain buttons are not a core feature. Hosts may layer assistance on top of deterministic local data.
 

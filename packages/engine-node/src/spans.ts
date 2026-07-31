@@ -11,6 +11,7 @@ import type {
 } from '@otelux/types';
 import { decodeAttributes, decodeJson, encodeAttributes, encodeJson } from './attributes.js';
 import type { Interner } from './intern.js';
+import { serviceNameOf, sourceNameOf } from './resource.js';
 
 /** Columns selected when reconstructing a full {@link Span}. */
 const SPAN_SELECT = `
@@ -56,6 +57,8 @@ export class SpanStore {
 	private readonly upsertTrace: StatementSync;
 	private readonly deleteTraceServices: StatementSync;
 	private readonly insertTraceService: StatementSync;
+	private readonly deleteTraceSources: StatementSync;
+	private readonly insertTraceSource: StatementSync;
 
 	constructor(
 		private readonly db: DatabaseSync,
@@ -66,8 +69,8 @@ INSERT OR REPLACE INTO spans (
   span_id, trace_id, parent_span_id, name, kind,
   start_unix_nano, end_unix_nano, status_code, status_message, trace_state,
   attributes, events, links, dropped_attributes, dropped_events, dropped_links,
-  resource_id, scope_id, service_name, ingested_unix_nano
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  resource_id, scope_id, service_name, source_name, ingested_unix_nano
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
 
 		this.selectByTrace = db.prepare(
 			`${SPAN_SELECT} WHERE s.trace_id = ? ORDER BY s.start_unix_nano ASC`,
@@ -79,7 +82,7 @@ INSERT OR REPLACE INTO spans (
 
 		// Minimal columns needed to recompute a trace rollup.
 		this.selectTraceSpanSummary = db.prepare(`
-SELECT span_id, parent_span_id, name, start_unix_nano, end_unix_nano, status_code, service_name
+SELECT span_id, parent_span_id, name, start_unix_nano, end_unix_nano, status_code, service_name, source_name
 FROM spans WHERE trace_id = ?`);
 		this.selectTraceSpanSummary.setReadBigInts(true);
 
@@ -92,6 +95,10 @@ INSERT OR REPLACE INTO traces (
 		this.insertTraceService = db.prepare(
 			'INSERT INTO trace_services (trace_id, service_name) VALUES (?, ?)',
 		);
+		this.deleteTraceSources = db.prepare('DELETE FROM trace_sources WHERE trace_id = ?');
+		this.insertTraceSource = db.prepare(
+			'INSERT INTO trace_sources (trace_id, source_name) VALUES (?, ?)',
+		);
 	}
 
 	write(spans: readonly Span[], ingestedUnixNano: bigint): void {
@@ -103,6 +110,7 @@ INSERT OR REPLACE INTO traces (
 				const resourceId = this.interner.internResource(span.resource);
 				const scopeId = this.interner.internScope(span.scope);
 				const serviceName = serviceNameOf(span.resource);
+				const sourceName = sourceNameOf(span.resource);
 				this.insert.run(
 					span.spanId,
 					span.traceId,
@@ -123,6 +131,7 @@ INSERT OR REPLACE INTO traces (
 					resourceId,
 					scopeId,
 					serviceName,
+					sourceName,
 					ingestedUnixNano,
 				);
 				affected.add(span.traceId);
@@ -154,6 +163,7 @@ INSERT OR REPLACE INTO traces (
 			end_unix_nano: bigint;
 			status_code: bigint;
 			service_name: string;
+			source_name: string;
 		}>;
 		if (rows.length === 0) {
 			this.db.prepare('DELETE FROM traces WHERE trace_id = ?').run(traceId);
@@ -174,6 +184,7 @@ INSERT OR REPLACE INTO traces (
 		let start = first.start_unix_nano;
 		let end = first.end_unix_nano;
 		const services = new Set<string>();
+		const sources = new Set<string>();
 		let errorCount = 0;
 		for (const r of rows) {
 			if (r.start_unix_nano < start) {
@@ -182,14 +193,14 @@ INSERT OR REPLACE INTO traces (
 			if (r.end_unix_nano > end) {
 				end = r.end_unix_nano;
 			}
-			if (r.service_name) {
-				services.add(r.service_name);
-			}
+			if (r.service_name) services.add(r.service_name);
+			if (r.source_name) sources.add(r.source_name);
 			if (r.status_code === 2n) {
 				errorCount++;
 			}
 		}
 		const serviceNames = [...services].sort();
+		const sourceNames = [...sources].sort();
 		this.upsertTrace.run(
 			traceId,
 			root.span_id,
@@ -205,6 +216,10 @@ INSERT OR REPLACE INTO traces (
 		this.deleteTraceServices.run(traceId);
 		for (const serviceName of serviceNames) {
 			this.insertTraceService.run(traceId, serviceName);
+		}
+		this.deleteTraceSources.run(traceId);
+		for (const sourceName of sourceNames) {
+			this.insertTraceSource.run(traceId, sourceName);
 		}
 	}
 
@@ -223,6 +238,14 @@ INSERT OR REPLACE INTO traces (
 			where.push('error_count > 0');
 		} else if (query.hasError === false) {
 			where.push('error_count = 0');
+		}
+		if (query.sources && query.sources.length > 0) {
+			const placeholders = query.sources.map(() => '?').join(', ');
+			where.push(`trace_id IN (
+  SELECT ts.trace_id FROM trace_sources ts
+  WHERE ts.source_name IN (${placeholders})
+)`);
+			params.push(...query.sources);
 		}
 		if (query.services && query.services.length > 0) {
 			const placeholders = query.services.map(() => '?').join(', ');
@@ -299,11 +322,6 @@ function traceSortColumn(sortBy: ListTracesQuery['sortBy']): string {
 		default:
 			return 'start_unix_nano';
 	}
-}
-
-function serviceNameOf(resource: Resource): string {
-	const svc = resource.attributes['service.name'];
-	return typeof svc === 'string' ? svc : '';
 }
 
 function spanFromRow(row: SpanRow): Span {

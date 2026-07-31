@@ -101,7 +101,7 @@ curl --fail-with-body \
   http://127.0.0.1:4319/v1/metrics
 ```
 
-Open the Traces, Logs, and Metrics rail tabs to inspect the records. The rail's **About OTelux** action reports the exact packaged app version and its Electron, Chromium, Node.js, and platform versions for diagnostics. All repository fixtures are synthetic and safe to use in tests and issue reproductions.
+Open the Traces, Logs, and Metrics rail tabs to inspect the records. **Source** groups related component services by the standard resource `service.namespace`; when that attribute is absent, OTelux uses exact `service.name`. Selecting a source reveals its component **Service** filter. Multi-process exporters can opt into clean grouping without losing service identity, for example `OTEL_RESOURCE_ATTRIBUTES=service.namespace=codex`. OTelux never infers a source from service-name prefixes. The rail's **About OTelux** action reports the exact packaged app version and its Electron, Chromium, Node.js, and platform versions for diagnostics. All repository fixtures are synthetic and safe to use in tests and issue reproductions.
 
 To explore the UI before wiring any exporter, launch the desktop app and click **Load sample data** in the empty Traces view. It seeds the store with a small, clearly-labelled synthetic dataset (a distributed trace with an error, correlated logs, and a counter/histogram/gauge) across all three signals. The sample data persists like real telemetry and is removed by retention or by deleting the database.
 
