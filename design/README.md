@@ -57,6 +57,7 @@ Min widths: list ≥ 280 px, waterfall ≥ 480 px. Splitter is 6 px wide with a 
 |---|---|
 | **Treat telemetry views as a workbench** | The product requirements are tracked in [`docs/spec.md`](../docs/spec.md), especially the Telemetry Workbench UX Requirements section. Table headers, details search, row actions, and trace/log correlation should feel native to OTelux's Service vocabulary and local-first visual tone. |
 | **Service**, not Resource | Universal across Jaeger/SigNoz/Tempo. "Resource" is OTel spec jargon — only people who've read the SDK reference know it means `service.name`. |
+| **Metrics group by Service / Meter** | OTel instrument identity includes service, meter, name, and type. Showing the service boundary prevents valid same-name instruments from looking like duplicate UI rows. |
 | **Errors only** as a single chip toggle (not a Status dropdown) | One press, one of the top-three diagnostic actions. A 4-state dropdown would cost real estate for marginal benefit. Expand later only if needed. |
 | **Search is one input** (not two) | The waterfall's "find-in-trace" overlapped with the global filter. One search is simpler and good enough until traces are very large. Find-in-trace returns in v2. |
 | **Custom dropdown** (not `<select>`) | Native chrome leaks bright OS colors on dark theme. Same reason Jaeger and SigNoz ship their own. |

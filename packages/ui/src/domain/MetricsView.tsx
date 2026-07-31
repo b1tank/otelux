@@ -164,7 +164,7 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 									setSelectedMetricKey(null);
 								}}
 								onSelectMetric={(metric) => {
-									setSelectedMeter(meterName(metric));
+									setSelectedMeter(metricGroupKey(metric));
 									setSelectedMetricKey(metricKey(metric));
 								}}
 							/>
@@ -180,7 +180,7 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 									<MeterInstrumentTable
 										group={selection.activeGroup}
 										onSelectMetric={(metric) => {
-											setSelectedMeter(meterName(metric));
+											setSelectedMeter(metricGroupKey(metric));
 											setSelectedMetricKey(metricKey(metric));
 										}}
 									/>
@@ -225,7 +225,10 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 }
 
 interface MeterGroup {
+	key: string;
+	label: string;
 	meter: string;
+	service: string;
 	metrics: Metric[];
 }
 
@@ -235,24 +238,32 @@ interface MetricSelection {
 	activeMeter: string | undefined;
 }
 
-// Group instruments by meter (instrumentation scope name). The engine
-// already sorts by scope then name, so within a meter the order is stable.
+// OpenTelemetry instrument identity includes service + meter + name + type.
+// Group by the same service/meter boundary so equal names from codex_exec and
+// codex_cli_rs never appear as unexplained duplicates under one heading.
 function groupByMeter(rows: readonly Metric[]): MeterGroup[] {
-	const byMeter = new Map<string, Metric[]>();
+	const groups = new Map<string, MeterGroup>();
 	for (const metric of rows) {
-		const meter = metric.scope.name || '(default)';
-		const bucket = byMeter.get(meter);
-		if (bucket) {
-			bucket.push(metric);
-		} else {
-			byMeter.set(meter, [metric]);
+		const meter = meterName(metric);
+		const service = metricService(metric) ?? '(no service)';
+		const key = metricGroupKey(metric);
+		const existing = groups.get(key);
+		if (existing) existing.metrics.push(metric);
+		else {
+			groups.set(key, {
+				key,
+				label: `${service} / ${meter}`,
+				meter,
+				service,
+				metrics: [metric],
+			});
 		}
 	}
-	return Array.from(byMeter.entries())
-		.sort((a, b) => a[0].localeCompare(b[0]))
-		.map(([meter, metrics]) => ({
-			meter,
-			metrics: metrics.sort((a, b) => a.name.localeCompare(b.name)),
+	return [...groups.values()]
+		.sort((a, b) => a.service.localeCompare(b.service) || a.meter.localeCompare(b.meter))
+		.map((group) => ({
+			...group,
+			metrics: group.metrics.sort((a, b) => a.name.localeCompare(b.name)),
 		}));
 }
 
@@ -267,21 +278,21 @@ function resolveMetricSelection(
 		for (const group of groups) {
 			const metric = group.metrics.find((candidate) => metricKey(candidate) === selectedMetricKey);
 			if (metric !== undefined) {
-				return { activeGroup: group, activeMetric: metric, activeMeter: group.meter };
+				return { activeGroup: group, activeMetric: metric, activeMeter: group.key };
 			}
 		}
 	}
 
 	if (selectedMeter !== null) {
-		const group = groups.find((candidate) => candidate.meter === selectedMeter);
+		const group = groups.find((candidate) => candidate.key === selectedMeter);
 		if (group !== undefined) {
-			return { activeGroup: group, activeMetric: undefined, activeMeter: group.meter };
+			return { activeGroup: group, activeMetric: undefined, activeMeter: group.key };
 		}
 	}
 
 	const firstGroup = groups[0];
 	const firstMetric = firstGroup?.metrics[0];
-	return { activeGroup: firstGroup, activeMetric: firstMetric, activeMeter: firstGroup?.meter };
+	return { activeGroup: firstGroup, activeMetric: firstMetric, activeMeter: firstGroup?.key };
 }
 
 function MetricTree(props: {
@@ -301,17 +312,17 @@ function MetricTree(props: {
 			</header>
 			<div className="otelux-metrics-tree">
 				{props.groups.map((group) => {
-					const meterIsActive = props.activeMetricKey === undefined && props.activeMeter === group.meter;
+					const meterIsActive = props.activeMetricKey === undefined && props.activeMeter === group.key;
 					return (
-						<div key={group.meter} className="otelux-metrics-tree__group">
+						<div key={group.key} className="otelux-metrics-tree__group">
 							<button
 								type="button"
 								className={`otelux-metrics-tree__meter${meterIsActive ? ' is-active' : ''}`}
-								onClick={() => props.onSelectMeter(group.meter)}
+								onClick={() => props.onSelectMeter(group.key)}
 								aria-pressed={meterIsActive}
 							>
-								<span className="otelux-metrics-tree__meter-name" title={group.meter}>
-									{group.meter}
+								<span className="otelux-metrics-tree__meter-name" title={group.label}>
+									{group.label}
 								</span>
 								<span className="otelux-metrics-tree__meter-count">{group.metrics.length}</span>
 							</button>
@@ -352,12 +363,12 @@ function MeterInstrumentTable(props: {
 	onSelectMetric(metric: Metric): void;
 }): JSX.Element {
 	return (
-		<section className="otelux-meter-overview" aria-label={`Meter ${props.group.meter}`}>
+		<section className="otelux-meter-overview" aria-label={`Meter ${props.group.label}`}>
 			<header className="otelux-meter-overview__header">
 				<div className="otelux-meter-overview__title-block">
 					<span className="otelux-meter-overview__eyebrow">Meter</span>
-					<h3 className="otelux-meter-overview__title" title={props.group.meter}>
-						{props.group.meter}
+					<h3 className="otelux-meter-overview__title" title={props.group.label}>
+						{props.group.label}
 					</h3>
 				</div>
 				<span className="otelux-meter-overview__count">{props.group.metrics.length}</span>
@@ -522,7 +533,11 @@ function MetricWorkspace(props: {
 }
 
 function metricKey(metric: Metric): string {
-	return `${meterName(metric)}\u0000${metric.name}\u0000${metric.type}`;
+	return `${metricGroupKey(metric)}\u0000${metric.name}\u0000${metric.type}`;
+}
+
+function metricGroupKey(metric: Metric): string {
+	return `${metricService(metric) ?? ''}\u0000${meterName(metric)}`;
 }
 
 function meterName(metric: Metric): string {

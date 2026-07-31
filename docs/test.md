@@ -579,7 +579,7 @@ curl -s -X POST -H 'Content-Type: application/json' \
 
 ### 15.2 Meter → instrument tree
 - Click the **Metrics** tab.
-- **Expected**: the view uses a split explorer. The left pane groups instruments by meter (scope) name and lists instruments below each meter. The right pane focuses the selected instrument. Codex emits monotonic Sums (`codex.api_request`, `codex.tool.call`, `codex.turn.token_usage`) and Histograms (`*_ms` durations like `codex.turn.e2e_duration_ms`, `codex.api_request.duration_ms`). The focused instrument shows name, type badge, unit, service, and a scan summary with Type, Service, Latest, Unit, Updated, and Points.
+- **Expected**: the view uses a split explorer. The left pane groups instruments by **service / meter** identity and lists instruments below each group. Equal instrument names emitted by different services (for example `codex_cli_rs` and `codex_exec`) appear in separate labeled groups rather than as unexplained duplicate rows. The right pane focuses the selected instrument. Codex emits monotonic Sums (`codex.api_request`, `codex.tool.call`, `codex.turn.token_usage`) and Histograms (`*_ms` durations like `codex.turn.e2e_duration_ms`, `codex.api_request.duration_ms`). The focused instrument shows name, type badge, unit, service, and a scan summary with Type, Service, Latest, Unit, Updated, and Points.
 
 ### 15.3 Instrument actions
 - On the focused instrument, use the `Name`, `Data`, and details actions.

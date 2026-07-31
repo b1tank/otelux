@@ -232,7 +232,7 @@ Queries should be bounded by limit and filters. Results should include counts wh
 - Result footers show `Showing N ...` and live/paused state outside the scroll region.
 - Active filters show a count and a clear affordance.
 - Settings groups endpoint controls under Connections and retention/database controls under Storage, while preserving one atomic Save action. Exactly one category is visible, and validation reveals and focuses the category that owns the invalid value.
-- Service is the user-facing label. Raw OTel resource attributes belong in details.
+- Service is the user-facing label. Raw OTel resource attributes belong in details. Metric instrument identity is service + meter + name + type, and the explorer groups by service/meter so legitimate cross-service names never look like duplicates.
 - OTelux keeps its own visual language. Interaction patterns can be borrowed; brand chrome should not be copied from other tools.
 - AI explain buttons are not a core feature. Hosts may layer assistance on top of deterministic local data.
 

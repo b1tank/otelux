@@ -114,6 +114,19 @@ describe('MetricsView', () => {
 		expect(container.textContent).toContain('Histogram');
 	});
 
+	it('separates equal instrument names by service and meter identity', async () => {
+		const ds = new FakeDataSource();
+		ds.rows = [
+			makeSum({ resource: { attributes: { 'service.name': 'codex_cli_rs' } } }),
+			makeSum({ resource: { attributes: { 'service.name': 'codex_exec' } } }),
+		];
+		const { findByText, container } = render(<MetricsView dataSource={ds} />);
+		await findByText('codex_cli_rs / codex');
+		expect(container.textContent).toContain('codex_exec / codex');
+		expect(container.querySelectorAll('.otelux-metrics-tree__group').length).toBe(2);
+		expect(container.querySelectorAll('.otelux-metrics-tree__instrument').length).toBe(2);
+	});
+
 	it('splits the instrument summary from the selected history query', async () => {
 		const ds = new FakeDataSource();
 		ds.rows = [makeSum(), makeHistogram()];
