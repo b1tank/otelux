@@ -288,7 +288,7 @@ For step 4.11.6, reuse the Python listener from step 4.10 with port `14331`, the
 5. Set **Maximum size** to `0` → the meter previews **No size limit** and infinity rather than a fake percentage; Save is accepted.
 6. Enter a negative or non-integer value → inline validation error, nothing persisted.
 7. Restore defaults (`72` / `512`) before continuing.
-- **Expected**: meter fill uses SQLite page bytes (the same quantity size retention enforces), while DB/WAL/SHM are a separate physical footprint. Valid values persist under `"retention"`; invalid values do not mutate the file or running store.
+- **Expected**: meter fill uses SQLite page bytes (the same quantity size retention enforces), while DB/WAL/SHM are a separate physical footprint. After a retention pass (at most 60 seconds under the default runtime), WAL returns to zero or a minimal transient size rather than growing independently of the budget. Valid values persist under `"retention"`; invalid values do not mutate the file or running store.
 
 ### 5.9 Database location
 1. Open Settings → **Storage** → **Database location**. Confirm the **Active database file** shows `/tmp/otelux-userdata/otelux.db` and its copy icon copies that path to the clipboard.

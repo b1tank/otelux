@@ -39,7 +39,7 @@ Tasks:
 - [x] Implement `@otelux/engine-node` using Node 22 `node:sqlite`.
 - [x] WAL mode, prepared statements, and schema bootstrap on open (`PRAGMA user_version`).
 - [x] Persist traces (+ materialized trace rollup), logs, metrics, interned resources/scopes, and hot indexed attributes.
-- [x] Add retention controls by age and size (default 72h / 512 MB; `0` disables either bound), exposed in Settings and enforced by a background prune + on-change.
+- [x] Add retention controls by age and size (default 72h / 512 MB; `0` disables either bound), exposed in Settings and enforced by a background prune + on-change; each pass checkpoints and truncates WAL so sustained ingestion cannot leave an unbounded sidecar outside the database-page budget.
 - [x] Add schema migration framework (versioned, forward-only) and corruption-tolerance recovery: failed upgrades roll back and remain in place for retry; unreadable or newer-version files are quarantined before starting fresh. Cover bootstrap, retry, newer-version, and corrupt-file cases.
 - [x] Run the storage contract test suite against both memory and SQLite backends.
 - [x] Change span identity and every detail lookup to `(traceId, spanId)`; schema v2 transactionally rebuilds v1 spans, repairs surviving rollups, and has duplicate-span-ID-across-traces coverage for memory and SQLite.

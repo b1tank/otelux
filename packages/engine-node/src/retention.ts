@@ -34,14 +34,24 @@ export function pruneRetention(
 	config: RetentionConfig,
 	nowUnixNano: bigint,
 ): void {
+	// Merge outstanding WAL pages before measuring the database. Without this,
+	// page_count can be under the configured budget while the sidecar keeps
+	// tens or hundreds of MiB live on disk under sustained ingestion.
+	checkpointWal(db);
 	if (config.maxAgeHours > 0) {
 		pruneByAge(db, config.maxAgeHours, nowUnixNano);
 	}
 	if (config.maxSizeMb > 0) {
 		pruneBySize(db, config.maxSizeMb);
 	}
-	// Reclaim space freed by the deletes above (no-op when nothing was freed).
+	// Reclaim space freed by the deletes above, then checkpoint the delete and
+	// vacuum writes so a completed retention pass leaves no accumulated WAL.
 	db.exec('PRAGMA incremental_vacuum');
+	checkpointWal(db);
+}
+
+function checkpointWal(db: DatabaseSync): void {
+	db.prepare('PRAGMA wal_checkpoint(TRUNCATE)').get();
 }
 
 function pruneByAge(db: DatabaseSync, maxAgeHours: number, nowUnixNano: bigint): void {

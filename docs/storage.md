@@ -17,7 +17,7 @@ OTelux uses SQLite as a local telemetry engine, not as a JSON file cabinet. The 
 
 ## Current Strengths
 
-- WAL plus `synchronous=NORMAL` lets ingest and query proceed concurrently.
+- WAL plus `synchronous=NORMAL` lets ingest and query proceed concurrently; periodic retention checkpoints and truncates WAL before and after pruning so physical sidecar growth remains bounded under sustained ingest.
 - Spans, logs, metric instruments, and points are normalized enough for indexed access.
 - Resources and instrumentation scopes are interned rather than repeated per record.
 - A materialized `traces` table makes the trace list independent of raw-span aggregation.

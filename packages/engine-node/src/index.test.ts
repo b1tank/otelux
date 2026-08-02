@@ -95,6 +95,27 @@ describe('@otelux/engine-node metadata', () => {
 		}
 	});
 
+	it('checkpoints and truncates WAL during a retention pass', () => {
+		const directory = mkdtempSync(join(tmpdir(), 'otelux-wal-retention-'));
+		const path = join(directory, 'otelux.db');
+		let storage: NodeSqliteStorage | undefined;
+		try {
+			storage = createNodeSqliteStorage({ path, pruneIntervalMs: 0 });
+			storage.writeLogs([
+				makeLog({ time: 1n, severity: 9, body: 'checkpoint me', service: 'wal-test' }),
+			]);
+			expect(storage.getStorageUsage().walBytes).toBeGreaterThan(0);
+
+			storage.prune();
+
+			expect(storage.getStorageUsage().walBytes).toBe(0);
+			expect(storage.listLogs({}).totalCount).toBe(1);
+		} finally {
+			storage?.close();
+			rmSync(directory, { recursive: true, force: true });
+		}
+	});
+
 	it('reports no physical files for an in-memory database', () => {
 		const storage = createNodeSqliteStorage({ path: ':memory:', pruneIntervalMs: 0 });
 		try {
@@ -428,6 +449,9 @@ describe('@otelux/engine-node retention', () => {
 			expect(after.totalCount).toBeLessThan(4000);
 			// The survivors are the newest logs (highest time), not the oldest.
 			expect(after.rows[0]?.body?.toString().startsWith('3999:')).toBe(true);
+			const usage = storage.getStorageUsage();
+			expect(usage.retentionBytes).toBeLessThanOrEqual(2 * 1024 * 1024);
+			expect(usage.walBytes).toBe(0);
 		} finally {
 			storage.close();
 			rmSync(dir, { recursive: true, force: true });

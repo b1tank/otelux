@@ -272,7 +272,7 @@ The root build refreshes upstream workspace outputs before bundling the desktop 
 
 Telemetry persists to a local SQLite database, so a normal restart keeps your data. If data is missing, the retention setting may have pruned it: telemetry older than the age bound, or beyond the size bound (default 72 hours / 512 MB), is dropped. Adjust or disable retention in Settings → Storage → Retention (`0` = no limit). If the database file was unreadable at startup (corrupt, or written by a newer OTelux), it is renamed aside with a `.corrupt-<timestamp>` suffix and a fresh database is created — the old file is preserved next to it for manual recovery, never deleted. Schema migration across future storage versions is tracked in [plan.md](plan.md#phase-2--durable-local-storage).
 
-Settings → Storage → Retention includes a live SQLite budget meter. Its fill tracks the database-page count used by retention pruning; the line below reports actual disk footprint for the main database plus WAL and SHM sidecars. WAL overhead can temporarily raise physical disk usage without changing the retention fill.
+Settings → Storage → Retention includes a live SQLite budget meter. Its fill tracks the database-page count used by retention pruning; the line below reports actual disk footprint for the main database plus WAL and SHM sidecars. WAL overhead can temporarily raise physical disk usage between retention passes; each pass checkpoints and truncates WAL before and after pruning so sustained ingestion does not leave that sidecar growing outside the database-page budget.
 
 ### The Linux packaging command fails or produces incomplete artifacts
 

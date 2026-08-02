@@ -32,7 +32,7 @@ The repository currently contains:
 - Canonical platform data-home resolution, resumable copy-only migration from legacy Electron state, and nonce-protected `runtime.lock` / `runtime.json` ownership metadata.
 - OTLP/HTTP JSON and protobuf ingest for traces, logs, and metrics.
 - Durable local storage for all signals via `@otelux/engine-node` (Node `node:sqlite`), with user-configurable retention (age and size). The store versions its schema with forward-only transactional migrations; a failed upgrade leaves the legacy database in place for retry, while an unreadable or newer-version file is quarantined before starting fresh. `@otelux/engine` still ships an in-memory store for tests and small workloads; both back ends pass a shared storage-contract suite.
-- A live SQLite budget meter in Settings shows retention-page pressure against the configured size limit and separately reports physical DB, WAL, and SHM footprint.
+- A live SQLite budget meter in Settings shows retention-page pressure against the configured size limit and separately reports physical DB, WAL, and SHM footprint. Retention passes checkpoint and truncate WAL before and after pruning so sustained ingest cannot leave an unbounded WAL sidecar outside the page budget.
 - An About surface opened from the desktop rail reports the packaged OTelux version plus Electron, Chromium, Node.js, and platform versions for support diagnostics. The displayed app version comes from the same package-version build define used by packaging.
 - Live Traces, Logs, and Metrics rail surfaces in `@otelux/ui`.
 - A one-click "Load sample data" seed in the empty Traces view populates every surface with clearly-labelled synthetic telemetry, so a first-run user can evaluate the UI before wiring an exporter.
