@@ -420,7 +420,11 @@ Select a distributed_trace.json row (multi-service, multiple spans).
 ### 9.2 Span without attributes
 - If a fixture span has no attributes, the span detail drawer shows empty-state copy ("No attributes." or similar) — confirm no JS error.
 
-### 9.3 Click-through
+### 9.3 Detail search
+- Enter an attribute key such as `http.method` in **Search details**.
+- **Expected**: only matching sections and key/value rows remain; the trace and selected span do not change. Enter a missing value to see `No matching details.`, then clear search to restore every section.
+
+### 9.4 Click-through
 - Click the trace name in the waterfall header (if it's a button) — confirm it doesn't crash.
 
 ---
@@ -568,11 +572,15 @@ curl -s -X POST -H 'Content-Type: application/json' \
 - Click a row.
 - **Expected**: the detail drawer opens showing the log body and the full attribute set (e.g. the user `prompt` content rides the logs pipeline in attributes, not traces).
 
-### 14.4 Row actions and pivots
+### 14.4 Detail search
+- In the open log drawer, search for `prompt` or a known value such as `do the thing`.
+- **Expected**: matching attribute rows remain while unrelated sections disappear; a missing query shows `No matching details.` Clearing search restores the full log without changing the selected row.
+
+### 14.5 Row actions and pivots
 - On a correlated log row, click the action buttons.
 - **Expected**: `Msg`, `Trace`, and `Span` copy actions copy the message and full IDs without opening the drawer. The waterfall pivot action switches to Traces and opens the matching span drawer when trace data for that ID is present. Rows without trace context omit trace/span copy and pivot actions so the Actions cell only shows controls that can work.
 
-### 14.5 Filters
+### 14.6 Filters
 - Use the FilterBar source/service dropdowns / severity / search.
 - **Expected**: the row set narrows; the query is forwarded to the data source (count in the header reflects the filtered result).
 

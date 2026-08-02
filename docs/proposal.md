@@ -31,8 +31,8 @@ The core user workflows are:
 
 - Point a local OTel exporter at OTelux and see data arrive live.
 - Triage recent errors from traces and logs.
-- Inspect a trace waterfall and span details.
-- Search structured logs, including agent/user-prompt content carried in log attributes.
+- Inspect a trace waterfall and search span details by property name or value.
+- Search structured logs, including agent/user-prompt content carried in log attributes, and narrow an open log drawer to matching details.
 - Inspect metrics through a meter/instrument explorer, compare scan summaries, switch the focused instrument between an axis-labeled graph and a raw table, copy metric data, and open details.
 - Let an agent ask read-only questions over the same local store.
 

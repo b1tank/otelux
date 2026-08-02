@@ -14,7 +14,6 @@ Goal: make the current three signal views feel like a professional local debuggi
 
 Tasks:
 
-- Add detail-pane search for span and log details.
 - Normalize section count badges and action menus across span and log details.
 - Add metric grouping controls for Service and Type without losing the current meter-first explorer layout.
 - Improve histogram labels with clearer bucket boundaries, count/sum context, and table parity.
@@ -24,7 +23,7 @@ Tasks:
 
 Done when:
 
-- A user can inspect a log or span, search inside details, copy useful values, and close the pane without losing list context.
+- [x] A user can inspect a log or span, search inside details, copy useful values, and close the pane without losing list context.
 - A user can navigate metrics by meter, compare instruments by service, type, latest value, update time, and details, then focus one instrument without losing meter context.
 - Streaming data can be paused, cleared with confirmation, and understood from visible footer/status state. — **done**
 

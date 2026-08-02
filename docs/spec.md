@@ -46,7 +46,7 @@ The repository currently contains:
 Important current limits:
 
 - OTLP/gRPC ingest is planned, not shipped (OTLP/HTTP JSON and protobuf are live).
-- Dense trace modes and detail search need polish.
+- Dense trace modes need polish; span and log detail drawers now provide internal key/value search.
 - Agent-run correlation and service overview tools are schema-stable but not fully implemented.
 - The storage audit's span-identity P0 is fixed in schema v2; trace-service count/page correctness is fixed in schema v3; schema v4 indexes the standard `service.namespace` source dimension; and metric histories are bounded and fetched in one compound indexed statement. Protocol 0.5 grouped source/service facets replace hidden raw-record probes. Main-process query isolation, keyset pagination, and the full query-budget harness remain pre-daemon hardening work. See [storage.md](storage.md#audit-findings).
 - `@otelux/protocol` is currently an in-memory TypeScript contract, not a validated JSON wire contract. Runtime RPC/SSE DTOs and schema snapshots are required before Desktop becomes a daemon client. See [protocol.md](protocol.md#current-gaps).
@@ -192,7 +192,7 @@ Queries should be bounded by limit and filters. Results should include counts wh
 - Every dense signal needs real grid behavior: sticky column headers, visible sort state, keyboardable headers, and predictable column widths.
 - Toolbars are operational controls, not decoration. Search, source/service filters, severity/status filters, pause/resume, and clear should be direct and visible.
 - Summary/detail is reusable. Selecting a trace, span, log, or metric preserves list context and opens a predictable details area.
-- Details panes are searchable. Span and log details need internal search over property names and values.
+- Details panes are searchable. Span and log drawers filter sections and key/value rows through one case-insensitive internal search without changing the selected record.
 - Property sections expose counts before expansion.
 - Rows expose actions consistently: details, copy, value viewer, and pivots.
 - Long values use the full value viewer wherever messages, attributes, JSON, XML, Markdown, or multiline text exceed the pane.
