@@ -77,6 +77,20 @@ describe('SpanDetail', () => {
 		expect(queryByLabelText('View value for http.method')).toBeNull();
 	});
 
+	it('filters sections and attribute rows through detail search', () => {
+		const { getByLabelText, getByText, queryByText } = render(<SpanDetail span={makeSpan()} />);
+		fireEvent.change(getByLabelText('Search span details'), { target: { value: 'http.method' } });
+		expect(getByText('Attributes')).toBeTruthy();
+		expect(getByText('http.method')).toBeTruthy();
+		expect(queryByText('http.status_code')).toBeNull();
+		expect(queryByText('Resource')).toBeNull();
+
+		fireEvent.change(getByLabelText('Search span details'), { target: { value: 'missing-value' } });
+		expect(getByText('No matching details.')).toBeTruthy();
+		fireEvent.click(getByLabelText('Clear search'));
+		expect(getByText('Resource')).toBeTruthy();
+	});
+
 	it('marks an error span with the error status badge', () => {
 		const span = makeSpan({ status: { code: SpanStatusCode.Error, message: 'boom' } });
 		const { container, getByText } = render(<SpanDetail span={span} />);

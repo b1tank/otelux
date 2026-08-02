@@ -16,9 +16,17 @@
  */
 
 import { type AttributeValue, type Span, SpanKind, SpanStatusCode } from '@otelux/types';
-import type { JSX } from 'react';
+import { type JSX, useState } from 'react';
 import { formatDuration, formatWallClock } from '../format.js';
-import { Accordion, type AccordionItem, EyeIcon, IconButton } from '../primitives/index.js';
+import {
+	Accordion,
+	type AccordionItem,
+	DetailSearch,
+	DetailSearchEmpty,
+	EyeIcon,
+	IconButton,
+	detailMatches,
+} from '../primitives/index.js';
 
 export interface SpanDetailProps {
 	span: Span;
@@ -46,59 +54,87 @@ const STATUS_LABELS: Readonly<Record<number, string>> = {
 
 export function SpanDetail(props: SpanDetailProps): JSX.Element {
 	const { span, onViewValue } = props;
+	const [query, setQuery] = useState('');
 	const rawDuration = span.endTimeUnixNano - span.startTimeUnixNano;
 	const duration = rawDuration < 0n ? 0n : rawDuration;
 	const isError = span.status.code === SpanStatusCode.Error;
 	const statusKey = isError ? 'error' : span.status.code === SpanStatusCode.Ok ? 'ok' : 'unset';
 
-	const items: AccordionItem[] = [
+	const allItems: Array<AccordionItem & { searchValues: readonly unknown[] }> = [
 		{
 			id: 'span',
 			label: 'Span',
 			defaultOpen: true,
 			children: <SpanFacts span={span} duration={duration} statusKey={statusKey} />,
+			searchValues: [
+				span.name,
+				STATUS_LABELS[span.status.code],
+				span.status.message,
+				SPAN_KIND_LABELS[span.kind],
+				formatDuration(duration),
+				formatWallClock(span.startTimeUnixNano),
+				formatWallClock(span.endTimeUnixNano),
+				span.spanId,
+				span.traceId,
+				span.parentSpanId,
+			],
 		},
 		{
 			id: 'attributes',
 			label: 'Attributes',
 			badge: <Count value={Object.keys(span.attributes).length} />,
 			defaultOpen: true,
-			children: <AttributeTable attributes={span.attributes} onViewValue={onViewValue} />,
+			children: (
+				<AttributeTable attributes={span.attributes} onViewValue={onViewValue} query={query} />
+			),
+			searchValues: attributeSearchValues(span.attributes),
 		},
 		{
 			id: 'resource',
 			label: 'Resource',
 			badge: <Count value={Object.keys(span.resource.attributes).length} />,
-			children: <AttributeTable attributes={span.resource.attributes} onViewValue={onViewValue} />,
+			children: (
+				<AttributeTable attributes={span.resource.attributes} onViewValue={onViewValue} query={query} />
+			),
+			searchValues: attributeSearchValues(span.resource.attributes),
 		},
 		{
 			id: 'scope',
 			label: 'Scope',
 			children: <ScopeBlock name={span.scope.name} version={span.scope.version} />,
+			searchValues: [span.scope.name, span.scope.version],
 		},
 	];
 
 	if (span.events && span.events.length > 0) {
-		items.push({
+		allItems.push({
 			id: 'events',
 			label: 'Events',
 			badge: <Count value={span.events.length} />,
-			children: <EventList events={span.events} onViewValue={onViewValue} />,
+			children: <EventList events={span.events} onViewValue={onViewValue} query={query} />,
+			searchValues: span.events.flatMap((event) => [
+				event.name,
+				formatWallClock(event.timeUnixNano),
+				...attributeSearchValues(event.attributes ?? {}),
+			]),
 		});
 	}
 
 	if (span.links && span.links.length > 0) {
-		items.push({
+		allItems.push({
 			id: 'links',
 			label: 'Links',
 			badge: <Count value={span.links.length} />,
-			children: <LinkList links={span.links} />,
+			children: <LinkList links={span.links} query={query} />,
+			searchValues: span.links.flatMap((link) => [link.traceId, link.spanId]),
 		});
 	}
 
+	const items = allItems.filter((item) => detailMatches(query, item.label, ...item.searchValues));
 	return (
 		<section className="otelux-span-detail" aria-label="Span detail">
-			<Accordion items={items} />
+			<DetailSearch value={query} onChange={setQuery} subject="span" />
+			{items.length > 0 ? <Accordion items={items} /> : <DetailSearchEmpty />}
 		</section>
 	);
 }
@@ -157,11 +193,14 @@ function KVRow(props: { label: string; value: JSX.Element | string; mono?: boole
 interface AttributeTableProps {
 	attributes: Readonly<Record<string, AttributeValue>>;
 	onViewValue: ((key: string, value: AttributeValue) => void) | undefined;
+	query?: string;
 }
 
 function AttributeTable(props: AttributeTableProps): JSX.Element {
 	const { attributes, onViewValue } = props;
-	const entries = Object.entries(attributes);
+	const entries = Object.entries(attributes).filter(([key, value]) =>
+		detailMatches(props.query ?? '', key, renderAttributeValue(value)),
+	);
 	if (entries.length === 0) {
 		return <div className="otelux-kv__empty">none</div>;
 	}
@@ -193,6 +232,12 @@ function AttributeTable(props: AttributeTableProps): JSX.Element {
 	);
 }
 
+function attributeSearchValues(
+	attributes: Readonly<Record<string, AttributeValue>>,
+): readonly unknown[] {
+	return Object.entries(attributes).flatMap(([key, value]) => [key, renderAttributeValue(value)]);
+}
+
 function renderAttributeValue(v: AttributeValue): string {
 	if (typeof v === 'bigint') {
 		return v.toString();
@@ -217,36 +262,52 @@ function ScopeBlock(props: { name: string; version: string | undefined }): JSX.E
 interface EventListProps {
 	events: NonNullable<Span['events']>;
 	onViewValue: ((key: string, value: AttributeValue) => void) | undefined;
+	query: string;
 }
 
 function EventList(props: EventListProps): JSX.Element {
 	return (
 		<ul className="otelux-span-detail__events">
-			{props.events.map((ev, i) => (
-				// Event names are not unique; pair the name with the timestamp + index
-				// so list reconciliation is stable across re-renders.
-				<li key={`${ev.name}:${ev.timeUnixNano}:${i}`} className="otelux-span-detail__event">
-					<div className="otelux-span-detail__event-head">
-						<span className="otelux-span-detail__event-name">{ev.name}</span>
-						<span className="otelux-span-detail__event-time">{formatWallClock(ev.timeUnixNano)}</span>
-					</div>
-					<AttributeTable attributes={ev.attributes ?? {}} onViewValue={props.onViewValue} />
-				</li>
-			))}
+			{props.events
+				.filter((event) =>
+					detailMatches(
+						props.query,
+						event.name,
+						formatWallClock(event.timeUnixNano),
+						...attributeSearchValues(event.attributes ?? {}),
+					),
+				)
+				.map((ev, i) => (
+					// Event names are not unique; pair the name with the timestamp + index
+					// so list reconciliation is stable across re-renders.
+					<li key={`${ev.name}:${ev.timeUnixNano}:${i}`} className="otelux-span-detail__event">
+						<div className="otelux-span-detail__event-head">
+							<span className="otelux-span-detail__event-name">{ev.name}</span>
+							<span className="otelux-span-detail__event-time">{formatWallClock(ev.timeUnixNano)}</span>
+						</div>
+						<AttributeTable
+							attributes={ev.attributes ?? {}}
+							onViewValue={props.onViewValue}
+							query={props.query}
+						/>
+					</li>
+				))}
 		</ul>
 	);
 }
 
-function LinkList(props: { links: NonNullable<Span['links']> }): JSX.Element {
+function LinkList(props: { links: NonNullable<Span['links']>; query: string }): JSX.Element {
 	return (
 		<ul className="otelux-span-detail__links">
-			{props.links.map((l, i) => (
-				<li key={`${l.traceId}:${l.spanId}:${i}`}>
-					<code>{l.traceId}</code>
-					<span className="otelux-span-detail__link-sep">:</span>
-					<code>{l.spanId}</code>
-				</li>
-			))}
+			{props.links
+				.filter((link) => detailMatches(props.query, link.traceId, link.spanId))
+				.map((l, i) => (
+					<li key={`${l.traceId}:${l.spanId}:${i}`}>
+						<code>{l.traceId}</code>
+						<span className="otelux-span-detail__link-sep">:</span>
+						<code>{l.spanId}</code>
+					</li>
+				))}
 		</ul>
 	);
 }
