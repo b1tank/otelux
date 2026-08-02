@@ -64,6 +64,7 @@ Min widths: list ≥ 280 px, waterfall ≥ 480 px. Splitter is 6 px wide with a 
 | **Drawer**, not modal, for span detail | Lets the user keep the waterfall in view while inspecting a span. Modal would force a context switch on every click. |
 | **Selected trace stays pinned during live ingest** | New arrivals update the list without stealing inspection focus; a compact waterfall badge makes that contract visible instead of making stable details look frozen. |
 | **Accordion sections** in the drawer (not tabs) | We have few sections (Span / Attributes / Resource / Events) and they're all useful at once. Tabs hide content; accordions reveal-on-need. |
+| **One search field for drawer details** | Span and log payloads can contain dozens of attributes. A fixed search field filters visible key/value rows across every section without changing the selected record or introducing per-section controls. |
 | **Value viewer is a modal** | A long JSON blob deserves a focused, big canvas with Copy / Download. The drawer is too narrow. |
 | **Pane collapse buttons inside each pane's header**, not on the splitter | The splitter is a drag affordance, not a button-host. In-header chevrons are easier to hit and don't confuse the drag gesture. |
 | **No vertical rail when a pane is collapsed** | Rotated text is hard to read. The remaining pane reclaims the full width; a restore button lives in the surviving pane's header. |
@@ -131,6 +132,7 @@ If you edit the geometry, edit `icon.svg`, mirror the change in `OTeluxLogo.tsx`
 | `.tlist` + `.tcard` (+ flat mode) | `<TraceList>` + `<TraceRow>` | [`@tanstack/react-virtual`](https://tanstack.com/virtual) above ~200 traces |
 | `.wf__head`, `.ruler`, `.wf__rows`, `.row` | `<Waterfall>` + `<WaterfallRow>` | `@tanstack/react-virtual` above ~200 spans |
 | `.drawer` + `.acc` | `<SpanDrawer>` + `<DrawerSection>` | [`@radix-ui/react-dialog`](https://www.radix-ui.com/primitives/docs/components/dialog) with `side="right"` styling, [`@radix-ui/react-accordion`](https://www.radix-ui.com/primitives/docs/components/accordion) |
+| `.drawer__search` | `<DetailSearch>` | native search input with a custom clear action |
 | `.kv` + `.view-btn` | `<AttrRow>` + `<ViewValueButton>` | none |
 | `.overlay` + `.viewer` | `<ValueViewer>` | `@radix-ui/react-dialog` (full modal) |
 | `.empty` | `<EmptyState>` | none |

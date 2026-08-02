@@ -347,7 +347,7 @@
   .drawer { position: fixed; top: 0; right: 0; height: 100vh;
             width: 460px; background: var(--bg-1);
             border-left: 1px solid var(--border);
-            display: grid; grid-template-rows: 48px 1fr;
+            display: grid; grid-template-rows: 48px 40px 1fr;
             box-shadow: -16px 0 40px rgba(0,0,0,.35);
             transform: translateX(100%); transition: transform .18s ease; }
   .drawer.is-open { transform: translateX(0); }
@@ -359,7 +359,17 @@
                    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .drawer__tag { font-size: 11px; padding: 1px 6px; border-radius: 10px;
                  background: var(--bg-2); color: var(--fg-mute); }
+  .drawer__search { display: flex; align-items: center; gap: 8px;
+                    padding: 6px 12px; border-bottom: 1px solid var(--border); }
+  .drawer__search svg { color: var(--fg-mute); flex: none; }
+  .drawer__search input { min-width: 0; flex: 1; height: 28px; padding: 0 8px;
+                          border: 1px solid var(--border); border-radius: 4px;
+                          background: var(--bg); color: var(--fg); font: inherit; }
+  .drawer__search input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .drawer__search-clear[hidden] { display: none; }
   .drawer__body { overflow: auto; padding: 0; }
+  .drawer__empty { padding: 32px 16px; color: var(--fg-mute); font-size: 12px;
+                   text-align: center; }
 
   .acc { border-bottom: 1px solid var(--border); }
   .acc__head { display: flex; align-items: center; gap: 8px;
@@ -1091,7 +1101,15 @@
       <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
     </button>
   </header>
+  <div class="drawer__search" role="search">
+    <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input id="drawer-search" type="search" placeholder="Search details" aria-label="Search span details" autocomplete="off" />
+    <button class="icon-btn drawer__search-clear" id="clear-drawer-search" aria-label="Clear detail search" title="Clear search" hidden>
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+  </div>
   <div class="drawer__body">
+    <div class="drawer__empty" id="drawer-search-empty" hidden>No matching details.</div>
     <section class="acc">
       <header class="acc__head">
         <svg class="ico acc__caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
@@ -1368,6 +1386,31 @@
     });
   });
   $('#close-drawer').addEventListener('click', () => { $('#drawer').classList.remove('is-open'); $('#t-drawer').classList.remove('is-on'); });
+  (() => {
+    const input = $('#drawer-search');
+    const clear = $('#clear-drawer-search');
+    const empty = $('#drawer-search-empty');
+    const apply = () => {
+      const needle = input.value.trim().toLowerCase();
+      let matches = 0;
+      document.querySelectorAll('#drawer .acc').forEach(section => {
+        const rows = [...section.querySelectorAll('.kv__row')];
+        let sectionMatches = false;
+        rows.forEach(row => {
+          const visible = needle === '' || row.textContent.toLowerCase().includes(needle);
+          row.hidden = !visible;
+          sectionMatches ||= visible;
+          if (visible && needle !== '') matches++;
+        });
+        const visible = needle === '' || sectionMatches || (rows.length === 0 && section.textContent.toLowerCase().includes(needle));
+        section.hidden = !visible;
+      });
+      clear.hidden = needle === '';
+      empty.hidden = needle === '' || matches > 0;
+    };
+    input.addEventListener('input', apply);
+    clear.addEventListener('click', () => { input.value = ''; apply(); input.focus(); });
+  })();
   $('#t-drawer').addEventListener('click', (e) => {
     $('#drawer').classList.toggle('is-open');
     e.currentTarget.classList.toggle('is-on', $('#drawer').classList.contains('is-open'));
