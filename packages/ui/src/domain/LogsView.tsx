@@ -29,12 +29,15 @@ import {
 	Accordion,
 	type AccordionItem,
 	CopyButton,
+	DetailSearch,
+	DetailSearchEmpty,
 	Drawer,
 	EyeIcon,
 	IconButton,
 	ResultFooter,
 	ValueViewer,
 	WaterfallIcon,
+	detailMatches,
 } from '../primitives/index.js';
 import { useDataSourceQuery } from '../useDataSourceQuery.js';
 
@@ -339,25 +342,38 @@ interface LogDetailProps {
 
 function LogDetail(props: LogDetailProps): JSX.Element {
 	const { log, onViewValue } = props;
-	const items: AccordionItem[] = [
+	const [query, setQuery] = useState('');
+	const allItems: Array<AccordionItem & { searchValues: readonly unknown[] }> = [
 		{
 			id: 'log',
 			label: 'Log',
 			defaultOpen: true,
 			children: <LogFacts log={log} />,
+			searchValues: [
+				severityLabel(log.severityNumber, log.severityText),
+				formatWallClock(log.timeUnixNano),
+				log.eventName,
+				log.body === undefined ? undefined : renderAttributeValue(log.body),
+				log.traceId,
+				log.spanId,
+			],
 		},
 		{
 			id: 'attributes',
 			label: 'Attributes',
 			badge: <>{Object.keys(log.attributes).length}</>,
 			defaultOpen: true,
-			children: <AttributeTable attributes={log.attributes} onViewValue={onViewValue} />,
+			children: <AttributeTable attributes={log.attributes} onViewValue={onViewValue} query={query} />,
+			searchValues: attributeSearchValues(log.attributes),
 		},
 		{
 			id: 'resource',
 			label: 'Resource',
 			badge: <>{Object.keys(log.resource.attributes).length}</>,
-			children: <AttributeTable attributes={log.resource.attributes} onViewValue={onViewValue} />,
+			children: (
+				<AttributeTable attributes={log.resource.attributes} onViewValue={onViewValue} query={query} />
+			),
+			searchValues: attributeSearchValues(log.resource.attributes),
 		},
 		{
 			id: 'scope',
@@ -370,12 +386,15 @@ function LogDetail(props: LogDetailProps): JSX.Element {
 					) : null}
 				</div>
 			),
+			searchValues: [log.scope.name, log.scope.version],
 		},
 	];
+	const items = allItems.filter((item) => detailMatches(query, item.label, ...item.searchValues));
 
 	return (
 		<section className="otelux-log-detail" aria-label="Log detail">
-			<Accordion items={items} />
+			<DetailSearch value={query} onChange={setQuery} subject="log" />
+			{items.length > 0 ? <Accordion items={items} /> : <DetailSearchEmpty />}
 		</section>
 	);
 }
@@ -417,11 +436,14 @@ function KVRow(props: { label: string; value: string; mono?: boolean }): JSX.Ele
 interface AttributeTableProps {
 	attributes: Readonly<Record<string, AttributeValue>>;
 	onViewValue: ((key: string, value: AttributeValue) => void) | undefined;
+	query?: string;
 }
 
 function AttributeTable(props: AttributeTableProps): JSX.Element {
 	const { attributes, onViewValue } = props;
-	const entries = Object.entries(attributes);
+	const entries = Object.entries(attributes).filter(([key, value]) =>
+		detailMatches(props.query ?? '', key, renderAttributeValue(value)),
+	);
 	if (entries.length === 0) {
 		return <div className="otelux-kv__empty">none</div>;
 	}
@@ -451,6 +473,12 @@ function AttributeTable(props: AttributeTableProps): JSX.Element {
 			})}
 		</div>
 	);
+}
+
+function attributeSearchValues(
+	attributes: Readonly<Record<string, AttributeValue>>,
+): readonly unknown[] {
+	return Object.entries(attributes).flatMap(([key, value]) => [key, renderAttributeValue(value)]);
 }
 
 function renderAttributeValue(v: AttributeValue): string {

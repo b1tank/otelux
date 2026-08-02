@@ -195,4 +195,24 @@ describe('LogsView', () => {
 		expect(dialog.textContent).toContain('Attributes');
 		expect(dialog.textContent).toContain('do the thing');
 	});
+
+	it('filters log detail sections and rows', async () => {
+		const ds = new FakeDataSource();
+		ds.rows = [makeLog()];
+		const { findByText, getByRole } = render(<LogsView dataSource={ds} />);
+		fireEvent.click(await findByText('hello world'));
+		const dialog = getByRole('dialog');
+		fireEvent.change(within(dialog).getByLabelText('Search log details'), {
+			target: { value: 'do the thing' },
+		});
+		expect(within(dialog).getByText('prompt')).toBeTruthy();
+		expect(within(dialog).getByText('do the thing')).toBeTruthy();
+		expect(within(dialog).queryByText('event.name')).toBeNull();
+		expect(within(dialog).queryByText('Resource')).toBeNull();
+
+		fireEvent.change(within(dialog).getByLabelText('Search log details'), {
+			target: { value: 'not-present' },
+		});
+		expect(within(dialog).getByText('No matching details.')).toBeTruthy();
+	});
 });
