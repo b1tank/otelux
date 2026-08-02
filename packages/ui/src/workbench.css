@@ -929,6 +929,28 @@
 	background: var(--otelux-bg-elevated);
 }
 
+.otelux-detail-search {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	display: flex;
+	padding: 6px 12px;
+	background: var(--otelux-bg-panel);
+	border-bottom: 1px solid var(--otelux-border);
+}
+
+.otelux-detail-search .otelux-search-field {
+	max-width: none;
+	background: var(--otelux-bg-panel);
+}
+
+.otelux-detail-search__empty {
+	padding: 32px 16px;
+	color: var(--otelux-fg-faint);
+	font-size: 12px;
+	text-align: center;
+}
+
 /* ---------- Splitter ---------- */
 
 .otelux-splitter {
