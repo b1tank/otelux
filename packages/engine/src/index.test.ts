@@ -90,7 +90,9 @@ describe('createMemoryStorage + createEngine', () => {
 
 	it('builds cross-signal service overview rollups', async () => {
 		const engine = createEngine({ storage: createMemoryStorage() });
-		const now = BigInt(Date.now()) * 1_000_000n;
+		// Keep fixture safely inside the exclusive upper time bound even when
+		// Date.now() returns the same millisecond inside getServiceOverview.
+		const now = BigInt(Date.now() - 1_000) * 1_000_000n;
 		await engine.ingestSpans([
 			makeSpan({
 				traceId: TRACE,
