@@ -1,22 +1,48 @@
-# Sprint — Query budgets and service intelligence
+# Sprint — Public OSS readiness
 
 ## Goal
 
-Build on the verified 0.1.9 interaction rewrite by preventing SQL regressions and making OTelux answer richer service-health questions across traces, logs, and metrics.
+Make the repository safe, accurate, and maintainable to expose publicly without waiting for unrelated product-roadmap work. Public visibility is not the same as declaring a stable cross-platform product release.
 
-## Prioritized tasks
+## Essential gates before visibility
 
-- [ ] **P1 — SQL statement and plan budgets.** Add a testable query-observer seam around durable storage; enforce statement counts and required indexes for common trace, log, metric, facet, waterfall, and detail query shapes.
-- [ ] **P1 — Production-shaped query fixture.** Generate deterministic mixed-source/service telemetry large enough to catch accidental scans and N+1 behavior without making routine CI slow.
-- [x] **P1 — Cross-signal service rollups.** Engine now reports span/trace/error counts, error rate, p50/p95 duration, log severity bands, and metric instrument availability through bounded cursor/list queries.
-- [x] **P1 — Upgrade `otel_get_service_overview`.** MCP now returns richer cross-signal rollups while preserving the original name/traces/errorTraces/spans fields.
-- [x] **P2 — Agent-run correlation foundation.** `otel_correlate_agent_run` is functional: exact searchable conversation/session IDs find matching logs and propagated trace IDs without service-name inference. Bounded time-window fallback remains future work for uncorrelated telemetry.
-- [ ] **Verification and docs.** Run focused and full Turbo checks, package smoke/performance smoke, update protocol/spec/storage/test/plan docs, and publish atomic commits.
+- [ ] **P0 — Re-run full-history secret scans.** Run pinned Gitleaks and TruffleHog against every commit; record versions, commands, commit count, and zero-secret evidence.
+- [ ] **P0 — Audit the current tree for private data.** Review fixtures, screenshots, generated artifacts, docs, examples, telemetry payloads, home paths, private endpoints, emails, and configuration files. Replace or remove anything sensitive.
+- [ ] **P0 — Reconcile product claims and roadmap state.** Remove stale statements that mark shipped pagination, worker isolation, backpressure, service overview, or correlation as pending; clearly label unsupported or experimental behavior.
+- [ ] **P0 — Verify public installation and release claims.** From a clean machine/profile, verify the published `.deb`, SHA256SUMS, SBOM, install, upgrade, launch, ingest, restart, and uninstall instructions. Ensure limitations and privacy boundaries are visible.
+- [ ] **P0 — Configure GitHub security controls.** Enable private vulnerability reporting, secret scanning, push protection, Dependabot, and CodeQL; verify each control is active after visibility changes.
+- [ ] **P0 — Protect `main`.** Require pull requests and green CI, block force pushes/deletion, and require branches to be current before merge. Decide whether signed commits and linear history are required.
+- [ ] **P0 — Verify community and security documents.** Confirm LICENSE detection plus accurate README, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, support guidance, issue forms, and PR template. Name an independent confidential conduct contact/channel.
+- [ ] **P0 — Final public flip verification.** Confirm CI and CodeQL run publicly, the vulnerability-reporting flow works, release links/checksums resolve, repository metadata is accurate, and no public-facing document still says “private repository.”
+
+## Important after visibility, before stable-product claims
+
+- [ ] Add SQL statement-count and `EXPLAIN QUERY PLAN` regression budgets.
+- [ ] Add runtime validation, checked-in wire schemas/codecs, and compatibility fixtures for IPC/HTTP/MCP boundaries.
+- [ ] Complete accessibility qualification, coverage thresholds, full packaged regression, and security-response/patch runbooks.
+- [ ] Recruit external beta users and disposition every P0/P1 plus accepted P2 issues.
+
+## Explicitly not OSS visibility blockers
+
+- Standalone daemon, browser workbench, CLI, independent plugin packaging, OTLP/gRPC, Windows/macOS signing, service UI, time-window agent correlation, FTS5, profiles, and service maps remain normal public roadmap items.
 
 ## Hiccups & Notes
 
-- The completed trace-interaction sprint is preserved in git history and release `v0.1.9`; this file now tracks only forward work.
+- Public repository readiness is narrower than stable-release readiness. Do not delay visibility for roadmap features, but do not overstate platform support or product maturity.
+- Several GitHub controls require repository-owner actions in the web settings and cannot be completed by source changes alone.
+
+## Exit criteria
+
+```text
+full-history scans clean
+current-tree privacy audit clean
+community/security docs accurate
+GitHub security controls active
+main protected
+CI/CodeQL green
+release and install claims independently verified
+```
 
 ## Final outcome
 
-Service overview and agent-run correlation are functional and vendor-neutral. SQL statement/plan instrumentation and dedicated aggregate SQL remain the next hardening layer; the current implementation uses bounded cursor pages and the existing indexed storage contracts.
+Sprint ready for execution in a new session.

@@ -8,6 +8,31 @@ This plan only covers work ahead of us. Completed implementation detail lives in
 
 See the specification's [Current Baseline](spec.md#current-baseline) for implemented capabilities and limits. The phases below contain only work that remains ahead; remove completed work as it ships.
 
+## Phase 0 — Public OSS Readiness
+
+Goal: make the repository safe and accurate to expose publicly without waiting for unrelated product roadmap work or claiming stable cross-platform maturity.
+
+Essential visibility gates:
+
+- Re-run pinned Gitleaks and TruffleHog scans across full Git history and record clean evidence.
+- Audit the current tree for credentials, private endpoints, real telemetry, machine paths, personal data, and sensitive screenshots/fixtures.
+- Reconcile stale spec/plan/release claims so shipped work is not marked pending and unsupported work is not described as live.
+- Verify public `.deb` download, checksum, SBOM, clean install/upgrade/launch/ingest/restart/uninstall, privacy guidance, and known limitations.
+- Enable and verify private vulnerability reporting, secret scanning, push protection, Dependabot, and public CodeQL results.
+- Protect `main` with pull requests, required green CI, up-to-date branches, and force-push/deletion protection.
+- Verify LICENSE detection, README, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, support policy, issue forms, PR template, and an independent confidential conduct channel.
+- After changing visibility, verify CI/CodeQL, vulnerability reporting, release links, repository metadata, and public-facing wording.
+
+Important before stable-product claims, but not blockers for repository visibility:
+
+- SQL statement/query-plan budgets; runtime IPC/HTTP/MCP validation and wire schemas; accessibility and coverage gates; full packaged regression; patch/security runbooks; and an external beta.
+
+Not OSS visibility blockers:
+
+- The daemon, browser workbench, CLI, independent plugin packaging, gRPC, Windows/macOS signing, service UI, correlation fallback, FTS, profiles, and service maps remain public roadmap work.
+
+Done when the concise gate in [sprint.plan.md](sprint.plan.md) passes. The detailed one-time GitHub settings checklist remains in [release-sprint.md](release-sprint.md#going-public-checklist).
+
 ## Phase 1 — Workbench Polish
 
 Goal: make the current three signal views feel like a professional local debugging tool.

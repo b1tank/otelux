@@ -10,6 +10,8 @@ User operation lives in [getting-started.md](getting-started.md), system archite
 
 The **Current Baseline** and status tables are descriptive and must match the code. Sections labeled **Requirements** are normative product targets; an item there is not shipped unless the Current Baseline says it is live. Release-specific platform and feature limitations belong in release notes.
 
+Public repository visibility has a narrower gate than stable product release. Before the repository becomes public, full-history and current-tree privacy scans, accurate community/security documentation, verified release claims, active GitHub security controls, protected `main`, and green CI/CodeQL are required. The daemon, CLI, browser workbench, gRPC, cross-platform signing, and future observability views are not visibility blockers; they must remain accurately represented as roadmap work. See [sprint.plan.md](sprint.plan.md) and the [Going Public Checklist](release-sprint.md#going-public-checklist).
+
 ## Product Principles
 
 | Principle | Meaning |
