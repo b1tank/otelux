@@ -91,24 +91,35 @@ export function computeWaterfallLayout(trace: Trace): WaterfallLayout {
 	const traceStart = trace.startTimeUnixNano;
 	const rows: WaterfallRow[] = [];
 
-	function walk(span: Span, depth: number): void {
-		const children = childrenByParent.get(span.spanId) ?? [];
-		const duration = span.endTimeUnixNano - span.startTimeUnixNano;
+	// Iterative DFS keeps layout O(n) without consuming one JavaScript stack
+	// frame per ancestor. Agent traces can be thousands of spans deep; the
+	// former recursive walk overflowed around depth 5,000.
+	const stack: Array<{ span: Span; depth: number }> = [];
+	for (let i = roots.length - 1; i >= 0; i--) {
+		const root = roots[i];
+		if (root) stack.push({ span: root, depth: 0 });
+	}
+	const visited = new Set<string>();
+	while (stack.length > 0) {
+		const current = stack.pop();
+		if (!current || visited.has(current.span.spanId)) {
+			continue;
+		}
+		visited.add(current.span.spanId);
+		const children = childrenByParent.get(current.span.spanId) ?? [];
+		const duration = current.span.endTimeUnixNano - current.span.startTimeUnixNano;
 		rows.push({
-			span,
-			depth,
-			startOffsetNanos: span.startTimeUnixNano - traceStart,
+			span: current.span,
+			depth: current.depth,
+			startOffsetNanos: current.span.startTimeUnixNano - traceStart,
 			durationNanos: duration < 0n ? 0n : duration,
 			index: rows.length,
 			hasChildren: children.length > 0,
 		});
-		for (const child of children) {
-			walk(child, depth + 1);
+		for (let i = children.length - 1; i >= 0; i--) {
+			const child = children[i];
+			if (child) stack.push({ span: child, depth: current.depth + 1 });
 		}
-	}
-
-	for (const root of roots) {
-		walk(root, 0);
 	}
 
 	// Defensive: any spans not reached by the walk (cycle? orphan?) are

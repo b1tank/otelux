@@ -233,6 +233,26 @@ describe('traceFromSpans', () => {
 });
 
 describe('computeWaterfallLayout', () => {
+	it('lays out a 10,000-deep trace without overflowing the call stack', () => {
+		const spans = Array.from({ length: 10_000 }, (_, index) =>
+			makeSpan({
+				traceId: TRACE,
+				spanId: `s-${index}`,
+				...(index > 0 ? { parentSpanId: `s-${index - 1}` } : {}),
+				name: `span-${index}`,
+				startUnixNano: BigInt(index),
+				endUnixNano: BigInt(index + 1),
+			}),
+		);
+		const trace = traceFromSpans(TRACE, spans);
+		if (!trace) throw new Error('expected trace');
+
+		const layout = computeWaterfallLayout(trace);
+
+		expect(layout.rows).toHaveLength(10_000);
+		expect(layout.rows.at(-1)?.depth).toBe(9_999);
+	});
+
 	it('produces a depth-first row order with depth indents', () => {
 		const root = makeSpan({
 			traceId: TRACE,
