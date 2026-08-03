@@ -27,17 +27,9 @@
   <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/b1tank/otelux?style=flat-square" /></a>
 </p>
 
-## Demo
-
 <p align="center">
-  <img src="docs/assets/otelux-demo.gif" width="960" alt="OTelux demo cycling through a distributed trace waterfall, span details, structured logs, and metric series" />
+  <img src="docs/assets/otelux-demo-v2.gif" alt="OTelux cycling through a distributed trace waterfall, span details, structured logs, and metric series" />
 </p>
-
-<p align="center">
-  <a href="docs/assets/otelux-workbench.png">View the full-resolution static workbench screenshot</a>
-</p>
-
-The demo uses deterministic synthetic OpenTelemetry fixtures; it contains no production telemetry or user data.
 
 ## What you can do
 
