@@ -1,6 +1,6 @@
 # OTelux — Manual Test Plan
 
-Updated: 2026-07-13
+Updated: 2026-08-02
 
 A human-friendly, exhaustive walk-through for verifying the desktop app end-to-end. Designed to be executed verbatim by a person clicking the UI, *and* mirrored by an agent doing self-verification through the repo's self-verify workflow.
 
@@ -24,7 +24,7 @@ Test quality is measured by release-risk coverage rather than by pursuing 100% l
 - Pi package smoke verification loads `plugins/otelux`, exposes `/otelux-status`, and registers the bridge's `otel_*` tools without a second MCP implementation.
 - Packaged end-to-end tests launch release artifacts, assert the sandboxed preload bridge loads and the workbench visibly renders, close the window while ingest remains live, ingest traces, logs, and metrics, exercise one inspection path per signal, restart, verify persistence, clear data, and fully quit without orphaned listeners.
 - Accessibility checks combine automated scans with keyboard-only testing, focus order and return, dialog trapping, accessible names, both themes, high contrast, and 200% zoom.
-- Performance checks use a checked-in representative workload and enforce the budgets in [spec.md](spec.md); large result sets remain responsive through bounds, pagination, or virtualization. On the dogfood database, verify Traces startup issues no log/metric list calls, retained renderer heap stays below 100 MB after GC, facet payloads stay below 16 KiB, metric instrument lists carry one latest point each, and only the selected metric loads a bounded 120-point history.
+- Performance checks use checked-in deterministic workloads and enforce [spec.md](spec.md) budgets. They cover 10,000 trace summaries / 200,000 stored spans, 10,000-wide and 5,000-deep traces, 50 rapid selections, continuous ingest, query/IPC counts and bytes, React commits/row rerenders, mounted DOM, stack safety, renderer heap, cache/queue caps, and packaged pointer/scroll latency. Traces startup issues no hidden log/metric lists; facets stay below 16 KiB; metric lists carry one latest point and only the selected metric loads bounded history. Effects are used only for external synchronization, and tests reject stale waterfall commits or root-wide selection rerenders.
 - CI publishes coverage for release-critical packages. Stable releases require checked-in thresholds of at least 80% line coverage and 70% branch coverage for `engine`, `engine-node`, `receiver`, `protocol`, `mcp-server`, and desktop main/preload code unless a documented exception demonstrates equivalent behavioral coverage.
 - Every bug fixed during release work receives a regression test at the lowest useful layer.
 
@@ -616,7 +616,31 @@ curl -s -X POST -H 'Content-Type: application/json' \
 
 ---
 
-## 16. Cleanup
+## 16. Trace interaction performance qualification
+
+### 16.1 Automated structural benchmark
+- Run the checked-in performance suite against 10,000 trace summaries, 200,000 stored spans, a 10,000-wide trace, and a 5,000-deep trace.
+- **Expected**: no stack overflow or OOM; iterative O(n) layout; a waterfall mounts fewer than 100 rows / 2,000 DOM nodes; a 200-result list mounts fewer than 50 rows; all cache and queue limits remain within their declared byte/entry caps.
+
+### 16.2 Rapid back-and-forth selection
+- Alternate rapidly among at least 50 trace rows, including repeated A → B → A selections.
+- **Expected**: selected-row styling responds within 16 ms p95; at most two uncached detail requests launch for a same-frame burst; returning to A uses the bounded recent cache; the previous waterfall is never presented under A/B's newly selected identity; only previous/new rows and selected-trace surfaces rerender.
+
+### 16.3 Large waterfall scroll
+- Open the 10,000-span fixture and scroll from top to bottom with pointer wheel, scrollbar drag, PageDown, Home, and End.
+- **Expected**: mounted rows remain bounded by viewport + overscan, keyboard and click selection work after recycling, selection scrolls into view, indentation remains correct without per-ancestor DOM, and renderer heap returns near baseline after closing/switching.
+
+### 16.4 Continuous ingest contention
+- Keep the packaged app receiving the benchmark OTLP stream while repeatedly scrolling and switching traces for at least one minute.
+- **Expected**: Electron input remains responsive; SQLite work never blocks Electron main; direct selection queries have priority over ingest/retention; bounded queues expose overload rather than silently growing; OTLP/MCP remain healthy.
+
+### 16.5 Packaged profiler evidence
+- Record production-build interaction timings, request/cancel counts, IPC payload bytes, React Profiler commits, mounted node count, and heap after GC.
+- **Expected**: every budget in [spec.md](spec.md#performance-budgets) passes. Development/jsdom timings may diagnose structure but cannot substitute for packaged latency evidence.
+
+---
+
+## 17. Cleanup
 
 After running the suite:
 ```bash

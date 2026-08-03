@@ -233,6 +233,8 @@ flowchart LR
 
 Today, `@otelux/local-runtime` owns SQLite, retention, engine queries, OTLP, MCP, settings, sample data, lifecycle events, canonical data migration, and runtime ownership/state files. Electron embeds that package and forwards its existing IPC contract to it. The bridge discovers `runtime.json` and the owner-only token, while `otel_open_dashboard` still launches or focuses Electron, so Desktop must remain installed and running until the runtime becomes a separately managed daemon.
 
+This embedded shape must not imply same-thread execution. Until the daemon cutover, SQLite ingest, queries, retention, and vacuum run behind typed async worker/utility-process RPC with bounded queues, explicit request/cancel IDs, and direct-user-query priority. Electron main owns lifecycle and message routing only. Renderer selection uses a latest-only controller and bounded LRU cache; effects synchronize DataSource/IPC subscriptions rather than deriving UI state. Trace-list and waterfall DOM are virtualized and independent of total row count.
+
 The next implementation sequence is:
 
 1. Run the runtime as a separately managed per-user daemon.

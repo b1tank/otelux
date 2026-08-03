@@ -46,7 +46,7 @@ The repository currently contains:
 Important current limits:
 
 - OTLP/gRPC ingest is planned, not shipped (OTLP/HTTP JSON and protobuf are live).
-- Dense trace modes need polish; span and log detail drawers now provide internal key/value search.
+- Dense trace modes need polish; span and log detail drawers provide internal key/value search. The current trace interaction path is not release-ready for large/deep traces: 200 unvirtualized trace rows rerender from root-owned selection state, rapid clicks launch superseded detail requests, waterfall indent markup grows with ancestor depth, and SQLite still executes synchronously in Electron main. The active performance sprint in [sprint.plan.md](sprint.plan.md) owns the rewrite and measured exit budgets.
 - Agent-run correlation and service overview tools are schema-stable but not fully implemented.
 - The storage audit's span-identity P0 is fixed in schema v2; trace-service count/page correctness is fixed in schema v3; schema v4 indexes the standard `service.namespace` source dimension; and metric histories are bounded and fetched in one compound indexed statement. Protocol 0.5 grouped source/service facets replace hidden raw-record probes. Main-process query isolation, keyset pagination, and the full query-budget harness remain pre-daemon hardening work. See [storage.md](storage.md#audit-findings).
 - `@otelux/protocol` is currently an in-memory TypeScript contract, not a validated JSON wire contract. Runtime RPC/SSE DTOs and schema snapshots are required before Desktop becomes a daemon client. See [protocol.md](protocol.md#current-gaps).
@@ -343,7 +343,7 @@ Acceptance for this workload:
 
 ## Performance Budgets
 
-Treat these as targets until benchmark coverage exists:
+The query budgets are targets until the permanent harness lands; structural interaction budgets are release gates immediately:
 
 | Surface | Budget |
 |---|---:|
@@ -352,12 +352,16 @@ Treat these as targets until benchmark coverage exists:
 | Log search | < 150 ms for indexed local workloads. |
 | Metric chart query | < 150 ms for common local workloads. |
 | Inactive-view query traffic | Zero raw list/detail queries or subscriptions. |
-| Renderer retained heap | < 100 MB after GC on the representative dogfood database. |
+| Renderer retained heap | < 100 MB after GC on the representative dogfood database; bounded across repeated trace switching. |
 | Bounded list payload | < 2 MiB per active list query; facets < 16 KiB. |
-| Waterfall layout | One frame for visible rows in typical traces. |
-| UI interaction | No intentional blocking over one frame. |
+| 10,000-span waterfall | No stack overflow/OOM; < 100 mounted rows, < 2,000 DOM nodes, first viewport < 100 ms on reference hardware. |
+| 200-result trace list | < 50 mounted rows; selected-row feedback < 16 ms p95. |
+| 50 rapid selections | At most two detail requests; no stale waterfall commit; bounded LRU/cache bytes. |
+| React invalidation | Selection rerenders only previous/new rows and selected-trace surfaces; unchanged app chrome/list rows do not commit. |
+| Electron main thread | No synchronous SQLite ingest, query, retention, or vacuum work. |
+| UI interaction | No intentional blocking over one frame; packaged scroll/selection remains responsive during continuous benchmark ingest. |
 
-Budgets should become stricter after durable storage and performance harnesses land.
+Implementation follows these React contracts: effects only synchronize external systems; derived rows and filtering are selector/render work; state subscriptions are local and selector-based; urgent selection feedback is separate from non-urgent fetch/live-tail updates; virtualized rows use stable trace/span IDs; trace-specific state is explicitly keyed; and every cache/queue has a hard bound.
 
 ## Verification
 

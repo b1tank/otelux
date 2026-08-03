@@ -9,7 +9,7 @@ Companion notes for [`redesign-mockup.html`](./redesign-mockup.html). The HTML i
 Every decision in this folder should be defensible against that list.
 
 - **Simple** — one obvious way to do each thing; no half-built modes; no settings for things we can default well.
-- **Fast** — never block the UI for more than a frame; lists must virtualize past ~200 rows; no slow modal animations.
+- **Fast** — never block the UI for more than a frame; trace/log lists virtualize above roughly 50 mounted rows and waterfalls always virtualize independently of total span count; no slow modal animations.
 - **User-friendly** — labels match what the user is thinking (e.g. `Service`, not `Resource`); errors are diagnosable; nothing is irreversible without confirmation.
 - **Well polished and crafted** — no native `<select>` chrome, no jumpy layout shifts, no white edges on dark theme, icons monoline and consistent, spacing on an 8 px grid.
 - **Reliable** — every interactive element has a keyboard path, a focus state, an ARIA label, and a recovery path (Esc, click-outside, etc.).
@@ -73,6 +73,9 @@ Min widths: list ≥ 280 px, waterfall ≥ 480 px. Splitter is 6 px wide with a 
 | **Splitter min widths chosen from real content** | `280 px` keeps a 3-line card readable without truncating the timestamp; `480 px` keeps the waterfall name column + bar + duration legible. |
 | **Compact 3-line trace cards** (vs a wider table) | The list pane is narrow on purpose. Cards trade horizontal density for vertical scannability and accommodate the variable-width service-chip set. |
 | **Deterministic service color** (hash → 1 of 8) | Same service is always the same color across all rows, all traces, the drawer header dot, and the dropdown option dot. |
+| **Virtualized trace and waterfall rows** | Mounted DOM follows viewport size, not telemetry size. Stable trace/span IDs preserve keyboard selection while rows recycle; fixed row geometry avoids render-measure feedback loops. |
+| **Constant-DOM waterfall indentation** | Depth is a CSS variable rendered by one background/pseudo-element per row. Never create one guide element per ancestor; that turns deep traces into O(depth²) DOM. |
+| **Local selector-based interaction state** | Trace list, selected-trace loading, waterfall, and drawer subscribe only to state they render. Effects synchronize external subscriptions/IPC only; derived state stays in selectors/render. |
 | **CSS variables for theme tokens** | Promote to `packages/ui/src/tokens.css` on port. One source of truth for colors, spacing, radii, type. |
 | **Retention meter tracks SQLite pages, not WAL overhead** | The battery fill matches the exact page budget used by pruning. Real DB/WAL/SHM disk footprint stays visible beneath it without falsely implying temporary WAL growth should trigger retention. |
 | **Settings uses a left category rail** | Connections and Storage are separate tasks. A fixed rail keeps the modal calm, preserves one Save path, and scales to future categories without stacking every control into one noisy column. |
@@ -129,8 +132,8 @@ If you edit the geometry, edit `icon.svg`, mirror the change in `OTeluxLogo.tsx`
 | `.filter-toggle` (Errors only) | `<FilterToggle>` | [`@radix-ui/react-toggle`](https://www.radix-ui.com/primitives/docs/components/toggle) |
 | `.field--search` | `<SearchInput>` | none |
 | `.workbench`, `.splitter`, `.pane--list`, `.pane--waterfall` | `<Workbench>` + `<Splitter>` | hand-rolled splitter or [`react-resizable-panels`](https://github.com/bvaughn/react-resizable-panels) |
-| `.tlist` + `.tcard` (+ flat mode) | `<TraceList>` + `<TraceRow>` | [`@tanstack/react-virtual`](https://tanstack.com/virtual) above ~200 traces |
-| `.wf__head`, `.ruler`, `.wf__rows`, `.row` | `<Waterfall>` + `<WaterfallRow>` | `@tanstack/react-virtual` above ~200 spans |
+| `.tlist` + `.tcard` (+ flat mode) | `<TraceList>` + `<TraceRow>` | [`@tanstack/react-virtual`](https://tanstack.com/virtual) above ~50 result rows |
+| `.wf__head`, `.ruler`, `.wf__rows`, `.row` | `<Waterfall>` + `<WaterfallRow>` | `@tanstack/react-virtual` for every waterfall; viewport + bounded overscan only |
 | `.drawer` + `.acc` | `<SpanDrawer>` + `<DrawerSection>` | [`@radix-ui/react-dialog`](https://www.radix-ui.com/primitives/docs/components/dialog) with `side="right"` styling, [`@radix-ui/react-accordion`](https://www.radix-ui.com/primitives/docs/components/accordion) |
 | `.drawer__search` | `<DetailSearch>` | native search input with a custom clear action |
 | `.kv` + `.view-btn` | `<AttrRow>` + `<ViewValueButton>` | none |
@@ -187,7 +190,6 @@ Not because they're bad — because shipping fewer well-built features beats shi
 - **Status dropdown** (instead of just `Errors only`). Add only if we hear users want OK / Warning / Error distinctions.
 - **Span hover preview card** (SigNoz-style mini card on row hover). Nice but expensive — wait for user demand.
 - **Service flame chart** / multi-service grouped view. Defer until we have multi-service traces in common workflows.
-- **Virtualization** in the trace list and waterfall. Add as a swap-in once we hit ~200 rows; not before.
 - **URL state** (sharable view via querystring). Wait for the second user.
 
 ---

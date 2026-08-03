@@ -179,7 +179,20 @@ The production 124 MB dogfood database exposed an architectural payload failure 
 
 Schema v4 promotes application source into indexed `source_name` columns and `trace_sources(trace_id, source_name)`. Source is the standard resource `service.namespace` when present and exact `service.name` otherwise. Existing records therefore migrate deterministically without vendor mappings; records that never carried a namespace remain separate services/sources.
 
-The renderer DOM was not the primary memory owner: about 4,200 trace-view elements remained after the fix while heap fell by two orders of magnitude. The root cause was eagerly retaining full hidden-view query results and repeatedly serializing them through the main process. Logs are now capped at 100 visible rows; metrics refresh no faster than every two seconds and load only the selected series history.
+The renderer DOM was not the primary memory owner in that incident: about 4,200 trace-view elements remained after the fix while heap fell by two orders of magnitude. The root cause was eagerly retaining full hidden-view query results and repeatedly serializing them through the main process. Logs are now capped at 100 visible rows; metrics refresh no faster than every two seconds and load only the selected series history.
+
+## Measured trace interaction audit (2026-08-02)
+
+A separate fresh-eye audit isolated common trace scrolling/selection latency after the payload incident was fixed. On a deterministic 10,000-trace / 200,000-span / ~100 MB SQLite fixture, list-200 p95 was 2.78 ms, text-search p95 10.45 ms, a 20-span detail fetch p95 0.63 ms, and source facets p95 1.25 ms. Storage SQL is therefore not the primary normal-click latency, although synchronous execution in Electron main remains unsafe under concurrent ingest and pruning.
+
+The renderer path is structurally expensive:
+
+- Mounting 200 trace cards took 568 ms in the jsdom structural probe.
+- Fifty rapid selections took 2,357 ms to dispatch, launched fifty `getTrace` calls, and caused 108 React commits / 2,965 ms aggregate render time; the largest commit was 381 ms.
+- Waterfall rows render one DOM guide for every ancestor. A 100-deep chain created 5,879 nodes / 482 ms; 500 deep created 129,279 nodes / 6,156 ms; 1,000 deep exhausted the 4 GB test heap.
+- Recursive DFS layout overflows the JavaScript stack at 5,000-deep traces.
+
+The fix is not a framework migration. React/Electron remain appropriate once the implementation uses iterative O(n) layout, constant-DOM indent rendering, row virtualization, local selector-based state, stable memoized row props, a latest-only/cancellable detail controller, bounded LRU caching, summary/detail payload separation, and async worker/utility-process storage RPC. Effects are reserved for external synchronization rather than derived state or fetch-trigger chains.
 
 ## Verification
 
@@ -200,8 +213,12 @@ Required assertions:
 - required indexes appear in query plans and accidental full scans fail tests;
 - service-filtered count/page results are exact;
 - cursor pages have no duplicates or omissions under deterministic concurrent inserts;
-- trace tree construction is linear;
-- payload byte limits are respected;
+- trace tree construction is iterative and linear for a 5,000-deep trace;
+- a 10,000-span waterfall mounts fewer than 100 rows / 2,000 DOM nodes and does not overflow stack or heap;
+- a 200-result trace list mounts fewer than 50 rows and selection rerenders only previous/new rows;
+- 50 rapid selections launch at most two detail requests, never commit stale results, and respect cache byte/entry caps;
+- payload byte limits are respected, including waterfall summary versus selected-span detail payloads;
+- no SQLite operation executes synchronously in Electron main;
 - memory and SQLite backends remain behaviorally equivalent.
 
 Performance thresholds should be measured on representative Linux, macOS, and Windows hardware and recorded as release budgets only after the query shapes are corrected. Query-count and bounded-payload invariants can be enforced immediately.

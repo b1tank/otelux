@@ -1,12 +1,44 @@
 # OTelux — Plan Ahead
 
-Updated: 2026-07-16
+Updated: 2026-08-02
 
 This plan only covers work ahead of us. Completed implementation detail lives in git history and the package READMEs; this file is for deciding what to build next.
 
 > **Active `v0.1.0` overlay:** [release-sprint.md](release-sprint.md) orders launch work and records temporary decisions and evidence. This plan remains the owner of product sequencing. Remove this note when the sprint is retired after `v0.1.0`.
 
 See the specification's [Current Baseline](spec.md#current-baseline) for implemented capabilities and limits. The phases below contain only work that remains ahead; remove completed work as it ships.
+
+## Phase 0 — Trace Interaction Performance Rewrite
+
+Goal: make trace scrolling and rapid back-and-forth selection remain frame-responsive for large, wide, and deeply nested traces before adding more workbench surface area.
+
+Tasks:
+
+- Add permanent synthetic performance fixtures and CI budgets for 10,000 trace summaries, 200,000 stored spans, 10,000-wide traces, 5,000-deep traces, and 50 rapid selections.
+- Replace recursive waterfall traversal with an iterative O(n) walk and replace one-indent-guide-per-ancestor markup with constant-DOM CSS rendering.
+- Virtualize waterfall rows and trace-list rows with bounded overscan, stable IDs, keyboard parity, and explicit scroll-to-selection behavior.
+- Split trace selection from the root workbench render boundary; memoized rows receive stable primitive props so only old/new selections rerender.
+- Add a latest-only selection controller with same-frame coalescing, explicit IPC request cancellation IDs, stale-result rejection, reserved-height loading state, and a byte/entry-bounded LRU cache.
+- Split waterfall span summaries from full span details; fetch attributes/events/links only for the opened drawer.
+- Move SQLite ingest, queries, and retention off Electron main behind typed async worker/utility-process RPC with bounded queues and direct-query priority.
+- Add keyset pagination, optional exact counts, ingest/query backpressure counters, and packaged interaction benchmarks under continuous OTLP traffic.
+
+React guardrails:
+
+- Effects synchronize subscriptions, timers, browser observers, and IPC only; derived values and filtering remain render-time selectors, never effect-driven state chains.
+- State subscriptions are local and selector-based; urgent selection/focus updates stay synchronous while fetch/live-tail/facet work is non-urgent.
+- Virtualized rows are the only mounted rows; row keys are trace/span IDs; fixed geometry avoids render/measure/set-state loops.
+- Memoization is applied at measured component boundaries, not blanket `useMemo`/`useCallback`; caches have explicit LRU entry and byte caps.
+- A newly selected trace never displays the previous trace's waterfall as current, and live invalidations do not rerender an unchanged selected waterfall.
+
+Done when:
+
+- A 10,000-span trace mounts fewer than 100 rows / 2,000 DOM nodes without stack overflow or OOM.
+- A 200-result trace list mounts fewer than 50 rows and selected-row feedback is under 16 ms p95 on reference hardware.
+- Fifty rapid selections issue at most two detail requests, never commit stale results, and keep renderer heap bounded.
+- No synchronous SQLite operation runs on Electron main, and packaged pointer/scroll tests remain responsive during benchmark ingest.
+
+See [sprint.plan.md](sprint.plan.md) for measured baseline, sequencing, and exact budgets.
 
 ## Phase 1 — Workbench Polish
 
@@ -19,7 +51,7 @@ Tasks:
 - Improve histogram labels with clearer bucket boundaries, count/sum context, and table parity.
 - Add pause/resume (live-tail freeze), result footer state, and clear data with confirmation across traces, logs, and metrics — **done**.
 - Add trace-list and logs sort controls (traces: Most recent, Slowest, Most errors, Most spans, Name; logs: Newest, Oldest, Highest severity) — **done**; dense/table-like trace-list headers when the list owns enough horizontal space remain.
-- Virtualize logs and trace rows once row counts exceed a few hundred.
+- Virtualize logs using the shared row-virtualization primitives delivered by Phase 0; trace and waterfall virtualization are release-blocking Phase 0 work.
 
 Done when:
 
