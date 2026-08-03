@@ -17,9 +17,9 @@ import type {
 	SortDirection,
 	TraceListSort,
 } from '@otelux/protocol';
-import type { AttributeValue, Span, SpanId, Trace, TraceId } from '@otelux/types';
+import type { AttributeValue, Span, SpanId, TraceId } from '@otelux/types';
 import { SpanKind } from '@otelux/types';
-import { type JSX, useEffect, useState } from 'react';
+import { type JSX, useCallback, useEffect, useState } from 'react';
 import { LogsView, MetricsView, SpanDetail, TraceList, Waterfall } from './domain/index.js';
 import { serviceColorVar, serviceIndex } from './format.js';
 import { AppShell, FilterBar, Rail, type RailItem, Topbar, Workbench } from './layout/index.js';
@@ -45,6 +45,7 @@ import {
 	WaterfallIcon,
 } from './primitives/index.js';
 import { useDataSourceQuery } from './useDataSourceQuery.js';
+import { useSelectedTrace } from './useSelectedTrace.js';
 
 export { useDataSourceQuery } from './useDataSourceQuery.js';
 export * from './domain/index.js';
@@ -266,10 +267,10 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 
 	// Switching traces clears the span selection so the drawer never
 	// renders a span that no longer belongs to the active trace.
-	const setSelectedTraceId = (id: TraceId): void => {
+	const setSelectedTraceId = useCallback((id: TraceId): void => {
 		setSelectedTraceIdRaw(id);
 		setSelectedSpanId(undefined);
-	};
+	}, []);
 
 	const openTraceFromLog = (traceId: TraceId, spanId?: SpanId): void => {
 		setActiveView('traces');
@@ -279,26 +280,12 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		setWfCollapsed(false);
 	};
 
-	const traceQuery = useDataSourceQuery<Trace | undefined>(
+	const traceQuery = useSelectedTrace(
 		dataSource,
-		async (ds) => {
-			if (!selectedTraceId) {
-				return undefined;
-			}
-			return ds.getTrace({ traceId: selectedTraceId });
-		},
-		`trace:${selectedTraceId ?? ''}`,
-		false,
-		'tracesChanged',
+		selectedTraceId,
 		activeView === 'traces' && selectedTraceId !== undefined,
-		(event) =>
-			event.kind === 'tracesChanged' &&
-			(event.traceIds.length === 0 ||
-				(selectedTraceId !== undefined && event.traceIds.includes(selectedTraceId))),
-		100,
 	);
-
-	const trace = traceQuery.value;
+	const trace = traceQuery.trace;
 
 	// Cold-start only needs one summary row. Service dropdown counts use a
 	// dedicated grouped query instead of transferring hundreds of traces.
@@ -750,6 +737,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 							right={
 								trace && trace.spans.length > 0 ? (
 									<Waterfall
+										key={trace.traceId}
 										trace={trace}
 										onSpanSelect={setSelectedSpanId}
 										{...(selectedSpanId !== undefined ? { selectedSpanId } : {})}
