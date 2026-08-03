@@ -1799,7 +1799,11 @@
 	min-height: 0;
 	overflow-y: auto;
 	overflow-x: hidden;
-	padding: 6px 0;
+}
+
+.otelux-waterfall__virtual {
+	position: relative;
+	width: 100%;
 }
 
 /* One row = three columns. The name column is fixed-width so labels
@@ -1807,7 +1811,11 @@
  * column is fixed and right-aligned so the duration text reads as a
  * column. */
 .otelux-waterfall__row {
-	position: relative;
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	box-sizing: border-box;
 	display: grid;
 	grid-template-columns: 280px 1fr 64px;
 	align-items: center;

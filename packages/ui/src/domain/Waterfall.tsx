@@ -24,7 +24,7 @@
 import { type WaterfallLayout, type WaterfallRow, computeWaterfallLayout } from '@otelux/engine';
 import { SpanStatusCode } from '@otelux/types';
 import type { SpanId, Trace } from '@otelux/types';
-import { type JSX, useMemo, useState } from 'react';
+import { type CSSProperties, type JSX, useEffect, useMemo, useState } from 'react';
 import { formatDuration, nanosToNumber, serviceColorVar } from '../format.js';
 import { CopyButton } from '../primitives/CopyButton.js';
 import { IconButton } from '../primitives/IconButton.js';
@@ -35,6 +35,7 @@ import {
 	ListIcon,
 	PanelRightIcon,
 } from '../primitives/icons.js';
+import { useFixedVirtualRows } from '../primitives/useFixedVirtualRows.js';
 import { formatRulerTick, makeRulerTicks } from './waterfall-geometry.js';
 
 export interface WaterfallProps {
@@ -60,6 +61,7 @@ export interface WaterfallProps {
 }
 
 const RULER_TARGET_TICKS = 5;
+const WATERFALL_ROW_HEIGHT = 24;
 // Per-level horizontal indent for the name column. Matches the
 // mockup's `.wf__row::before` step (14px per ancestor).
 const DEPTH_INDENT_PX = 14;
@@ -79,6 +81,11 @@ export function Waterfall(props: WaterfallProps): JSX.Element {
 	// `getVisibleRows` below.
 	const [collapsed, setCollapsed] = useState<ReadonlySet<SpanId>>(() => new Set());
 	const visibleRows = useMemo(() => getVisibleRows(layout, collapsed), [layout, collapsed]);
+	const virtual = useFixedVirtualRows(visibleRows.length, WATERFALL_ROW_HEIGHT, true);
+	useEffect(() => {
+		if (selectedSpanId === undefined) return;
+		virtual.scrollToIndex(visibleRows.findIndex((row) => row.span.spanId === selectedSpanId));
+	}, [selectedSpanId, visibleRows, virtual.scrollToIndex]);
 	const collapsibleIds = useMemo(
 		() => layout.rows.filter((r) => r.hasChildren).map((r) => r.span.spanId),
 		[layout],
@@ -195,19 +202,30 @@ export function Waterfall(props: WaterfallProps): JSX.Element {
 							Duration
 						</span>
 					</div>
-					<div className="otelux-waterfall__rows" aria-label="Span waterfall">
-						{visibleRows.map((row) => (
-							<Row
-								key={row.span.spanId}
-								row={row}
-								totalNs={totalNs}
-								selected={row.span.spanId === selectedSpanId}
-								collapsed={collapsed.has(row.span.spanId)}
-								matched={searchMatchIds?.has(row.span.spanId) ?? false}
-								onSelect={onSpanSelect}
-								onToggle={toggleRow}
-							/>
-						))}
+					<div
+						ref={virtual.scrollRef}
+						className="otelux-waterfall__rows"
+						aria-label="Span waterfall"
+						onScroll={virtual.onScroll}
+					>
+						<div className="otelux-waterfall__virtual" style={{ height: virtual.totalHeight }}>
+							{virtual.rows.map((item) => {
+								const row = visibleRows[item.index];
+								return row ? (
+									<Row
+										key={row.span.spanId}
+										row={row}
+										totalNs={totalNs}
+										selected={row.span.spanId === selectedSpanId}
+										collapsed={collapsed.has(row.span.spanId)}
+										matched={searchMatchIds?.has(row.span.spanId) ?? false}
+										onSelect={onSpanSelect}
+										onToggle={toggleRow}
+										virtualStyle={{ transform: `translateY(${item.start}px)` }}
+									/>
+								) : null;
+							})}
+						</div>
 					</div>
 				</>
 			)}
@@ -223,10 +241,11 @@ interface RowProps {
 	matched: boolean;
 	onSelect(spanId: SpanId): void;
 	onToggle(spanId: SpanId): void;
+	virtualStyle: CSSProperties;
 }
 
 function Row(props: RowProps): JSX.Element {
-	const { row, totalNs, selected, collapsed, matched, onSelect, onToggle } = props;
+	const { row, totalNs, selected, collapsed, matched, onSelect, onToggle, virtualStyle } = props;
 	const startNs = nanosToNumber(row.startOffsetNanos);
 	const durationNs = nanosToNumber(row.durationNanos);
 	// Percent positions for the bar within the bar track. Clamped to
@@ -255,6 +274,7 @@ function Row(props: RowProps): JSX.Element {
 			}
 			data-depth={row.depth}
 			style={{
+				...virtualStyle,
 				// Service color is exposed as a CSS variable so the bar and
 				// the selected-state slab can reference the same hue without
 				// re-deriving it from the service name. Depth drives one CSS

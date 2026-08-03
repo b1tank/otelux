@@ -132,9 +132,12 @@ describe('Waterfall', () => {
 		);
 		const { container } = render(<Waterfall trace={makeTrace(spans)} onSpanSelect={() => {}} />);
 
-		expect(container.querySelectorAll('.otelux-waterfall__row')).toHaveLength(1_000);
+		expect(container.querySelectorAll('.otelux-waterfall__row').length).toBeLessThan(100);
 		expect(container.querySelectorAll('.otelux-waterfall__guide')).toHaveLength(0);
-		expect(container.querySelectorAll('*').length).toBeLessThan(10_000);
+		expect(container.querySelectorAll('*').length).toBeLessThan(2_000);
+		expect(container.querySelector('.otelux-waterfall__virtual')?.getAttribute('style')).toContain(
+			'24000px',
+		);
 	});
 
 	it('fires onSpanSelect with the span id when a row is clicked', () => {
