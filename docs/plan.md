@@ -1,10 +1,10 @@
 # OTelux — Plan Ahead
 
-Updated: 2026-08-02
+Updated: 2026-08-03
 
 This plan only covers work ahead of us. Completed implementation detail lives in git history and the package READMEs; this file is for deciding what to build next.
 
-> **Active `v0.1.0` overlay:** [release-sprint.md](release-sprint.md) orders launch work and records temporary decisions and evidence. This plan remains the owner of product sequencing. Remove this note when the sprint is retired after `v0.1.0`.
+> **Active presentation/distribution overlay:** [sprint.plan.md](sprint.plan.md) contains the evidence-based OSS branding, demo, cross-platform artifact, and package-manager rollout. This plan remains the owner of product sequencing.
 
 See the specification's [Current Baseline](spec.md#current-baseline) for implemented capabilities and limits. The phases below contain only work that remains ahead; remove completed work as it ships.
 
@@ -108,20 +108,29 @@ Done when:
 
 - Common OTel SDK defaults can send to OTelux without forcing JSON protocol, and overload is visible rather than silent.
 
-## Phase 5 — Distribution And Platform Polish
+## Phase 5 — OSS Presentation, Distribution, And Platform Polish
 
-Goal: make OTelux easy to install and keep around.
+Goal: make OTelux immediately understandable, demonstrable, trustworthy, and easy to install through native platform conventions.
+
+The decomposed audit and rollout are in [sprint.plan.md](sprint.plan.md).
 
 Tasks:
 
-- Stabilize Linux AppImage and `.deb` packaging.
-- Add macOS and Windows packaging after Linux is stable.
+- Add a centered repository brand hero, truthful status/version badges, synthetic screenshot/demo, concise value proposition, and GitHub social preview.
+- Keep prerelease status explicit; publish a non-prerelease “Latest” release only after the advertised stable support matrix passes its release gate.
+- Generalize the release pipeline to native Linux, macOS, and Windows runners with per-platform clean-install, upgrade, uninstall, smoke, lifecycle, and artifact-download verification.
+- Stabilize Linux `.deb`, then add Linux arm64 and evaluate AppImage/RPM from demand.
+- Ship signed and notarized macOS arm64/x64 artifacts before adding a Homebrew tap/cask.
+- Ship a signed Windows x64 installer before submitting versioned Winget manifests; add arm64 only after runtime validation.
+- Publish checksums, SBOMs, provenance/signatures, platform limitations, and complete install/upgrade/uninstall instructions for every artifact.
 - Add desktop menus, shortcuts, window-state persistence, and release-channel documentation.
-- Decide whether auto-update is needed before a public release.
+- Defer silent auto-update until signed artifact and rollback policy are defined.
 
 Done when:
 
-- A user can install OTelux, run it like a normal app, and keep settings and data across sessions.
+- A repository visitor can identify the product, see it in use, find the current version/support matrix, and reach a safe installation path in seconds.
+- A user on every advertised platform can install, launch, ingest, upgrade, and uninstall OTelux through a tested native artifact or package-manager channel.
+- Settings and retained data survive supported upgrades, explicit uninstall/data-removal behavior is documented, and GitHub release presentation matches the actual stability level.
 
 ## Phase 6 — Shared Runtime And Agent Ecosystem
 

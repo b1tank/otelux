@@ -258,11 +258,14 @@ A prerelease may narrow platforms, storage durability, ingest encodings, or supp
 
 ## Distribution Requirements
 
+- The public landing page identifies OTelux, demonstrates the current workbench with synthetic telemetry, shows a truthful current version and support matrix, and links directly to installation and security documentation.
 - Official downloads are immutable, versioned artifacts with published integrity and provenance information.
 - Installation never requires piping mutable network content into a privileged shell. Portable Linux artifacts run without root; system package installation uses the platform package manager.
-- Install, upgrade, and uninstall instructions name their filesystem and data effects and are tested on every advertised platform.
+- macOS artifacts are Developer ID signed, hardened, notarized, and stapled before support is advertised; Windows installers are Authenticode-signed and timestamped.
+- Package-manager metadata resolves only immutable, integrity-checked release artifacts and is published only after the exact upstream artifact passes the platform release report.
+- Install, upgrade, and uninstall instructions name their filesystem and data effects and are tested on every advertised platform and architecture.
 - Update mechanisms, when added, verify publisher identity and artifact integrity before replacement.
-- Release credentials stay in protected CI environments and never appear in source, fixtures, artifacts, or logs.
+- Release credentials stay in protected CI environments and never appear in source, fixtures, artifacts, logs, screenshots, or demo media.
 
 ## Security Requirements
 
