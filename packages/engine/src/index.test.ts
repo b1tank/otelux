@@ -88,6 +88,44 @@ describe('createMemoryStorage + createEngine', () => {
 		await engine.close();
 	});
 
+	it('builds cross-signal service overview rollups', async () => {
+		const engine = createEngine({ storage: createMemoryStorage() });
+		const now = BigInt(Date.now()) * 1_000_000n;
+		await engine.ingestSpans([
+			makeSpan({
+				traceId: TRACE,
+				spanId: '1111111111111111',
+				name: 'request',
+				startUnixNano: now - 100n,
+				endUnixNano: now,
+				status: SpanStatusCode.Error,
+			}),
+		]);
+		await engine.ingestLogs([
+			{
+				timeUnixNano: now,
+				severityNumber: 17,
+				attributes: {},
+				resource: RESOURCE,
+				scope: SCOPE,
+			},
+		]);
+
+		const overview = await engine.getServiceOverview(60);
+
+		expect(overview[0]).toMatchObject({
+			name: 'api-gateway',
+			traces: 1,
+			errorTraces: 1,
+			spans: 1,
+			logs: 1,
+			logSeverity: { error: 1 },
+		});
+		expect(overview[0]?.errorRate).toBe(1);
+		expect(overview[0]?.p50DurationNanos).toBe(100n);
+		await engine.close();
+	});
+
 	it('notifies subscribers when new spans land', async () => {
 		const engine = createEngine({ storage: createMemoryStorage() });
 		const events: string[] = [];

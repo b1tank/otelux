@@ -1,11 +1,6 @@
 import type { ToolDefinition } from '../server.js';
 
-/**
- * Service overview aggregates `listTraces` results from the engine. A
- * dedicated cross-signal service query lands later; for now we approximate by
- * paging through recent traces, which gives correct service identity and local
- * trace/error/span rollups.
- */
+/** Cross-signal service health rollups from the engine's bounded query path. */
 export const getServiceOverviewTool: ToolDefinition = {
 	name: 'otel_get_service_overview',
 	description:
@@ -19,38 +14,14 @@ export const getServiceOverviewTool: ToolDefinition = {
 	handler: async (raw, { engine }) => {
 		const input = (raw ?? {}) as { sinceMinutes?: number };
 		const sinceMinutes = input.sinceMinutes ?? 60;
-		const nowNs = BigInt(Date.now()) * 1_000_000n;
-		const fromNs = nowNs - BigInt(sinceMinutes) * 60n * 1_000_000_000n;
-
-		// Engine doesn't expose a dedicated service overview yet; approximate by
-		// scanning the most recent batch of traces. 200 is plenty for a local
-		// desktop install.
-		const result = await engine.listTraces({
-			limit: 200,
-			sortBy: 'startTime',
-			sortDirection: 'desc',
-			timeFromUnixNano: fromNs,
-			timeToUnixNano: nowNs,
-		});
-
-		const services = new Map<string, { traces: number; errorTraces: number; spans: number }>();
-		for (const row of result.rows) {
-			for (const svc of row.services) {
-				const entry = services.get(svc) ?? { traces: 0, errorTraces: 0, spans: 0 };
-				entry.traces += 1;
-				entry.spans += row.spanCount;
-				if (row.errorCount > 0) {
-					entry.errorTraces += 1;
-				}
-				services.set(svc, entry);
-			}
-		}
-
+		const services = await engine.getServiceOverview(sinceMinutes);
 		return {
 			windowMinutes: sinceMinutes,
-			services: [...services.entries()]
-				.map(([name, stats]) => ({ name, ...stats }))
-				.sort((a, b) => b.traces - a.traces),
+			services: services.map((service) => ({
+				...service,
+				p50DurationNanos: service.p50DurationNanos.toString(),
+				p95DurationNanos: service.p95DurationNanos.toString(),
+			})),
 		};
 	},
 };

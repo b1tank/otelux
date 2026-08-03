@@ -11,6 +11,7 @@ export {
 	createEngine,
 	type Engine,
 	type EngineOptions,
+	type ServiceOverviewRow,
 	OTELUX_ENGINE_VERSION,
 } from './engine.js';
 export { createMemoryStorage, type Storage } from './storage.js';

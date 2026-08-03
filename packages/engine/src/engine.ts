@@ -22,8 +22,22 @@ export interface EngineOptions {
 	storage: Storage;
 }
 
+export interface ServiceOverviewRow {
+	readonly name: string;
+	readonly traces: number;
+	readonly errorTraces: number;
+	readonly spans: number;
+	readonly errorRate: number;
+	readonly p50DurationNanos: bigint;
+	readonly p95DurationNanos: bigint;
+	readonly logs: number;
+	readonly logSeverity: Readonly<Record<string, number>>;
+	readonly metricInstruments: number;
+}
+
 export interface Engine extends DataSource {
 	getTraceWaterfall(query: GetTraceQuery): Promise<Trace>;
+	getServiceOverview(sinceMinutes: number): Promise<readonly ServiceOverviewRow[]>;
 	ingestSpans(spans: readonly Span[]): Promise<void>;
 	ingestLogs(logs: readonly LogRecord[]): Promise<void>;
 	ingestMetrics(metrics: readonly Metric[]): Promise<void>;
@@ -136,6 +150,59 @@ export function createEngine(options: EngineOptions): Engine {
 			return await storage.listResourceFacets(query);
 		},
 
+		async getServiceOverview(sinceMinutes: number): Promise<readonly ServiceOverviewRow[]> {
+			const nowNs = BigInt(Date.now()) * 1_000_000n;
+			const fromNs = nowNs - BigInt(sinceMinutes) * 60n * 1_000_000_000n;
+			const services = new Map<string, MutableServiceOverview>();
+			let cursor: string | undefined;
+			do {
+				const page = await storage.listTraces({
+					limit: 500,
+					...(cursor ? { cursor, includeTotalCount: false } : {}),
+					sortBy: 'startTime',
+					sortDirection: 'desc',
+					timeFromUnixNano: fromNs,
+					timeToUnixNano: nowNs,
+				});
+				for (const row of page.rows) {
+					for (const name of row.services) {
+						const entry = overviewEntry(services, name);
+						entry.traces++;
+						entry.spans += row.spanCount;
+						if (row.errorCount > 0) entry.errorTraces++;
+						entry.durations.push(row.durationNanos);
+					}
+				}
+				cursor = page.nextCursor;
+			} while (cursor);
+
+			const logs = await storage.listLogs({
+				limit: 5_000,
+				timeFromUnixNano: fromNs,
+				timeToUnixNano: nowNs,
+				includeTotalCount: false,
+			});
+			for (const log of logs.rows) {
+				const name = log.resource.attributes['service.name'];
+				if (typeof name !== 'string' || name === '') continue;
+				const entry = overviewEntry(services, name);
+				entry.logs++;
+				const band = severityBand(log.severityNumber);
+				entry.logSeverity[band] = (entry.logSeverity[band] ?? 0) + 1;
+			}
+
+			const metrics = await storage.listMetrics({ limit: 5_000, pointLimit: 1 });
+			for (const metric of metrics.rows) {
+				const name = metric.resource.attributes['service.name'];
+				if (typeof name !== 'string' || name === '') continue;
+				overviewEntry(services, name).metricInstruments++;
+			}
+
+			return [...services.entries()]
+				.map(([name, entry]) => finalizeOverview(name, entry))
+				.sort((a, b) => b.traces - a.traces || b.logs - a.logs || a.name.localeCompare(b.name));
+		},
+
 		subscribe(handler: (event: ChangeEvent) => void): Disposable {
 			listeners.add(handler);
 			return {
@@ -159,6 +226,68 @@ export function createEngine(options: EngineOptions): Engine {
 			await storage.close();
 		},
 	};
+}
+
+interface MutableServiceOverview {
+	traces: number;
+	errorTraces: number;
+	spans: number;
+	durations: bigint[];
+	logs: number;
+	logSeverity: Record<string, number>;
+	metricInstruments: number;
+}
+
+function overviewEntry(
+	services: Map<string, MutableServiceOverview>,
+	name: string,
+): MutableServiceOverview {
+	let entry = services.get(name);
+	if (!entry) {
+		entry = {
+			traces: 0,
+			errorTraces: 0,
+			spans: 0,
+			durations: [],
+			logs: 0,
+			logSeverity: {},
+			metricInstruments: 0,
+		};
+		services.set(name, entry);
+	}
+	return entry;
+}
+
+function finalizeOverview(name: string, entry: MutableServiceOverview): ServiceOverviewRow {
+	entry.durations.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+	const percentile = (p: number): bigint => {
+		if (entry.durations.length === 0) return 0n;
+		return (
+			entry.durations[Math.min(entry.durations.length - 1, Math.floor(entry.durations.length * p))] ??
+			0n
+		);
+	};
+	return {
+		name,
+		traces: entry.traces,
+		errorTraces: entry.errorTraces,
+		spans: entry.spans,
+		errorRate: entry.traces > 0 ? entry.errorTraces / entry.traces : 0,
+		p50DurationNanos: percentile(0.5),
+		p95DurationNanos: percentile(0.95),
+		logs: entry.logs,
+		logSeverity: entry.logSeverity,
+		metricInstruments: entry.metricInstruments,
+	};
+}
+
+function severityBand(number: number): string {
+	if (number >= 21) return 'fatal';
+	if (number >= 17) return 'error';
+	if (number >= 13) return 'warn';
+	if (number >= 9) return 'info';
+	if (number >= 5) return 'debug';
+	return 'trace';
 }
 
 function traceForQuery(query: GetTraceQuery, spans: readonly Span[]): Trace {
