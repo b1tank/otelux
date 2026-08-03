@@ -22,12 +22,35 @@ let storage;
 import(workerData.moduleUrl).then(({ createNodeSqliteStorage }) => {
   storage = createNodeSqliteStorage(workerData.options);
   parentPort.postMessage({ id: 0, result: true });
-  parentPort.on('message', ({ id, method, args }) => {
+  const high = [];
+  const normal = [];
+  const highMethods = new Set(['listTraces', 'getTraceSpans', 'getSpan', 'listLogs', 'listMetrics', 'listResourceFacets', 'getStorageUsage']);
+  let scheduled = false;
+  const processNext = () => {
+    scheduled = false;
+    const request = high.shift() || normal.shift();
+    if (!request) return;
+    const { id, method, args } = request;
     try {
       const result = storage[method](...args);
       parentPort.postMessage({ id, result });
     } catch (error) {
       parentPort.postMessage({ id, error: error instanceof Error ? error.stack || error.message : String(error) });
+    }
+    if (high.length || normal.length) {
+      scheduled = true;
+      setImmediate(processNext);
+    }
+  };
+  parentPort.on('message', (request) => {
+    if (high.length + normal.length >= 512) {
+      parentPort.postMessage({ id: request.id, error: 'SQLite worker queue is full' });
+      return;
+    }
+    (highMethods.has(request.method) ? high : normal).push(request);
+    if (!scheduled) {
+      scheduled = true;
+      setImmediate(processNext);
     }
   });
 }).catch((error) => {
@@ -76,6 +99,7 @@ export async function createWorkerSqliteStorage(options: {
 
 	const call = <T>(method: string, ...args: readonly unknown[]): Promise<T> => {
 		if (closed) return Promise.reject(new Error('SQLite worker is closed'));
+		if (pending.size >= 512) return Promise.reject(new Error('SQLite worker queue is full'));
 		const id = nextId++;
 		return new Promise<T>((resolve, reject) => {
 			pending.set(id, { resolve: (value) => resolve(value as T), reject });
