@@ -148,6 +148,11 @@ jobs:
           OTELUX_SMOKE_REPO_ROOT: ${{ github.workspace }}
         run: xvfb-run -a node .release-automation/apps/desktop/scripts/smoke.mjs
 
+      - name: Enforce packaged performance budgets
+        env:
+          OTELUX_SMOKE_DESKTOP_DIR: ${{ github.workspace }}/apps/desktop
+        run: xvfb-run -a node apps/desktop/scripts/perf-smoke.mjs
+
       - name: Generate SBOM
         run: |
           npm sbom --sbom-format cyclonedx --omit=dev -w @otelux/desktop \

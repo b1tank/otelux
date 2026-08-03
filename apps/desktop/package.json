@@ -23,7 +23,8 @@
 		"generate:notices": "node scripts/generate-notices.mjs",
 		"package": "npm run generate:notices && npm run build && electron-builder --linux --publish=never",
 		"package:dir": "npm run generate:notices && npm run build && electron-builder --linux dir",
-		"smoke": "node scripts/smoke.mjs"
+		"smoke": "node scripts/smoke.mjs",
+		"perf:package": "node scripts/perf-smoke.mjs"
 	},
 	"engines": {
 		"node": ">=22.12.0"
