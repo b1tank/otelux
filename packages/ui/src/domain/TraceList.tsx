@@ -25,7 +25,7 @@ import type {
 	TraceListSort,
 } from '@otelux/protocol';
 import type { TraceId } from '@otelux/types';
-import { type CSSProperties, type JSX, type KeyboardEvent, memo } from 'react';
+import { type JSX, type KeyboardEvent, memo } from 'react';
 import { formatDuration, formatWallClock, serviceColorVar } from '../format.js';
 import { CopyButton } from '../primitives/CopyButton.js';
 import { IconButton } from '../primitives/IconButton.js';
@@ -213,7 +213,8 @@ export function TraceList(props: TraceListProps): JSX.Element {
 									density={density}
 									selected={row.traceId === selectedTraceId}
 									onSelect={onSelect}
-									virtualStyle={{ height: rowHeight, transform: `translateY(${item.start}px)` }}
+									virtualStart={item.start}
+									rowHeight={rowHeight}
 								/>
 							) : null;
 						})}
@@ -232,7 +233,8 @@ interface TraceRowProps {
 	density: TraceListDensity;
 	selected: boolean;
 	onSelect(traceId: TraceId): void;
-	virtualStyle: CSSProperties;
+	virtualStart: number;
+	rowHeight: number;
 }
 
 const TraceRow = memo(function TraceRow(props: TraceRowProps): JSX.Element {
@@ -255,7 +257,11 @@ const TraceRow = memo(function TraceRow(props: TraceRowProps): JSX.Element {
 	return (
 		<li
 			className={`otelux-trace-row otelux-trace-row--${density}${selected ? ' is-selected' : ''}`}
-			style={{ ...rowStyle, ...props.virtualStyle }}
+			style={{
+				...rowStyle,
+				height: props.rowHeight,
+				transform: `translateY(${props.virtualStart}px)`,
+			}}
 		>
 			{/*
 			 * Outer interactive surface is a div role="button" rather
