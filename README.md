@@ -1,10 +1,38 @@
-# OTelux
+<p align="center">
+  <img src="apps/desktop/build/icon.svg" width="128" alt="OTelux logo" />
+</p>
 
-OTelux is a local-first OpenTelemetry workbench for developers and coding agents. It receives traces, logs, and metrics, stores them on the user's machine, renders them in a shared visual workbench, and exposes evidence through MCP tools.
+<h1 align="center">OTelux</h1>
 
-The target product is one per-user OTelux runtime presented through four install and interaction forms: agent plugin, direct MCP integration, CLI, and Desktop. They share one receiver, engine, active SQLite database, query contract, and browser-safe UI. Installing another form later connects it to the same local data instead of creating another backend.
+<p align="center">
+  <strong>A local-first OpenTelemetry workbench for developers and coding agents.</strong>
+  <br />
+  Receive, explore, and investigate traces, logs, and metrics without sending telemetry to a hosted backend.
+</p>
 
-The browser workbench is not a separate product. The plugin and CLI open the shared workbench from the local runtime in a browser; Desktop embeds the same `@otelux/ui` application in its native shell.
+<p align="center">
+  <a href="#install-the-linux-prerelease">Install</a> ·
+  <a href="#what-you-can-do">Features</a> ·
+  <a href="docs/getting-started.md">Quick start</a> ·
+  <a href="#docs">Docs</a> ·
+  <a href="SECURITY.md">Security</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/b1tank/otelux/releases"><img alt="Latest prerelease" src="https://img.shields.io/github/v/release/b1tank/otelux?include_prereleases&sort=semver&display_name=tag&style=flat-square&label=release" /></a>
+  <a href="https://github.com/b1tank/otelux/releases"><img alt="Release downloads" src="https://img.shields.io/github/downloads/b1tank/otelux/total?style=flat-square&label=downloads" /></a>
+  <a href="https://github.com/b1tank/otelux/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/b1tank/otelux/ci.yml?branch=main&style=flat-square&label=build%20%26%20test" /></a>
+  <a href="https://github.com/b1tank/otelux/actions/workflows/codeql.yml"><img alt="CodeQL" src="https://img.shields.io/github/actions/workflow/status/b1tank/otelux/codeql.yml?branch=main&style=flat-square&label=CodeQL" /></a>
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/github/license/b1tank/otelux?style=flat-square" /></a>
+</p>
+
+## What you can do
+
+- **Inspect complete requests:** navigate virtualized trace waterfalls and searchable span details, including attributes, resources, events, and links.
+- **Correlate every signal locally:** search structured logs, explore metric series, and group telemetry by standard OpenTelemetry Source and Service identity.
+- **Give coding agents bounded evidence:** query read-only traces, logs, service health, and agent-run correlation through the built-in MCP server.
+- **Keep ownership of telemetry:** data stays in a retention-bounded local SQLite database; receiver and MCP listeners bind to loopback by default.
 
 ## Install the Linux prerelease
 
@@ -15,9 +43,20 @@ sha256sum -c SHA256SUMS
 sudo apt install ./OTelux-0.1.9-amd64.deb
 ```
 
-Linux x64 `.deb` is the only packaged platform currently qualified. Source setup is documented in [Getting Started](docs/getting-started.md).
+| Platform | Package | Status |
+| --- | --- | --- |
+| Linux x64 | `.deb` | Qualified prerelease |
+| Linux arm64 | — | Planned |
+| macOS arm64/x64 | — | Signing and notarization planned |
+| Windows x64/arm64 | — | Signed installer planned |
+
+Source setup is documented in [Getting Started](docs/getting-started.md). OTelux does not recommend piping mutable network scripts into a privileged shell.
 
 ## Product Ecosystem
+
+The target product is one per-user OTelux runtime presented through four install and interaction forms: agent plugin, direct MCP integration, CLI, and Desktop. They share one receiver, engine, active SQLite database, query contract, and browser-safe UI. Installing another form later connects it to the same local data instead of creating another backend.
+
+The browser workbench is not a separate product. The plugin and CLI open the shared workbench from the local runtime in a browser; Desktop embeds the same `@otelux/ui` application in its native shell.
 
 | Form | End-user experience | Availability |
 |---|---|---|

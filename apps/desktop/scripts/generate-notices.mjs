@@ -70,7 +70,12 @@ function licenseId(pkgJson) {
 	return 'UNKNOWN';
 }
 
-const raw = execFileSync('npm', ['ls', '-w', '@otelux/desktop', '--omit=dev', '--all', '--json'], {
+const npmArgs = ['ls', '-w', '@otelux/desktop', '--omit=dev', '--all', '--json'];
+// npm lifecycle scripts expose the portable npm CLI entry point. Invoking it
+// through Node avoids Windows' inability to exec a .cmd shim without a shell.
+const npmCli = process.env.npm_execpath;
+const npmExecutable = npmCli ? process.execPath : 'npm';
+const raw = execFileSync(npmExecutable, npmCli ? [npmCli, ...npmArgs] : npmArgs, {
 	cwd: repoRoot,
 	encoding: 'utf8',
 	maxBuffer: 64 * 1024 * 1024,

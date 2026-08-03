@@ -53,3 +53,32 @@ linux:
   icon: build/icons
 deb:
   packageName: otelux
+
+# These targets are exercised by the unsigned packaging-preview workflow.
+# They are not release-qualified until native signing/notarization and the
+# platform regression gates in docs/sprint.plan.md are enabled.
+mac:
+  artifactName: "${productName}-${version}-mac-${arch}.${ext}"
+  target:
+    - dmg
+    - zip
+  category: public.app-category.developer-tools
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  icon: build/icon.png
+
+win:
+  artifactName: "${productName}-${version}-windows-${arch}.${ext}"
+  target:
+    - nsis
+    - zip
+  icon: build/icon.png
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: OTelux

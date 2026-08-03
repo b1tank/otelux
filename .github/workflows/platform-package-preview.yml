@@ -1,0 +1,118 @@
+name: Platform package preview
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/platform-package-preview.yml'
+      - 'apps/desktop/electron-builder.yml'
+      - 'apps/desktop/package.json'
+      - 'apps/desktop/build/icon.svg'
+      - 'scripts/build-icons.sh'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  icons:
+    name: Build package icons
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+        with:
+          persist-credentials: false
+
+      - name: Install SVG rasterizer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y librsvg2-bin
+
+      - name: Build icons
+        run: bash scripts/build-icons.sh
+
+      - name: Upload icons
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: package-icons
+          path: |
+            apps/desktop/build/icon.png
+            apps/desktop/build/icon@1024.png
+            apps/desktop/build/icons
+          if-no-files-found: error
+          retention-days: 3
+
+  package:
+    name: Build unsigned ${{ matrix.label }} preview
+    needs: icons
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Linux x64
+            runner: ubuntu-latest
+            script: package:linux
+            artifact: linux-x64
+            paths: apps/desktop/release/*.deb
+          - label: macOS x64 and arm64
+            runner: macos-14
+            script: package:mac
+            artifact: macos-x64-arm64
+            paths: |
+              apps/desktop/release/*.dmg
+              apps/desktop/release/*-mac-*.zip
+          - label: Windows x64
+            runner: windows-2022
+            script: package:win
+            artifact: windows-x64
+            paths: |
+              apps/desktop/release/*.exe
+              apps/desktop/release/*-windows-*.zip
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Download package icons
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: package-icons
+          path: apps/desktop/build
+
+      - name: Build workspace packages
+        run: npm run build
+
+      - name: Build unsigned package preview
+        run: npm run ${{ matrix.script }} -w @otelux/desktop
+        env:
+          # Preview artifacts prove packaging compatibility only. Official
+          # support still requires the protected signing/notarization release
+          # jobs and native regression gates described in docs/sprint.plan.md.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Upload unsigned preview
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: otelux-unsigned-${{ matrix.artifact }}
+          path: ${{ matrix.paths }}
+          if-no-files-found: error
+          retention-days: 3

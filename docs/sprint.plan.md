@@ -45,6 +45,8 @@ Make the public repository explain and demonstrate OTelux within seconds, show a
 
 ## Workstream 1 — brand and repository landing page (P0)
 
+Current groundwork: the README brand hero, navigation, truthful prerelease/download/CI/CodeQL/license badges, support matrix, deterministic social-preview generator, and generated preview asset are implemented. The synthetic product screenshot/demo and repository-settings upload remain.
+
 1. Establish an asset contract under `docs/assets/`:
    - logo derived from `apps/desktop/build/icon.svg`;
    - 1280×640 social preview;
@@ -73,6 +75,8 @@ Make the public repository explain and demonstrate OTelux within seconds, show a
 **Acceptance:** version surfaces agree across package metadata, tag, release title, About dialog, badges, and install docs; the GitHub sidebar shows “Latest” only for a genuinely stable release.
 
 ## Workstream 3 — cross-platform artifact pipeline (P0)
+
+Current groundwork: electron-builder targets and explicit package scripts exist for Linux x64, macOS x64/arm64, and Windows x64. A path-scoped CI workflow builds short-lived **unsigned preview artifacts** on native runners to catch packaging drift. Those previews are not releases and do not qualify platform support.
 
 Build native artifacts on native GitHub runners; do not cross-sign from Linux.
 
