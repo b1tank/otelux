@@ -395,6 +395,16 @@ function runStorageContract(label: string, make: () => Storage): void {
 			const page = await storage.listLogs({ limit: 1, offset: 1 });
 			expect(page.totalCount).toBe(3);
 			expect(page.rows.map((r) => r.body)).toEqual(['second']);
+
+			const first = await storage.listLogs({ limit: 1 });
+			expect(first.rows.map((row) => row.body)).toEqual(['third']);
+			if (!first.nextCursor) throw new Error('expected log cursor');
+			const second = await storage.listLogs({ limit: 1, cursor: first.nextCursor });
+			expect(second.rows.map((row) => row.body)).toEqual(['second']);
+			if (!second.nextCursor) throw new Error('expected second log cursor');
+			const third = await storage.listLogs({ limit: 1, cursor: second.nextCursor });
+			expect(third.rows.map((row) => row.body)).toEqual(['first']);
+			expect(third.nextCursor).toBeUndefined();
 		});
 
 		it('merges repeated exports of one instrument into a single series', async () => {

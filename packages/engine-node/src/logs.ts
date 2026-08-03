@@ -12,7 +12,7 @@ import type { Interner } from './intern.js';
 import { serviceNameOf, sourceNameOf } from './resource.js';
 
 const LOG_SELECT = `
-SELECT l.time_unix_nano, l.observed_time_unix_nano, l.severity_number, l.severity_text,
+SELECT l.id, l.time_unix_nano, l.observed_time_unix_nano, l.severity_number, l.severity_text,
        l.event_name, l.body, l.attributes, l.flags, l.trace_id, l.span_id,
        l.dropped_attributes,
        r.attributes AS resource_attributes,
@@ -23,6 +23,7 @@ JOIN scopes sc   ON sc.id = l.scope_id
 `;
 
 interface LogRow {
+	id: bigint;
 	time_unix_nano: bigint;
 	observed_time_unix_nano: bigint | null;
 	severity_number: bigint;
@@ -132,14 +133,30 @@ INSERT INTO logs (
 
 		const sortColumn = query.sortBy === 'severity' ? 'l.severity_number' : 'l.time_unix_nano';
 		const direction = (query.sortDirection ?? 'desc') === 'asc' ? 'ASC' : 'DESC';
+		const pageWhere = [...where];
+		const pageParams = [...params];
+		if (query.cursor && /^\d+$/.test(query.cursor)) {
+			const comparator = direction === 'ASC' ? '>' : '<';
+			pageWhere.push(`(${sortColumn} ${comparator} (SELECT ${sortColumn.replace('l.', '')} FROM logs WHERE id = ?)
+  OR (${sortColumn} = (SELECT ${sortColumn.replace('l.', '')} FROM logs WHERE id = ?) AND l.id ${comparator} ?))`);
+			pageParams.push(query.cursor, query.cursor, query.cursor);
+		}
+		const pageWhereSql = pageWhere.length > 0 ? `WHERE ${pageWhere.join(' AND ')}` : '';
 		const limit = query.limit ?? 100;
-		const offset = query.offset ?? 0;
+		const offset = query.cursor ? 0 : (query.offset ?? 0);
 		const stmt = this.db.prepare(
-			`${LOG_SELECT} ${whereSql} ORDER BY ${sortColumn} ${direction} LIMIT ? OFFSET ?`,
+			`${LOG_SELECT} ${pageWhereSql} ORDER BY ${sortColumn} ${direction}, l.id ${direction} LIMIT ? OFFSET ?`,
 		);
 		stmt.setReadBigInts(true);
-		const rows = stmt.all(...params, BigInt(limit), BigInt(offset)) as unknown as LogRow[];
-		return { rows: rows.map(logFromRow), totalCount: countRow.n };
+		const rows = stmt.all(...pageParams, BigInt(limit + 1), BigInt(offset)) as unknown as LogRow[];
+		const hasMore = rows.length > limit;
+		const page = rows.slice(0, limit);
+		const nextCursor = hasMore ? page.at(-1)?.id.toString() : undefined;
+		return {
+			rows: page.map(logFromRow),
+			totalCount: countRow.n,
+			...(nextCursor ? { nextCursor } : {}),
+		};
 	}
 }
 

@@ -76,6 +76,8 @@ export type LogListSort = 'time' | 'severity';
 export interface ListLogsQuery {
 	limit?: number;
 	offset?: number;
+	/** Opaque log cursor returned as nextCursor by the previous page. */
+	cursor?: string;
 	sortBy?: LogListSort;
 	sortDirection?: SortDirection;
 	timeFromUnixNano?: bigint;
@@ -92,6 +94,7 @@ export interface ListLogsQuery {
 export interface ListLogsResult {
 	rows: readonly LogRecord[];
 	totalCount: number;
+	nextCursor?: string;
 }
 
 /**

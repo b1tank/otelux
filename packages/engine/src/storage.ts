@@ -166,6 +166,8 @@ export function createMemoryStorage(): Storage {
 	// Logs are a flat append-only list; filtering/sorting is an O(n) walk,
 	// matching the span path. The production backend pushes this into SQL.
 	const logs: LogRecord[] = [];
+	const logIds = new WeakMap<LogRecord, number>();
+	let nextLogId = 1;
 	// Metrics are merged by instrument identity so repeated exports of the
 	// same instrument grow one time series rather than piling up duplicates.
 	const metrics = new Map<string, Metric>();
@@ -347,6 +349,7 @@ export function createMemoryStorage(): Storage {
 
 		writeLogs(records: readonly LogRecord[]): void {
 			for (const record of records) {
+				logIds.set(record, nextLogId++);
 				logs.push(record);
 			}
 		},
@@ -403,15 +406,22 @@ export function createMemoryStorage(): Storage {
 				} else {
 					cmp = a.timeUnixNano < b.timeUnixNano ? -1 : a.timeUnixNano > b.timeUnixNano ? 1 : 0;
 				}
-				return cmp * cmpDir;
+				if (cmp !== 0) return cmp * cmpDir;
+				return ((logIds.get(a) ?? 0) - (logIds.get(b) ?? 0)) * cmpDir;
 			});
 
 			const totalCount = filtered.length;
-			const offset = query.offset ?? 0;
+			const cursorId = query.cursor ? Number(query.cursor) : undefined;
+			const cursorIndex = cursorId ? filtered.findIndex((log) => logIds.get(log) === cursorId) : -1;
+			const offset = cursorIndex >= 0 ? cursorIndex + 1 : (query.offset ?? 0);
 			const limit = query.limit ?? 100;
 			const page = filtered.slice(offset, offset + limit);
+			const nextCursor =
+				offset + page.length < filtered.length
+					? String(logIds.get(page.at(-1) as LogRecord))
+					: undefined;
 
-			return { rows: page, totalCount };
+			return { rows: page, totalCount, ...(nextCursor ? { nextCursor } : {}) };
 		},
 
 		writeMetrics(incoming: readonly Metric[]): void {
