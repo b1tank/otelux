@@ -93,6 +93,49 @@ describe('@otelux/receiver', () => {
 			expect(list.rows[0]?.rootName).toBe('GET /api/users');
 		});
 
+		it('rejects excess concurrent exports with an explicit overload response', async () => {
+			await receiver.stop();
+			await engine.close();
+			const baseStorage = createMemoryStorage();
+			let releaseWrite = (): void => {};
+			let markEntered = (): void => {};
+			const entered = new Promise<void>((resolve) => {
+				markEntered = resolve;
+			});
+			const gate = new Promise<void>((resolve) => {
+				releaseWrite = resolve;
+			});
+			engine = createEngine({
+				storage: {
+					...baseStorage,
+					async writeSpans(spans) {
+						markEntered();
+						await gate;
+						await baseStorage.writeSpans(spans);
+					},
+				},
+			});
+			receiver = createReceiver({ engine, port: 0, maxPendingExports: 1 });
+			await receiver.start();
+			baseUrl = `http://${receiver.host}:${receiver.port}`;
+
+			const first = fetch(`${baseUrl}/v1/traces`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(FIXTURE),
+			});
+			await entered;
+			const second = await fetch(`${baseUrl}/v1/traces`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify(FIXTURE),
+			});
+			expect(second.status).toBe(503);
+			expect(await second.json()).toEqual({ error: 'receiver_overloaded' });
+			releaseWrite();
+			expect((await first).status).toBe(200);
+		});
+
 		it('returns 400 for malformed JSON', async () => {
 			const res = await fetch(`${baseUrl}/v1/traces`, {
 				method: 'POST',

@@ -72,6 +72,10 @@ export interface ReceiverOptions {
 	 * intentionally accept browser clients need to populate this.
 	 */
 	allowedOrigins?: readonly string[];
+	/** Maximum concurrently queued/active export requests. Defaults to 64. */
+	maxPendingExports?: number;
+	/** Called when an export is rejected before ingest because the queue is full. */
+	onOverload?: (signal: 'traces' | 'logs' | 'metrics') => void;
 }
 
 export interface Receiver {
@@ -86,6 +90,25 @@ export function createReceiver(options: ReceiverOptions): Receiver {
 	const host = options.host ?? '127.0.0.1';
 	const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_OTLP_MAX_BODY_BYTES;
 	const allowedOrigins = new Set(options.allowedOrigins ?? []);
+	const maxPendingExports = options.maxPendingExports ?? 64;
+	let pendingExports = 0;
+	const ingest = async <T>(
+		signal: 'traces' | 'logs' | 'metrics',
+		data: T,
+		write: (value: T) => Promise<void>,
+	): Promise<boolean> => {
+		if (pendingExports >= maxPendingExports) {
+			options.onOverload?.(signal);
+			return false;
+		}
+		pendingExports++;
+		try {
+			await write(data);
+			return true;
+		} finally {
+			pendingExports--;
+		}
+	};
 	let server: ServerType | undefined;
 	let boundPort = requestedPort;
 
@@ -103,7 +126,7 @@ export function createReceiver(options: ReceiverOptions): Receiver {
 			maxBodyBytes,
 			(bytes) => decodeExportTraceServiceRequest(decodeTraceRequestFromProtobuf(bytes)),
 			(payload) => decodeExportTraceServiceRequest(payload as OtlpExportTraceServiceRequest),
-			(spans) => options.engine.ingestSpans(spans),
+			(spans) => ingest('traces', spans, (value) => options.engine.ingestSpans(value)),
 		),
 	);
 
@@ -113,7 +136,7 @@ export function createReceiver(options: ReceiverOptions): Receiver {
 			maxBodyBytes,
 			(bytes) => decodeExportLogsServiceRequest(decodeLogsRequestFromProtobuf(bytes)),
 			(payload) => decodeExportLogsServiceRequest(payload as OtlpExportLogsServiceRequest),
-			(logs) => options.engine.ingestLogs(logs),
+			(logs) => ingest('logs', logs, (value) => options.engine.ingestLogs(value)),
 		),
 	);
 
@@ -123,7 +146,7 @@ export function createReceiver(options: ReceiverOptions): Receiver {
 			maxBodyBytes,
 			(bytes) => decodeExportMetricsServiceRequest(decodeMetricsRequestFromProtobuf(bytes)),
 			(payload) => decodeExportMetricsServiceRequest(payload as OtlpExportMetricsServiceRequest),
-			(metrics) => options.engine.ingestMetrics(metrics),
+			(metrics) => ingest('metrics', metrics, (value) => options.engine.ingestMetrics(value)),
 		),
 	);
 
@@ -210,7 +233,7 @@ async function handleExport<T>(
 	maxBodyBytes: number,
 	decodeProto: (bytes: Uint8Array) => T,
 	decodeJson: (payload: unknown) => T,
-	ingest: (data: T) => Promise<void>,
+	ingest: (data: T) => Promise<boolean>,
 ): Promise<Response> {
 	const body = await readBodyWithLimit(c.req.raw, maxBodyBytes);
 	if (!body.ok) {
@@ -223,7 +246,9 @@ async function handleExport<T>(
 	} catch {
 		return c.json({ error: proto ? 'invalid_protobuf' : 'invalid_json' }, 400);
 	}
-	await ingest(data);
+	if (!(await ingest(data))) {
+		return c.json({ error: 'receiver_overloaded' }, 503);
+	}
 	// Mirror the request encoding in the success response. An empty body is a
 	// valid empty ExportServiceResponse (no partial_success = everything accepted).
 	return proto
