@@ -9,10 +9,10 @@ Frozen in [`docs/spec.md` § 12.3](../../docs/spec.md). All read-only:
 - `otel_find_recent_errors` — spans with `status=ERROR` in the last N minutes, optionally scoped to a service.
 - `otel_get_slowest_spans` — top-N spans by duration, optionally scoped to a service.
 - `otel_search_logs` — free-text + severity log search over log body, event name, severity text, and attributes.
-- `otel_correlate_agent_run` — **experimental**: joins user-app spans with the spans of a specific Copilot / Codex / Claude agent run. Advertised with a stable schema and flagged `experimental` in `tools/list`, but calls return `supported: false` until engine-side agent-run detection lands.
+- `otel_correlate_agent_run` — finds logs carrying an exact standard run/conversation/session identifier and follows propagated trace context to bounded trace summaries; no service-name inference.
 - `otel_get_trace` — full span tree for a `traceId`.
 - `otel_get_span_details` — single-span detail by `traceId` + `spanId` (attributes, events, context, resource).
-- `otel_get_service_overview` — services that have emitted telemetry, plus approximate trace/span/error counts derived from recent traces.
+- `otel_get_service_overview` — cross-signal service health: traces/spans/errors and rate, p50/p95 duration, log severity bands, and metric instrument availability.
 
 ## Transports
 

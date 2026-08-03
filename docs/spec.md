@@ -58,7 +58,7 @@ Important current limits:
 | Traces | Live | Trace list, waterfall, span details, filters. |
 | Structured logs | Live | Headered rows, search, details, attributes, copy actions, trace/span pivots. |
 | Metrics | Live | Meter/instrument explorer, focused graph/table views, scan summaries, details, copy actions. |
-| Services overview | Planned | Derived service rollups across traces, logs, and metrics. |
+| Services overview | Live via MCP | Cross-signal trace/error/span, p50/p95 duration, log severity, and metric-availability rollups. |
 | Profiles | Later | Flame graph and trace/profile correlation. |
 
 The reference dogfood workload is Codex CLI telemetry. Its user-visible content rides the logs pipeline, while latency and token information ride metrics and traces. That is why OTelux treats logs and metrics as core signals rather than follow-on decoration.
@@ -299,8 +299,8 @@ Initial MCP tools shared by the agent plugin, direct MCP, CLI, and Desktop:
 | `otel_search_logs` | Live | Why did this log fire? |
 | `otel_get_trace` | Live | Show this trace. |
 | `otel_get_span_details` | Live | Show one span by trace ID and span ID. |
-| `otel_correlate_agent_run` | Experimental stub | What was my app doing during this agent run? |
-| `otel_get_service_overview` | Experimental, approximate | What services emitted telemetry? |
+| `otel_correlate_agent_run` | Live | What traces/logs carry this standard run or conversation identifier? |
+| `otel_get_service_overview` | Live | What services emitted telemetry, with errors, latency, logs, and metrics? |
 
 All tools are read-only. Only tools marked Live belong to the supported release surface. Tool handlers should stay thin wrappers over engine queries so desktop, extension, MCP, and LM tools do not fork behavior. Service overview currently derives recent service stats from trace summaries; richer cross-signal service rollups are planned.
 

@@ -8,32 +8,6 @@ This plan only covers work ahead of us. Completed implementation detail lives in
 
 See the specification's [Current Baseline](spec.md#current-baseline) for implemented capabilities and limits. The phases below contain only work that remains ahead; remove completed work as it ships.
 
-## Phase 0 — Trace Interaction Performance Rewrite
-
-Goal: make trace scrolling and rapid back-and-forth selection remain frame-responsive for large, wide, and deeply nested traces before adding more workbench surface area.
-
-Tasks:
-
-- Finish splitting selection/list/filter state into selector-based render boundaries only if production React commit profiling shows root-level churn above budget; current packaged benchmark passes interaction, DOM, heap, paging, and continuous-ingest gates.
-- Keep explicit cursor-backed `Load more` controls unless dogfood exceeds the measured ~55 ms paging result; automatic prefetch is not justified while explicit paging remains well under the 500 ms gate.
-
-React guardrails:
-
-- Effects synchronize subscriptions, timers, browser observers, and IPC only; derived values and filtering remain render-time selectors, never effect-driven state chains.
-- State subscriptions are local and selector-based; urgent selection/focus updates stay synchronous while fetch/live-tail/facet work is non-urgent.
-- Virtualized rows are the only mounted rows; row keys are trace/span IDs; fixed geometry avoids render/measure/set-state loops.
-- Memoization is applied at measured component boundaries, not blanket `useMemo`/`useCallback`; caches have explicit LRU entry and byte caps.
-- A newly selected trace never displays the previous trace's waterfall as current, and live invalidations do not rerender an unchanged selected waterfall.
-
-Done when:
-
-- [x] Deep trace layout is iterative; waterfall/trace mounted rows are viewport-bounded; same-turn rapid selection coalesces; stale results cannot commit; recent trace caching is bounded.
-- [x] The packaged benchmark enforces the 10,000-trace / 200,000-span fixture, deep/wide adversarial traces, mounted DOM, rapid selection dispatch, cursor paging, frame gaps, continuous ingest, and post-GC renderer heap budgets.
-- [x] SQLite ingest, query, retention, and clear operations run in a bounded worker queue rather than Electron main; waterfall summaries exclude full span bags and selected details load separately.
-- [x] Packaged interaction remains responsive during concurrent ingest; trace/log cursor pages have no duplicates/omissions, explicit paging is below budget, and overload counters are visible by signal.
-
-See [sprint.plan.md](sprint.plan.md) for measured baseline, sequencing, and exact budgets.
-
 ## Phase 1 — Workbench Polish
 
 Goal: make the current three signal views feel like a professional local debugging tool.
@@ -45,7 +19,7 @@ Tasks:
 - Improve histogram labels with clearer bucket boundaries, count/sum context, and table parity.
 - Add pause/resume (live-tail freeze), result footer state, and clear data with confirmation across traces, logs, and metrics — **done**.
 - Add trace-list and logs sort controls (traces: Most recent, Slowest, Most errors, Most spans, Name; logs: Newest, Oldest, Highest severity) — **done**; dense/table-like trace-list headers when the list owns enough horizontal space remain.
-- Virtualize logs using the shared row-virtualization primitives delivered by Phase 0; trace and waterfall virtualization are release-blocking Phase 0 work.
+- Virtualize logs with the shared fixed-row primitive once the visible log page grows beyond the current bounded 100 rows.
 
 Done when:
 
@@ -89,10 +63,8 @@ Goal: make OTelux useful for agent-assisted debugging, not just human browsing.
 
 Tasks:
 
-- Implement agent-run detection in `@otelux/engine` for known local agent telemetry shapes.
-- Back `otel_correlate_agent_run` with real trace/log/time-window queries.
-- Implement service overview rollups: span count, error count/rate, p50/p95 duration, log severity distribution, and metric availability.
-- Upgrade `otel_get_service_overview` from recent-trace approximation to those richer cross-signal rollups.
+- Extend agent-run correlation from exact searchable conversation/session IDs and propagated trace context to a bounded time-window fallback when the telemetry lacks trace IDs.
+- Optimize cross-signal service overview rollups into dedicated durable-storage aggregation queries once dogfood volume makes the current bounded paged engine composition exceed budgets.
 - Add a Services surface or compact overview panel if the UI needs one.
 
 Done when:
