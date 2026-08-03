@@ -77,12 +77,36 @@ describe('TraceList', () => {
 			makeRow({ traceId: `trace-${index}` as unknown as TraceId, rootName: `trace ${index}` }),
 		);
 		const { container } = render(<TraceList dataSource={ds} onSelect={() => {}} />);
-		await waitFor(() => expect(ds.calls.length).toBeGreaterThan(0));
+		await waitFor(() =>
+			expect(container.querySelectorAll('.otelux-trace-row').length).toBeGreaterThan(0),
+		);
 
 		expect(container.querySelectorAll('.otelux-trace-row').length).toBeLessThan(50);
 		expect(container.querySelector('.otelux-trace-list__rows')?.getAttribute('style')).toContain(
 			'16400px',
 		);
+	});
+
+	it('appends the next cursor page on demand', async () => {
+		const ds = new FakeDataSource();
+		ds.listTraces = async (query) => {
+			ds.calls.push(query);
+			return query.cursor
+				? {
+						rows: [makeRow({ traceId: 'b' as unknown as TraceId, rootName: 'second page' })],
+						totalCount: 1,
+					}
+				: {
+						rows: [makeRow({ traceId: 'a' as unknown as TraceId })],
+						totalCount: 2,
+						nextCursor: 'a',
+					};
+		};
+		const { findByText, getByText } = render(<TraceList dataSource={ds} onSelect={() => {}} />);
+		fireEvent.click(await findByText('Load more traces'));
+		await waitFor(() => expect(getByText('second page')).toBeTruthy());
+		expect(ds.calls.at(-1)).toMatchObject({ cursor: 'a', includeTotalCount: false });
+		expect(ds.calls).toHaveLength(2);
 	});
 
 	it('renders the empty state when there are no rows', async () => {

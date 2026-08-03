@@ -23,7 +23,7 @@
 
 import type { DataSource, ListLogsResult, LogListSort, SortDirection } from '@otelux/protocol';
 import type { AttributeValue, LogRecord, SpanId, TraceId } from '@otelux/types';
-import { type CSSProperties, type JSX, useState } from 'react';
+import { type CSSProperties, type JSX, useCallback, useState } from 'react';
 import { formatWallClock, serviceColorVar, severityLabel, severityTone } from '../format.js';
 import {
 	Accordion,
@@ -39,6 +39,7 @@ import {
 	WaterfallIcon,
 	detailMatches,
 } from '../primitives/index.js';
+import { useCursorPages } from '../useCursorPages.js';
 import { useDataSourceQuery } from '../useDataSourceQuery.js';
 
 export interface LogsViewProps {
@@ -90,28 +91,22 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 	// The serialization key must include every input that changes the
 	// result set; otherwise the hook reuses a stale fetch when filters change.
 	const queryKey = `logs:${limit}:${minSeverity ?? ''}:${(sources ?? []).join(',')}:${(services ?? []).join(',')}:${search ?? ''}:${sortBy}:${sortDirection}`;
+	const makeQuery = useCallback(
+		(cursor?: string): Parameters<DataSource['listLogs']>[0] => ({
+			limit,
+			sortBy,
+			sortDirection,
+			...(cursor !== undefined ? { cursor, includeTotalCount: false } : {}),
+			...(minSeverity !== undefined ? { minSeverity } : {}),
+			...(sources && sources.length > 0 ? { sources } : {}),
+			...(services && services.length > 0 ? { services } : {}),
+			...(search ? { search } : {}),
+		}),
+		[limit, minSeverity, search, services, sortBy, sortDirection, sources],
+	);
 	const query = useDataSourceQuery<ListLogsResult>(
 		dataSource,
-		(ds) => {
-			const q: Parameters<DataSource['listLogs']>[0] = {
-				limit,
-				sortBy,
-				sortDirection,
-			};
-			if (minSeverity !== undefined) {
-				q.minSeverity = minSeverity;
-			}
-			if (sources && sources.length > 0) {
-				q.sources = sources;
-			}
-			if (services && services.length > 0) {
-				q.services = services;
-			}
-			if (search) {
-				q.search = search;
-			}
-			return ds.listLogs(q);
-		},
+		(ds) => ds.listLogs(makeQuery()),
 		queryKey,
 		paused,
 		'logsChanged',
@@ -120,7 +115,12 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 		500,
 	);
 
-	const rows = query.value?.rows ?? [];
+	const pages = useCursorPages(
+		query.value,
+		(cursor) => dataSource.listLogs(makeQuery(cursor)),
+		queryKey,
+	);
+	const rows = pages.rows;
 
 	return (
 		<section className="otelux-logs" aria-label="Logs">
@@ -179,6 +179,18 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 					</tbody>
 				</table>
 			</div>
+			{pages.nextCursor ? (
+				<div className="otelux-logs__load-more">
+					<button
+						type="button"
+						className="otelux-load-more"
+						onClick={pages.loadMore}
+						disabled={pages.loadingMore}
+					>
+						{pages.loadingMore ? 'Loading…' : 'Load more logs'}
+					</button>
+				</div>
+			) : null}
 			{rows.length > 0 ? (
 				<ResultFooter count={query.value?.totalCount ?? rows.length} noun="log" paused={paused} />
 			) : null}

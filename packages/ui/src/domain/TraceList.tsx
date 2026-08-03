@@ -25,13 +25,14 @@ import type {
 	TraceListSort,
 } from '@otelux/protocol';
 import type { TraceId } from '@otelux/types';
-import { type JSX, type KeyboardEvent, memo } from 'react';
+import { type JSX, type KeyboardEvent, memo, useCallback } from 'react';
 import { formatDuration, formatWallClock, serviceColorVar } from '../format.js';
 import { CopyButton } from '../primitives/CopyButton.js';
 import { IconButton } from '../primitives/IconButton.js';
 import { ResultFooter } from '../primitives/ResultFooter.js';
 import { PanelLeftIcon, WaterfallIcon } from '../primitives/icons.js';
 import { useFixedVirtualRows } from '../primitives/useFixedVirtualRows.js';
+import { useCursorPages } from '../useCursorPages.js';
 import { useDataSourceQuery } from '../useDataSourceQuery.js';
 
 export type TraceListDensity = 'card' | 'flat';
@@ -110,28 +111,22 @@ export function TraceList(props: TraceListProps): JSX.Element {
 	// must include every input that changes the result set; otherwise the
 	// hook will reuse a stale fetch when filters change.
 	const queryKey = `list:${limit}:${errorsOnly ? '1' : '0'}:${(sources ?? []).join(',')}:${(services ?? []).join(',')}:${search ?? ''}:${sortBy}:${sortDirection}`;
+	const makeQuery = useCallback(
+		(cursor?: string): Parameters<DataSource['listTraces']>[0] => ({
+			limit,
+			sortBy,
+			sortDirection,
+			...(cursor !== undefined ? { cursor, includeTotalCount: false } : {}),
+			...(errorsOnly ? { hasError: true } : {}),
+			...(sources && sources.length > 0 ? { sources } : {}),
+			...(services && services.length > 0 ? { services } : {}),
+			...(search ? { search } : {}),
+		}),
+		[errorsOnly, limit, search, services, sortBy, sortDirection, sources],
+	);
 	const query = useDataSourceQuery(
 		dataSource,
-		(ds) => {
-			const q: Parameters<DataSource['listTraces']>[0] = {
-				limit,
-				sortBy,
-				sortDirection,
-			};
-			if (errorsOnly) {
-				q.hasError = true;
-			}
-			if (sources && sources.length > 0) {
-				q.sources = sources;
-			}
-			if (services && services.length > 0) {
-				q.services = services;
-			}
-			if (search) {
-				q.search = search;
-			}
-			return ds.listTraces(q);
-		},
+		(ds) => ds.listTraces(makeQuery()),
 		queryKey,
 		paused,
 		'tracesChanged',
@@ -140,7 +135,12 @@ export function TraceList(props: TraceListProps): JSX.Element {
 		100,
 	);
 
-	const rows = query.value?.rows ?? [];
+	const pages = useCursorPages(
+		query.value,
+		(cursor) => dataSource.listTraces(makeQuery(cursor)),
+		queryKey,
+	);
+	const rows = pages.rows;
 	const rowHeight = density === 'card' ? TRACE_CARD_ROW_HEIGHT : TRACE_FLAT_ROW_HEIGHT;
 	const virtual = useFixedVirtualRows(
 		rows.length,
@@ -203,7 +203,10 @@ export function TraceList(props: TraceListProps): JSX.Element {
 						) : null}
 					</div>
 				) : (
-					<ul className="otelux-trace-list__rows" style={{ height: virtual.totalHeight }}>
+					<ul
+						className="otelux-trace-list__rows"
+						style={{ height: virtual.totalHeight + (pages.nextCursor ? 40 : 0) }}
+					>
 						{virtual.rows.map((item) => {
 							const row = rows[item.index];
 							return row ? (
@@ -218,6 +221,18 @@ export function TraceList(props: TraceListProps): JSX.Element {
 								/>
 							) : null;
 						})}
+						{pages.nextCursor ? (
+							<li className="otelux-load-more-row" style={{ top: virtual.totalHeight }}>
+								<button
+									type="button"
+									className="otelux-load-more"
+									onClick={pages.loadMore}
+									disabled={pages.loadingMore}
+								>
+									{pages.loadingMore ? 'Loading…' : 'Load more traces'}
+								</button>
+							</li>
+						) : null}
 					</ul>
 				)}
 			</div>

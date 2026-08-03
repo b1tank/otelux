@@ -185,6 +185,20 @@ describe('LogsView', () => {
 		);
 	});
 
+	it('appends a cursor page of logs', async () => {
+		const ds = new FakeDataSource();
+		ds.listLogs = async (query) => {
+			ds.calls.push(query);
+			return query.cursor
+				? { rows: [makeLog({ body: 'second page' })], totalCount: 1 }
+				: { rows: [makeLog()], totalCount: 2, nextCursor: '1' };
+		};
+		const { findByText } = render(<LogsView dataSource={ds} />);
+		fireEvent.click(await findByText('Load more logs'));
+		await findByText('second page');
+		expect(ds.calls.at(-1)).toMatchObject({ cursor: '1', includeTotalCount: false });
+	});
+
 	it('opens a detail drawer with attributes when a row is clicked', async () => {
 		const ds = new FakeDataSource();
 		ds.rows = [makeLog()];

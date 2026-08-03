@@ -1355,6 +1355,32 @@
 	display: block;
 }
 
+.otelux-load-more-row {
+	position: absolute;
+	left: 0;
+	width: 100%;
+	height: 40px;
+	display: grid;
+	place-items: center;
+}
+
+.otelux-load-more {
+	padding: 5px 10px;
+	border: 1px solid var(--otelux-border);
+	border-radius: var(--otelux-r-1);
+	background: var(--otelux-bg-elevated);
+	color: var(--otelux-fg-secondary);
+	font: inherit;
+	font-size: 11px;
+	cursor: pointer;
+}
+
+.otelux-load-more:hover:not(:disabled),
+.otelux-load-more:focus-visible {
+	border-color: var(--otelux-accent);
+	color: var(--otelux-fg);
+}
+
 /* ---------- TraceRow ---------- */
 
 .otelux-trace-row {
@@ -2441,6 +2467,13 @@
 
 .otelux-log-row__trace-button:focus-visible {
 	outline: none;
+}
+
+.otelux-logs__load-more {
+	display: grid;
+	place-items: center;
+	min-height: 40px;
+	border-top: 1px solid var(--otelux-border);
 }
 
 .otelux-log-row__action {
