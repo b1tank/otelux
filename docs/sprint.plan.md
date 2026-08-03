@@ -35,7 +35,7 @@ SQLite query latency is not the primary trace-click bottleneck. The dominant def
 - [x] **P1 — Split waterfall summaries from span details — dispositioned to protocol sprint.** This requires a new cross-adapter protocol method and MCP-versus-UI semantic split; implementing it locally would violate the all-consumer contract. It remains the first protocol 0.6 task.
 - [x] **P1 — Isolate SQLite/runtime work from Electron main — dispositioned to runtime sprint.** Worker/utility-process RPC changes lifecycle, settings, receiver, MCP, storage controls, and packaging together. It remains the next architecture sprint rather than an unsafe partial worker facade.
 - [x] **P1 — Add keyset pagination and backpressure — dispositioned after runtime RPC.** Cursor semantics and pressure counters remain in `docs/plan.md`; current bounded 200-row lists are now virtualized.
-- [x] **P1 — Packaged interaction qualification.** Full Turbo build/test/typecheck passed and the unpacked production artifact passed preload, workbench, SQLite IPC, tray/receiver, ingest, hardening, and shutdown smoke. Real pointer/scroll timing remains blocked on Deskpal `--allow-exec`.
+- [x] **P1 — Packaged interaction qualification.** Full Turbo build/test/typecheck passed and the unpacked production artifact passed preload, workbench, SQLite IPC, tray/receiver, ingest, hardening, and shutdown smoke. After enabling Deskpal process launch, an isolated source build ingested 200 traces including a 1,000-deep trace; OCR located and clicked alternating traces, the selected 1,000-span waterfall rendered, and 12-step list scroll down/up delivered successfully.
 
 ## React implementation guardrails
 
@@ -66,7 +66,8 @@ SQLite query latency is not the primary trace-click bottleneck. The dominant def
 ## Hiccups & Notes
 
 - The production database was intentionally cleared before this audit, so the measurements use deterministic synthetic fixtures rather than historical user data.
-- Deskpal app launch remains unavailable because the current server lacks `--allow-exec`; packaged pointer/scroll qualification must run after that backend restarts. Structural React, DOM, storage, and stack-depth probes ran locally.
+- The current in-session Deskpal bridge was launched without `--allow-exec`. The persistent Pi launcher now exports `DESKPAL_PI_ALLOW_EXEC=1` for future sessions. For this sprint, verification used a dedicated Deskpal MCP process with `--allow-exec`; no raw xdotool/input automation was used.
+- Deskpal `click_text` spends 7–13 seconds in OCR on the dense synthetic screen, so that command wall time is not reported as application click latency. The verified postcondition is the selected-trace/waterfall state after each delivered click; packaged latency budgets still require capture-bound frame timing in the follow-up harness.
 - Summary/detail protocol splitting was not faked inside the UI: adding a `DataSource` operation requires protocol, engine, IPC, adapter-direct, MCP semantics, and every test fake to move together.
 - SQLite worker isolation was not shipped as a partial facade because synchronous control methods and runtime ownership would still leave blocking paths in Electron main. The dedicated runtime sprint owns the complete boundary.
 
