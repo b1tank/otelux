@@ -30,7 +30,7 @@
 		"@hono/node-server": "2.0.12",
 		"@otelux/engine": "*",
 		"@otelux/types": "*",
-		"hono": "4.12.33"
+		"hono": "4.12.34"
 	},
 	"devDependencies": {
 		"@types/node": "22.20.1",
