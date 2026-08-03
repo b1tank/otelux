@@ -4,7 +4,7 @@ Updated: 2026-07-14
 
 Status: Active
 
-This document is the finite execution plan for taking OTelux from a private pre-release repository to a public, installable, cross-platform product that is ready for a coordinated launch.
+This document is the finite execution plan for taking the now-public OTelux prerelease repository to an installable cross-platform product that is ready for a coordinated stable launch.
 
 The canonical documents keep separate responsibilities:
 
@@ -240,7 +240,7 @@ After flipping visibility:
 
 13. Cut the next tag (or re-run the release workflow) and confirm build-provenance attestation now succeeds.
 14. Verify the Security tab shows the "Report a vulnerability" button.
-15. Update the README status from private pre-release to the public prerelease.
+15. Confirm the README status and install instructions describe the public prerelease accurately. — **done for v0.1.9**
 
 ## Sprint Retirement
 

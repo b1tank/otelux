@@ -13,7 +13,7 @@ Make the repository safe, accurate, and maintainable to expose publicly without 
 - [x] **P0 — Configure GitHub security controls.** Private vulnerability reporting, secret scanning, push protection, and Dependabot security updates are enabled. CodeQL is configured and will be exercised by this public pull request.
 - [x] **P0 — Protect `main`.** Pull requests, strict `build & test (Ubuntu, Node 22)`, conversation resolution, linear history, admin enforcement, and force-push/deletion protection are enabled. As a sole-owner project, zero external approvals are required.
 - [x] **P0 — Verify community and security documents.** LICENSE is detected as MIT; README, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, SUPPORT, issue form, and PR template exist. The Code of Conduct accurately discloses the sole-maintainer model and uses the maintainer's private profile contact rather than claiming an unavailable independent escalation path.
-- [ ] **P0 — Final public flip verification.** Repository is public; vulnerability reporting, release links/checksums, description/homepage/topics, and public wording are verified. Confirm CI and CodeQL on this pull request, merge through protected `main`, then re-check the public Security tab.
+- [x] **P0 — Final public flip verification.** Repository is public; vulnerability reporting, secret scanning/push protection, Dependabot updates, protected `main`, release links/checksums, description/homepage/topics, and public wording are verified. PR #22 passed required CI and CodeQL and merged through protected `main`; CodeQL reports zero open alerts.
 
 ## Important after visibility, before stable-product claims
 
@@ -46,4 +46,4 @@ release and install claims independently verified
 
 ## Final outcome
 
-Sprint ready for execution in a new session.
+Public OSS readiness is complete. The repository is public with clean history/tree scans, accurate prerelease and security documentation, active vulnerability/secret scanning controls, protected `main`, green required CI and CodeQL, verified v0.1.9 assets, and an explicitly documented sole-maintainer conduct escalation limitation. Stable-product and cross-platform roadmap gates remain separate.
