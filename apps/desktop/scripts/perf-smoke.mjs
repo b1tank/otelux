@@ -234,6 +234,12 @@ try {
 	);
 	const interaction = await evaluate(`(async () => {
     const buttons = [...document.querySelectorAll('.otelux-trace-row__button')];
+    const loadMore = document.querySelector('.otelux-load-more');
+    const heightBefore = document.querySelector('.otelux-trace-list__rows')?.style.height;
+    const loadStarted = performance.now();
+    loadMore?.click();
+    for (let i=0;i<100 && document.querySelector('.otelux-trace-list__rows')?.style.height === heightBefore;i++) await new Promise(r=>setTimeout(r,10));
+    const pagingMs = performance.now() - loadStarted;
     const before = performance.now();
     for (let i = 0; i < 50; i++) buttons[i % Math.min(buttons.length, 12)].click();
     const dispatchMs = performance.now() - before;
@@ -244,7 +250,7 @@ try {
     const gaps=[]; let last=performance.now();
     for(let i=0;i<60;i++) await new Promise(r=>requestAnimationFrame(now=>{gaps.push(now-last);last=now;r()}));
     gaps.sort((a,b)=>a-b);
-    return { dispatchMs, waterfallRows: document.querySelectorAll('.otelux-waterfall__row').length,
+    return { dispatchMs, pagingMs, waterfallRows: document.querySelectorAll('.otelux-waterfall__row').length,
       waterfallDom: document.querySelector('.otelux-waterfall')?.querySelectorAll('*').length ?? 0,
       selected: document.querySelector('.otelux-waterfall__tid')?.textContent,
       frameP95: gaps[Math.floor(gaps.length*.95)], frameMax:gaps.at(-1) };
@@ -255,6 +261,8 @@ try {
 			`continuous ingest failed: ${ingestResponses.map((response) => response.status)}`,
 		);
 	}
+	if (interaction.pagingMs >= 500)
+		throw new Error(`cursor paging budget exceeded: ${interaction.pagingMs} ms`);
 	if (interaction.waterfallRows >= 100 || interaction.waterfallDom >= 2_000)
 		throw new Error(`waterfall budget exceeded: ${JSON.stringify(interaction)}`);
 	if (!interaction.selected) throw new Error('selected waterfall did not render');
