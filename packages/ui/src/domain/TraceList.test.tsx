@@ -71,6 +71,20 @@ class FakeDataSource implements DataSource {
 }
 
 describe('TraceList', () => {
+	it('mounts a bounded virtual window for 200 results', async () => {
+		const ds = new FakeDataSource();
+		ds.rows = Array.from({ length: 200 }, (_, index) =>
+			makeRow({ traceId: `trace-${index}` as unknown as TraceId, rootName: `trace ${index}` }),
+		);
+		const { container } = render(<TraceList dataSource={ds} onSelect={() => {}} />);
+		await waitFor(() => expect(ds.calls.length).toBeGreaterThan(0));
+
+		expect(container.querySelectorAll('.otelux-trace-row').length).toBeLessThan(50);
+		expect(container.querySelector('.otelux-trace-list__rows')?.getAttribute('style')).toContain(
+			'16400px',
+		);
+	});
+
 	it('renders the empty state when there are no rows', async () => {
 		const ds = new FakeDataSource();
 		const { findByText } = render(<TraceList dataSource={ds} onSelect={() => {}} />);

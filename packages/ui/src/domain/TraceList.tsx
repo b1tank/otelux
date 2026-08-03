@@ -25,12 +25,13 @@ import type {
 	TraceListSort,
 } from '@otelux/protocol';
 import type { TraceId } from '@otelux/types';
-import type { JSX, KeyboardEvent } from 'react';
+import { type CSSProperties, type JSX, type KeyboardEvent, memo } from 'react';
 import { formatDuration, formatWallClock, serviceColorVar } from '../format.js';
 import { CopyButton } from '../primitives/CopyButton.js';
 import { IconButton } from '../primitives/IconButton.js';
 import { ResultFooter } from '../primitives/ResultFooter.js';
 import { PanelLeftIcon, WaterfallIcon } from '../primitives/icons.js';
+import { useFixedVirtualRows } from '../primitives/useFixedVirtualRows.js';
 import { useDataSourceQuery } from '../useDataSourceQuery.js';
 
 export type TraceListDensity = 'card' | 'flat';
@@ -80,6 +81,9 @@ export interface TraceListProps {
 }
 
 const DEFAULT_LIMIT = 200;
+const TRACE_CARD_ROW_HEIGHT = 82;
+const TRACE_FLAT_ROW_HEIGHT = 36;
+const TRACE_VIRTUALIZE_THRESHOLD = 50;
 const DEFAULT_ENDPOINT = 'http://localhost:4319/v1/traces';
 
 export function TraceList(props: TraceListProps): JSX.Element {
@@ -137,6 +141,12 @@ export function TraceList(props: TraceListProps): JSX.Element {
 	);
 
 	const rows = query.value?.rows ?? [];
+	const rowHeight = density === 'card' ? TRACE_CARD_ROW_HEIGHT : TRACE_FLAT_ROW_HEIGHT;
+	const virtual = useFixedVirtualRows(
+		rows.length,
+		rowHeight,
+		rows.length > TRACE_VIRTUALIZE_THRESHOLD,
+	);
 
 	// Distinguish a genuinely empty store from a filtered-empty result: the
 	// "Load sample data" affordance only makes sense when nothing is stored,
@@ -175,7 +185,7 @@ export function TraceList(props: TraceListProps): JSX.Element {
 					</IconButton>
 				) : null}
 			</header>
-			<div className="otelux-trace-list__body">
+			<div ref={virtual.scrollRef} className="otelux-trace-list__body" onScroll={virtual.onScroll}>
 				{query.loading && rows.length === 0 ? (
 					<div className="otelux-trace-list__empty">Waiting for traces…</div>
 				) : rows.length === 0 ? (
@@ -193,16 +203,20 @@ export function TraceList(props: TraceListProps): JSX.Element {
 						) : null}
 					</div>
 				) : (
-					<ul className="otelux-trace-list__rows">
-						{rows.map((row) => (
-							<TraceRow
-								key={row.traceId}
-								row={row}
-								density={density}
-								selected={row.traceId === selectedTraceId}
-								onSelect={onSelect}
-							/>
-						))}
+					<ul className="otelux-trace-list__rows" style={{ height: virtual.totalHeight }}>
+						{virtual.rows.map((item) => {
+							const row = rows[item.index];
+							return row ? (
+								<TraceRow
+									key={row.traceId}
+									row={row}
+									density={density}
+									selected={row.traceId === selectedTraceId}
+									onSelect={onSelect}
+									virtualStyle={{ height: rowHeight, transform: `translateY(${item.start}px)` }}
+								/>
+							) : null;
+						})}
 					</ul>
 				)}
 			</div>
@@ -218,9 +232,10 @@ interface TraceRowProps {
 	density: TraceListDensity;
 	selected: boolean;
 	onSelect(traceId: TraceId): void;
+	virtualStyle: CSSProperties;
 }
 
-function TraceRow(props: TraceRowProps): JSX.Element {
+const TraceRow = memo(function TraceRow(props: TraceRowProps): JSX.Element {
 	const { row, density, selected, onSelect } = props;
 
 	// Primary service drives the left-edge selection stripe color and the
@@ -240,7 +255,7 @@ function TraceRow(props: TraceRowProps): JSX.Element {
 	return (
 		<li
 			className={`otelux-trace-row otelux-trace-row--${density}${selected ? ' is-selected' : ''}`}
-			{...(rowStyle ? { style: rowStyle } : {})}
+			style={{ ...rowStyle, ...props.virtualStyle }}
 		>
 			{/*
 			 * Outer interactive surface is a div role="button" rather
@@ -321,7 +336,7 @@ function TraceRow(props: TraceRowProps): JSX.Element {
 			</div>
 		</li>
 	);
-}
+});
 
 interface ServiceChipsProps {
 	services: readonly string[];

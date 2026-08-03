@@ -1335,6 +1335,7 @@
 }
 
 .otelux-trace-list__rows {
+	position: relative;
 	/*
 	 * Mockup parity: cards are flush, separated only by their own
 	 * `border-bottom`. The UL is just a list container — no padding,
@@ -1344,21 +1345,24 @@
 	list-style: none;
 	margin: 0;
 	padding: 0;
-	display: flex;
-	flex-direction: column;
-	gap: 0;
+	display: block;
 }
 
 /* ---------- TraceRow ---------- */
 
 .otelux-trace-row {
-	position: relative;
+	position: absolute;
+	top: 0;
+	left: 0;
 	display: block;
+	width: 100%;
+	box-sizing: border-box;
 }
 
 .otelux-trace-row__button {
 	display: flex;
 	flex-direction: column;
+	height: 100%;
 	/*
 	 * Chromium's UA stylesheet sets `button { align-items: flex-start }`,
 	 * which overrides the flex default of `stretch` and makes our column
