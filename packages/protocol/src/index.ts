@@ -244,9 +244,20 @@ export interface LoadSampleDataResult {
 	readonly metrics: number;
 }
 
+export interface ReceiverPressure {
+	readonly overloadedTraces: number;
+	readonly overloadedLogs: number;
+	readonly overloadedMetrics: number;
+}
+
 export type ReceiverStatus =
 	| { readonly kind: 'starting' }
-	| { readonly kind: 'running'; readonly port: number; readonly host: string }
+	| {
+			readonly kind: 'running';
+			readonly port: number;
+			readonly host: string;
+			readonly pressure?: ReceiverPressure;
+	  }
 	| {
 			readonly kind: 'error';
 			readonly port: number;

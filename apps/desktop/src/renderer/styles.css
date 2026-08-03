@@ -124,6 +124,17 @@ body,
 	color: var(--otelux-fg);
 }
 
+.endpoint-bar__pressure {
+	padding: 1px 6px;
+	border: 1px solid color-mix(in srgb, var(--otelux-error) 55%, transparent);
+	border-radius: 10px;
+	background: color-mix(in srgb, var(--otelux-error) 10%, transparent);
+	color: var(--otelux-error);
+	font-size: 10px;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
 .endpoint-bar__beta {
 	margin-left: 4px;
 	padding: 1px 6px;

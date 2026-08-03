@@ -40,6 +40,7 @@ export function EndpointBar(props: EndpointBarProps): JSX.Element {
 			) : (
 				<span className="endpoint-bar__url">{statusText(status)}</span>
 			)}
+			<PressurePill status={status} />
 			<McpPill status={mcpStatus} />
 			<BetaBadge />
 		</div>
@@ -58,6 +59,21 @@ function BetaBadge(): JSX.Element {
 	return (
 		<span className="endpoint-bar__beta" title={tooltip} aria-label={tooltip}>
 			Beta
+		</span>
+	);
+}
+
+function PressurePill({ status }: { status: ReceiverStatus | undefined }): JSX.Element | null {
+	if (status?.kind !== 'running' || status.pressure === undefined) return null;
+	const total =
+		status.pressure.overloadedTraces +
+		status.pressure.overloadedLogs +
+		status.pressure.overloadedMetrics;
+	if (total === 0) return null;
+	const detail = `${status.pressure.overloadedTraces} traces, ${status.pressure.overloadedLogs} logs, ${status.pressure.overloadedMetrics} metrics rejected because the receiver queue was full`;
+	return (
+		<span className="endpoint-bar__pressure" title={detail} aria-label={detail}>
+			Dropped {total}
 		</span>
 	);
 }
@@ -135,8 +151,13 @@ function statusText(status: ReceiverStatus | undefined): string {
 	switch (status.kind) {
 		case 'starting':
 			return 'starting…';
-		case 'running':
-			return `listening on http://${status.host}:${status.port}`;
+		case 'running': {
+			const pressure = status.pressure;
+			const dropped = pressure
+				? pressure.overloadedTraces + pressure.overloadedLogs + pressure.overloadedMetrics
+				: 0;
+			return `listening on http://${status.host}:${status.port}${dropped > 0 ? `; ${dropped} overloaded exports rejected` : ''}`;
+		}
 		case 'error':
 			return `failed to bind ${status.host}:${status.port}: ${status.message}`;
 	}

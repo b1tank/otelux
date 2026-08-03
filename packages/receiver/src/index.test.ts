@@ -115,7 +115,13 @@ describe('@otelux/receiver', () => {
 					},
 				},
 			});
-			receiver = createReceiver({ engine, port: 0, maxPendingExports: 1 });
+			const overloaded: string[] = [];
+			receiver = createReceiver({
+				engine,
+				port: 0,
+				maxPendingExports: 1,
+				onOverload: (signal) => overloaded.push(signal),
+			});
 			await receiver.start();
 			baseUrl = `http://${receiver.host}:${receiver.port}`;
 
@@ -131,6 +137,7 @@ describe('@otelux/receiver', () => {
 				body: JSON.stringify(FIXTURE),
 			});
 			expect(second.status).toBe(503);
+			expect(overloaded).toEqual(['traces']);
 			expect(await second.json()).toEqual({ error: 'receiver_overloaded' });
 			releaseWrite();
 			expect((await first).status).toBe(200);

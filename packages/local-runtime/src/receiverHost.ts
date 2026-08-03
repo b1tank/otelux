@@ -1,11 +1,16 @@
 import type { Engine } from '@otelux/engine';
-import type { ReceiverStatus } from '@otelux/protocol';
+import type { ReceiverPressure, ReceiverStatus } from '@otelux/protocol';
 import { type Receiver, createReceiver } from '@otelux/receiver';
+
+function emptyPressure(): ReceiverPressure {
+	return { overloadedTraces: 0, overloadedLogs: 0, overloadedMetrics: 0 };
+}
 
 export class ReceiverHost {
 	private receiver: Receiver | undefined;
 	private currentStatus: ReceiverStatus = { kind: 'starting' };
 	private readonly listeners = new Set<(status: ReceiverStatus) => void>();
+	private pressure: ReceiverPressure = emptyPressure();
 
 	constructor(
 		private readonly engine: Engine,
@@ -26,6 +31,7 @@ export class ReceiverHost {
 
 	async start(port: number): Promise<ReceiverStatus> {
 		await this.stop();
+		this.pressure = emptyPressure();
 		this.setStatus({ kind: 'starting' });
 		try {
 			const receiver = createReceiver({
@@ -33,10 +39,16 @@ export class ReceiverHost {
 				port,
 				host: this.host,
 				...(this.maxBodyBytes !== undefined ? { maxBodyBytes: this.maxBodyBytes } : {}),
+				onOverload: (signal) => this.recordOverload(signal),
 			});
 			await receiver.start();
 			this.receiver = receiver;
-			this.setStatus({ kind: 'running', port: receiver.port, host: this.host });
+			this.setStatus({
+				kind: 'running',
+				port: receiver.port,
+				host: this.host,
+				pressure: this.pressure,
+			});
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			this.setStatus({ kind: 'error', port, host: this.host, message });
@@ -49,6 +61,17 @@ export class ReceiverHost {
 		this.receiver = undefined;
 		if (receiver) {
 			await receiver.stop();
+		}
+	}
+
+	private recordOverload(signal: 'traces' | 'logs' | 'metrics'): void {
+		this.pressure = {
+			overloadedTraces: this.pressure.overloadedTraces + (signal === 'traces' ? 1 : 0),
+			overloadedLogs: this.pressure.overloadedLogs + (signal === 'logs' ? 1 : 0),
+			overloadedMetrics: this.pressure.overloadedMetrics + (signal === 'metrics' ? 1 : 0),
+		};
+		if (this.currentStatus.kind === 'running') {
+			this.setStatus({ ...this.currentStatus, pressure: this.pressure });
 		}
 	}
 
