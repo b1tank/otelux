@@ -321,15 +321,20 @@ export function createMemoryStorage(): Storage {
 						cmp = a.errorCount - b.errorCount;
 						break;
 				}
-				return cmp * cmpDir;
+				if (cmp !== 0) return cmp * cmpDir;
+				return a.traceId.localeCompare(b.traceId) * cmpDir;
 			});
 
 			const totalCount = filtered.length;
-			const offset = query.offset ?? 0;
+			const cursorIndex = query.cursor
+				? filtered.findIndex((row) => row.traceId === query.cursor)
+				: -1;
+			const offset = cursorIndex >= 0 ? cursorIndex + 1 : (query.offset ?? 0);
 			const limit = query.limit ?? 100;
 			const page = filtered.slice(offset, offset + limit);
+			const nextCursor = offset + page.length < filtered.length ? page.at(-1)?.traceId : undefined;
 
-			return { rows: page, totalCount };
+			return { rows: page, totalCount, ...(nextCursor ? { nextCursor } : {}) };
 		},
 
 		getTraceSpans(traceId: TraceId): readonly Span[] {

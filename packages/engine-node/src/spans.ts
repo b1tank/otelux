@@ -269,14 +269,23 @@ INSERT OR REPLACE INTO traces (
 		const sortColumn = traceSortColumn(query.sortBy);
 		const direction =
 			(query.sortDirection ?? (query.sortBy ? 'asc' : 'desc')) === 'asc' ? 'ASC' : 'DESC';
+		const pageWhere = [...where];
+		const pageParams = [...params];
+		if (query.cursor) {
+			const comparator = direction === 'ASC' ? '>' : '<';
+			pageWhere.push(`(${sortColumn} ${comparator} (SELECT ${sortColumn} FROM traces WHERE trace_id = ?)
+  OR (${sortColumn} = (SELECT ${sortColumn} FROM traces WHERE trace_id = ?) AND trace_id ${comparator} ?))`);
+			pageParams.push(query.cursor, query.cursor, query.cursor);
+		}
+		const pageWhereSql = pageWhere.length > 0 ? `WHERE ${pageWhere.join(' AND ')}` : '';
 		const limit = query.limit ?? 100;
-		const offset = query.offset ?? 0;
+		const offset = query.cursor ? 0 : (query.offset ?? 0);
 		const stmt = this.db.prepare(
 			`SELECT trace_id, root_name, start_unix_nano, duration_nanos, span_count, error_count, services
-FROM traces ${whereSql} ORDER BY ${sortColumn} ${direction} LIMIT ? OFFSET ?`,
+FROM traces ${pageWhereSql} ORDER BY ${sortColumn} ${direction}, trace_id ${direction} LIMIT ? OFFSET ?`,
 		);
 		stmt.setReadBigInts(true);
-		const rows = stmt.all(...params, BigInt(limit), BigInt(offset)) as Array<{
+		const rows = stmt.all(...pageParams, BigInt(limit + 1), BigInt(offset)) as Array<{
 			trace_id: string;
 			root_name: string;
 			start_unix_nano: bigint;
@@ -286,7 +295,8 @@ FROM traces ${whereSql} ORDER BY ${sortColumn} ${direction} LIMIT ? OFFSET ?`,
 			services: string;
 		}>;
 
-		const mapped: ListTracesResultRow[] = rows.map((r) => ({
+		const hasMore = rows.length > limit;
+		const mapped: ListTracesResultRow[] = rows.slice(0, limit).map((r) => ({
 			traceId: r.trace_id,
 			rootName: r.root_name,
 			startTimeUnixNano: r.start_unix_nano,
@@ -295,7 +305,8 @@ FROM traces ${whereSql} ORDER BY ${sortColumn} ${direction} LIMIT ? OFFSET ?`,
 			spanCount: Number(r.span_count),
 			errorCount: Number(r.error_count),
 		}));
-		return { rows: mapped, totalCount: countRow.n };
+		const nextCursor = hasMore ? mapped.at(-1)?.traceId : undefined;
+		return { rows: mapped, totalCount: countRow.n, ...(nextCursor ? { nextCursor } : {}) };
 	}
 
 	getTraceSpans(traceId: TraceId): readonly Span[] {

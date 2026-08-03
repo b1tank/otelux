@@ -241,6 +241,23 @@ function runStorageContract(label: string, make: () => Storage): void {
 			});
 			expect(paged.totalCount).toBe(2);
 			expect(paged.rows.map((r) => r.rootName)).toEqual(['sad path']);
+
+			const first = await storage.listTraces({
+				limit: 1,
+				sortBy: 'startTime',
+				sortDirection: 'asc',
+			});
+			expect(first.rows.map((row) => row.rootName)).toEqual(['happy']);
+			expect(first.nextCursor).toBeTruthy();
+			if (!first.nextCursor) throw new Error('expected next cursor');
+			const second = await storage.listTraces({
+				limit: 1,
+				cursor: first.nextCursor,
+				sortBy: 'startTime',
+				sortDirection: 'asc',
+			});
+			expect(second.rows.map((row) => row.rootName)).toEqual(['sad path']);
+			expect(second.nextCursor).toBeUndefined();
 		});
 
 		it('applies trace service filtering before count and pagination', async () => {

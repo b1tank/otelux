@@ -24,6 +24,8 @@ export type TraceListSort = 'startTime' | 'name' | 'duration' | 'spanCount' | 'e
 export interface ListTracesQuery {
 	limit?: number;
 	offset?: number;
+	/** Opaque trace-id cursor returned as nextCursor by the previous page. */
+	cursor?: string;
 	sortBy?: TraceListSort;
 	sortDirection?: SortDirection;
 	timeFromUnixNano?: bigint;
@@ -48,6 +50,7 @@ export interface ListTracesResultRow {
 export interface ListTracesResult {
 	rows: readonly ListTracesResultRow[];
 	totalCount: number;
+	nextCursor?: string;
 }
 
 export interface GetTraceQuery {
