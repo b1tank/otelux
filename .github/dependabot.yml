@@ -19,6 +19,13 @@ updates:
         update-types:
           - minor
           - patch
+    # Major framework/toolchain migrations need coordinated compatibility and
+    # packaged regression work. Security alerts remain visible and are handled
+    # in focused manually-created PRs when the patched version is a major.
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
     commit-message:
       prefix: deps
       include: scope
