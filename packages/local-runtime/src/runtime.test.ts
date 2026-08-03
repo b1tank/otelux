@@ -113,7 +113,7 @@ describe('createLocalRuntime', () => {
 			activePath: join(directory, 'otelux.db'),
 			defaultPath: join(directory, 'otelux.db'),
 		});
-		const usage = runtime.getStorageUsage();
+		const usage = await runtime.getStorageUsage();
 		expect(usage.activePath).toBe(join(directory, 'otelux.db'));
 		expect(usage.retentionBytes).toBeGreaterThan(0);
 		expect(usage.totalBytes).toBe(usage.databaseFileBytes + usage.walBytes + usage.sharedMemoryBytes);

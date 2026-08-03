@@ -1,6 +1,5 @@
 import { join, resolve } from 'node:path';
 import { createEngine } from '@otelux/engine';
-import { type NodeSqliteStorage, createNodeSqliteStorage } from '@otelux/engine-node';
 import type {
 	DataSource,
 	Disposable,
@@ -31,6 +30,7 @@ import {
 import { SettingsStore } from './settings.js';
 import { updateSettings } from './updateSettings.js';
 import { OTELUX_LOCAL_RUNTIME_VERSION } from './version.js';
+import { type WorkerSqliteStorage, createWorkerSqliteStorage } from './workerStorage.js';
 
 export interface RuntimeLogger {
 	info(message: string): void;
@@ -58,7 +58,7 @@ export interface LocalRuntime extends DataSource {
 	getReceiverStatus(): ReceiverStatus;
 	getMcpStatus(): McpStatus;
 	getStoragePath(): StoragePathInfo;
-	getStorageUsage(): StorageUsageInfo;
+	getStorageUsage(): Promise<StorageUsageInfo>;
 	getRuntimeState(): RuntimeState;
 	updateSettings(patch: PartialSettings): Promise<UpdateSettingsResult>;
 	loadSampleData(): Promise<LoadSampleDataResult>;
@@ -141,7 +141,7 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 	const settings = await SettingsStore.open(settingsFile);
 	const mcpToken = await loadOrCreateMcpToken(mcpTokenFile);
 	const configuredDbPath = settings.get().storage.dbPath;
-	const opened = openStorage(
+	const opened = await openStorage(
 		configuredDbPath !== '' ? configuredDbPath : defaultDbPath,
 		defaultDbPath,
 		settings.get().retention,
@@ -201,7 +201,13 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 		scheduleStateWrite();
 	});
 	const offSettings = settings.onChange((next) => {
-		storage.applyRetention(next.retention);
+		void storage
+			.applyRetention(next.retention)
+			.catch((error) =>
+				logger.error(
+					`[otelux] retention update failed: ${error instanceof Error ? error.message : String(error)}`,
+				),
+			);
 		emit({ kind: 'settings-changed', settings: next });
 		scheduleStateWrite();
 	});
@@ -328,15 +334,15 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 	};
 }
 
-function openStorage(
+async function openStorage(
 	preferredPath: string,
 	defaultPath: string,
 	retention: Settings['retention'],
 	logger: RuntimeLogger,
-): { storage: NodeSqliteStorage; activeDbPath: string } {
+): Promise<{ storage: WorkerSqliteStorage; activeDbPath: string }> {
 	try {
 		return {
-			storage: createNodeSqliteStorage({ path: preferredPath, retention }),
+			storage: await createWorkerSqliteStorage({ path: preferredPath, retention }),
 			activeDbPath: preferredPath,
 		};
 	} catch (error) {
@@ -349,7 +355,7 @@ function openStorage(
 			}`,
 		);
 		return {
-			storage: createNodeSqliteStorage({ path: defaultPath, retention }),
+			storage: await createWorkerSqliteStorage({ path: defaultPath, retention }),
 			activeDbPath: defaultPath,
 		};
 	}
