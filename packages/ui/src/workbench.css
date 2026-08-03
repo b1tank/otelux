@@ -1845,8 +1845,9 @@
 	box-shadow: inset 2px 0 0 var(--otelux-accent);
 }
 
-/* Name cell — flex row with caret + title. Indent guides live as
- * absolutely positioned children so they stack behind the text. */
+/* Name cell — flex row with caret + title. One pseudo-element paints every
+ * ancestor guide with a repeating gradient, keeping DOM per row constant even
+ * for pathologically deep traces. */
 .otelux-waterfall__name-cell {
 	position: relative;
 	display: flex;
@@ -1856,15 +1857,14 @@
 	padding-right: 8px;
 }
 
-/* Ancestor indent guides — thin vertical hairlines at each ancestor
- * column position. Stacked behind the caret so they don't visually
- * compete with interactive controls. */
-.otelux-waterfall__guide {
+.otelux-waterfall__name-cell::before {
 	position: absolute;
 	top: -2px;
 	bottom: -2px;
-	width: 1px;
-	background: var(--otelux-border);
+	left: 6px;
+	width: calc(var(--otelux-depth, 0) * 14px);
+	background: repeating-linear-gradient(to right, transparent 0 13px, var(--otelux-border) 13px 14px);
+	content: "";
 	pointer-events: none;
 }
 

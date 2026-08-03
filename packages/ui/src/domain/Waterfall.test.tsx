@@ -120,6 +120,23 @@ describe('Waterfall', () => {
 		expect(cls).toContain('is-error');
 	});
 
+	it('keeps indentation DOM constant for a 1,000-deep trace', () => {
+		const spans = Array.from({ length: 1_000 }, (_, index) =>
+			makeSpan({
+				spanId: `span-${index}`,
+				...(index > 0 ? { parentSpanId: `span-${index - 1}` } : {}),
+				name: `span ${index}`,
+				startTimeUnixNano: BigInt(index),
+				endTimeUnixNano: BigInt(index + 1),
+			}),
+		);
+		const { container } = render(<Waterfall trace={makeTrace(spans)} onSpanSelect={() => {}} />);
+
+		expect(container.querySelectorAll('.otelux-waterfall__row')).toHaveLength(1_000);
+		expect(container.querySelectorAll('.otelux-waterfall__guide')).toHaveLength(0);
+		expect(container.querySelectorAll('*').length).toBeLessThan(10_000);
+	});
+
 	it('fires onSpanSelect with the span id when a row is clicked', () => {
 		const root = makeSpan({ spanId: 'pick', name: 'pick me' });
 		const trace = makeTrace([root]);

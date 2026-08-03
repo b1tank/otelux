@@ -241,12 +241,6 @@ function Row(props: RowProps): JSX.Element {
 	const fillVar = serviceColorVar(serviceName);
 	const isError = row.span.status.code === SpanStatusCode.Error;
 
-	// Ancestor indent guides — N vertical hairlines drawn before the
-	// caret to make the parent chain visible. Same vertical position
-	// for every row so the guides form continuous lines across the
-	// rows when scrolling.
-	const guides = Array.from({ length: row.depth }, (_, i) => i);
-
 	return (
 		<div
 			// biome-ignore lint/a11y/useSemanticElements: this is a row in a custom waterfall list — role=button + keyboard handlers replicate <button> semantics inside the grid layout.
@@ -263,8 +257,10 @@ function Row(props: RowProps): JSX.Element {
 			style={{
 				// Service color is exposed as a CSS variable so the bar and
 				// the selected-state slab can reference the same hue without
-				// re-deriving it from the service name.
+				// re-deriving it from the service name. Depth drives one CSS
+				// repeating gradient instead of O(depth) guide elements.
 				['--svc' as string]: fillVar,
+				['--otelux-depth' as string]: row.depth,
 			}}
 			onClick={() => onSelect(row.span.spanId)}
 			onKeyDown={(e) => {
@@ -275,14 +271,6 @@ function Row(props: RowProps): JSX.Element {
 			}}
 		>
 			<div className="otelux-waterfall__name-cell">
-				{guides.map((i) => (
-					<span
-						key={i}
-						className="otelux-waterfall__guide"
-						style={{ left: `${i * DEPTH_INDENT_PX + 6}px` }}
-						aria-hidden="true"
-					/>
-				))}
 				{row.hasChildren ? (
 					<button
 						type="button"
