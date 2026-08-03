@@ -18,7 +18,7 @@ Do not open a public issue for a suspected vulnerability.
 
 Report privately through **GitHub private vulnerability reporting**: open the repository's **Security** tab and choose **Report a vulnerability**. This opens a private security advisory visible only to you and the maintainer, and is the preferred channel.
 
-> GitHub private vulnerability reporting is a public-repository feature, enabled for this project at the same time it is made public. While the repository is private, that button is not available; anyone who already has repository access should instead contact the maintainer through the private channel listed on their GitHub profile, and must not disclose vulnerability details in a public issue, discussion, or pull request.
+> GitHub private vulnerability reporting is enabled for this public repository. If the Security-tab flow is unavailable, contact the maintainer through the private channel listed on their GitHub profile. Never disclose vulnerability details in a public issue, discussion, or pull request.
 
 Please include:
 

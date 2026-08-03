@@ -10,10 +10,10 @@ Make the repository safe, accurate, and maintainable to expose publicly without 
 - [x] **P0 — Audit the current tree for private data.** No credential-shaped matches, private/RFC1918 URLs, sensitive tracked filenames, binary telemetry databases, screenshots, or real home paths were found. `/home/user` appears only as a synthetic path fixture.
 - [x] **P0 — Reconcile product claims and roadmap state.** Removed stale pending claims for pagination, worker isolation, backpressure, service overview, and correlation; updated protocol/package status and current release wording.
 - [x] **P0 — Verify public installation and release claims.** Published `v0.1.9` release targets the tagged commit and contains `.deb`, SHA256SUMS, and SBOM; downloaded assets pass checksums, package metadata is `otelux 0.1.9 amd64`, and the installed package reports `0.1.9 install ok installed`. Packaged functional/performance smoke passed in release CI.
-- [ ] **P0 — Configure GitHub security controls.** Enable private vulnerability reporting, secret scanning, push protection, Dependabot, and CodeQL; verify each control is active after visibility changes.
-- [ ] **P0 — Protect `main`.** Require pull requests and green CI, block force pushes/deletion, and require branches to be current before merge. Decide whether signed commits and linear history are required.
+- [x] **P0 — Configure GitHub security controls.** Private vulnerability reporting, secret scanning, push protection, and Dependabot security updates are enabled. CodeQL is configured and will be exercised by this public pull request.
+- [x] **P0 — Protect `main`.** Pull requests, strict `build & test (Ubuntu, Node 22)`, conversation resolution, linear history, admin enforcement, and force-push/deletion protection are enabled. As a sole-owner project, zero external approvals are required.
 - [x] **P0 — Verify community and security documents.** LICENSE is detected as MIT; README, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, SUPPORT, issue form, and PR template exist. The Code of Conduct accurately discloses the sole-maintainer model and uses the maintainer's private profile contact rather than claiming an unavailable independent escalation path.
-- [ ] **P0 — Final public flip verification.** Confirm CI and CodeQL run publicly, the vulnerability-reporting flow works, release links/checksums resolve, repository metadata is accurate, and no public-facing document still says “private repository.”
+- [ ] **P0 — Final public flip verification.** Repository is public; vulnerability reporting, release links/checksums, description/homepage/topics, and public wording are verified. Confirm CI and CodeQL on this pull request, merge through protected `main`, then re-check the public Security tab.
 
 ## Important after visibility, before stable-product claims
 
@@ -29,7 +29,7 @@ Make the repository safe, accurate, and maintainable to expose publicly without 
 ## Hiccups & Notes
 
 - Public repository readiness is narrower than stable-release readiness. Do not delay visibility for roadmap features, but do not overstate platform support or product maturity.
-- Branch protection currently returns GitHub `403` because the private user-owned repository requires GitHub Pro or public visibility. Private vulnerability reporting returns `404` while private. Configure and verify both immediately after the visibility flip.
+- Before visibility changed, branch protection returned GitHub `403` and private vulnerability reporting returned `404`. Both became available immediately after the public flip and are now enabled.
 - The owner accepted the sole-maintainer conduct-reporting limitation. The repository documents it explicitly and will add independent escalation when more maintainers join.
 
 ## Exit criteria
