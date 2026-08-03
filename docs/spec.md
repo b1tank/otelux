@@ -49,8 +49,7 @@ Important current limits:
 
 - OTLP/gRPC ingest is planned, not shipped (OTLP/HTTP JSON and protobuf are live).
 - Dense trace modes need polish; span and log detail drawers provide internal key/value search. Trace interaction uses iterative layout, constant-DOM indentation, virtualized trace/waterfall rows, stable memoized row props, latest-only same-turn selection, stale-result rejection, and a bounded recent-trace cache. Protocol 0.6 sends lightweight waterfall spans and loads full selected-span details separately. SQLite ingest/query/retention runs in a bounded worker queue with direct-read priority rather than Electron main. Trace/log keyset cursors, optional exact counts, and visible per-signal overload counters are live. Trace/log views page incrementally through cursor-backed `Load more` controls. The packaged performance gate builds 10,000 traces / 200,000 spans plus 5,000-deep and 10,000-wide traces, runs interaction during continuous ingest, forces renderer GC, and enforces mounted-row/DOM, paging, frame-gap, and heap budgets in release CI.
-- Agent-run correlation and service overview tools are schema-stable but not fully implemented.
-- The storage audit's span-identity P0 is fixed in schema v2; trace-service count/page correctness is fixed in schema v3; schema v4 indexes the standard `service.namespace` source dimension; and metric histories are bounded and fetched in one compound indexed statement. Protocol 0.5 grouped source/service facets replace hidden raw-record probes. Main-process query isolation, keyset pagination, and the full query-budget harness remain pre-daemon hardening work. See [storage.md](storage.md#audit-findings).
+- The storage audit's span-identity P0 is fixed in schema v2; trace-service count/page correctness is fixed in schema v3; schema v4 indexes the standard `service.namespace` source dimension; metric histories are bounded; protocol 0.6 provides grouped facets, lightweight waterfall payloads, cursor paging, and optional exact counts; and SQLite runs in a bounded worker. The remaining pre-daemon hardening item is the SQL statement/query-plan budget harness. See [storage.md](storage.md#audit-findings).
 - `@otelux/protocol` is currently an in-memory TypeScript contract, not a validated JSON wire contract. Runtime RPC/SSE DTOs and schema snapshots are required before Desktop becomes a daemon client. See [protocol.md](protocol.md#current-gaps).
 
 ## Signals In Scope
@@ -94,14 +93,14 @@ The daemon transport and storage implementations must conform to [protocol.md](p
 | Package | Purpose | Current state |
 |---|---|---|
 | `@otelux/types` | Shared trace, log, metric, resource, scope, and attribute types. | Live. |
-| `@otelux/protocol` | `DataSource` interface and query/result contracts. | Live for traces/logs/metrics and grouped resource source/service facets (v0.5). |
+| `@otelux/protocol` | `DataSource` interface and query/result contracts. | Live for traces/logs/metrics, grouped source/service facets, lightweight waterfalls, and cursor paging (v0.6). |
 | `@otelux/engine` | Pure TypeScript ingest, query, layout, subscriptions, memory storage. | Live. |
 | `@otelux/engine-node` | Durable Node storage adapter (`node:sqlite`) with retention (age/size). | Live. |
 | `@otelux/local-runtime` | Backend composition and control API for storage, engine, OTLP, MCP, settings, and lifecycle. | Live; currently embedded by Desktop. |
-| `@otelux/receiver` | OTLP/HTTP receiver and single-instance helper. | JSON routes live for traces/logs/metrics. |
+| `@otelux/receiver` | OTLP/HTTP receiver and single-instance helper. | JSON and protobuf routes live for traces/logs/metrics with bounded concurrency and visible overload counters. |
 | `@otelux/ui` | React workbench and primitives. | Traces/logs/metrics live; polish ongoing around details, grouping controls, and footer controls. |
 | `@otelux/adapter-direct` | In-process `DataSource` wrapper. | Live. |
-| `@otelux/mcp-server` | Read-only MCP JSON-RPC dispatcher. | Live with some stubbed tools. |
+| `@otelux/mcp-server` | Read-only MCP JSON-RPC dispatcher. | Seven bounded read-only tools live, including service health and exact-ID agent-run correlation. |
 
 Apps are not published packages:
 

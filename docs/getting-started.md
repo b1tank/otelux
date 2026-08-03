@@ -1,8 +1,15 @@
 # Getting Started With OTelux
 
-Updated: 2026-07-16
+Updated: 2026-08-03
 
-OTelux has not published a supported binary release yet. The only current installation path is a local source checkout. Do not install OTelux through an unofficial `curl | sudo sh` command or third-party package.
+OTelux publishes a Linux x64 `.deb` prerelease through GitHub Releases. Download the immutable versioned assets from [v0.1.9](https://github.com/b1tank/otelux/releases/tag/v0.1.9), verify `SHA256SUMS`, then install with the package manager:
+
+```bash
+sha256sum -c SHA256SUMS
+sudo apt install ./OTelux-0.1.9-amd64.deb
+```
+
+Do not install OTelux through an unofficial `curl | sudo sh` command or third-party package. Source setup remains available below for contributors.
 
 The [Current Baseline](spec.md#current-baseline) is the source of truth for implemented capabilities and limitations. This guide describes the current pre-release desktop behavior.
 

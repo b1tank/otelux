@@ -2,14 +2,15 @@
 
 ## Supported Versions
 
-OTelux has not published its first supported release yet.
+OTelux publishes Linux prereleases for early testing. During this stage, only the latest prerelease and current `main` receive security fixes.
 
 | Version | Supported |
 |---|---|
+| Latest prerelease (`v0.1.9`) | Yes |
 | Current `main` branch | Yes |
-| Older snapshots and local builds | No |
+| Older prereleases, snapshots, and local builds | No |
 
-This table will be updated when `v0.1.0` is released. In general, only the latest supported release receives security fixes during the early project stages.
+This policy will be revisited for the first stable release.
 
 ## Reporting a Vulnerability
 

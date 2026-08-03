@@ -6,13 +6,13 @@ Make the repository safe, accurate, and maintainable to expose publicly without 
 
 ## Essential gates before visibility
 
-- [ ] **P0 — Re-run full-history secret scans.** Run pinned Gitleaks and TruffleHog against every commit; record versions, commands, commit count, and zero-secret evidence.
-- [ ] **P0 — Audit the current tree for private data.** Review fixtures, screenshots, generated artifacts, docs, examples, telemetry payloads, home paths, private endpoints, emails, and configuration files. Replace or remove anything sensitive.
-- [ ] **P0 — Reconcile product claims and roadmap state.** Remove stale statements that mark shipped pagination, worker isolation, backpressure, service overview, or correlation as pending; clearly label unsupported or experimental behavior.
-- [ ] **P0 — Verify public installation and release claims.** From a clean machine/profile, verify the published `.deb`, SHA256SUMS, SBOM, install, upgrade, launch, ingest, restart, and uninstall instructions. Ensure limitations and privacy boundaries are visible.
+- [x] **P0 — Re-run full-history secret scans.** Gitleaks 8.30.1 scanned 254 commits / 4.75 MB with zero findings; TruffleHog 3.95.9 scanned 3,778 chunks / 4.95 MB with zero verified or unverified secrets. Tool archives were checksum-recorded in the run evidence.
+- [x] **P0 — Audit the current tree for private data.** No credential-shaped matches, private/RFC1918 URLs, sensitive tracked filenames, binary telemetry databases, screenshots, or real home paths were found. `/home/user` appears only as a synthetic path fixture.
+- [x] **P0 — Reconcile product claims and roadmap state.** Removed stale pending claims for pagination, worker isolation, backpressure, service overview, and correlation; updated protocol/package status and current release wording.
+- [x] **P0 — Verify public installation and release claims.** Published `v0.1.9` release targets the tagged commit and contains `.deb`, SHA256SUMS, and SBOM; downloaded assets pass checksums, package metadata is `otelux 0.1.9 amd64`, and the installed package reports `0.1.9 install ok installed`. Packaged functional/performance smoke passed in release CI.
 - [ ] **P0 — Configure GitHub security controls.** Enable private vulnerability reporting, secret scanning, push protection, Dependabot, and CodeQL; verify each control is active after visibility changes.
 - [ ] **P0 — Protect `main`.** Require pull requests and green CI, block force pushes/deletion, and require branches to be current before merge. Decide whether signed commits and linear history are required.
-- [ ] **P0 — Verify community and security documents.** Confirm LICENSE detection plus accurate README, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, support guidance, issue forms, and PR template. Name an independent confidential conduct contact/channel.
+- [ ] **P0 — Verify community and security documents.** LICENSE is detected as MIT; README, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, SUPPORT, issue form, and PR template exist. **Blocked:** the repository owner must name an independent confidential conduct contact/channel before visibility changes.
 - [ ] **P0 — Final public flip verification.** Confirm CI and CodeQL run publicly, the vulnerability-reporting flow works, release links/checksums resolve, repository metadata is accurate, and no public-facing document still says “private repository.”
 
 ## Important after visibility, before stable-product claims
@@ -29,7 +29,8 @@ Make the repository safe, accurate, and maintainable to expose publicly without 
 ## Hiccups & Notes
 
 - Public repository readiness is narrower than stable-release readiness. Do not delay visibility for roadmap features, but do not overstate platform support or product maturity.
-- Several GitHub controls require repository-owner actions in the web settings and cannot be completed by source changes alone.
+- Branch protection currently returns GitHub `403` because the private user-owned repository requires GitHub Pro or public visibility. Private vulnerability reporting returns `404` while private. Configure and verify both immediately after the visibility flip.
+- The visibility flip is intentionally blocked until an independent confidential conduct recipient is supplied and written into `CODE_OF_CONDUCT.md`; the agent will not invent a person or channel.
 
 ## Exit criteria
 

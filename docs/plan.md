@@ -70,7 +70,6 @@ Tasks:
 - [x] Normalize trace services in schema v3 and apply the same indexed service predicate before count and offset pagination; reuse it when cursor pagination lands.
 - [x] Split metric list metadata from selected-series history, replace the point-query N+1 with one compound indexed tail query, and bound point windows/payloads.
 - [x] Add grouped resource facet queries so inactive workbench views do not fetch raw records to discover filters; protocol 0.5 and schema v4 use standard `service.namespace` as the primary Source dimension with exact `service.name` fallback and a contextual component-Service facet.
-- Add keyset cursor pagination for live lists and optional exact counts.
 - Add statement-count and `EXPLAIN QUERY PLAN` tests enforcing the budgets in [storage.md](storage.md#query-contracts-and-statement-budgets).
 - Add FTS5 log search only after tokenizer/fallback parity tests define exact semantics.
 
@@ -104,9 +103,6 @@ Tasks:
 
 - [x] Add OTLP/HTTP protobuf decoding for traces, logs, and metrics.
 - Add OTLP/gRPC for traces, logs, and metrics.
-- Add bounded ingest queues, dropped-record counters, and UI surfacing for receiver pressure.
-- Harden CORS and optional local auth token settings.
-- Add malformed, oversized, and concurrent ingest tests.
 
 Done when:
 

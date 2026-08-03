@@ -6,6 +6,17 @@ The target product is one per-user OTelux runtime presented through four install
 
 The browser workbench is not a separate product. The plugin and CLI open the shared workbench from the local runtime in a browser; Desktop embeds the same `@otelux/ui` application in its native shell.
 
+## Install the Linux prerelease
+
+Download `OTelux-0.1.9-amd64.deb` and `SHA256SUMS` from the [v0.1.9 GitHub Release](https://github.com/b1tank/otelux/releases/tag/v0.1.9), then verify and install:
+
+```bash
+sha256sum -c SHA256SUMS
+sudo apt install ./OTelux-0.1.9-amd64.deb
+```
+
+Linux x64 `.deb` is the only packaged platform currently qualified. Source setup is documented in [Getting Started](docs/getting-started.md).
+
 ## Product Ecosystem
 
 | Form | End-user experience | Availability |
@@ -125,7 +136,7 @@ npm run -w @otelux/desktop package
 
 ## Current Status
 
-Pre-release. `@otelux/local-runtime` now owns storage, engine, OTLP, MCP, settings, lifecycle, canonical data-home migration, and nonce-protected runtime state. Desktop still embeds it in Electron and the `0.1.5` plugin remains a Desktop companion. The standalone daemon, CLI, direct MCP package, and runtime-served workbench are planned. Start with [docs/getting-started.md](docs/getting-started.md). See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities, [docs/arch.md](docs/arch.md#current-implementation) for the architecture transition, [docs/plan.md](docs/plan.md) for future work, and [docs/release-sprint.md](docs/release-sprint.md) for temporary `v0.1.0` launch execution.
+Pre-release. The Linux x64 Desktop is published as `v0.1.9`. `@otelux/local-runtime` owns storage, engine, OTLP, MCP, settings, lifecycle, canonical data-home migration, and nonce-protected runtime state. Desktop still embeds it in Electron and the `0.1.5` plugin remains a Desktop companion. The standalone daemon, CLI, direct MCP package, and runtime-served workbench are planned. Start with [docs/getting-started.md](docs/getting-started.md). See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities, [docs/arch.md](docs/arch.md#current-implementation) for the architecture transition, [docs/plan.md](docs/plan.md) for future work, and [docs/release-sprint.md](docs/release-sprint.md) for temporary `v0.1.0` launch execution.
 
 ## License
 
