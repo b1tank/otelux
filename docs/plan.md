@@ -16,7 +16,7 @@ Tasks:
 
 - Expand the structural regression tests into checked-in 10,000-trace / 200,000-span storage fixtures with production IPC-byte, React-commit, heap, and packaged frame-latency budgets.
 - Finish splitting selection/list/filter state into selector-based render boundaries; current virtualization, stable memoized rows, latest-only loading, stale-result rejection, explicit trace keys, and bounded LRU caching remove the worst interaction amplification.
-- Integrate trace/log cursors into incremental UI paging; memory/SQLite keyset cursors and optional exact counts are live, worker requests and concurrent OTLP exports are bounded, direct reads have priority, and overload counters are surfaced in the endpoint bar.
+- Add automatic near-end paging/prefetch if explicit `Load more` controls prove too slow in dogfood; trace/log cursor paging, optional exact counts, bounded worker/OTLP queues, direct-read priority, and visible overload counters are live.
 - Add packaged IPC-byte, heap, frame-latency, and continuous-ingest benchmarks on reference hardware.
 
 React guardrails:

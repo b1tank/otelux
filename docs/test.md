@@ -380,6 +380,12 @@ for i in {1..20}; do PORT=14320 ./scripts/send-traces.sh >/dev/null; done
 
 ---
 
+### 7.6 Cursor paging
+- With more than 200 matching traces, click **Load more traces**.
+- **Expected**: the next keyset page appends without duplicates, the initial exact total remains visible, and the request carries `cursor` plus `includeTotalCount: false` rather than an increasing offset.
+
+---
+
 ## 8. Waterfall
 
 Select a distributed_trace.json row (multi-service, multiple spans).
@@ -587,7 +593,11 @@ curl -s -X POST -H 'Content-Type: application/json' \
 - On a correlated log row, click the action buttons.
 - **Expected**: `Msg`, `Trace`, and `Span` copy actions copy the message and full IDs without opening the drawer. The waterfall pivot action switches to Traces and opens the matching span drawer when trace data for that ID is present. Rows without trace context omit trace/span copy and pivot actions so the Actions cell only shows controls that can work.
 
-### 14.6 Filters
+### 14.6 Cursor paging
+- With more than 100 matching logs, click **Load more logs**.
+- **Expected**: the next page appends without duplicate rows, preserves current selection/filter/sort, and skips a repeated exact count.
+
+### 14.7 Filters
 - Use the FilterBar source/service dropdowns / severity / search.
 - **Expected**: the row set narrows; the query is forwarded to the data source (count in the header reflects the filtered result).
 
