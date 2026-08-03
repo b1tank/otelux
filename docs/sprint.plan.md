@@ -45,7 +45,7 @@ Make the public repository explain and demonstrate OTelux within seconds, show a
 
 ## Workstream 1 — brand and repository landing page (P0)
 
-Current groundwork: the README brand hero, navigation, truthful prerelease/download/CI/CodeQL/license badges, support matrix, deterministic social-preview generator, and generated preview asset are implemented. The synthetic product screenshot/demo and repository-settings upload remain.
+Current groundwork: the README brand hero, navigation, truthful prerelease/download/CI/CodeQL/license badges, support matrix, deterministic social-preview generator, generated preview asset, privacy-reviewed synthetic product screenshot, and GitHub-compatible animated demo are implemented. The repository-settings social-preview upload remains.
 
 1. Establish an asset contract under `docs/assets/`:
    - logo derived from `apps/desktop/build/icon.svg`;
