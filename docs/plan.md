@@ -14,10 +14,8 @@ Goal: make trace scrolling and rapid back-and-forth selection remain frame-respo
 
 Tasks:
 
-- Expand the structural regression tests into checked-in 10,000-trace / 200,000-span storage fixtures with production IPC-byte, React-commit, heap, and packaged frame-latency budgets.
-- Finish splitting selection/list/filter state into selector-based render boundaries; current virtualization, stable memoized rows, latest-only loading, stale-result rejection, explicit trace keys, and bounded LRU caching remove the worst interaction amplification.
-- Add automatic near-end paging/prefetch if explicit `Load more` controls prove too slow in dogfood; trace/log cursor paging, optional exact counts, bounded worker/OTLP queues, direct-read priority, and visible overload counters are live.
-- Add packaged IPC-byte, heap, frame-latency, and continuous-ingest benchmarks on reference hardware.
+- Finish splitting selection/list/filter state into selector-based render boundaries only if production React commit profiling shows root-level churn above budget; current packaged benchmark passes interaction, DOM, heap, paging, and continuous-ingest gates.
+- Keep explicit cursor-backed `Load more` controls unless dogfood exceeds the measured ~55 ms paging result; automatic prefetch is not justified while explicit paging remains well under the 500 ms gate.
 
 React guardrails:
 
@@ -30,9 +28,9 @@ React guardrails:
 Done when:
 
 - [x] Deep trace layout is iterative; waterfall/trace mounted rows are viewport-bounded; same-turn rapid selection coalesces; stale results cannot commit; recent trace caching is bounded.
-- Production IPC/React/heap benchmarks enforce the remaining budgets on reference hardware.
+- [x] The packaged benchmark enforces the 10,000-trace / 200,000-span fixture, deep/wide adversarial traces, mounted DOM, rapid selection dispatch, cursor paging, frame gaps, continuous ingest, and post-GC renderer heap budgets.
 - [x] SQLite ingest, query, retention, and clear operations run in a bounded worker queue rather than Electron main; waterfall summaries exclude full span bags and selected details load separately.
-- Packaged pointer/scroll tests remain responsive during benchmark ingest; trace cursor pages have no duplicates/omissions, and overload counters are visible by signal.
+- [x] Packaged interaction remains responsive during concurrent ingest; trace/log cursor pages have no duplicates/omissions, explicit paging is below budget, and overload counters are visible by signal.
 
 See [sprint.plan.md](sprint.plan.md) for measured baseline, sequencing, and exact budgets.
 

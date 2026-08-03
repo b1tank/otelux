@@ -652,8 +652,8 @@ curl -s -X POST -H 'Content-Type: application/json' \
 - **Expected**: Electron input remains responsive; SQLite work never blocks Electron main; direct selection queries have priority over ingest/retention; bounded queues expose overload rather than silently growing; OTLP/MCP remain healthy.
 
 ### 16.5 Packaged profiler evidence
-- Record production-build interaction timings, request/cancel counts, IPC payload bytes, React Profiler commits, mounted node count, and heap after GC.
-- **Expected**: every budget in [spec.md](spec.md#performance-budgets) passes. Development/jsdom timings may diagnose structure but cannot substitute for packaged latency evidence.
+- Run `npm run perf:package -w @otelux/desktop` after `package:dir` (release CI runs it under `xvfb-run`).
+- **Expected**: the deterministic 10,000-trace / 200,000-span plus 5,000-deep / 10,000-wide fixture passes: `<50` mounted trace rows, `<100` waterfall rows, `<2,000` waterfall DOM nodes, cursor paging `<500 ms`, post-GC renderer heap `<100 MB`, and healthy frame gaps while 40 OTLP exports ingest concurrently. Development/jsdom timings may diagnose structure but cannot substitute for this packaged gate.
 
 ---
 

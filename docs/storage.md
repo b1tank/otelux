@@ -219,6 +219,7 @@ Required assertions:
 - 50 rapid selections launch at most two detail requests, never commit stale results, and respect cache byte/entry caps;
 - payload byte limits are respected, including waterfall summary versus selected-span detail payloads;
 - no SQLite operation executes synchronously in Electron main;
+- the packaged benchmark builds 10,000 traces / 200,000 spans plus deep/wide adversarial traces, exercises rapid selection and cursor paging during continuous ingest, and enforces post-GC heap/frame/DOM budgets;
 - memory and SQLite backends remain behaviorally equivalent.
 
 Performance thresholds should be measured on representative Linux, macOS, and Windows hardware and recorded as release budgets only after the query shapes are corrected. Query-count and bounded-payload invariants can be enforced immediately.
