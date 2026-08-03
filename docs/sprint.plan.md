@@ -69,7 +69,7 @@ SQLite query latency is not the primary trace-click bottleneck. The dominant def
 - The current in-session Deskpal bridge was launched without `--allow-exec`. The persistent Pi launcher now exports `DESKPAL_PI_ALLOW_EXEC=1` for future sessions. For this sprint, verification used a dedicated Deskpal MCP process with `--allow-exec`; no raw xdotool/input automation was used.
 - Deskpal `click_text` spends 7–13 seconds in OCR on the dense synthetic screen, so that command wall time is not reported as application click latency. The verified postcondition is the selected-trace/waterfall state after each delivered click; packaged latency budgets still require capture-bound frame timing in the follow-up harness.
 - `getTraceWaterfall` is optional for backward-compatible third-party/in-process DataSources; the first-party engine, runtime, and Electron adapter all implement it. UI fallback preserves older adapters.
-- The worker imports the ESM engine-node build because its historical CJS bundle still contains an unrelated `import.meta` warning path. Full build and packaged smoke exercise the actual ESM worker resolution.
+- `engine-node` and `local-runtime` are now ESM-only private packages, matching their actual Electron/Node consumers. This removes the misleading CJS `import.meta` build warnings; the worker resolves the ESM engine-node artifact and the unpacked package smoke passes.
 
 ## Final outcome
 
