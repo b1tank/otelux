@@ -130,7 +130,7 @@ describe('createMcpServer', () => {
 		);
 	});
 
-	it('marks the unimplemented tool experimental in tools/list', async () => {
+	it('advertises agent-run correlation as functional', async () => {
 		const server = await fixtureServer();
 		const response = await server.handle({
 			jsonrpc: JSON_RPC_VERSION,
@@ -141,9 +141,27 @@ describe('createMcpServer', () => {
 			.result.tools;
 		const correlate = tools.find((t) => t.name === 'otel_correlate_agent_run');
 		const errors = tools.find((t) => t.name === 'otel_find_recent_errors');
-		expect(correlate?.experimental).toBe(true);
-		// Functional tools carry no experimental flag.
+		expect(correlate?.experimental).toBeUndefined();
 		expect(errors?.experimental).toBeUndefined();
+	});
+
+	it('correlates an agent identifier through searchable log attributes', async () => {
+		const server = await fixtureServer();
+		const response = await server.handle({
+			jsonrpc: JSON_RPC_VERSION,
+			id: 4,
+			method: 'tools/call',
+			params: {
+				name: 'otel_correlate_agent_run',
+				arguments: { agentRunId: 'otelux-needle', limit: 10 },
+			},
+		});
+		const payload = parseToolResult<{
+			supported: boolean;
+			matchedLogs: number;
+			traceCount: number;
+		}>(response);
+		expect(payload).toMatchObject({ supported: true, matchedLogs: 1, traceCount: 0 });
 	});
 
 	it('returns engine-backed results for tools/call', async () => {
@@ -182,18 +200,6 @@ describe('createMcpServer', () => {
 		});
 		const payload = parseToolResult<{ span: Span }>(response);
 		expect(payload.span).toMatchObject({ traceId: 'b'.repeat(32), name: 'POST /broken' });
-	});
-
-	it('reports stub tools as supported:false rather than throwing', async () => {
-		const server = await fixtureServer();
-		const response = await server.handle({
-			jsonrpc: JSON_RPC_VERSION,
-			id: 4,
-			method: 'tools/call',
-			params: { name: 'otel_correlate_agent_run', arguments: { runId: 'foo' } },
-		});
-		const payload = parseToolResult<{ supported: boolean }>(response);
-		expect(payload).toMatchObject({ supported: false });
 	});
 
 	it('searches structured logs by free text, including attribute values', async () => {

@@ -1,15 +1,10 @@
 import type { ToolDefinition } from '../server.js';
 
-/**
- * Agent-run correlation waits on engine-side detection. Until then this tool
- * returns an empty result with `supported: false` so clients can integrate
- * against the frozen schema today.
- */
+/** Correlate standard conversation/session IDs through searchable logs and trace context. */
 export const correlateAgentRunTool: ToolDefinition = {
 	name: 'otel_correlate_agent_run',
-	experimental: true,
 	description:
-		'[Experimental] Return user-app spans that occurred during a specific Copilot / Codex / Claude agent run. Joins by trace context propagation when available, falling back to time window + agent-host attributes. Schema-stable stub that returns supported:false until engine detection lands.',
+		'Return traces and matching logs correlated to an agent run or conversation identifier. Uses exact searchable telemetry attributes and propagated trace context without service-name inference.',
 	inputSchema: {
 		type: 'object',
 		properties: {
@@ -21,13 +16,40 @@ export const correlateAgentRunTool: ToolDefinition = {
 		},
 		required: ['agentRunId'],
 	},
-	handler: (raw) => {
-		const input = (raw ?? {}) as { agentRunId?: string };
+	handler: async (raw, { engine }) => {
+		const input = (raw ?? {}) as { agentRunId?: string; limit?: number };
+		const agentRunId = input.agentRunId?.trim();
+		if (!agentRunId) throw new Error('agentRunId is required');
+		const limit = Math.max(1, Math.min(500, Math.floor(input.limit ?? 100)));
+		const logs = await engine.listLogs({ search: agentRunId, limit });
+		const traceIds = [
+			...new Set(logs.rows.flatMap((log) => (log.traceId ? [log.traceId] : []))),
+		].slice(0, limit);
+		const traces = await Promise.all(traceIds.map((traceId) => engine.getTrace({ traceId })));
 		return {
-			supported: false,
-			reason: 'agent-run detection is planned in @otelux/engine; see docs/plan.md',
-			agentRunId: input.agentRunId,
-			spans: [] as readonly unknown[],
+			supported: true,
+			agentRunId,
+			matchStrategy: traceIds.length > 0 ? 'log-attribute+trace-context' : 'log-attribute',
+			matchedLogs: logs.rows.length,
+			traceCount: traces.length,
+			traces: traces.map((trace) => ({
+				traceId: trace.traceId,
+				startTimeUnixNano: trace.startTimeUnixNano.toString(),
+				durationNanos: trace.durationNanos.toString(),
+				services: trace.services,
+				spanCount: trace.spanCount,
+				errorCount: trace.errorCount,
+			})),
+			logs: logs.rows.slice(0, limit).map((log) => ({
+				timeUnixNano: log.timeUnixNano.toString(),
+				severityNumber: log.severityNumber,
+				severityText: log.severityText,
+				eventName: log.eventName,
+				body: log.body,
+				traceId: log.traceId,
+				spanId: log.spanId,
+				serviceName: log.resource.attributes['service.name'],
+			})),
 		};
 	},
 };
