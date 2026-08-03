@@ -74,8 +74,9 @@ export function useSelectedTrace(
 		// Same-turn selections coalesce because cleanup cancels this timer before
 		// any IPC starts. Once started, generation prevents stale commits.
 		const timer = setTimeout(() => {
-			void dataSource
-				.getTrace({ traceId })
+			const load = dataSource.getTraceWaterfall ?? dataSource.getTrace;
+			void load
+				.call(dataSource, { traceId })
 				.then((result) => {
 					if (generation.current !== currentGeneration) return;
 					insertCache(cache.current, traceId, result);

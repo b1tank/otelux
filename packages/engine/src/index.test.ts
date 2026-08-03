@@ -74,6 +74,10 @@ describe('createMemoryStorage + createEngine', () => {
 		const trace = await engine.getTrace({ traceId: TRACE });
 		expect(trace.rootSpan?.spanId).toBe('1111111111111111');
 		expect(trace.spanCount).toBe(2);
+		const waterfall = await engine.getTraceWaterfall({ traceId: TRACE });
+		expect(waterfall.spans).toHaveLength(2);
+		expect(waterfall.spans[0]?.attributes).toEqual({});
+		expect(waterfall.spans[0]?.resource.attributes).toEqual({ 'service.name': 'api-gateway' });
 
 		const details = await engine.getSpanDetails({
 			traceId: TRACE,

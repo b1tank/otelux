@@ -52,6 +52,7 @@ export const OTELUX_EVENT_CHANNEL = 'otelux:event';
 export type InvokeMessage =
 	| { kind: 'listTraces'; query: ListTracesQuery }
 	| { kind: 'getTrace'; query: GetTraceQuery }
+	| { kind: 'getTraceWaterfall'; query: GetTraceQuery }
 	| { kind: 'getSpanDetails'; query: GetSpanDetailsQuery }
 	| { kind: 'listLogs'; query: ListLogsQuery }
 	| { kind: 'listMetrics'; query: ListMetricsQuery }
@@ -67,7 +68,7 @@ export type InvokeMessage =
 
 export type InvokeResultFor<M extends InvokeMessage> = M extends { kind: 'listTraces' }
 	? ListTracesResult
-	: M extends { kind: 'getTrace' }
+	: M extends { kind: 'getTrace' | 'getTraceWaterfall' }
 		? Trace
 		: M extends { kind: 'getSpanDetails' }
 			? SpanDetails

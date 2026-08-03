@@ -160,6 +160,8 @@ export interface DataSource {
 	readonly kind: 'otelux/datasource';
 	listTraces(query: ListTracesQuery): Promise<ListTracesResult>;
 	getTrace(query: GetTraceQuery): Promise<Trace>;
+	/** Lightweight trace for waterfall rendering; full span bags load through getSpanDetails. */
+	getTraceWaterfall?(query: GetTraceQuery): Promise<Trace>;
 	getSpanDetails(query: GetSpanDetailsQuery): Promise<SpanDetails>;
 	listLogs(query: ListLogsQuery): Promise<ListLogsResult>;
 	listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult>;
@@ -279,4 +281,4 @@ export type RuntimeEvent =
 	| { readonly kind: 'receiver-status-changed'; readonly status: ReceiverStatus }
 	| { readonly kind: 'mcp-status-changed'; readonly status: McpStatus };
 
-export const OTELUX_PROTOCOL_VERSION = '0.5.0' as const;
+export const OTELUX_PROTOCOL_VERSION = '0.6.0' as const;

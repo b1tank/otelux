@@ -389,13 +389,33 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 		'services',
 	);
 
+	const selectedSpanSummary: Span | undefined = trace?.spans.find(
+		(span) => span.spanId === selectedSpanId,
+	);
+	const spanDetailQuery = useDataSourceQuery(
+		dataSource,
+		async (ds) => {
+			if (selectedTraceId === undefined || selectedSpanId === undefined) return undefined;
+			return ds.getSpanDetails({ traceId: selectedTraceId, spanId: selectedSpanId });
+		},
+		`span-detail:${selectedTraceId ?? ''}:${selectedSpanId ?? ''}`,
+		false,
+		'tracesChanged',
+		activeView === 'traces' && selectedSpanSummary !== undefined,
+		(event) =>
+			event.kind === 'tracesChanged' &&
+			(event.traceIds.length === 0 ||
+				(selectedTraceId !== undefined && event.traceIds.includes(selectedTraceId))),
+		100,
+	);
+
 	// The detail drawer is opened explicitly by the user clicking a span
 	// row in the Waterfall — not auto-opened when a trace is selected.
 	// Auto-opening covered the waterfall the moment a trace was clicked
 	// and made the drawer feel unclosable: every trace click re-opened
 	// it. Now selecting a trace shows just the waterfall; the drawer
 	// only appears when the user picks a span to inspect.
-	const selectedSpan: Span | undefined = trace?.spans.find((s) => s.spanId === selectedSpanId);
+	const selectedSpan: Span | undefined = spanDetailQuery.value;
 
 	const traceListProps = {
 		dataSource,
@@ -768,20 +788,22 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 				)}
 			</AppShell>
 			<Drawer
-				open={selectedSpan !== undefined}
+				open={selectedSpanSummary !== undefined}
 				onClose={() => setSelectedSpanId(undefined)}
-				{...(selectedSpan ? { title: selectedSpan.name || '(unnamed)' } : {})}
-				{...(selectedSpan
+				{...(selectedSpanSummary ? { title: selectedSpanSummary.name || '(unnamed)' } : {})}
+				{...(selectedSpanSummary
 					? {
 							accentVar: serviceColorVar(
-								(selectedSpan.resource.attributes['service.name'] as string | undefined) ?? '',
+								(selectedSpanSummary.resource.attributes['service.name'] as string | undefined) ?? '',
 							),
-							kindLabel: SPAN_KIND_DRAWER_LABEL[selectedSpan.kind] ?? 'Span',
+							kindLabel: SPAN_KIND_DRAWER_LABEL[selectedSpanSummary.kind] ?? 'Span',
 						}
 					: {})}
 			>
 				{selectedSpan ? (
 					<SpanDetail span={selectedSpan} onViewValue={(key, value) => setViewValue({ key, value })} />
+				) : selectedSpanSummary ? (
+					<div className="otelux-detail-loading">Loading span details…</div>
 				) : null}
 			</Drawer>
 			<ValueViewer

@@ -54,6 +54,9 @@ export function createIpcDataSource(bridge: OteluxWindowBridge): DataSource {
 		async getTrace(query: GetTraceQuery): Promise<Trace> {
 			return (await bridge.invoke({ kind: 'getTrace', query })) as Trace;
 		},
+		async getTraceWaterfall(query: GetTraceQuery): Promise<Trace> {
+			return (await bridge.invoke({ kind: 'getTraceWaterfall', query })) as Trace;
+		},
 		async getSpanDetails(query: GetSpanDetailsQuery): Promise<SpanDetails> {
 			return (await bridge.invoke({ kind: 'getSpanDetails', query })) as SpanDetails;
 		},

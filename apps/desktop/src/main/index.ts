@@ -128,6 +128,8 @@ async function startBackend(): Promise<{
 				return runtime.listTraces(message.query);
 			case 'getTrace':
 				return runtime.getTrace(message.query);
+			case 'getTraceWaterfall':
+				return runtime.getTraceWaterfall?.(message.query) ?? runtime.getTrace(message.query);
 			case 'getSpanDetails':
 				return runtime.getSpanDetails(message.query);
 			case 'listLogs':

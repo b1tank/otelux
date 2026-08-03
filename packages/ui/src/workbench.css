@@ -944,6 +944,13 @@
 	background: var(--otelux-bg-panel);
 }
 
+.otelux-detail-loading {
+	padding: 32px 16px;
+	color: var(--otelux-fg-faint);
+	font-size: 12px;
+	text-align: center;
+}
+
 .otelux-detail-search__empty {
 	padding: 32px 16px;
 	color: var(--otelux-fg-faint);

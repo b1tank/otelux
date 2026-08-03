@@ -23,6 +23,7 @@ export interface EngineOptions {
 }
 
 export interface Engine extends DataSource {
+	getTraceWaterfall(query: GetTraceQuery): Promise<Trace>;
 	ingestSpans(spans: readonly Span[]): Promise<void>;
 	ingestLogs(logs: readonly LogRecord[]): Promise<void>;
 	ingestMetrics(metrics: readonly Metric[]): Promise<void>;
@@ -85,23 +86,34 @@ export function createEngine(options: EngineOptions): Engine {
 		},
 
 		async getTrace(query: GetTraceQuery): Promise<Trace> {
-			const spans = await storage.getTraceSpans(query.traceId);
-			const trace = traceFromSpans(query.traceId, spans);
-			if (!trace) {
-				// Returning an empty Trace keeps the API total — UI shows an
-				// empty state rather than a thrown error for a missing trace.
-				return {
-					traceId: query.traceId,
-					spans: [],
-					startTimeUnixNano: 0n,
-					endTimeUnixNano: 0n,
-					durationNanos: 0n,
-					services: [],
-					spanCount: 0,
-					errorCount: 0,
-				};
-			}
-			return trace;
+			return traceForQuery(query, await storage.getTraceSpans(query.traceId));
+		},
+
+		async getTraceWaterfall(query: GetTraceQuery): Promise<Trace> {
+			const trace = traceForQuery(query, await storage.getTraceSpans(query.traceId));
+			const spans = trace.spans.map((span) => ({
+				traceId: span.traceId,
+				spanId: span.spanId,
+				...(span.parentSpanId !== undefined ? { parentSpanId: span.parentSpanId } : {}),
+				name: span.name,
+				kind: span.kind,
+				startTimeUnixNano: span.startTimeUnixNano,
+				endTimeUnixNano: span.endTimeUnixNano,
+				status: span.status,
+				attributes: {},
+				resource: {
+					attributes: Object.fromEntries(
+						Object.entries(span.resource.attributes).filter(
+							([key]) => key === 'service.name' || key === 'service.namespace',
+						),
+					),
+				},
+				scope: span.scope,
+			}));
+			const rootSpan = trace.rootSpan
+				? spans.find((span) => span.spanId === trace.rootSpan?.spanId)
+				: undefined;
+			return { ...trace, spans, ...(rootSpan !== undefined ? { rootSpan } : {}) };
 		},
 
 		async getSpanDetails(query: GetSpanDetailsQuery): Promise<SpanDetails> {
@@ -146,6 +158,21 @@ export function createEngine(options: EngineOptions): Engine {
 			listeners.clear();
 			await storage.close();
 		},
+	};
+}
+
+function traceForQuery(query: GetTraceQuery, spans: readonly Span[]): Trace {
+	const trace = traceFromSpans(query.traceId, spans);
+	if (trace) return trace;
+	return {
+		traceId: query.traceId,
+		spans: [],
+		startTimeUnixNano: 0n,
+		endTimeUnixNano: 0n,
+		durationNanos: 0n,
+		services: [],
+		spanCount: 0,
+		errorCount: 0,
 	};
 }
 
