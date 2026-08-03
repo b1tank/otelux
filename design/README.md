@@ -78,6 +78,7 @@ Min widths: list ≥ 280 px, waterfall ≥ 480 px. Splitter is 6 px wide with a 
 | **Local selector-based interaction state** | Trace list, selected-trace loading, waterfall, and drawer subscribe only to state they render. Effects synchronize external subscriptions/IPC only; derived state stays in selectors/render. |
 | **CSS variables for theme tokens** | Promote to `packages/ui/src/tokens.css` on port. One source of truth for colors, spacing, radii, type. |
 | **Retention meter tracks SQLite pages, not WAL overhead** | The battery fill matches the exact page budget used by pruning. Real DB/WAL/SHM disk footprint stays visible beneath it without falsely implying temporary WAL growth should trigger retention. |
+| **Receiver pressure is explicit** | A compact `Dropped N` pill appears only after bounded OTLP queues reject exports; its tooltip breaks counts down by signal so overload is never silent or confused with invalid payload rejection. |
 | **Settings uses a left category rail** | Connections and Storage are separate tasks. A fixed rail keeps the modal calm, preserves one Save path, and scales to future categories without stacking every control into one noisy column. |
 
 ---

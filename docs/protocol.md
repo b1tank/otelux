@@ -75,6 +75,8 @@ Events are hints, not an authoritative data stream. Delivery is at-least-once an
 
 Protocol 0.6 also separates trace inspection payloads: `getTraceWaterfall` returns span identity, timing, status, scope, and service resource keys only; full attributes, events, links, and other resource fields remain available through `getSpanDetails(traceId, spanId)` and the full `getTrace` operation used by agent tools. Older/in-process DataSources may omit the optional waterfall method, in which case UI clients fall back to `getTrace`.
 
+Trace list pages may use the opaque `cursor` returned as `nextCursor`; memory and SQLite backends order by the selected sort field plus trace ID and apply the cursor before the next bounded page. Offset remains for backward compatibility. Log cursor pagination and optional exact counts remain pending.
+
 Source and service dropdowns use `listResourceFacets({ signal, facet, sources? })`, a grouped bounded result, rather than sampling raw telemetry. `source` is resource `service.namespace` with exact `service.name` fallback; selecting a source scopes the secondary service facet. Trace membership is deduplicated before counting. Metric lists request one latest point per instrument; a second bounded query loads the selected instrument's recent history. These payload-shape rules are part of the DataSource contract and must survive the HTTP/SSE adapter.
 
 ### No internal gRPC

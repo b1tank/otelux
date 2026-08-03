@@ -491,6 +491,13 @@ curl -s -D /tmp/otelux-origin-headers.txt -X POST \
 - **Expected by default**: `403 Forbidden`, no ingest, and no `Access-Control-Allow-Origin` header.
 - In receiver and MCP transport integration tests, configure one exact allowed origin. That origin succeeds according to normal request validation and returns `Vary: Origin`; a sibling domain, alternate scheme, or alternate port still returns `403`. If credentials are supported, `Access-Control-Allow-Origin: *` is never returned.
 
+### 10.7 Receiver overload visibility
+
+- In the receiver integration test, hold one ingest open with `maxPendingExports=1`, then send a second valid export.
+- **Expected**: the second request returns `503 {"error":"receiver_overloaded"}` and invokes the per-signal overload callback; the first completes normally after release.
+- In a running Desktop pressure fixture, exceed the queue once for traces, logs, and metrics.
+- **Expected**: EndpointBar shows `Dropped 3`; its tooltip reports `1 traces, 1 logs, 1 metrics rejected`. Restarting the receiver resets the counters. Malformed/oversized rejections are not counted as overload.
+
 ---
 
 ## 11. Receiver lifecycle stress
