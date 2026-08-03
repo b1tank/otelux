@@ -12,7 +12,7 @@ Make the repository safe, accurate, and maintainable to expose publicly without 
 - [x] **P0 — Verify public installation and release claims.** Published `v0.1.9` release targets the tagged commit and contains `.deb`, SHA256SUMS, and SBOM; downloaded assets pass checksums, package metadata is `otelux 0.1.9 amd64`, and the installed package reports `0.1.9 install ok installed`. Packaged functional/performance smoke passed in release CI.
 - [ ] **P0 — Configure GitHub security controls.** Enable private vulnerability reporting, secret scanning, push protection, Dependabot, and CodeQL; verify each control is active after visibility changes.
 - [ ] **P0 — Protect `main`.** Require pull requests and green CI, block force pushes/deletion, and require branches to be current before merge. Decide whether signed commits and linear history are required.
-- [ ] **P0 — Verify community and security documents.** LICENSE is detected as MIT; README, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, SUPPORT, issue form, and PR template exist. **Blocked:** the repository owner must name an independent confidential conduct contact/channel before visibility changes.
+- [x] **P0 — Verify community and security documents.** LICENSE is detected as MIT; README, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, SUPPORT, issue form, and PR template exist. The Code of Conduct accurately discloses the sole-maintainer model and uses the maintainer's private profile contact rather than claiming an unavailable independent escalation path.
 - [ ] **P0 — Final public flip verification.** Confirm CI and CodeQL run publicly, the vulnerability-reporting flow works, release links/checksums resolve, repository metadata is accurate, and no public-facing document still says “private repository.”
 
 ## Important after visibility, before stable-product claims
@@ -30,7 +30,7 @@ Make the repository safe, accurate, and maintainable to expose publicly without 
 
 - Public repository readiness is narrower than stable-release readiness. Do not delay visibility for roadmap features, but do not overstate platform support or product maturity.
 - Branch protection currently returns GitHub `403` because the private user-owned repository requires GitHub Pro or public visibility. Private vulnerability reporting returns `404` while private. Configure and verify both immediately after the visibility flip.
-- The visibility flip is intentionally blocked until an independent confidential conduct recipient is supplied and written into `CODE_OF_CONDUCT.md`; the agent will not invent a person or channel.
+- The owner accepted the sole-maintainer conduct-reporting limitation. The repository documents it explicitly and will add independent escalation when more maintainers join.
 
 ## Exit criteria
 

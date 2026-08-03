@@ -95,7 +95,7 @@ Estimate: 3.5-6 engineer-days; 4-7 cumulative
 - [x] Add the root MIT `LICENSE` file.
 - [x] Verify GitHub detects the root license as MIT after it is pushed.
 - [x] Add `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`, and a concise support/maintainer policy.
-- [ ] Before public visibility, enable and exercise GitHub private vulnerability reporting and name an independent conduct recipient with a verified confidential channel.
+- [ ] Before public visibility, enable and exercise GitHub private vulnerability reporting; while the project has one maintainer, disclose that conduct reports cannot receive independent project-level review.
 - [x] Add bug and feature issue forms plus a pull request template.
 - [x] Include an explicit warning that telemetry attached to issues may contain prompts, headers, URLs, SQL, identifiers, or customer data.
 - [x] Add user installation, privacy, security model, troubleshooting, uninstall, and known-limit documentation.
@@ -280,7 +280,7 @@ No product requirement, defect policy, or verification gate needs migration at r
 
 | Date | Milestone | Evidence |
 |---|---|---|
-| 2026-08-03 | Public OSS re-audit | Gitleaks 8.30.1 scanned 254 commits / 4.75 MB with zero leaks. TruffleHog 3.95.9 scanned 3,778 chunks / 4.95 MB with zero verified or unverified secrets. Current-tree review found no credential patterns, private network URLs, sensitive tracked files, production telemetry databases/screenshots, or real user home paths. GitHub detects MIT. Published and installed v0.1.9 assets/checksums/package metadata were reverified. Visibility remains blocked only on naming an independent confidential conduct recipient, after which public-only branch protection, vulnerability reporting, secret scanning/push protection, and CodeQL must be enabled and verified. |
+| 2026-08-03 | Public OSS re-audit | Gitleaks 8.30.1 scanned 254 commits / 4.75 MB with zero leaks. TruffleHog 3.95.9 scanned 3,778 chunks / 4.95 MB with zero verified or unverified secrets. Current-tree review found no credential patterns, private network URLs, sensitive tracked files, production telemetry databases/screenshots, or real user home paths. GitHub detects MIT. Published and installed v0.1.9 assets/checksums/package metadata were reverified. The sole-owner project explicitly discloses that independent conduct escalation is unavailable; public-only branch protection, vulnerability reporting, secret scanning/push protection, and CodeQL must be enabled and verified after visibility changes. |
 | 2026-07-13 | Audit baseline | Tests and builds pass; lint, typecheck, dependency audit, `.deb` packaging, repository hygiene, and artifact pruning require work. Packaged AppImage health, ingest, rendering, and trace selection were exercised successfully. |
 | 2026-07-13 | Milestone 0 local baseline | After `npm ci`, lint passed, all 20 typecheck tasks passed, all 175 tests passed without React or Turbo missing-output warnings, and all 11 build tasks passed. The remaining Vite CJS deprecation and tsup type re-export notices are assigned to the dependency/tooling upgrade in Milestone 2. Remote CI confirmation remains open. |
 | 2026-07-13 | MVP quality scope | Added a bounded `v0.1.0` product contract, explicit beta limitations, P0-P3 defect policy, risk-based coverage strategy, packaged end-to-end requirements, accessibility checks, and measurable product-quality exit criteria. |

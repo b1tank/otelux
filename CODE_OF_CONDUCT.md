@@ -29,7 +29,7 @@ This policy applies in repository activity, project communication, community eve
 
 Do not put sensitive conduct reports in a public issue.
 
-This repository is currently private and does not yet have an independent conduct recipient. Public launch is blocked until a trusted recipient who is not the sole repository administrator is named here with a verified confidential channel. Reports involving a maintainer must bypass that maintainer and go directly to the independent recipient.
+OTelux is currently maintained by one person and does not have an independent conduct committee. Send confidential conduct reports through the private contact channel listed on the maintainer's GitHub profile; do not use a public issue. A report involving the sole maintainer cannot currently receive independent project-level review. This limitation is disclosed rather than inventing an unavailable escalation path, and the policy will be updated when additional maintainers join.
 
 Include only the information needed to understand the incident. Reports are handled as confidentially as reasonably possible. The maintainer will acknowledge a report, assess immediate safety needs, hear affected parties where appropriate, and communicate the outcome to the reporter when possible.
 

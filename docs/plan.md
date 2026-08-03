@@ -20,7 +20,7 @@ Essential visibility gates:
 - Verify public `.deb` download, checksum, SBOM, clean install/upgrade/launch/ingest/restart/uninstall, privacy guidance, and known limitations.
 - Enable and verify private vulnerability reporting, secret scanning, push protection, Dependabot, and public CodeQL results.
 - Protect `main` with pull requests, required green CI, up-to-date branches, and force-push/deletion protection.
-- Verify LICENSE detection, README, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, support policy, issue forms, PR template, and an independent confidential conduct channel.
+- Verify LICENSE detection, README, CONTRIBUTING, CODE_OF_CONDUCT, SECURITY, support policy, issue forms, and PR template; disclose the sole-maintainer conduct escalation limitation until additional maintainers join.
 - After changing visibility, verify CI/CodeQL, vulnerability reporting, release links, repository metadata, and public-facing wording.
 
 Important before stable-product claims, but not blockers for repository visibility:
