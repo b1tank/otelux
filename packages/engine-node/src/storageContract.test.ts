@@ -258,6 +258,9 @@ function runStorageContract(label: string, make: () => Storage): void {
 			});
 			expect(second.rows.map((row) => row.rootName)).toEqual(['sad path']);
 			expect(second.nextCursor).toBeUndefined();
+			const cheapPage = await storage.listTraces({ limit: 1, includeTotalCount: false });
+			expect(cheapPage.totalCount).toBe(1);
+			expect(cheapPage.totalCountIsExact).toBe(false);
 		});
 
 		it('applies trace service filtering before count and pagination', async () => {

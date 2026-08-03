@@ -336,7 +336,12 @@ export function createMemoryStorage(): Storage {
 			const page = filtered.slice(offset, offset + limit);
 			const nextCursor = offset + page.length < filtered.length ? page.at(-1)?.traceId : undefined;
 
-			return { rows: page, totalCount, ...(nextCursor ? { nextCursor } : {}) };
+			return {
+				rows: page,
+				totalCount: query.includeTotalCount === false ? page.length : totalCount,
+				...(query.includeTotalCount === false ? { totalCountIsExact: false } : {}),
+				...(nextCursor ? { nextCursor } : {}),
+			};
 		},
 
 		getTraceSpans(traceId: TraceId): readonly Span[] {
@@ -421,7 +426,12 @@ export function createMemoryStorage(): Storage {
 					? String(logIds.get(page.at(-1) as LogRecord))
 					: undefined;
 
-			return { rows: page, totalCount, ...(nextCursor ? { nextCursor } : {}) };
+			return {
+				rows: page,
+				totalCount: query.includeTotalCount === false ? page.length : totalCount,
+				...(query.includeTotalCount === false ? { totalCountIsExact: false } : {}),
+				...(nextCursor ? { nextCursor } : {}),
+			};
 		},
 
 		writeMetrics(incoming: readonly Metric[]): void {

@@ -26,6 +26,8 @@ export interface ListTracesQuery {
 	offset?: number;
 	/** Opaque trace-id cursor returned as nextCursor by the previous page. */
 	cursor?: string;
+	/** Set false to skip the exact COUNT query on live-tail pages. Defaults true. */
+	includeTotalCount?: boolean;
 	sortBy?: TraceListSort;
 	sortDirection?: SortDirection;
 	timeFromUnixNano?: bigint;
@@ -50,6 +52,8 @@ export interface ListTracesResultRow {
 export interface ListTracesResult {
 	rows: readonly ListTracesResultRow[];
 	totalCount: number;
+	/** False means totalCount is the returned page size, not a full filtered count. */
+	totalCountIsExact?: boolean;
 	nextCursor?: string;
 }
 
@@ -78,6 +82,8 @@ export interface ListLogsQuery {
 	offset?: number;
 	/** Opaque log cursor returned as nextCursor by the previous page. */
 	cursor?: string;
+	/** Set false to skip the exact COUNT query on live-tail pages. Defaults true. */
+	includeTotalCount?: boolean;
 	sortBy?: LogListSort;
 	sortDirection?: SortDirection;
 	timeFromUnixNano?: bigint;
@@ -94,6 +100,7 @@ export interface ListLogsQuery {
 export interface ListLogsResult {
 	rows: readonly LogRecord[];
 	totalCount: number;
+	totalCountIsExact?: boolean;
 	nextCursor?: string;
 }
 

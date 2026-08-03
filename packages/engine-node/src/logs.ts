@@ -127,9 +127,12 @@ INSERT INTO logs (
 		}
 		const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
 
-		const countRow = this.db
-			.prepare(`SELECT COUNT(*) AS n FROM logs l ${whereSql}`)
-			.get(...params) as { n: number };
+		const includeTotalCount = query.includeTotalCount !== false;
+		const countRow = includeTotalCount
+			? (this.db.prepare(`SELECT COUNT(*) AS n FROM logs l ${whereSql}`).get(...params) as {
+					n: number;
+				})
+			: undefined;
 
 		const sortColumn = query.sortBy === 'severity' ? 'l.severity_number' : 'l.time_unix_nano';
 		const direction = (query.sortDirection ?? 'desc') === 'asc' ? 'ASC' : 'DESC';
@@ -154,7 +157,8 @@ INSERT INTO logs (
 		const nextCursor = hasMore ? page.at(-1)?.id.toString() : undefined;
 		return {
 			rows: page.map(logFromRow),
-			totalCount: countRow.n,
+			totalCount: countRow?.n ?? page.length,
+			...(!includeTotalCount ? { totalCountIsExact: false } : {}),
 			...(nextCursor ? { nextCursor } : {}),
 		};
 	}

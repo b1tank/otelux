@@ -263,8 +263,12 @@ INSERT OR REPLACE INTO traces (
 		}
 		const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
 
-		const countStmt = this.db.prepare(`SELECT COUNT(*) AS n FROM traces ${whereSql}`);
-		const countRow = countStmt.get(...params) as { n: number };
+		const includeTotalCount = query.includeTotalCount !== false;
+		const countRow = includeTotalCount
+			? (this.db.prepare(`SELECT COUNT(*) AS n FROM traces ${whereSql}`).get(...params) as {
+					n: number;
+				})
+			: undefined;
 
 		const sortColumn = traceSortColumn(query.sortBy);
 		const direction =
@@ -306,7 +310,12 @@ FROM traces ${pageWhereSql} ORDER BY ${sortColumn} ${direction}, trace_id ${dire
 			errorCount: Number(r.error_count),
 		}));
 		const nextCursor = hasMore ? mapped.at(-1)?.traceId : undefined;
-		return { rows: mapped, totalCount: countRow.n, ...(nextCursor ? { nextCursor } : {}) };
+		return {
+			rows: mapped,
+			totalCount: countRow?.n ?? mapped.length,
+			...(!includeTotalCount ? { totalCountIsExact: false } : {}),
+			...(nextCursor ? { nextCursor } : {}),
+		};
 	}
 
 	getTraceSpans(traceId: TraceId): readonly Span[] {
