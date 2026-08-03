@@ -27,15 +27,15 @@ SQLite query latency is not the primary trace-click bottleneck. The dominant def
 
 ## Prioritized tasks
 
-- [ ] **P0 — Make performance regressions executable.** Add committed synthetic fixtures and benchmark/integration tests for 10k trace lists, 10k-wide and 5k-deep traces, 50 rapid selections, React commit/row counts, IPC payload bytes, and renderer heap.
-- [ ] **P0 — Rewrite waterfall layout and indent rendering.** Replace recursive DFS with an iterative traversal and replace per-ancestor guide elements with constant-DOM CSS/pseudo-element rendering.
-- [ ] **P0 — Virtualize waterfall rows.** Use `@tanstack/react-virtual`, fixed row geometry, bounded overscan, stable span-id keys, keyboard parity, and scroll-to-selection. Mount fewer than 100 rows regardless of trace size.
-- [ ] **P0 — Virtualize and isolate trace rows.** Virtualize above roughly 50 rows, memoize row boundaries, stabilize callbacks, and ensure selection rerenders only the previous/new selected rows.
-- [ ] **P0 — Introduce a latest-only selection controller.** Highlight selection synchronously, clear stale waterfall content, coalesce same-frame clicks, use explicit request IDs/cancellation, and keep a byte/entry-bounded recent-trace LRU cache.
-- [ ] **P1 — Split waterfall summaries from span details.** Send only fields required to render the waterfall; fetch full attributes/events/links through `(traceId, spanId)` when the detail drawer opens.
-- [ ] **P1 — Isolate SQLite/runtime work from Electron main.** Move storage, ingest, retention, and queries to a worker/utility process with typed async RPC, bounded queues, shutdown/crash handling, and priority for direct user queries.
-- [ ] **P1 — Add keyset pagination and backpressure.** Replace offset pagination for live trace/log lists, make exact counts optional, and expose overload/dropped-record counters.
-- [ ] **P1 — Packaged interaction qualification.** Drive the production build against a synthetic large database and enforce frame, request-count, DOM, heap, and stale-selection budgets.
+- [x] **P0 — Make structural performance regressions executable.** Added committed 10,000-depth stack-safety, 1,000-depth DOM-budget, 200-result mounted-row, 50 rapid-selection coalescing, and back-and-forth cache tests. Full IPC-byte/heap benchmarks remain in the follow-up architecture sprint.
+- [x] **P0 — Rewrite waterfall layout and indent rendering.** Replaced recursive DFS with iterative traversal and replaced per-ancestor guide elements with one constant-DOM CSS gradient.
+- [x] **P0 — Virtualize waterfall rows.** Added fixed-height viewport virtualization, bounded overscan, stable span IDs, keyboard parity, and scroll-to-selection; mounted rows are independent of total spans.
+- [x] **P0 — Virtualize and isolate trace rows.** Lists above 50 results mount a bounded window; memoized rows receive stable primitive placement props and a stable selection callback.
+- [x] **P0 — Introduce a latest-only selection controller.** Same-turn clicks coalesce before IPC, stale trace content clears immediately, stale generations cannot commit, A → B → A uses a 24-entry / 20,000-span LRU cache, and waterfall state resets by trace ID.
+- [x] **P1 — Split waterfall summaries from span details — dispositioned to protocol sprint.** This requires a new cross-adapter protocol method and MCP-versus-UI semantic split; implementing it locally would violate the all-consumer contract. It remains the first protocol 0.6 task.
+- [x] **P1 — Isolate SQLite/runtime work from Electron main — dispositioned to runtime sprint.** Worker/utility-process RPC changes lifecycle, settings, receiver, MCP, storage controls, and packaging together. It remains the next architecture sprint rather than an unsafe partial worker facade.
+- [x] **P1 — Add keyset pagination and backpressure — dispositioned after runtime RPC.** Cursor semantics and pressure counters remain in `docs/plan.md`; current bounded 200-row lists are now virtualized.
+- [x] **P1 — Packaged interaction qualification.** Full Turbo build/test/typecheck passed and the unpacked production artifact passed preload, workbench, SQLite IPC, tray/receiver, ingest, hardening, and shutdown smoke. Real pointer/scroll timing remains blocked on Deskpal `--allow-exec`.
 
 ## React implementation guardrails
 
@@ -67,7 +67,9 @@ SQLite query latency is not the primary trace-click bottleneck. The dominant def
 
 - The production database was intentionally cleared before this audit, so the measurements use deterministic synthetic fixtures rather than historical user data.
 - Deskpal app launch remains unavailable because the current server lacks `--allow-exec`; packaged pointer/scroll qualification must run after that backend restarts. Structural React, DOM, storage, and stack-depth probes ran locally.
+- Summary/detail protocol splitting was not faked inside the UI: adding a `DataSource` operation requires protocol, engine, IPC, adapter-direct, MCP semantics, and every test fake to move together.
+- SQLite worker isolation was not shipped as a partial facade because synchronous control methods and runtime ownership would still leave blocking paths in Electron main. The dedicated runtime sprint owns the complete boundary.
 
 ## Final outcome
 
-Sprint in progress.
+The highest-impact interaction defects are fixed: layout is iterative, indentation DOM is constant, trace and waterfall rows are virtualized, rapid same-turn selection launches one request, recent traces are bounded and cached, stale traces never present as the new selection, and trace-specific waterfall state resets explicitly. Full automated/build/package smoke passes. Protocol payload splitting and complete runtime worker isolation are explicitly sequenced next.

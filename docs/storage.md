@@ -192,7 +192,7 @@ The renderer path is structurally expensive:
 - Waterfall rows render one DOM guide for every ancestor. A 100-deep chain created 5,879 nodes / 482 ms; 500 deep created 129,279 nodes / 6,156 ms; 1,000 deep exhausted the 4 GB test heap.
 - Recursive DFS layout overflows the JavaScript stack at 5,000-deep traces.
 
-The fix is not a framework migration. React/Electron remain appropriate once the implementation uses iterative O(n) layout, constant-DOM indent rendering, row virtualization, local selector-based state, stable memoized row props, a latest-only/cancellable detail controller, bounded LRU caching, summary/detail payload separation, and async worker/utility-process storage RPC. Effects are reserved for external synchronization rather than derived state or fetch-trigger chains.
+The fix is not a framework migration. React/Electron remain appropriate. The interaction sprint delivered iterative O(n) layout, constant-DOM indent rendering, fixed-height row virtualization, stable memoized trace-row props, same-turn latest-only selection, stale-generation rejection, and a bounded recent-trace LRU. Permanent tests now cover 10,000-depth stack safety, 1,000-depth DOM bounds, 200-result mounted-row bounds, 50-selection coalescing, and A → B → A cache reuse. Remaining architecture work is summary/detail payload separation and async worker/utility-process storage RPC; effects stay reserved for external synchronization rather than derived state or fetch-trigger chains.
 
 ## Verification
 

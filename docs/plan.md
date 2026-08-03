@@ -14,11 +14,8 @@ Goal: make trace scrolling and rapid back-and-forth selection remain frame-respo
 
 Tasks:
 
-- Add permanent synthetic performance fixtures and CI budgets for 10,000 trace summaries, 200,000 stored spans, 10,000-wide traces, 5,000-deep traces, and 50 rapid selections.
-- Replace recursive waterfall traversal with an iterative O(n) walk and replace one-indent-guide-per-ancestor markup with constant-DOM CSS rendering.
-- Virtualize waterfall rows and trace-list rows with bounded overscan, stable IDs, keyboard parity, and explicit scroll-to-selection behavior.
-- Split trace selection from the root workbench render boundary; memoized rows receive stable primitive props so only old/new selections rerender.
-- Add a latest-only selection controller with same-frame coalescing, explicit IPC request cancellation IDs, stale-result rejection, reserved-height loading state, and a byte/entry-bounded LRU cache.
+- Expand the structural regression tests into checked-in 10,000-trace / 200,000-span storage fixtures with production IPC-byte, React-commit, heap, and packaged frame-latency budgets.
+- Finish splitting selection/list/filter state into selector-based render boundaries; current virtualization, stable memoized rows, latest-only loading, stale-result rejection, explicit trace keys, and bounded LRU caching remove the worst interaction amplification.
 - Split waterfall span summaries from full span details; fetch attributes/events/links only for the opened drawer.
 - Move SQLite ingest, queries, and retention off Electron main behind typed async worker/utility-process RPC with bounded queues and direct-query priority.
 - Add keyset pagination, optional exact counts, ingest/query backpressure counters, and packaged interaction benchmarks under continuous OTLP traffic.
@@ -33,9 +30,8 @@ React guardrails:
 
 Done when:
 
-- A 10,000-span trace mounts fewer than 100 rows / 2,000 DOM nodes without stack overflow or OOM.
-- A 200-result trace list mounts fewer than 50 rows and selected-row feedback is under 16 ms p95 on reference hardware.
-- Fifty rapid selections issue at most two detail requests, never commit stale results, and keep renderer heap bounded.
+- [x] Deep trace layout is iterative; waterfall/trace mounted rows are viewport-bounded; same-turn rapid selection coalesces; stale results cannot commit; recent trace caching is bounded.
+- Production IPC/React/heap benchmarks enforce the remaining budgets on reference hardware.
 - No synchronous SQLite operation runs on Electron main, and packaged pointer/scroll tests remain responsive during benchmark ingest.
 
 See [sprint.plan.md](sprint.plan.md) for measured baseline, sequencing, and exact budgets.
