@@ -554,6 +554,13 @@ curl -s -D /tmp/otelux-origin-headers.txt -X POST \
 - **Expected**: the platform-native executable launches; OTLP and MCP report healthy runtime ownership; the sandboxed preload/workbench render; trace ingest and content-type rejection pass; closing the window leaves the tray runtime healthy; and a second invocation with the internal `--otelux-request-quit` smoke flag exercises the same explicit-quit path as the tray menu. The primary process exits cleanly, OTLP/MCP stop, and `runtime.json` / `runtime.lock` disappear.
 - **Qualification limit**: this smoke proves unpacked application/runtime compatibility. It does not replace signed installer clean-install, OS trust UI, upgrade, or uninstall tests.
 
+### 12.6 Native package install/uninstall smoke
+- Run `node apps/desktop/scripts/install-smoke.mjs` on the native package runner after §12.5.
+- **Linux expected**: install the generated `.deb` with APT, run the packaged smoke against `/usr/bin/otelux`, remove the package, and confirm the executable is gone.
+- **macOS expected**: attach the architecture-matching DMG, copy its app bundle to an isolated Applications directory, detach the image, run the packaged smoke against the copied bundle, remove it, and confirm it is gone.
+- **Windows expected**: silently install the NSIS package into an isolated directory, run the packaged smoke against the installed executable, invoke the bundled silent uninstaller, and confirm the installation is gone.
+- **Qualification limit**: unsigned preview CI does not exercise Gatekeeper, SmartScreen, publisher identity, notarization/stapling, system-wide installation, or upgrade from an older public release. Those remain signed release gates.
+
 ---
 
 ## 13. Negative receiver scenarios

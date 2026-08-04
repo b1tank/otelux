@@ -9,6 +9,7 @@ on:
       - 'apps/desktop/electron-builder.yml'
       - 'apps/desktop/package.json'
       - 'apps/desktop/build/icon.svg'
+      - 'apps/desktop/scripts/install-smoke.mjs'
       - 'apps/desktop/scripts/smoke.mjs'
       - 'apps/desktop/src/main/index.ts'
       - 'apps/desktop/src/main/windowLifecycle.ts'
@@ -126,6 +127,12 @@ jobs:
 
       - name: Smoke-test native unpacked application
         run: ${{ matrix.smoke }}
+        env:
+          OTELUX_SMOKE_DESKTOP_DIR: ${{ github.workspace }}/apps/desktop
+          OTELUX_SMOKE_REPO_ROOT: ${{ github.workspace }}
+
+      - name: Install, smoke, and uninstall native package
+        run: node apps/desktop/scripts/install-smoke.mjs
         env:
           OTELUX_SMOKE_DESKTOP_DIR: ${{ github.workspace }}/apps/desktop
           OTELUX_SMOKE_REPO_ROOT: ${{ github.workspace }}

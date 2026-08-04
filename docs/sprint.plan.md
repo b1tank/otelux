@@ -76,7 +76,7 @@ Current groundwork: the README brand hero, navigation, truthful prerelease/downl
 
 ## Workstream 3 — cross-platform artifact pipeline (P0)
 
-Current groundwork: electron-builder targets and explicit package scripts exist for Linux x64, macOS x64/arm64, and Windows x64. A path-scoped CI workflow builds short-lived **unsigned preview artifacts** on native runners and runs the native unpacked application through OTLP, MCP, renderer, window-close/tray, and explicit-quit smoke coverage. Those previews are not releases and do not qualify signed installer support.
+Current groundwork: electron-builder targets and explicit package scripts exist for Linux x64, macOS x64/arm64, and Windows x64. A path-scoped CI workflow builds short-lived **unsigned preview artifacts** on native runners, runs the native unpacked application through OTLP/MCP/renderer/window-close/explicit-quit coverage, and then installs, smokes, and uninstalls the generated `.deb`, DMG app, or NSIS package. Those previews are not releases and do not qualify signed installer trust or upgrades.
 
 Build native artifacts on native GitHub runners; do not cross-sign from Linux.
 
