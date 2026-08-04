@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createLocalRuntime, resolveOteluxDataDirectory } from '@otelux/local-runtime';
-import { MAX_PORT, MIN_PORT } from '@otelux/protocol';
+import { MAX_PORT, MIN_PORT, parseInvokeMessage, parseRuntimeEvent } from '@otelux/protocol';
 import { BrowserWindow, Menu, Tray, app, ipcMain, shell } from 'electron';
 import {
 	type InvokeMessage,
@@ -109,12 +109,22 @@ async function startBackend(): Promise<{
 	});
 
 	const broadcast = (event: OteluxEvent): void => {
+		let validated: OteluxEvent;
+		try {
+			validated = parseRuntimeEvent(event);
+		} catch (error) {
+			console.error(
+				'[otelux] rejected invalid runtime event',
+				error instanceof Error ? error.message : 'unknown validation error',
+			);
+			return;
+		}
 		for (const wc of readyReceivers) {
 			if (!isReceiverReady(wc)) {
 				readyReceivers.delete(wc);
 				continue;
 			}
-			wc.send(OTELUX_EVENT_CHANNEL, event);
+			wc.send(OTELUX_EVENT_CHANNEL, validated);
 		}
 	};
 
@@ -122,7 +132,8 @@ async function startBackend(): Promise<{
 
 	// Single-channel dispatch. The discriminated union forces the switch
 	// to stay exhaustive when the protocol grows.
-	ipcMain.handle(OTELUX_INVOKE_CHANNEL, async (_event, message: InvokeMessage) => {
+	ipcMain.handle(OTELUX_INVOKE_CHANNEL, async (_event, input: unknown) => {
+		const message: InvokeMessage = parseInvokeMessage(input);
 		switch (message.kind) {
 			case 'listTraces':
 				return runtime.listTraces(message.query);

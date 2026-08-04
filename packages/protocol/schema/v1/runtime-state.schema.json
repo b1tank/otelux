@@ -1,0 +1,231 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otelux.dev/schema/v1/runtime-state.schema.json",
+  "title": "OTelux runtime discovery state v1",
+  "type": "object",
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "runtimeVersion": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "protocolVersion": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "instanceId": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "pid": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time",
+      "maxLength": 64
+    },
+    "dataDirectory": {
+      "type": "string",
+      "maxLength": 4096
+    },
+    "databasePath": {
+      "type": "string",
+      "maxLength": 4096
+    },
+    "mcpTokenFile": {
+      "type": "string",
+      "maxLength": 4096
+    },
+    "receiver": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "starting"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "running"
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "host": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "pressure": {
+              "type": "object",
+              "properties": {
+                "overloadedTraces": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "overloadedLogs": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "overloadedMetrics": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "overloadedTraces",
+                "overloadedLogs",
+                "overloadedMetrics"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "kind",
+            "port",
+            "host"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "error"
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "host": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "message": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          "required": [
+            "kind",
+            "port",
+            "host",
+            "message"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "mcp": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "starting"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "disabled"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "running"
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "host": {
+              "type": "string",
+              "maxLength": 255
+            }
+          },
+          "required": [
+            "kind",
+            "port",
+            "host"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "error"
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "host": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "message": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          "required": [
+            "kind",
+            "port",
+            "host",
+            "message"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "required": [
+    "version",
+    "runtimeVersion",
+    "protocolVersion",
+    "instanceId",
+    "pid",
+    "startedAt",
+    "dataDirectory",
+    "databasePath",
+    "mcpTokenFile",
+    "receiver",
+    "mcp"
+  ],
+  "additionalProperties": true
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otelux.dev/schema/v1/tagged-bigint.schema.json",
+  "title": "OTelux tagged bigint",
+  "type": "object",
+  "properties": {
+    "$bigint": {
+      "type": "string",
+      "maxLength": 1024,
+      "pattern": "^-?(0|[1-9][0-9]*)$"
+    }
+  },
+  "required": [
+    "$bigint"
+  ],
+  "additionalProperties": false
+}

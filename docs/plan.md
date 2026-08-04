@@ -147,7 +147,8 @@ Tasks:
 - [x] Extract backend composition into `@otelux/local-runtime`; Desktop now delegates SQLite, migrations, retention, OTLP, MCP, settings, and sample data to it.
 - Run `@otelux/local-runtime` as a single-instance per-user daemon instead of embedding it in Electron.
 - [x] Add canonical per-user data-home resolution, nonce-protected state/locking, protocol/runtime version metadata, and resumable copy-only legacy Desktop migration.
-- Define wire DTOs and codecs in `@otelux/protocol`, generate checked-in JSON Schema snapshots, and add backward/forward compatibility fixtures.
+- [x] Add bounded tagged-bigint wire codecs, path-aware Electron IPC/event and runtime-state validation, checked transition schemas, and backward/compatible-future fixtures in `@otelux/protocol`.
+- Define the complete Runtime JSON-RPC params/results registry, SSE envelope, protocol-major negotiation, and direct/IPC/HTTP conformance fixtures before daemon conversion.
 - Add JSON-RPC 2.0 Runtime RPC over loopback HTTP plus SSE invalidations, following [protocol.md](protocol.md); do not expose MCP as the UI API.
 - Add an authenticated HTTP/SSE `DataSource` adapter, serve the existing `@otelux/ui` as a same-origin loopback workbench, and convert Desktop into a client of that runtime.
 - Add dedicated runtime/API and MCP tokens/scopes plus one-time browser session bootstrap; tokens must never appear in dashboard URLs or `runtime.json`.

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "runtimeVersion": "0.2.0-beta.1",
+  "protocolVersion": "0.6.0",
+  "instanceId": "22222222-2222-4222-8222-222222222222",
+  "pid": 4243,
+  "startedAt": "2026-08-05T00:00:00.000Z",
+  "dataDirectory": "/home/example/.local/share/otelux",
+  "databasePath": "/home/example/.local/share/otelux/otelux.db",
+  "mcpTokenFile": "/home/example/.local/share/otelux/mcp-token",
+  "receiver": { "kind": "starting" },
+  "mcp": { "kind": "disabled" },
+  "futureApi": {
+    "host": "127.0.0.1",
+    "port": 4321
+  }
+}

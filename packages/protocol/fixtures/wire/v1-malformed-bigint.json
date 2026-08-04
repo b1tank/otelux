@@ -1,0 +1,7 @@
+{
+  "schemaVersion": 1,
+  "startTimeUnixNano": {
+    "$bigint": "01",
+    "unit": "ns"
+  }
+}

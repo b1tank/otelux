@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "runtimeVersion": "1.0.0",
+  "protocolVersion": "2.0.0",
+  "instanceId": "33333333-3333-4333-8333-333333333333",
+  "pid": 4244,
+  "startedAt": "2026-08-06T00:00:00.000Z",
+  "dataDirectory": "/home/example/.local/share/otelux",
+  "databasePath": "/home/example/.local/share/otelux/otelux.db",
+  "mcpTokenFile": "/home/example/.local/share/otelux/mcp-token",
+  "receiver": { "kind": "starting" },
+  "mcp": { "kind": "starting" }
+}

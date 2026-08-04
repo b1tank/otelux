@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "traceId": "0123456789abcdef0123456789abcdef",
+  "startTimeUnixNano": { "$bigint": "1700000000000000000" },
+  "attributes": {
+    "attempt": { "$bigint": "2" },
+    "cached": false
+  }
+}

@@ -1,139 +1,44 @@
-# Sprint — OSS branding, demo, and cross-platform distribution
+# Sprint — Runtime Contract Hardening
 
 ## Goal
 
-Make the public repository explain and demonstrate OTelux within seconds, show a trustworthy current version and build status, and provide safe installation paths for every supported platform. Use synthetic telemetry in public media and never overstate platform support.
+Create the runtime-validated, JSON-safe contract foundation required before extracting the per-user daemon or adding CLI/agent-onboarding clients. This sprint does not start a second runtime process; it hardens the current Electron/runtime boundary first so the later daemon transport reuses proven DTOs and validators.
 
-## Reference audit
+## Prioritized tasks
 
-### Pi
+- [x] **T1 — Shared validation primitives and Electron IPC enforcement**
+  - Add bounded, path-aware runtime decoders for every current query and settings patch.
+  - Move the invoke-message union into `@otelux/protocol` and validate unknown renderer input before dispatch.
+  - Validate runtime push events in preload before they enter the renderer.
+  - Return stable validation errors without stack traces or SQL details.
+- [x] **T2 — JSON-safe wire codec and compatibility fixtures**
+  - Add recursive tagged-bigint JSON encoding/decoding, finite-number enforcement, depth/node/string limits, and malformed-input tests.
+  - Add old/current/compatible-future fixtures proving unknown ordinary object fields are tolerated while malformed tags and unsupported discriminators fail.
+- [x] **T3 — Runtime state decoder and checked-in schemas**
+  - Move `runtime.json` validation to the shared protocol package.
+  - Check in draft 2020-12 schemas for runtime state, invoke requests, runtime events, and tagged bigint values with stable OTelux schema IDs.
+  - Add snapshot/fixture tests so schema and decoder changes are reviewed together.
+- [x] **T4 — Documentation and full build verification**
+  - Update protocol/spec/architecture/current-gap material to distinguish delivered validation from the still-planned daemon RPC registry.
+  - Run edited-file formatting, package/full tests, typecheck, and the complete workspace build.
 
-- Centered 128 px logo and concise badge row.
-- Clear project explanation plus links to a separate demo/docs site.
-- Stable GitHub Release, so the sidebar displays an explicit latest version.
-- Linux, macOS, and Windows assets for x64/arm64 plus checksums.
+## Out of scope
 
-### herdr
+- Starting `oteluxd` or changing Desktop runtime ownership.
+- Runtime HTTP JSON-RPC/SSE transport.
+- CLI commands or agent configuration mutations.
+- Storage query-plan budgets, which remain the next independent hardening sprint.
 
-- Strong conversion flow: centered logo, navigation, badges, short video, pitch, feature bullets, then install.
-- Release/download/license/Homebrew badges make status visible without reading prose.
-- Project installer, Homebrew, mise, Windows PowerShell beta, and direct binaries.
+## Hiccups & Notes
 
-### Ghostty
+- Importing `@otelux/protocol` at runtime from Electron's sandboxed preload caused the preload verifier to reject an external `require()`. Runtime events are instead decoded once in Electron main immediately before broadcast; the preload remains dependency-free and sandbox-compatible while the renderer still receives only validated events.
+- Protocol tests read checked-in JSON fixtures, so `@types/node` was added as an explicit protocol development dependency. The lockfile was updated narrowly rather than accepting npm's unrelated lock normalization.
+- Generated JSON Schema snapshots use deterministic two-space JSON and are excluded from Biome reformatting; `schema:check` byte-compares them against the generator in every protocol test run.
 
-- Restrained centered logo/title/tagline/navigation hero.
-- Delegates installation and documentation detail to a polished website.
-- Favors signed releases and downstream package maintainers over making a privileged shell script the default.
+## Final verification
 
-## OTelux gaps
-
-- README starts with architecture instead of a centered brand hero and immediate user outcome.
-- The existing app icon is not used as the repository logo.
-- No badge row exposes release, CI, CodeQL, downloads, or license status.
-- No screenshot, animation, or video demonstrates the workbench.
-- OTelux releases remain deliberately marked prerelease. GitHub therefore returns no `/releases/latest` release and shows Tags rather than a stable Latest release in the repository sidebar; the prerelease-aware README badge exposes the current version.
-- Linux x64 and arm64 `.deb` and rootless AppImage paths are qualified for v0.1.10. Signed/notarized macOS and signed Windows distribution, package-manager channels, and supported cross-version upgrade tests remain.
-- No GitHub social-preview image provides a branded link card.
-
-## Principles
-
-- Prefer package-manager or signed native installers for a desktop GUI.
-- Do not use mutable `curl | sudo` or PowerShell-as-administrator pipelines.
-- An optional user-local bootstrap script may come later only with pinned version resolution, checksum/signature verification, and no privilege escalation.
-- A badge or platform name must link to a tested, currently supported artifact.
-- “Latest” must remain truthful: do not relabel a prerelease stable merely to change GitHub's sidebar.
-
-## Workstream 1 — brand and repository landing page (P0)
-
-Current groundwork: the README brand hero, navigation, truthful prerelease/download/CI/CodeQL/license badges, support matrix, deterministic social-preview generator, generated preview asset, privacy-reviewed synthetic product screenshot, and GitHub-compatible animated demo are implemented. The repository-settings social-preview upload remains.
-
-1. Establish an asset contract under `docs/assets/`:
-   - logo derived from `apps/desktop/build/icon.svg`;
-   - 1280×640 social preview;
-   - 1440×900 product screenshot;
-   - short, optimized demo animation/video and a static fallback.
-2. Capture only deterministic synthetic data. Show traces, logs, and metrics, Source → Service grouping, a waterfall, and local receiver health. Audit pixels and metadata for names, paths, tokens, and live telemetry.
-3. Restructure README above the fold:
-   - centered 128 px logo and OTelux title;
-   - one sentence: local-first OpenTelemetry workbench for developers and coding agents;
-   - links to Install, Demo, Docs, Security, and Contributing;
-   - badges for latest prerelease, release downloads, Linux build/CI, CodeQL, and MIT license;
-   - demo directly before installation.
-4. Follow with three benefit bullets, a five-minute quick start, current support matrix, then architecture/development detail.
-5. Upload the social preview in repository settings and verify desktop/mobile rendering, dark/light GitHub themes, links, alt text, and asset size.
-
-**Acceptance:** a new visitor can identify the product, see it, determine current version/support, and start installation without scrolling through architecture prose.
-
-## Workstream 2 — release semantics and presentation (P0)
-
-1. Keep the prerelease-aware version badge linked to the current release.
-2. Keep prereleases visibly labeled until the stable-release gate is met.
-3. Publish the first stable, non-prerelease GitHub Release only after its supported platform matrix passes release tests. This is what makes GitHub's sidebar and `/releases/latest` show an explicit version.
-4. Generate release notes with install, upgrade, uninstall, support matrix, checksums, SBOM, provenance/signature, known limitations, and changes.
-5. Add a release manifest consumed by docs/package-manager automation so README versions do not drift.
-
-**Acceptance:** version surfaces agree across package metadata, tag, release title, About dialog, badges, and install docs; the GitHub sidebar shows “Latest” only for a genuinely stable release.
-
-## Workstream 3 — cross-platform artifact pipeline (P0)
-
-Current groundwork: electron-builder targets and explicit package scripts exist for Linux x64/arm64 `.deb` and AppImage, macOS x64/arm64, and Windows x64. A path-scoped CI workflow builds short-lived **unsigned preview artifacts** on native runners; generates version-scoped checksums and CycloneDX production SBOMs; runs the unpacked application through OTLP/MCP/renderer/window-close/explicit-quit coverage; and then installs, smokes, and uninstalls the generated `.deb`, DMG app, or NSIS package. Those previews are not releases and do not qualify signed installer trust or upgrades.
-
-Build native artifacts on native GitHub runners; do not cross-sign from Linux.
-
-| Platform | First official artifacts | Trust requirements | CI verification |
-| --- | --- | --- | --- |
-| Linux | x64 `.deb` (existing), then arm64 `.deb`; evaluate AppImage/RPM by demand | checksums, SBOM, provenance | clean install, upgrade, uninstall, smoke, performance |
-| macOS | signed/notarized universal or separate arm64/x64 `.dmg` plus `.zip` | Apple Developer ID, hardened runtime, notarization/stapling | Gatekeeper clean install, launch, OTLP/MCP, quit, upgrade/uninstall |
-| Windows | signed x64 installer first (NSIS `.exe` or MSIX); arm64 after Electron/runtime validation | Authenticode certificate and timestamping | clean VM install, SmartScreen/signature, launch, OTLP/MCP, quit, upgrade/uninstall |
-
-Implementation order:
-
-1. Generalize `electron-builder.yml`, release scripts, artifact naming, checksums, SBOM generation, and release publishing for a matrix.
-2. Split release jobs by OS/architecture; upload immutable per-job artifacts, then assemble one GitHub Release after every required job passes.
-3. Add macOS signing/notarization secrets in the protected release environment and document credential rotation.
-4. Add Windows signing secrets/service integration and choose NSIS versus MSIX based on update/uninstall and Winget compatibility.
-5. Extend packaged smoke tests and manual release reports per platform; add platform-specific tray, lifecycle, port-conflict, filesystem, and accessibility checks.
-6. Verify all release assets by downloading them from GitHub—not CI staging—before announcing support.
-
-## Workstream 4 — easy installation (P1 after signed artifacts)
-
-1. **Direct downloads:** always available from GitHub Releases with concise per-platform commands and GUI instructions.
-2. **macOS:** create a maintained `b1tank/homebrew-tap` cask after notarized artifacts exist; later submit to `homebrew-cask` once release cadence and adoption meet its policies. Target: `brew install --cask b1tank/tap/otelux`, then `brew upgrade --cask otelux`.
-3. **Windows:** generate and test Winget manifests from signed stable installer metadata, then submit versioned PRs to `microsoft/winget-pkgs`. Target: `winget install OTelux.OTelux` and `winget upgrade OTelux.OTelux`.
-4. **Linux:** retain `.deb` first. Add a signed APT repository only when operational ownership for repository metadata, key rotation, and rollback exists. Do not present Homebrew as the primary Linux GUI path.
-5. Consider Scoop or a user-local verified installer only as secondary channels. Every channel must support documented upgrade and uninstall and must verify immutable release assets.
-
-## Workstream 5 — documentation and launch (P1)
-
-- Keep README, `docs/getting-started.md`, `docs/spec.md`, `docs/plan.md`, `docs/test.md`, release notes, and package-manager metadata synchronized.
-- Add troubleshooting for Gatekeeper, SmartScreen, tray behavior, ports, data location, and complete removal.
-- Add platform issue templates and support labels.
-- Announce a platform only after the exact public artifact passes the release report.
-- Track download/install failures and support load before widening channels.
-
-## Workstream 6 — CLI and agent onboarding (P0 before supported public launch)
-
-- Extract one per-user daemon before standalone CLI/plugin claims so Desktop, CLI, direct MCP, and five agent sessions cannot compete for ports or SQLite ownership.
-- Bundle a version-matched `otelux` CLI with Desktop for lifecycle, status, endpoints, open/Desktop launch, settings, doctor, and safe agent management.
-- Build one typed agent-integration package shared by CLI and Settings → Agents; it owns detection, capability inspection, dry-run plans, atomic/idempotent/reversible configuration, redaction, and verification.
-- Ship Claude Code, Codex, and Pi end-to-end first. Add Copilot CLI and OpenCode through pinned capability adapters rather than assuming native plugin parity.
-- Add a resumable first-run flow that separates MCP/skills/plugin installation, telemetry export, and sensitive-content opt-in; show exact paths/operations and verify after restart.
-- Follow the full architecture, command, packaging, security, UX, milestone, and acceptance contract in [agent-onboarding.md](agent-onboarding.md).
-
-## Recommended sequence
-
-1. Maintain the delivered README hero, truthful badges, high-density demo, social preview, and prerelease metadata.
-2. Finish Runtime API validation/schema compatibility and extract the single per-user daemon.
-3. Add the bundled CLI and shared agent-integration engine; ship Claude/Codex/Pi CLI workflows.
-4. Add Settings → Agents and resumable onboarding; then capability-pinned Copilot CLI and OpenCode beta adapters.
-5. Obtain macOS/Windows publisher credentials, ship signed native artifacts, then publish Homebrew/Winget metadata.
-6. Run the signed `v0.2.0-beta.1` external beta, accessibility/security/upgrade gates, and release rollback rehearsal.
-7. Publish `v0.2.0` as the first stable non-prerelease only after all advertised-platform and agent-onboarding gates pass; then enable GitHub “Latest.”
-
-## Explicit non-goals for this sprint
-
-- Rebranding the in-app UI.
-- A dedicated marketing website before README conversion is validated.
-- Silent auto-update.
-- Unverified or privileged remote install scripts.
-- Claiming stable cross-platform support before signing and clean-machine tests exist.
+- Biome lint: PASS (237 files).
+- Workspace tests: PASS (all 10 packages; protocol 37 tests, local-runtime 28, Desktop 35 plus 16 release-script tests).
+- Workspace typecheck: PASS (18 tasks).
+- Workspace build: PASS (10 packages; sandboxed preload verifier passed).
+- Deskpal scoped UI smoke: PASS — clean isolated Desktop received the synthetic trace and visibly rendered one `GET /api/users` trace with three spans.

@@ -1,0 +1,539 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otelux.dev/schema/v1/invoke-message.schema.json",
+  "title": "OTelux Electron invoke message",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "listTraces"
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000000
+            },
+            "cursor": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "includeTotalCount": {
+              "type": "boolean"
+            },
+            "sortBy": {
+              "enum": [
+                "startTime",
+                "name",
+                "duration",
+                "spanCount",
+                "errorCount"
+              ]
+            },
+            "sortDirection": {
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            },
+            "timeFromUnixNano": {
+              "description": "JavaScript bigint on Electron structured-clone IPC"
+            },
+            "timeToUnixNano": {
+              "description": "JavaScript bigint on Electron structured-clone IPC"
+            },
+            "sources": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "type": "string",
+                "maxLength": 512
+              }
+            },
+            "services": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "type": "string",
+                "maxLength": 512
+              }
+            },
+            "hasError": {
+              "type": "boolean"
+            },
+            "search": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "getTrace"
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "traceId": {
+              "type": "string",
+              "maxLength": 32,
+              "pattern": "^[0-9a-f]{32}$"
+            }
+          },
+          "required": [
+            "traceId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "getTraceWaterfall"
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "traceId": {
+              "type": "string",
+              "maxLength": 32,
+              "pattern": "^[0-9a-f]{32}$"
+            }
+          },
+          "required": [
+            "traceId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "getSpanDetails"
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "traceId": {
+              "type": "string",
+              "maxLength": 32,
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            "spanId": {
+              "type": "string",
+              "maxLength": 16,
+              "pattern": "^[0-9a-f]{16}$"
+            }
+          },
+          "required": [
+            "traceId",
+            "spanId"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "listLogs"
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000000
+            },
+            "cursor": {
+              "type": "string",
+              "maxLength": 512
+            },
+            "includeTotalCount": {
+              "type": "boolean"
+            },
+            "sortBy": {
+              "enum": [
+                "time",
+                "severity"
+              ]
+            },
+            "sortDirection": {
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            },
+            "timeFromUnixNano": {
+              "description": "JavaScript bigint on Electron structured-clone IPC"
+            },
+            "timeToUnixNano": {
+              "description": "JavaScript bigint on Electron structured-clone IPC"
+            },
+            "minSeverity": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 24
+            },
+            "sources": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "type": "string",
+                "maxLength": 512
+              }
+            },
+            "services": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "type": "string",
+                "maxLength": 512
+              }
+            },
+            "scopes": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "type": "string",
+                "maxLength": 512
+              }
+            },
+            "traceId": {
+              "type": "string",
+              "maxLength": 32,
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            "search": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "listMetrics"
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            },
+            "offset": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000000
+            },
+            "pointLimit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10000
+            },
+            "sources": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "type": "string",
+                "maxLength": 512
+              }
+            },
+            "services": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "type": "string",
+                "maxLength": 512
+              }
+            },
+            "meters": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "type": "string",
+                "maxLength": 512
+              }
+            },
+            "search": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "listResourceFacets"
+        },
+        "query": {
+          "type": "object",
+          "properties": {
+            "signal": {
+              "enum": [
+                "traces",
+                "logs",
+                "metrics"
+              ]
+            },
+            "facet": {
+              "enum": [
+                "source",
+                "service"
+              ]
+            },
+            "sources": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "type": "string",
+                "maxLength": 512
+              }
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            }
+          },
+          "required": [
+            "signal",
+            "facet"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "query"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "updateSettings"
+        },
+        "patch": {
+          "type": "object",
+          "properties": {
+            "otlp": {
+              "type": "object",
+              "properties": {
+                "port": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65535
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            },
+            "mcp": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "port": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65535
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            },
+            "retention": {
+              "type": "object",
+              "properties": {
+                "maxAgeHours": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 43800
+                },
+                "maxSizeMb": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1048576
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            },
+            "storage": {
+              "type": "object",
+              "properties": {
+                "dbPath": {
+                  "type": "string",
+                  "maxLength": 4096
+                }
+              },
+              "required": [],
+              "additionalProperties": false
+            }
+          },
+          "required": [],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "patch"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "getSettings"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "getReceiverStatus"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "getMcpStatus"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "getStoragePath"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "getStorageUsage"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "loadSampleData"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "clearData"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

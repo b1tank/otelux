@@ -169,6 +169,53 @@ export type ChangeEvent =
 	| { kind: 'logsChanged'; count: number }
 	| { kind: 'metricsChanged'; count: number };
 
+export type InvokeMessage =
+	| { kind: 'listTraces'; query: ListTracesQuery }
+	| { kind: 'getTrace'; query: GetTraceQuery }
+	| { kind: 'getTraceWaterfall'; query: GetTraceQuery }
+	| { kind: 'getSpanDetails'; query: GetSpanDetailsQuery }
+	| { kind: 'listLogs'; query: ListLogsQuery }
+	| { kind: 'listMetrics'; query: ListMetricsQuery }
+	| { kind: 'listResourceFacets'; query: ListResourceFacetsQuery }
+	| { kind: 'getSettings' }
+	| { kind: 'updateSettings'; patch: PartialSettings }
+	| { kind: 'getReceiverStatus' }
+	| { kind: 'getMcpStatus' }
+	| { kind: 'getStoragePath' }
+	| { kind: 'getStorageUsage' }
+	| { kind: 'loadSampleData' }
+	| { kind: 'clearData' };
+
+export type InvokeResultFor<M extends InvokeMessage> = M extends { kind: 'listTraces' }
+	? ListTracesResult
+	: M extends { kind: 'getTrace' | 'getTraceWaterfall' }
+		? Trace
+		: M extends { kind: 'getSpanDetails' }
+			? SpanDetails
+			: M extends { kind: 'listLogs' }
+				? ListLogsResult
+				: M extends { kind: 'listMetrics' }
+					? ListMetricsResult
+					: M extends { kind: 'listResourceFacets' }
+						? ListResourceFacetsResult
+						: M extends { kind: 'getSettings' }
+							? Settings
+							: M extends { kind: 'updateSettings' }
+								? UpdateSettingsResult
+								: M extends { kind: 'getReceiverStatus' }
+									? ReceiverStatus
+									: M extends { kind: 'getMcpStatus' }
+										? McpStatus
+										: M extends { kind: 'getStoragePath' }
+											? StoragePathInfo
+											: M extends { kind: 'getStorageUsage' }
+												? StorageUsageInfo
+												: M extends { kind: 'loadSampleData' }
+													? LoadSampleDataResult
+													: M extends { kind: 'clearData' }
+														? undefined
+														: never;
+
 export interface DataSource {
 	readonly kind: 'otelux/datasource';
 	listTraces(query: ListTracesQuery): Promise<ListTracesResult>;
@@ -298,6 +345,27 @@ export type UpdateSettingsResult =
 	  }
 	| { readonly ok: false; readonly error: string };
 
+export interface RuntimeLockOwner {
+	readonly version: 1;
+	readonly instanceId: string;
+	readonly pid: number;
+	readonly acquiredAt: string;
+}
+
+export interface RuntimeState {
+	readonly version: 1;
+	readonly runtimeVersion: string;
+	readonly protocolVersion: string;
+	readonly instanceId: string;
+	readonly pid: number;
+	readonly startedAt: string;
+	readonly dataDirectory: string;
+	readonly databasePath: string;
+	readonly mcpTokenFile: string;
+	readonly receiver: ReceiverStatus;
+	readonly mcp: McpStatus;
+}
+
 /** Every event emitted by the shared runtime to its clients. */
 export type RuntimeEvent =
 	| ChangeEvent
@@ -306,3 +374,6 @@ export type RuntimeEvent =
 	| { readonly kind: 'mcp-status-changed'; readonly status: McpStatus };
 
 export const OTELUX_PROTOCOL_VERSION = '0.6.0' as const;
+
+export * from './validation.js';
+export * from './wire.js';

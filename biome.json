@@ -14,7 +14,8 @@
 			"**/.vite",
 			"**/.turbo",
 			"**/coverage",
-			"fixtures/**/*.json"
+			"fixtures/**/*.json",
+			"packages/protocol/schema/**/*.json"
 		]
 	},
 	"formatter": {

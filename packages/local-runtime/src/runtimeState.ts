@@ -1,31 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import { chmod, mkdir, open, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { McpStatus, ReceiverStatus } from '@otelux/protocol';
+import {
+	type RuntimeLockOwner,
+	type RuntimeState,
+	parseRuntimeLockOwner,
+	parseRuntimeState,
+} from '@otelux/protocol';
 
 export const RUNTIME_LOCK_FILE = 'runtime.lock';
 export const RUNTIME_STATE_FILE = 'runtime.json';
 
-export interface RuntimeLockOwner {
-	readonly version: 1;
-	readonly instanceId: string;
-	readonly pid: number;
-	readonly acquiredAt: string;
-}
-
-export interface RuntimeState {
-	readonly version: 1;
-	readonly runtimeVersion: string;
-	readonly protocolVersion: string;
-	readonly instanceId: string;
-	readonly pid: number;
-	readonly startedAt: string;
-	readonly dataDirectory: string;
-	readonly databasePath: string;
-	readonly mcpTokenFile: string;
-	readonly receiver: ReceiverStatus;
-	readonly mcp: McpStatus;
-}
+export type { RuntimeLockOwner, RuntimeState } from '@otelux/protocol';
 
 export interface ClaimRuntimeOwnershipOptions {
 	readonly dataDirectory: string;
@@ -103,29 +89,13 @@ export async function claimRuntimeOwnership(
 export async function readRuntimeState(dataDirectory: string): Promise<RuntimeState | undefined> {
 	const path = join(dataDirectory, RUNTIME_STATE_FILE);
 	try {
-		const parsed = JSON.parse(await readFile(path, 'utf8')) as Partial<RuntimeState>;
-		if (
-			parsed.version === 1 &&
-			typeof parsed.runtimeVersion === 'string' &&
-			typeof parsed.protocolVersion === 'string' &&
-			typeof parsed.instanceId === 'string' &&
-			isValidPid(parsed.pid) &&
-			typeof parsed.startedAt === 'string' &&
-			typeof parsed.dataDirectory === 'string' &&
-			typeof parsed.databasePath === 'string' &&
-			typeof parsed.mcpTokenFile === 'string' &&
-			isReceiverStatus(parsed.receiver) &&
-			isMcpStatus(parsed.mcp)
-		) {
-			return parsed as RuntimeState;
-		}
+		return parseRuntimeState(JSON.parse(await readFile(path, 'utf8')));
 	} catch (error) {
 		if (isNodeError(error) && error.code === 'ENOENT') {
 			return undefined;
 		}
 		return undefined;
 	}
-	return undefined;
 }
 
 export async function writeRuntimeState(dataDirectory: string, state: RuntimeState): Promise<void> {
@@ -168,19 +138,10 @@ async function tryCreateLock(path: string, owner: RuntimeLockOwner): Promise<boo
 
 async function readLockOwner(path: string): Promise<RuntimeLockOwner | undefined> {
 	try {
-		const parsed = JSON.parse(await readFile(path, 'utf8')) as Partial<RuntimeLockOwner>;
-		if (
-			parsed.version === 1 &&
-			typeof parsed.instanceId === 'string' &&
-			isValidPid(parsed.pid) &&
-			typeof parsed.acquiredAt === 'string'
-		) {
-			return parsed as RuntimeLockOwner;
-		}
+		return parseRuntimeLockOwner(JSON.parse(await readFile(path, 'utf8')));
 	} catch {
 		return undefined;
 	}
-	return undefined;
 }
 
 async function removeOwnedFile(path: string, instanceId: string): Promise<void> {
@@ -224,52 +185,10 @@ function defaultProcessLiveness(pid: number): boolean {
 	}
 }
 
-function isReceiverStatus(value: unknown): value is ReceiverStatus {
-	if (typeof value !== 'object' || value === null || !('kind' in value)) {
-		return false;
-	}
-	const status = value as Partial<ReceiverStatus>;
-	if (status.kind === 'starting') {
-		return true;
-	}
-	if (status.kind === 'running') {
-		return typeof status.host === 'string' && isValidPort(status.port);
-	}
-	return (
-		status.kind === 'error' &&
-		typeof status.host === 'string' &&
-		isValidPort(status.port) &&
-		typeof status.message === 'string'
-	);
-}
-
-function isMcpStatus(value: unknown): value is McpStatus {
-	if (typeof value !== 'object' || value === null || !('kind' in value)) {
-		return false;
-	}
-	const status = value as Partial<McpStatus>;
-	if (status.kind === 'starting' || status.kind === 'disabled') {
-		return true;
-	}
-	if (status.kind === 'running') {
-		return typeof status.host === 'string' && isValidPort(status.port);
-	}
-	return (
-		status.kind === 'error' &&
-		typeof status.host === 'string' &&
-		isValidPort(status.port) &&
-		typeof status.message === 'string'
-	);
-}
-
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {
 	return error instanceof Error && 'code' in error;
 }
 
 function isValidPid(value: unknown): value is number {
 	return typeof value === 'number' && Number.isInteger(value) && value > 0;
-}
-
-function isValidPort(value: unknown): value is number {
-	return typeof value === 'number' && Number.isInteger(value) && value > 0 && value <= 65_535;
 }

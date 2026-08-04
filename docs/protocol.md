@@ -1,6 +1,6 @@
 # OTelux Communication And Wire Contracts
 
-Updated: 2026-08-03
+Updated: 2026-08-04
 
 OTelux has one local runtime and several clients. Each boundary uses one protocol chosen for that boundary; transports must not leak storage details or create parallel domain models.
 
@@ -187,20 +187,28 @@ Rules:
 
 Before the daemon API is considered stable:
 
-1. Split domain types from wire DTOs in `@otelux/protocol`.
-2. Add explicit `encodeWire` / `decodeWire` codecs with bigint and malformed-input tests.
-3. Generate checked-in JSON Schema draft 2020-12 snapshots under `packages/protocol/schema/v1/` for Runtime RPC params/results, events, and `runtime.json`. Every schema has a stable `$id` under `https://otelux.dev/schema/v1/` and forbids accidental undeclared fields where forward compatibility does not require them.
-4. Add schema compatibility tests: old fixture -> new decoder, new compatible fields -> old decoder behavior, unsupported major -> deterministic error.
-5. Add transport conformance tests that run the same method suite through direct calls, Electron IPC during transition, and HTTP RPC.
-6. Add payload-size and pagination-limit tests.
+1. Split domain types from the complete Runtime RPC wire DTO registry in `@otelux/protocol` — **pending for HTTP RPC method params/results**.
+2. Add explicit bounded `encodeWire` / `decodeWire` codecs with tagged bigint, malformed-input, finite-number, cycle, depth/node/string, and compatibility tests — **delivered**.
+3. Generate checked-in JSON Schema draft 2020-12 snapshots under `packages/protocol/schema/v1/` — **delivered for tagged bigint, `runtime.json`, Electron invoke messages, and runtime events; pending for Runtime RPC params/results and SSE envelopes**. Every schema has a stable `$id` under `https://otelux.dev/schema/v1/`.
+4. Add schema compatibility tests: old fixture -> new decoder, compatible future fields -> sanitized current decoder behavior, unsupported major -> deterministic error — **delivered for runtime state and wire codecs; pending for Runtime RPC negotiation**.
+5. Add transport conformance tests that run the same method suite through direct calls, Electron IPC during transition, and HTTP RPC — **pending until HTTP RPC exists**.
+6. Add payload-size and pagination-limit tests — **delivered at Electron invoke/wire boundaries; pending transport body and complete RPC result budgets**.
 
 ## Current Gaps
 
-- `@otelux/protocol` currently describes in-memory TypeScript values, not JSON wire DTOs.
-- Electron IPC and runtime events have compile-time types but no runtime validation.
-- MCP tool input schemas are advertised but handlers cast inputs rather than validating them.
-- MCP tool results are JSON inside one text content block and have no output schemas.
-- `runtime.json` has a TypeScript reader but no checked-in JSON Schema.
-- List APIs use offsets; the daemon contract should use opaque keyset cursors to avoid page drift during live ingest.
+Delivered transition safeguards:
 
-These gaps must be addressed before Desktop becomes a daemon client or the plugin is published as self-contained.
+- Every Electron invoke request is decoded into a sanitized bounded union before dispatch; unknown kinds/fields, malformed IDs, explicit `undefined`, oversized filters/text, and out-of-range list/settings values fail with stable path/code errors.
+- Preload validates runtime push events before exposing them to the renderer.
+- `runtime.json` and lock-owner readers use shared protocol decoders; compatible future top-level state fields are ignored, while unsupported versions and malformed statuses fail closed.
+- Bounded JSON-safe wire codecs preserve bigint through `{ "$bigint": "..." }`, reject non-finite/unsupported/cyclic values, and enforce depth/node/string/JSON limits.
+- Checked schema snapshots and old/current/future/malformed fixtures cover tagged bigint, runtime state, Electron invoke messages, and runtime events.
+
+Remaining before daemon conversion:
+
+- Define the complete Runtime JSON-RPC params/results registry and SSE event envelope as JSON wire DTOs/schemas rather than in-memory domain objects.
+- Implement authenticated HTTP RPC/SSE and direct/IPC/HTTP transport conformance tests.
+- MCP tool input schemas are advertised but handlers still cast inputs rather than validating them; tool results have no output schemas.
+- Define deterministic protocol-major negotiation and error envelopes in executable code.
+
+Trace and log list APIs already support opaque keyset cursors; daemon DTOs must preserve them and must not regress to offset-only paging.

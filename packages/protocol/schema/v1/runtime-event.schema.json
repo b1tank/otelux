@@ -1,0 +1,357 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otelux.dev/schema/v1/runtime-event.schema.json",
+  "title": "OTelux runtime event",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "tracesChanged"
+        },
+        "traceIds": {
+          "type": "array",
+          "maxItems": 1000,
+          "items": {
+            "type": "string",
+            "maxLength": 32,
+            "pattern": "^[0-9a-f]{32}$"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "traceIds"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "logsChanged"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "kind",
+        "count"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "metricsChanged"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "kind",
+        "count"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "settings-changed"
+        },
+        "settings": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "const": 1
+            },
+            "otlp": {
+              "type": "object",
+              "properties": {
+                "port": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65535
+                }
+              },
+              "required": [
+                "port"
+              ],
+              "additionalProperties": false
+            },
+            "mcp": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "port": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65535
+                }
+              },
+              "required": [
+                "enabled",
+                "port"
+              ],
+              "additionalProperties": false
+            },
+            "retention": {
+              "type": "object",
+              "properties": {
+                "maxAgeHours": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 43800
+                },
+                "maxSizeMb": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 1048576
+                }
+              },
+              "required": [
+                "maxAgeHours",
+                "maxSizeMb"
+              ],
+              "additionalProperties": false
+            },
+            "storage": {
+              "type": "object",
+              "properties": {
+                "dbPath": {
+                  "type": "string",
+                  "maxLength": 4096
+                }
+              },
+              "required": [
+                "dbPath"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "version",
+            "otlp",
+            "mcp",
+            "retention",
+            "storage"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "kind",
+        "settings"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "receiver-status-changed"
+        },
+        "status": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "starting"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "running"
+                },
+                "port": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65535
+                },
+                "host": {
+                  "type": "string",
+                  "maxLength": 255
+                },
+                "pressure": {
+                  "type": "object",
+                  "properties": {
+                    "overloadedTraces": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "overloadedLogs": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "overloadedMetrics": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    }
+                  },
+                  "required": [
+                    "overloadedTraces",
+                    "overloadedLogs",
+                    "overloadedMetrics"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "required": [
+                "kind",
+                "port",
+                "host"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "error"
+                },
+                "port": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65535
+                },
+                "host": {
+                  "type": "string",
+                  "maxLength": 255
+                },
+                "message": {
+                  "type": "string",
+                  "maxLength": 2048
+                }
+              },
+              "required": [
+                "kind",
+                "port",
+                "host",
+                "message"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "status"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "mcp-status-changed"
+        },
+        "status": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "starting"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "disabled"
+                }
+              },
+              "required": [
+                "kind"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "running"
+                },
+                "port": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65535
+                },
+                "host": {
+                  "type": "string",
+                  "maxLength": 255
+                }
+              },
+              "required": [
+                "kind",
+                "port",
+                "host"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "const": "error"
+                },
+                "port": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 65535
+                },
+                "host": {
+                  "type": "string",
+                  "maxLength": 255
+                },
+                "message": {
+                  "type": "string",
+                  "maxLength": 2048
+                }
+              },
+              "required": [
+                "kind",
+                "port",
+                "host",
+                "message"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "status"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}
