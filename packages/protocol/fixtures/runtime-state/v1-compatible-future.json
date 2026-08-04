@@ -8,8 +8,10 @@
   "dataDirectory": "/home/example/.local/share/otelux",
   "databasePath": "/home/example/.local/share/otelux/otelux.db",
   "mcpTokenFile": "/home/example/.local/share/otelux/mcp-token",
+  "runtimeTokenFile": "/home/example/.local/share/otelux/runtime-token",
   "receiver": { "kind": "starting" },
   "mcp": { "kind": "disabled" },
+  "api": { "kind": "running", "host": "127.0.0.1", "port": 4321 },
   "futureApi": {
     "host": "127.0.0.1",
     "port": 4321

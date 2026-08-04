@@ -39,8 +39,8 @@ flowchart LR
 | Claude/Codex -> plugin bridge | Agent tool protocol | stdio | One MCP JSON-RPC 2.0 message per line | MCP specification plus OTelux tool schemas | Live |
 | Plugin bridge -> runtime MCP | Agent tool forwarding | Loopback HTTP | MCP Streamable HTTP JSON-RPC 2.0, bearer token | MCP specification plus `@otelux/mcp-server` | Live |
 | Client -> runtime discovery | Find active owner/endpoints | Owner-only files | Versioned `runtime.json` and `runtime.lock` JSON | `@otelux/local-runtime` | Live |
-| Desktop main, CLI, browser -> daemon | OTelux query and control | Loopback HTTP | JSON-RPC 2.0 at `/api/v1/rpc` | Planned `@otelux/protocol` wire contract | Target |
-| Runtime -> Desktop/browser | Live invalidations | Server-Sent Events | SSE at `/api/v1/events` with versioned JSON data | Planned `@otelux/protocol` event contract | Target |
+| Desktop main, CLI, browser -> runtime | OTelux query and control | Loopback HTTP | JSON-RPC 2.0 at `/api/v1/rpc`, tagged-bigint JSON | `@otelux/protocol` Runtime RPC registry | Live on the embedded runtime; Desktop client conversion pending |
+| Runtime -> Desktop/browser | Live invalidations | Server-Sent Events | SSE at `/api/v1/events` with revisioned v1 envelopes | `@otelux/protocol` event contract | Live on the embedded runtime; client adapters pending |
 | Browser -> runtime | Workbench assets | Same-origin HTTP GET | HTML, CSS, JavaScript | Built `@otelux/ui` assets | Target |
 
 ## Transport Decisions
@@ -57,7 +57,7 @@ MCP is the public model-facing tool surface. It is not the UI API: agent tools r
 
 Desktop main, CLI, and the browser adapter need the same typed commands and query operations. JSON-RPC provides request IDs, standard errors, method names, and batchability without inventing one REST endpoint per operation.
 
-Target endpoint:
+Current endpoint:
 
 ```text
 POST http://127.0.0.1:<api-port>/api/v1/rpc
@@ -177,7 +177,7 @@ Rules:
 ## Authentication And Browser Safety
 
 - MCP keeps its read-only token and tool annotations.
-- Runtime RPC uses a separate owner-only control token with explicit read/control scopes; the token value is never written into `runtime.json`.
+- Runtime RPC uses a separate owner-only `runtime-token`; only its path and API status are written into owner-only `runtime.json`, never its value. One token currently grants the local owner read/control access; explicit scoped session credentials remain part of browser bootstrap.
 - Desktop renderer never receives a filesystem token. Electron main proxies RPC or establishes a scoped session.
 - The workbench is served by the runtime on the same origin as its API. `otelux open` exchanges a one-time nonce for a `Secure`-where-applicable, `HttpOnly`, `SameSite=Strict` session cookie and immediately redirects to a clean URL.
 - Every HTTP listener validates `Host` and `Origin`, sends no permissive CORS wildcard, bounds bodies, and refuses browser requests on OTLP/MCP unless explicitly allowed.
@@ -187,11 +187,11 @@ Rules:
 
 Before the daemon API is considered stable:
 
-1. Split domain types from the complete Runtime RPC wire DTO registry in `@otelux/protocol` — **pending for HTTP RPC method params/results**.
+1. Split domain types from the complete Runtime RPC wire DTO registry in `@otelux/protocol` — **delivered for initialize/status/settings/sample/clear and current telemetry methods; dedicated split metric metadata/point methods remain before UI adapter conversion**.
 2. Add explicit bounded `encodeWire` / `decodeWire` codecs with tagged bigint, malformed-input, finite-number, cycle, depth/node/string, and compatibility tests — **delivered**.
-3. Generate checked-in JSON Schema draft 2020-12 snapshots under `packages/protocol/schema/v1/` — **delivered for tagged bigint, `runtime.json`, Electron invoke messages, and runtime events; pending for Runtime RPC params/results and SSE envelopes**. Every schema has a stable `$id` under `https://otelux.dev/schema/v1/`.
-4. Add schema compatibility tests: old fixture -> new decoder, compatible future fields -> sanitized current decoder behavior, unsupported major -> deterministic error — **delivered for runtime state and wire codecs; pending for Runtime RPC negotiation**.
-5. Add transport conformance tests that run the same method suite through direct calls, Electron IPC during transition, and HTTP RPC — **pending until HTTP RPC exists**.
+3. Generate checked-in JSON Schema draft 2020-12 snapshots under `packages/protocol/schema/v1/` — **delivered for tagged bigint, `runtime.json`, Electron invoke/runtime events, Runtime RPC envelopes, and SSE envelopes; method-specific result schemas remain**. Every schema has a stable `$id` under `https://otelux.dev/schema/v1/`.
+4. Add schema compatibility tests: old fixture -> new decoder, compatible future fields -> sanitized current decoder behavior, unsupported major -> deterministic error — **delivered for runtime state, wire codecs, and Runtime RPC major negotiation**.
+5. Add transport conformance tests that run the same method suite through direct calls, Electron IPC during transition, and HTTP RPC — **direct dispatcher and authenticated HTTP end-to-end suites are live; one shared parity suite and Desktop HTTP adapter remain**.
 6. Add payload-size and pagination-limit tests — **delivered at Electron invoke/wire boundaries; pending transport body and complete RPC result budgets**.
 
 ## Current Gaps
@@ -204,11 +204,18 @@ Delivered transition safeguards:
 - Bounded JSON-safe wire codecs preserve bigint through `{ "$bigint": "..." }`, reject non-finite/unsupported/cyclic values, and enforce depth/node/string/JSON limits.
 - Checked schema snapshots and old/current/future/malformed fixtures cover tagged bigint, runtime state, Electron invoke messages, and runtime events.
 
+Delivered transport foundation:
+
+- The embedded runtime now binds a separate loopback Runtime API (default `4321`), publishes its status/token path in owner-only runtime state, and treats API bind failure as visible/nonfatal to OTLP/MCP/SQLite.
+- `POST /api/v1/rpc` supports bounded single/batch JSON-RPC, tagged bigint, deterministic errors, method/param validation, protocol-major negotiation, explicit clear confirmation, 64-request overload rejection, and generic internal errors.
+- `GET /api/v1/events` supports bearer-authenticated SSE, one-turn coalescing, decimal revisions, bounded trace hints/history/client count, replay, resync, and keepalive.
+- Health, method, content type, Host, Origin, bearer token, body size, concurrency, client count, notification, shutdown, and secret-exclusion paths have end-to-end tests.
+
 Remaining before daemon conversion:
 
-- Define the complete Runtime JSON-RPC params/results registry and SSE event envelope as JSON wire DTOs/schemas rather than in-memory domain objects.
-- Implement authenticated HTTP RPC/SSE and direct/IPC/HTTP transport conformance tests.
+- Add the HTTP/SSE `DataSource` client and shared direct/IPC/HTTP method parity suite.
+- Split metric metadata from point-history RPC methods before moving the current UI.
 - MCP tool input schemas are advertised but handlers still cast inputs rather than validating them; tool results have no output schemas.
-- Define deterministic protocol-major negotiation and error envelopes in executable code.
+- Add scoped one-time browser sessions and static workbench serving; raw control tokens must not enter renderer/browser context.
 
 Trace and log list APIs already support opaque keyset cursors; daemon DTOs must preserve them and must not regress to offset-only paging.

@@ -151,7 +151,12 @@ function smokeWindowsPackage() {
 		}
 		run(uninstaller, ['/S']);
 	} finally {
-		rmSync(installDirectory, { recursive: true, force: true });
+		rmSync(installDirectory, {
+			recursive: true,
+			force: true,
+			maxRetries: 10,
+			retryDelay: 200,
+		});
 	}
 	if (existsSync(installDirectory)) {
 		throw new Error('Windows uninstall cleanup left the installation directory behind');
@@ -170,5 +175,10 @@ try {
 	}
 	console.log('INSTALL SMOKE PASS');
 } finally {
-	rmSync(temporaryRoot, { recursive: true, force: true });
+	rmSync(temporaryRoot, {
+		recursive: true,
+		force: true,
+		maxRetries: process.platform === 'win32' ? 10 : 0,
+		retryDelay: 200,
+	});
 }

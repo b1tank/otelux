@@ -36,7 +36,7 @@
 - **Inspect complete requests:** navigate virtualized trace waterfalls and searchable span details, including attributes, resources, events, and links.
 - **Correlate every signal locally:** search structured logs, explore metric series, and group telemetry by standard OpenTelemetry Source and Service identity.
 - **Give coding agents bounded evidence:** query read-only traces, logs, service health, and agent-run correlation through the built-in MCP server.
-- **Keep ownership of telemetry:** data stays in a retention-bounded local SQLite database; receiver and MCP listeners bind to loopback by default.
+- **Keep ownership of telemetry:** data stays in a retention-bounded local SQLite database; OTLP, MCP, and authenticated Runtime API listeners bind to loopback.
 
 ## Install the Linux prerelease
 
@@ -96,7 +96,7 @@ flowchart LR
   Engine --> DB[(One active SQLite database)]
 ```
 
-The runtime is the only process that opens SQLite, applies migrations and retention, and binds OTLP/MCP listeners. See [docs/arch.md](docs/arch.md) for lifecycle, migration, package boundaries, end-user scenarios, and the distinction between the current and target implementations.
+The runtime is the only process that opens SQLite, applies migrations and retention, and binds OTLP/MCP/Runtime API listeners. See [docs/arch.md](docs/arch.md) for lifecycle, migration, package boundaries, end-user scenarios, and the distinction between the current and target implementations.
 
 ## Docs
 
@@ -192,7 +192,7 @@ npm run -w @otelux/desktop package
 
 ## Current Status
 
-Pre-release. Linux x64 and arm64 Desktop packages are published as `v0.1.10`. `@otelux/local-runtime` owns storage, engine, OTLP, MCP, settings, lifecycle, canonical data-home migration, and nonce-protected runtime state. Desktop still embeds it in Electron and the `0.1.5` plugin remains a Desktop companion. The standalone daemon, CLI, direct MCP package, and runtime-served workbench are planned. Start with [docs/getting-started.md](docs/getting-started.md). See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities, [docs/arch.md](docs/arch.md#current-implementation) for the architecture transition, [docs/plan.md](docs/plan.md) for future work, and [docs/release-sprint.md](docs/release-sprint.md) for temporary `v0.1.0` launch execution.
+Pre-release. Linux x64 and arm64 Desktop packages are published as `v0.1.10`. Current `main` additionally contains the unreleased authenticated Runtime JSON-RPC/SSE foundation. `@otelux/local-runtime` owns storage, engine, OTLP, MCP, Runtime API, settings, lifecycle, canonical data-home migration, and nonce-protected runtime state. Desktop still embeds it in Electron and the `0.1.5` plugin remains a Desktop companion. The standalone daemon, CLI, direct MCP package, and runtime-served workbench are planned. Start with [docs/getting-started.md](docs/getting-started.md). See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities, [docs/arch.md](docs/arch.md#current-implementation) for the architecture transition, [docs/plan.md](docs/plan.md) for future work, and [docs/release-sprint.md](docs/release-sprint.md) for temporary `v0.1.0` launch execution.
 
 ## License
 

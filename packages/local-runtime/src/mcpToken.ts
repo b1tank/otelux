@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { dirname } from 'node:path';
 
-export async function loadOrCreateMcpToken(file: string): Promise<string> {
+export async function loadOrCreateToken(file: string): Promise<string> {
 	try {
 		const existing = (await fs.readFile(file, 'utf8')).trim();
 		if (existing.length > 0) {
@@ -16,4 +16,8 @@ export async function loadOrCreateMcpToken(file: string): Promise<string> {
 	await fs.mkdir(dirname(file), { recursive: true });
 	await fs.writeFile(file, `${token}\n`, { encoding: 'utf8', mode: 0o600 });
 	return token;
+}
+
+export function loadOrCreateMcpToken(file: string): Promise<string> {
+	return loadOrCreateToken(file);
 }

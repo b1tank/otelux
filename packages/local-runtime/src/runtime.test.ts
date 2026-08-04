@@ -33,6 +33,7 @@ describe('createLocalRuntime', () => {
 		runtime = await createLocalRuntime({
 			dataDirectory: directory,
 			otlpPortOverride: 0,
+			apiPortOverride: 0,
 			logger: silentLogger,
 		});
 		const status = runtime.getReceiverStatus();
@@ -46,9 +47,24 @@ describe('createLocalRuntime', () => {
 				dataDirectory: directory,
 				receiver: { kind: 'running', host: status.host, port: status.port },
 				mcp: { kind: 'disabled' },
+				api: { kind: 'running' },
+				runtimeTokenFile: join(directory, 'runtime-token'),
 			});
 		}
 		expect(runtime.getMcpStatus()).toEqual({ kind: 'disabled' });
+		const api = runtime.getApiStatus();
+		expect(api.kind).toBe('running');
+		if (api.kind === 'running') {
+			const token = (await fs.readFile(runtime.runtimeTokenFile, 'utf8')).trim();
+			const tokenMode = (await fs.stat(runtime.runtimeTokenFile)).mode & 0o777;
+			if (process.platform !== 'win32') expect(tokenMode).toBe(0o600);
+			const rpc = await fetch(`http://${api.host}:${api.port}/api/v1/rpc`, {
+				method: 'POST',
+				headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+				body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'runtime/getStatus' }),
+			});
+			expect(await rpc.json()).toMatchObject({ result: { api: { kind: 'running', port: api.port } } });
+		}
 
 		const events: RuntimeEvent[] = [];
 		const subscription = runtime.onEvent((event) => events.push(event));

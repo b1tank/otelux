@@ -41,6 +41,10 @@
       "type": "string",
       "maxLength": 4096
     },
+    "runtimeTokenFile": {
+      "type": "string",
+      "maxLength": 4096
+    },
     "receiver": {
       "oneOf": [
         {
@@ -207,6 +211,73 @@
             "kind",
             "port",
             "host",
+            "message"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "api": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "starting"
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "running"
+            },
+            "host": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            }
+          },
+          "required": [
+            "kind",
+            "host",
+            "port"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "error"
+            },
+            "host": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            },
+            "message": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          },
+          "required": [
+            "kind",
+            "host",
+            "port",
             "message"
           ],
           "additionalProperties": false

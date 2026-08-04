@@ -123,7 +123,13 @@ describe('runtime state validation', () => {
 		const current = parseRuntimeState(runtimeFixture('v1.json'));
 		const future = parseRuntimeState(runtimeFixture('v1-compatible-future.json'));
 		expect(current).toMatchObject({ version: 1, runtimeVersion: '0.1.10', pid: 4242 });
-		expect(future).toMatchObject({ version: 1, runtimeVersion: '0.2.0-beta.1', pid: 4243 });
+		expect(future).toMatchObject({
+			version: 1,
+			runtimeVersion: '0.2.0-beta.1',
+			pid: 4243,
+			api: { kind: 'running', port: 4321 },
+			runtimeTokenFile: '/home/example/.local/share/otelux/runtime-token',
+		});
 		expect(Object.hasOwn(future, 'futureApi')).toBe(false);
 	});
 

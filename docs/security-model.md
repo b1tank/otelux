@@ -30,6 +30,10 @@ The desktop starts an MCP HTTP listener on `127.0.0.1:4320` by default. MCP tool
 
 A random token is generated on first run and stored as `mcp-token` in the canonical OTelux data directory with owner-only permissions. Runtime ownership metadata (`runtime.json` and `runtime.lock`) is also owner-only and contains paths/endpoints but never the token value. Every JSON-RPC `POST` must send `Authorization: Bearer <token>`; a missing or wrong token is rejected with `401` before any tool runs. Configure your MCP client with the token from that file, or disable MCP in Settings when agent access is not needed. Because loopback is not user isolation, another process running as the same user can still read the token file — the token defends against unauthenticated local clients, not against a compromised local account.
 
+### Runtime API
+
+The embedded runtime binds a separate control/query API on `127.0.0.1:4321` by default. It uses an independent random `runtime-token` stored owner-only in the canonical data directory; `runtime.json` publishes only the token path and API status. JSON-RPC and SSE require `Authorization: Bearer <token>`, reject browser `Origin`, validate `Host`, bound bodies/concurrency/client counts, and expose generic internal errors. Health is the only unauthenticated route. Loopback plus a token does not defend against a compromised process running as the same OS user.
+
 ### Electron renderer
 
 Telemetry is rendered in a Chromium renderer. The current desktop enables:
@@ -44,7 +48,7 @@ Telemetry is rendered in a Chromium renderer. The current desktop enables:
 - All renderer permission requests and checks denied, and `<webview>` attachment refused
 - Development-only DevTools shortcuts
 
-The renderer is still an untrusted boundary. The remaining stable-release gap is runtime validation of IPC messages crossing the context bridge.
+The renderer is still an untrusted boundary. Renderer invoke messages are decoded into a bounded sanitized union before dispatch, and runtime events are validated in Electron main before broadcast through the context bridge.
 
 ### External clients
 
@@ -52,11 +56,11 @@ MCP, LM, browser, clipboard, download, and future export clients operate outside
 
 ## Current Safeguards
 
-- Desktop OTLP and MCP listeners bind to loopback.
-- OTLP and MCP must use different ports.
+- Desktop OTLP, MCP, and Runtime API listeners bind to loopback.
+- OTLP, MCP, and Runtime API use distinct default ports.
 - OTLP and MCP request bodies are bounded before parsing; oversized requests return `413`.
 - `POST` listeners require an `application/json` content type (`415` otherwise) and reject requests from non-allowlisted browser origins (`403`).
-- MCP HTTP requires a per-install bearer token; requests without a valid `Authorization: Bearer` header return `401` before any tool runs.
+- MCP and Runtime API HTTP use separate per-install bearer tokens; requests without the corresponding valid header return `401` before tool/query dispatch.
 - Failed listener changes roll back to the previous healthy listener, including when the subsequent settings-file write fails.
 - Settings writes use a temporary file and rename to avoid partial JSON.
 - The app uses a single-instance lock to avoid duplicate desktop listeners.
@@ -71,7 +75,7 @@ MCP, LM, browser, clipboard, download, and future export clients operate outside
 
 The current source build is not a supported security release. Known release blockers include:
 
-- IPC relies on TypeScript shapes rather than complete runtime validation.
+- Runtime RPC method-specific result schemas and a shared direct/IPC/HTTP parity suite are incomplete; current request, state, event, negotiation, auth, and transport bounds are runtime-tested.
 - CodeQL is configured but intentionally skipped while this repository remains private on a plan without code-scanning support.
 - Branch protection, required checks, secret scanning, push protection, and private vulnerability reporting cannot be fully enabled until repository visibility or account capabilities change.
 

@@ -48,7 +48,7 @@ Qualification profiles:
 | 0.4 | `npm run test` | all configured test projects pass with no unexplained warnings |
 | 0.5 | `npm run build` | `apps/desktop/out/{main,preload,renderer}` exist; renderer `assets/index-*.js` >100 KB; preload verification reports only sandbox-supported `require()` calls |
 | 0.6 | `rm -rf /tmp/otelux-userdata /tmp/otelux-electron-userdata` *(only if you want a clean profile)* | no error |
-| 0.7 | `if ss -ltn \| grep -q -e ':4319 ' -e ':4320 '; then exit 1; fi` | exits 0 because neither default port is listening |
+| 0.7 | `if ss -ltn \| grep -q -e ':4319 ' -e ':4320 ' -e ':4321 '; then exit 1; fi` | exits 0 because no default listener is active |
 
 ---
 
@@ -61,9 +61,10 @@ cd apps/desktop && OTELUX_DATA_DIR=/tmp/otelux-userdata npx electron out/main/in
 - **Expected**:
   - main-process log line: `[otelux] OTLP/HTTP receiver listening on http://127.0.0.1:4319/v1/{traces,logs,metrics}`
   - main-process log line: `[otelux] MCP server listening on http://127.0.0.1:4320/`
+  - main-process log line: `[otelux] Runtime API listening on http://127.0.0.1:4321/api/v1/rpc`
   - Electron window opens within ~3 s
   - Window title: contains "OTelux" or "Electron"
-  - `ss -ltnp | grep -e ':4319 ' -e ':4320 '` shows both Electron listeners
+  - `ss -ltnp | grep -e ':4319 ' -e ':4320 ' -e ':4321 '` shows all three Electron-owned listeners
 
 ### 1.2 Initial UI
 - **Visible chrome (top → bottom, left → right)**
@@ -235,13 +236,24 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/j
 
 For step 4.11.6, reuse the Python listener from step 4.10 with port `14331`, then stop it after verifying rollback.
 
+### 4.13 Runtime API authentication and bounds
+
+1. `curl http://127.0.0.1:4321/healthz` returns `200` without authentication.
+2. POST `{"jsonrpc":"2.0","id":1,"method":"runtime/getStatus"}` to `/api/v1/rpc` without auth → `401`.
+3. Read `runtime-token` from the canonical data directory and repeat with `Authorization: Bearer <token>` and `Content-Type: application/json` → `200`, with status paths/endpoints but no token value/path in the result.
+4. Repeat with an `Origin` header → `403`; wrong content type → `415`; oversized body → `413`; wrong Host → `400`.
+5. Connect authenticated `/api/v1/events`, ingest a fixture, and observe a revisioned `telemetry.changed` SSE envelope containing signal/ID hints but no telemetry bodies or secrets.
+6. Reconnect with a retained `Last-Event-ID` to receive later revisions; stale, malformed, or future IDs receive `runtime.resync`.
+
+The Runtime API uses a different token from MCP. Never put either value in a URL, screenshot, issue, or model prompt.
+
 ---
 
 ## 5. Settings persistence
 
 ### 5.1 Survives restart
 1. Fully quit the app from **Quit OTelux** in the tray menu (or Command+Q on macOS).
-2. Confirm both listeners are released: `ss -ltnp | grep -e ':14320 ' -e ':4320 '` → empty.
+2. Confirm all listeners are released: `ss -ltnp | grep -e ':14320 ' -e ':4320 ' -e ':4321 '` → empty.
 3. Relaunch without a port override: `cd apps/desktop && OTELUX_DATA_DIR=/tmp/otelux-userdata npx electron out/main/index.js --user-data-dir=/tmp/otelux-electron-userdata`
 - **Expected**: log shows OTLP listening on `http://127.0.0.1:14320/v1/{traces,logs,metrics}` and MCP listening on `http://127.0.0.1:4320/`; both EndpointBar pills reflect those persisted settings.
 
@@ -300,10 +312,10 @@ For step 4.11.6, reuse the Python listener from step 4.10 with port `14331`, the
 
 ### 5.10 Runtime state and ownership lock
 1. While OTelux is running, inspect `cat /tmp/otelux-userdata/runtime.json`.
-- **Expected**: valid JSON reports the current PID, runtime/protocol versions, `/tmp/otelux-userdata/otelux.db`, token path, and actual OTLP/MCP statuses. It does not contain the bearer token value.
+- **Expected**: valid JSON reports the current PID, runtime/protocol versions, `/tmp/otelux-userdata/otelux.db`, MCP/runtime token paths, and actual OTLP/MCP/API statuses. It contains no bearer token value.
 2. Confirm `/tmp/otelux-userdata/runtime.lock` exists and carries the same PID plus an ownership nonce.
 3. Quit OTelux normally.
-- **Expected**: both `runtime.json` and `runtime.lock` are removed; `otelux.db`, `settings.json`, and `mcp-token` remain.
+- **Expected**: both `runtime.json` and `runtime.lock` are removed; `otelux.db`, `settings.json`, `mcp-token`, and owner-only `runtime-token` remain.
 
 ### 5.11 Legacy Desktop migration
 Run this as an isolated migration check, not against valuable telemetry:
@@ -551,7 +563,7 @@ curl -s -D /tmp/otelux-origin-headers.txt -X POST \
 
 ### 12.5 Native packaged smoke
 - On each native release runner, build the unpacked application and run `node apps/desktop/scripts/smoke.mjs` (`xvfb-run -a` on Linux).
-- **Expected**: the platform-native executable launches; OTLP and MCP report healthy runtime ownership; the sandboxed preload/workbench render; trace ingest and content-type rejection pass; closing the window leaves the tray runtime healthy; and a second invocation with the internal `--otelux-request-quit` smoke flag exercises the same explicit-quit path as the tray menu. The primary process exits cleanly, OTLP/MCP stop, and `runtime.json` / `runtime.lock` disappear.
+- **Expected**: the platform-native executable launches; OTLP, MCP, and authenticated Runtime RPC report healthy ownership; the sandboxed preload/workbench render; trace ingest and content-type rejection pass; closing the window leaves the tray runtime healthy; and a second invocation with the internal `--otelux-request-quit` smoke flag exercises the same explicit-quit path as the tray menu. The primary process exits cleanly, all three listeners stop, and `runtime.json` / `runtime.lock` disappear.
 - **Qualification limit**: this smoke proves unpacked application/runtime compatibility. It does not replace signed installer clean-install, OS trust UI, upgrade, or uninstall tests.
 
 ### 12.6 Native package install/uninstall smoke

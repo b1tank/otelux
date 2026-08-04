@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otelux.dev/schema/v1/runtime-rpc-request.schema.json",
+  "title": "OTelux Runtime JSON-RPC request",
+  "type": "object",
+  "properties": {
+    "jsonrpc": {
+      "const": "2.0"
+    },
+    "id": {
+      "type": [
+        "string",
+        "number",
+        "null"
+      ]
+    },
+    "method": {
+      "enum": [
+        "runtime/initialize",
+        "runtime/getStatus",
+        "runtime/getSettings",
+        "runtime/updateSettings",
+        "runtime/loadSampleData",
+        "runtime/clearData",
+        "telemetry/listTraces",
+        "telemetry/getTrace",
+        "telemetry/getTraceWaterfall",
+        "telemetry/getSpan",
+        "telemetry/listLogs",
+        "telemetry/listMetrics",
+        "telemetry/getFacets"
+      ]
+    },
+    "params": {}
+  },
+  "required": [
+    "jsonrpc",
+    "method"
+  ],
+  "additionalProperties": false
+}

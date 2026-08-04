@@ -115,10 +115,35 @@ const schemas = {
 				dataDirectory: text(4096),
 				databasePath: text(4096),
 				mcpTokenFile: text(4096),
+				runtimeTokenFile: text(4096),
 				receiver: receiverStatus,
 				mcp: mcpStatus,
+				api: {
+					oneOf: [
+						object({ kind: { const: 'starting' } }),
+						object({ kind: { const: 'running' }, host: text(255), port: integer(1, 65535) }),
+						object({
+							kind: { const: 'error' },
+							host: text(255),
+							port: integer(1, 65535),
+							message: text(),
+						}),
+					],
+				},
 			},
-			undefined,
+			[
+				'version',
+				'runtimeVersion',
+				'protocolVersion',
+				'instanceId',
+				'pid',
+				'startedAt',
+				'dataDirectory',
+				'databasePath',
+				'mcpTokenFile',
+				'receiver',
+				'mcp',
+			],
 			true,
 		),
 	},
@@ -210,6 +235,85 @@ schemas['invoke-message'] = {
 	],
 };
 
+schemas['runtime-rpc-request'] = {
+	$schema: draft,
+	$id: id('runtime-rpc-request'),
+	title: 'OTelux Runtime JSON-RPC request',
+	...object(
+		{
+			jsonrpc: { const: '2.0' },
+			id: { type: ['string', 'number', 'null'] },
+			method: {
+				enum: [
+					'runtime/initialize',
+					'runtime/getStatus',
+					'runtime/getSettings',
+					'runtime/updateSettings',
+					'runtime/loadSampleData',
+					'runtime/clearData',
+					'telemetry/listTraces',
+					'telemetry/getTrace',
+					'telemetry/getTraceWaterfall',
+					'telemetry/getSpan',
+					'telemetry/listLogs',
+					'telemetry/listMetrics',
+					'telemetry/getFacets',
+				],
+			},
+			params: {},
+		},
+		['jsonrpc', 'method'],
+	),
+};
+schemas['runtime-rpc-response'] = {
+	$schema: draft,
+	$id: id('runtime-rpc-response'),
+	title: 'OTelux Runtime JSON-RPC response',
+	oneOf: [
+		object({ jsonrpc: { const: '2.0' }, id: { type: ['string', 'number', 'null'] }, result: {} }),
+		object({
+			jsonrpc: { const: '2.0' },
+			id: { type: ['string', 'number', 'null'] },
+			error: object({ code: { type: 'integer' }, message: text(), data: {} }, ['code', 'message']),
+		}),
+	],
+};
+schemas['runtime-sse-event'] = {
+	$schema: draft,
+	$id: id('runtime-sse-event'),
+	title: 'OTelux Runtime SSE event envelope',
+	oneOf: [
+		object(
+			{
+				schemaVersion: { const: 1 },
+				revision: text(128, '^(0|[1-9][0-9]*)$'),
+				kind: { const: 'telemetry.changed' },
+				signals: {
+					type: 'array',
+					minItems: 1,
+					maxItems: 5,
+					uniqueItems: true,
+					items: { enum: ['traces', 'logs', 'metrics', 'settings', 'status'] },
+				},
+				traceIds: { type: 'array', maxItems: 1000, items: traceId },
+			},
+			['schemaVersion', 'revision', 'kind', 'signals'],
+		),
+		object({
+			schemaVersion: { const: 1 },
+			revision: text(128, '^(0|[1-9][0-9]*)$'),
+			kind: { const: 'runtime.resync' },
+			signals: {
+				type: 'array',
+				minItems: 1,
+				maxItems: 5,
+				uniqueItems: true,
+				items: { enum: ['traces', 'logs', 'metrics', 'settings', 'status'] },
+			},
+		}),
+	],
+};
+
 schemas['runtime-event'] = {
 	$schema: draft,
 	$id: id('runtime-event'),
@@ -224,6 +328,21 @@ schemas['runtime-event'] = {
 		object({ kind: { const: 'settings-changed' }, settings }),
 		object({ kind: { const: 'receiver-status-changed' }, status: receiverStatus }),
 		object({ kind: { const: 'mcp-status-changed' }, status: mcpStatus }),
+		object({
+			kind: { const: 'api-status-changed' },
+			status: {
+				oneOf: [
+					object({ kind: { const: 'starting' } }),
+					object({ kind: { const: 'running' }, host: text(255), port: integer(1, 65535) }),
+					object({
+						kind: { const: 'error' },
+						host: text(255),
+						port: integer(1, 65535),
+						message: text(),
+					}),
+				],
+			},
+		}),
 	],
 };
 

@@ -345,6 +345,16 @@ export type UpdateSettingsResult =
 	  }
 	| { readonly ok: false; readonly error: string };
 
+export type RuntimeApiStatus =
+	| { readonly kind: 'starting' }
+	| { readonly kind: 'running'; readonly host: string; readonly port: number }
+	| {
+			readonly kind: 'error';
+			readonly host: string;
+			readonly port: number;
+			readonly message: string;
+	  };
+
 export interface RuntimeLockOwner {
 	readonly version: 1;
 	readonly instanceId: string;
@@ -362,8 +372,10 @@ export interface RuntimeState {
 	readonly dataDirectory: string;
 	readonly databasePath: string;
 	readonly mcpTokenFile: string;
+	readonly runtimeTokenFile?: string;
 	readonly receiver: ReceiverStatus;
 	readonly mcp: McpStatus;
+	readonly api?: RuntimeApiStatus;
 }
 
 /** Every event emitted by the shared runtime to its clients. */
@@ -371,9 +383,12 @@ export type RuntimeEvent =
 	| ChangeEvent
 	| { readonly kind: 'settings-changed'; readonly settings: Settings }
 	| { readonly kind: 'receiver-status-changed'; readonly status: ReceiverStatus }
-	| { readonly kind: 'mcp-status-changed'; readonly status: McpStatus };
+	| { readonly kind: 'mcp-status-changed'; readonly status: McpStatus }
+	| { readonly kind: 'api-status-changed'; readonly status: RuntimeApiStatus };
 
 export const OTELUX_PROTOCOL_VERSION = '0.6.0' as const;
 
+export * from './runtimeEvents.js';
+export * from './runtimeRpc.js';
 export * from './validation.js';
 export * from './wire.js';

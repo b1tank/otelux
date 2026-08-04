@@ -148,9 +148,9 @@ Tasks:
 - Run `@otelux/local-runtime` as a single-instance per-user daemon instead of embedding it in Electron.
 - [x] Add canonical per-user data-home resolution, nonce-protected state/locking, protocol/runtime version metadata, and resumable copy-only legacy Desktop migration.
 - [x] Add bounded tagged-bigint wire codecs, path-aware Electron IPC/event and runtime-state validation, checked transition schemas, and backward/compatible-future fixtures in `@otelux/protocol`.
-- Define the complete Runtime JSON-RPC params/results registry, SSE envelope, protocol-major negotiation, and direct/IPC/HTTP conformance fixtures before daemon conversion.
-- Add JSON-RPC 2.0 Runtime RPC over loopback HTTP plus SSE invalidations, following [protocol.md](protocol.md); do not expose MCP as the UI API.
-- Add an authenticated HTTP/SSE `DataSource` adapter, serve the existing `@otelux/ui` as a same-origin loopback workbench, and convert Desktop into a client of that runtime.
+- [x] Define and validate the initial Runtime JSON-RPC method registry, protocol-major negotiation, revisioned SSE envelopes, checked transport schemas, direct dispatcher tests, and authenticated loopback HTTP/SSE host.
+- Add one shared direct/IPC/HTTP method parity suite and split metric metadata/point-history Runtime methods before UI conversion.
+- Add an authenticated HTTP/SSE `DataSource` adapter, scoped browser session bootstrap, serve the existing `@otelux/ui` as a same-origin loopback workbench, and convert Desktop into a client of that runtime.
 - Add dedicated runtime/API and MCP tokens/scopes plus one-time browser session bootstrap; tokens must never appear in dashboard URLs or `runtime.json`.
 - Add the OTelux CLI for runtime lifecycle, status, endpoints, settings, dashboard/Desktop launch, diagnostics, and machine-readable output.
 - Bundle a version-matched CLI and daemon with Desktop while keeping them independently packageable; reserve `otelux` for CLI and rename GUI executables before stable cross-platform release.

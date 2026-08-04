@@ -73,6 +73,25 @@ function resolveStartupPortOverride(): number | undefined {
  * Invalid values fail closed to the package default rather than
  * disabling the limit.
  */
+function resolveApiPortOverride(): number | undefined {
+	const raw = process.env.OTELUX_API_PORT;
+	if (raw === undefined || raw === '') return undefined;
+	if (!/^\d+$/.test(raw)) {
+		console.warn(
+			`[otelux] ignoring invalid OTELUX_API_PORT=${raw}; using persisted/default settings`,
+		);
+		return undefined;
+	}
+	const parsed = Number.parseInt(raw, 10);
+	if (parsed < 0 || parsed > MAX_PORT) {
+		console.warn(
+			`[otelux] ignoring invalid OTELUX_API_PORT=${raw}; using persisted/default settings`,
+		);
+		return undefined;
+	}
+	return parsed;
+}
+
 function resolveMaxBodyBytes(envName: string): number | undefined {
 	const raw = process.env[envName];
 	if (raw === undefined || raw === '') {
@@ -97,8 +116,10 @@ async function startBackend(): Promise<{
 	stop: () => Promise<void>;
 }> {
 	const otlpPortOverride = resolveStartupPortOverride();
+	const apiPortOverride = resolveApiPortOverride();
 	const otlpMaxBodyBytes = resolveMaxBodyBytes('OTELUX_OTLP_MAX_BODY_BYTES');
 	const mcpMaxBodyBytes = resolveMaxBodyBytes('OTELUX_MCP_MAX_BODY_BYTES');
+	const apiMaxBodyBytes = resolveMaxBodyBytes('OTELUX_API_MAX_BODY_BYTES');
 	const legacyDataDirectory = app.getPath('userData');
 	const runtime = await createLocalRuntime({
 		dataDirectory: resolveOteluxDataDirectory(),
@@ -106,6 +127,8 @@ async function startBackend(): Promise<{
 		...(otlpPortOverride !== undefined ? { otlpPortOverride } : {}),
 		...(otlpMaxBodyBytes !== undefined ? { otlpMaxBodyBytes } : {}),
 		...(mcpMaxBodyBytes !== undefined ? { mcpMaxBodyBytes } : {}),
+		...(apiPortOverride !== undefined ? { apiPortOverride } : {}),
+		...(apiMaxBodyBytes !== undefined ? { apiMaxBodyBytes } : {}),
 	});
 
 	const broadcast = (event: OteluxEvent): void => {

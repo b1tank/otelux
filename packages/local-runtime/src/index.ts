@@ -24,4 +24,13 @@ export {
 	type RuntimeState,
 } from './runtimeState.js';
 
+export {
+	createRuntimeEventProjector,
+	type RuntimeEventProjector,
+	type RuntimeEventProjectorOptions,
+} from './runtimeEvents.js';
+export {
+	createRuntimeRpcDispatcher,
+	type RuntimeRpcDispatcher,
+} from './runtimeRpc.js';
 export { OTELUX_LOCAL_RUNTIME_VERSION } from './version.js';

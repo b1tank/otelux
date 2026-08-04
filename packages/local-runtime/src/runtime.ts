@@ -7,6 +7,7 @@ import type {
 	McpStatus,
 	PartialSettings,
 	ReceiverStatus,
+	RuntimeApiStatus,
 	RuntimeEvent,
 	Settings,
 	StoragePathInfo,
@@ -17,9 +18,12 @@ import { OTELUX_PROTOCOL_VERSION } from '@otelux/protocol';
 import { resolveOteluxDataDirectory } from './dataHome.js';
 import { createDemoTelemetry } from './demoData.js';
 import { McpHost } from './mcpHost.js';
-import { loadOrCreateMcpToken } from './mcpToken.js';
+import { loadOrCreateMcpToken, loadOrCreateToken } from './mcpToken.js';
 import { type LegacyMigrationResult, prepareDataDirectory } from './migration.js';
 import { ReceiverHost } from './receiverHost.js';
+import { RuntimeApiHost } from './runtimeApiHost.js';
+import { createRuntimeEventProjector } from './runtimeEvents.js';
+import { createRuntimeRpcDispatcher } from './runtimeRpc.js';
 import {
 	type RuntimeLockOwner,
 	type RuntimeState,
@@ -47,16 +51,21 @@ export interface CreateLocalRuntimeOptions {
 	readonly otlpPortOverride?: number;
 	readonly otlpMaxBodyBytes?: number;
 	readonly mcpMaxBodyBytes?: number;
+	/** One-shot Runtime API bind override. `0` asks the OS for a free port. */
+	readonly apiPortOverride?: number;
+	readonly apiMaxBodyBytes?: number;
 	readonly logger?: RuntimeLogger;
 }
 
 export interface LocalRuntime extends DataSource {
 	readonly dataDirectory: string;
 	readonly mcpTokenFile: string;
+	readonly runtimeTokenFile: string;
 	readonly migration: LegacyMigrationResult;
 	getSettings(): Settings;
 	getReceiverStatus(): ReceiverStatus;
 	getMcpStatus(): McpStatus;
+	getApiStatus(): RuntimeApiStatus;
 	getStoragePath(): StoragePathInfo;
 	getStorageUsage(): Promise<StorageUsageInfo>;
 	getRuntimeState(): RuntimeState;
@@ -132,14 +141,17 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 	const settingsFile = join(dataDirectory, 'settings.json');
 	const defaultDbPath = join(dataDirectory, 'otelux.db');
 	const mcpTokenFile = join(dataDirectory, 'mcp-token');
+	const runtimeTokenFile = join(dataDirectory, 'runtime-token');
 	const startedAt = new Date().toISOString();
 	const eventListeners = new Set<(event: RuntimeEvent) => void>();
+	const projectedEvents = createRuntimeEventProjector();
 	let statePublishingEnabled = false;
 	let stateWriteQueue = Promise.resolve();
 	let closed = false;
 
 	const settings = await SettingsStore.open(settingsFile);
 	const mcpToken = await loadOrCreateMcpToken(mcpTokenFile);
+	const runtimeToken = await loadOrCreateToken(runtimeTokenFile);
 	const configuredDbPath = settings.get().storage.dbPath;
 	const opened = await openStorage(
 		configuredDbPath !== '' ? configuredDbPath : defaultDbPath,
@@ -152,6 +164,8 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 	const engine = createEngine({ storage });
 	const receiverHost = new ReceiverHost(engine, host, options.otlpMaxBodyBytes);
 	const mcpHost = new McpHost(engine, host, options.mcpMaxBodyBytes, mcpToken);
+	let apiHost: RuntimeApiHost;
+	let offApi = (): void => {};
 
 	const runtimeState = (): RuntimeState => ({
 		version: 1,
@@ -163,8 +177,10 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 		dataDirectory,
 		databasePath: activeDbPath,
 		mcpTokenFile,
+		runtimeTokenFile,
 		receiver: receiverHost.status,
 		mcp: mcpHost.status,
+		api: apiHost.status,
 	});
 
 	const scheduleStateWrite = (): void => {
@@ -182,6 +198,7 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 	};
 
 	const emit = (event: RuntimeEvent): void => {
+		projectedEvents.accept(event);
 		for (const listener of eventListeners) {
 			try {
 				listener(event);
@@ -212,9 +229,88 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 		scheduleStateWrite();
 	});
 
+	const loadSampleData = async (): Promise<LoadSampleDataResult> => {
+		const status = receiverHost.status;
+		const demo = createDemoTelemetry(status.kind === 'running' ? { otlpPort: status.port } : {});
+		await engine.ingestSpans(demo.spans);
+		await engine.ingestLogs(demo.logs);
+		await engine.ingestMetrics(demo.metrics);
+		return {
+			traces: new Set(demo.spans.map((span) => span.traceId)).size,
+			logs: demo.logs.length,
+			metrics: demo.metrics.length,
+		};
+	};
+
+	const runtime: LocalRuntime = {
+		kind: 'otelux/datasource',
+		dataDirectory,
+		mcpTokenFile,
+		runtimeTokenFile,
+		migration,
+		listTraces: (query) => engine.listTraces(query),
+		getTrace: (query) => engine.getTrace(query),
+		getTraceWaterfall: (query) => engine.getTraceWaterfall(query),
+		getSpanDetails: (query) => engine.getSpanDetails(query),
+		listLogs: (query) => engine.listLogs(query),
+		listMetrics: (query) => engine.listMetrics(query),
+		listResourceFacets: (query) => engine.listResourceFacets(query),
+		subscribe: (handler) => engine.subscribe(handler),
+		getSettings: () => settings.get(),
+		getReceiverStatus: () => receiverHost.status,
+		getMcpStatus: () => mcpHost.status,
+		getApiStatus: () => apiHost.status,
+		getStoragePath: () => ({ activePath: activeDbPath, defaultPath: defaultDbPath }),
+		getStorageUsage: () => storage.getStorageUsage(),
+		getRuntimeState: runtimeState,
+		updateSettings: (patch) => updateSettings(settings, receiverHost, mcpHost, patch),
+		loadSampleData,
+		clearData: () => engine.clear(),
+		onEvent(listener): Disposable {
+			eventListeners.add(listener);
+			return { dispose: () => eventListeners.delete(listener) };
+		},
+		async close(): Promise<void> {
+			if (closed) return;
+			closed = true;
+			statePublishingEnabled = false;
+			offEngine.dispose();
+			offReceiver();
+			offMcp();
+			offApi();
+			offSettings();
+			projectedEvents.close();
+			eventListeners.clear();
+			await stateWriteQueue;
+			const failure = await stopResources();
+			try {
+				await removeRuntimeState(dataDirectory, owner.instanceId);
+			} finally {
+				await releaseOwnership();
+			}
+			if (failure) throw failure;
+		},
+	};
+	apiHost = new RuntimeApiHost({
+		dispatcher: createRuntimeRpcDispatcher(runtime),
+		events: projectedEvents,
+		token: runtimeToken,
+		host,
+		...(options.apiMaxBodyBytes !== undefined ? { maxBodyBytes: options.apiMaxBodyBytes } : {}),
+	});
+	offApi = apiHost.onChange((status) => {
+		emit({ kind: 'api-status-changed', status });
+		scheduleStateWrite();
+	});
+
 	const stopResources = async (): Promise<unknown> => {
 		let failure: unknown;
-		for (const operation of [() => receiverHost.stop(), () => mcpHost.stop(), () => engine.close()]) {
+		for (const operation of [
+			() => apiHost.stop(),
+			() => receiverHost.stop(),
+			() => mcpHost.stop(),
+			() => engine.close(),
+		]) {
 			try {
 				await operation();
 			} catch (error) {
@@ -253,6 +349,18 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 		} else {
 			await mcpHost.disable();
 		}
+
+		const apiStatus = await apiHost.start(options.apiPortOverride ?? 4321);
+		if (apiStatus.kind === 'running') {
+			logger.info(
+				`[otelux] Runtime API listening on http://${apiStatus.host}:${apiStatus.port}/api/v1/rpc`,
+			);
+			logger.info(`[otelux] Runtime API token is stored at ${runtimeTokenFile}`);
+		} else if (apiStatus.kind === 'error') {
+			logger.error(
+				`[otelux] Runtime API failed to bind on ${apiStatus.host}:${apiStatus.port}: ${apiStatus.message}`,
+			);
+		}
 		await writeRuntimeState(dataDirectory, runtimeState());
 		statePublishingEnabled = true;
 	} catch (error) {
@@ -260,7 +368,9 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 		offEngine.dispose();
 		offReceiver();
 		offMcp();
+		offApi();
 		offSettings();
+		projectedEvents.close();
 		eventListeners.clear();
 		await stateWriteQueue;
 		await stopResources();
@@ -268,70 +378,7 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 		throw error;
 	}
 
-	return {
-		kind: 'otelux/datasource',
-		dataDirectory,
-		mcpTokenFile,
-		migration,
-		listTraces: (query) => engine.listTraces(query),
-		getTrace: (query) => engine.getTrace(query),
-		getTraceWaterfall: (query) => engine.getTraceWaterfall(query),
-		getSpanDetails: (query) => engine.getSpanDetails(query),
-		listLogs: (query) => engine.listLogs(query),
-		listMetrics: (query) => engine.listMetrics(query),
-		listResourceFacets: (query) => engine.listResourceFacets(query),
-		subscribe: (handler) => engine.subscribe(handler),
-		getSettings: () => settings.get(),
-		getReceiverStatus: () => receiverHost.status,
-		getMcpStatus: () => mcpHost.status,
-		getStoragePath: () => ({ activePath: activeDbPath, defaultPath: defaultDbPath }),
-		getStorageUsage: () => storage.getStorageUsage(),
-		getRuntimeState: runtimeState,
-		updateSettings: (patch) => updateSettings(settings, receiverHost, mcpHost, patch),
-		async loadSampleData(): Promise<LoadSampleDataResult> {
-			const status = receiverHost.status;
-			const demo = createDemoTelemetry(status.kind === 'running' ? { otlpPort: status.port } : {});
-			await engine.ingestSpans(demo.spans);
-			await engine.ingestLogs(demo.logs);
-			await engine.ingestMetrics(demo.metrics);
-			return {
-				traces: new Set(demo.spans.map((span) => span.traceId)).size,
-				logs: demo.logs.length,
-				metrics: demo.metrics.length,
-			};
-		},
-		clearData: () => engine.clear(),
-		onEvent(listener): Disposable {
-			eventListeners.add(listener);
-			return {
-				dispose: () => {
-					eventListeners.delete(listener);
-				},
-			};
-		},
-		async close(): Promise<void> {
-			if (closed) {
-				return;
-			}
-			closed = true;
-			statePublishingEnabled = false;
-			offEngine.dispose();
-			offReceiver();
-			offMcp();
-			offSettings();
-			eventListeners.clear();
-			await stateWriteQueue;
-			const failure = await stopResources();
-			try {
-				await removeRuntimeState(dataDirectory, owner.instanceId);
-			} finally {
-				await releaseOwnership();
-			}
-			if (failure) {
-				throw failure;
-			}
-		},
-	};
+	return runtime;
 }
 
 async function openStorage(

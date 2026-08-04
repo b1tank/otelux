@@ -60,12 +60,13 @@ Override the OTLP port for one run without changing saved settings:
 
 ## Verify The Endpoints
 
-By default, the desktop starts two loopback listeners:
+By default, the desktop starts three loopback listeners:
 
 | Service | Default endpoint | Current behavior |
 |---|---|---|
 | OTLP/HTTP | `http://127.0.0.1:4319` | Accepts OTLP/HTTP JSON and protobuf traces, logs, and metrics. |
-| MCP HTTP | `http://127.0.0.1:4320/` | Enabled by default and exposes read-only telemetry tools. |
+| MCP HTTP | `http://127.0.0.1:4320/` | Enabled by default and exposes read-only telemetry tools with its own token. |
+| Runtime API | `http://127.0.0.1:4321/` | Authenticated local JSON-RPC/SSE foundation for future Desktop, CLI, and browser clients. |
 
 Check the OTLP receiver:
 
@@ -85,7 +86,7 @@ Check the MCP server identity:
 curl --fail http://127.0.0.1:4320/
 ```
 
-Settings → Connections can change both ports and disable MCP. OTLP and MCP must use different ports. Listener bind or settings-file persistence failures roll back to the previous healthy listeners and do not alter saved settings.
+Settings → Connections can change OTLP/MCP ports and disable MCP. The Runtime API currently uses its discovered loopback port from `runtime.json`; it has a separate owner-only `runtime-token` and rejects browser origins until scoped browser-session bootstrap ships. Listener bind or settings-file persistence failures roll back to previous healthy listeners and do not alter saved settings.
 
 ## Send Synthetic Telemetry
 
@@ -119,7 +120,7 @@ Open the Traces, Logs, and Metrics rail tabs to inspect the records. **Source** 
 
 To explore the UI before wiring any exporter, launch the desktop app and click **Load sample data** in the empty Traces view. It seeds the store with a small, clearly-labelled synthetic dataset (a distributed trace with an error, correlated logs, and a counter/histogram/gauge) across all three signals. The sample data persists like real telemetry and is removed by retention or by deleting the database.
 
-Closing the OTelux window hides it to the system tray; OTLP ingest and MCP remain active. Use the tray icon to reopen the workbench or choose **Quit OTelux** to stop both listeners and close the SQLite database. The **Pause** control freezes live list refreshes only: telemetry continues to enter SQLite, and resuming catches the UI up. While live, new rows never replace the trace you are inspecting; the waterfall's **Selected trace** badge remains until you explicitly choose another row. **Clear data** permanently deletes stored traces, logs, metrics, resources, and instrumentation scopes while preserving settings and the MCP token.
+Closing the OTelux window hides it to the system tray; OTLP ingest, MCP, and the Runtime API remain active. Use the tray icon to reopen the workbench or choose **Quit OTelux** to stop all listeners and close the SQLite database. The **Pause** control freezes live list refreshes only: telemetry continues to enter SQLite, and resuming catches the UI up. While live, new rows never replace the trace you are inspecting; the waterfall's **Selected trace** badge remains until you explicitly choose another row. **Clear data** permanently deletes stored traces, logs, metrics, resources, and instrumentation scopes while preserving settings and the MCP token.
 
 For Codex CLI and other real exporters, see the recipes below.
 
@@ -256,10 +257,10 @@ This is a development convenience, not an official system package.
 Find the process using either default port:
 
 ```bash
-ss -ltnp | grep -e ':4319 ' -e ':4320 '
+ss -ltnp | grep -e ':4319 ' -e ':4320 ' -e ':4321 '
 ```
 
-Stop the conflicting process or choose different ports in Settings. Do not expose either listener on a non-loopback address unless you understand the consequences in the [security model](security-model.md).
+Stop the conflicting process or choose different configurable ports in Settings. The Runtime API bind error is recorded in `runtime.json` and does not stop OTLP/MCP/SQLite. Do not expose any listener on a non-loopback address unless you understand the consequences in the [security model](security-model.md).
 
 ### The app starts but receives no telemetry
 
@@ -290,7 +291,7 @@ Settings → Storage → Retention includes a live SQLite budget meter. Its fill
 
 ### The Linux packaging command fails or produces incomplete artifacts
 
-Packaging is under active release hardening. The current target is `.deb`; AppImage is disabled because its generated launcher can silently disable Chromium's sandbox on unsupported hosts. Locally generated files under `apps/desktop/release/` are not supported releases. Follow [release-sprint.md](release-sprint.md#milestone-3---official-linux-beta) for the packaging gate rather than distributing those files.
+The current supported prerelease packages are the checksum/provenance-verified Linux x64/arm64 `.deb` and AppImage assets from GitHub Releases. Locally generated files under `apps/desktop/release/` remain unsupported until they are published and independently verified through the release gate.
 
 ## Remove The Local Source Installation
 

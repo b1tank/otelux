@@ -36,7 +36,7 @@ macOS uses `~/Library/Application Support/OTelux`; Windows uses `%LOCALAPPDATA%\
 
 ## Network Behavior
 
-The desktop currently binds OTLP and MCP HTTP listeners to `127.0.0.1`. Loopback prevents direct access from other machines, but it is not user isolation: other processes or users on the same host may be able to connect. Disable MCP on shared or multi-user hosts when agent access is not needed.
+The desktop currently binds OTLP, MCP, and Runtime API HTTP listeners to `127.0.0.1`. Loopback prevents direct access from other machines, but it is not user isolation: other processes running as the same user may be able to read owner-only tokens and connect. Disable MCP on shared or multi-user hosts when agent access is not needed; the Runtime API is required for future local clients and rejects unauthenticated/browser-origin requests.
 
 OTelux itself does not add analytics, crash reporting, or telemetry export. Explicit user actions can still cause data to leave the application:
 
@@ -47,6 +47,8 @@ OTelux itself does not add analytics, crash reporting, or telemetry export. Expl
 The current MCP HTTP listener is enabled by default but requires a per-install bearer token: a random secret generated on first run and stored in the canonical data directory. Requests without a valid `Authorization: Bearer <token>` header are rejected before any tool runs. Configure your MCP client with that token, or disable MCP in Settings when agent access is not needed, especially on shared hosts. See the [security requirements](spec.md#security-requirements).
 
 ## Agent Plugins
+
+Runtime control uses a separate owner-only `runtime-token`. Its value is not written to `runtime.json`, URLs, model context, or logs. The API exposes bounded local query/control methods and revision-only SSE invalidations; browser session bootstrap is not shipped yet, so requests carrying `Origin` are rejected.
 
 The OTelux Claude Code and Codex plugins connect to the authenticated loopback MCP listener through a bundled local bridge. The bridge reads `runtime.json` and the token file from the canonical data directory; it does not copy the token into plugin manifests, model prompts, or marketplace metadata.
 

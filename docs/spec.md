@@ -32,6 +32,7 @@ The repository currently contains:
 - `apps/desktop`: Electron shell hosting IPC/windows and the React renderer; its main process currently embeds `@otelux/local-runtime`.
 - `@otelux/local-runtime`: backend composition for SQLite, retention, engine queries, OTLP, authenticated MCP, settings, sample data, and lifecycle events.
 - Canonical platform data-home resolution, resumable copy-only migration from legacy Electron state, and nonce-protected `runtime.lock` / `runtime.json` ownership metadata.
+- An authenticated loopback Runtime API (default `4321`) now runs beside embedded Desktop: bounded JSON-RPC at `/api/v1/rpc`, revisioned SSE invalidations at `/api/v1/events`, open health only, a separate owner-only `runtime-token`, and visible/nonfatal API bind status. Desktop still uses IPC until the HTTP/SSE `DataSource` adapter and daemon conversion land.
 - OTLP/HTTP JSON and protobuf ingest for traces, logs, and metrics.
 - Durable local storage for all signals via `@otelux/engine-node` (Node `node:sqlite`), with user-configurable retention (age and size). The store versions its schema with forward-only transactional migrations; a failed upgrade leaves the legacy database in place for retry, while an unreadable or newer-version file is quarantined before starting fresh. `@otelux/engine` still ships an in-memory store for tests and small workloads; both back ends pass a shared storage-contract suite.
 - A live SQLite budget meter in Settings shows retention-page pressure against the configured size limit and separately reports physical DB, WAL, and SHM footprint. Retention passes checkpoint and truncate WAL before and after pruning so sustained ingest cannot leave an unbounded WAL sidecar outside the page budget.
@@ -50,7 +51,7 @@ Important current limits:
 - OTLP/gRPC ingest is planned, not shipped (OTLP/HTTP JSON and protobuf are live).
 - Dense trace modes need polish; span and log detail drawers provide internal key/value search. Trace interaction uses iterative layout, constant-DOM indentation, virtualized trace/waterfall rows, stable memoized row props, latest-only same-turn selection, stale-result rejection, and a bounded recent-trace cache. Protocol 0.6 sends lightweight waterfall spans and loads full selected-span details separately. SQLite ingest/query/retention runs in a bounded worker queue with direct-read priority rather than Electron main. Trace/log keyset cursors, optional exact counts, and visible per-signal overload counters are live. Trace/log views page incrementally through cursor-backed `Load more` controls. The packaged performance gate builds 10,000 traces / 200,000 spans plus 5,000-deep and 10,000-wide traces, runs interaction during continuous ingest, forces renderer GC, and enforces mounted-row/DOM, paging, frame-gap, and heap budgets in release CI.
 - The storage audit's span-identity P0 is fixed in schema v2; trace-service count/page correctness is fixed in schema v3; schema v4 indexes the standard `service.namespace` source dimension; metric histories are bounded; protocol 0.6 provides grouped facets, lightweight waterfall payloads, cursor paging, and optional exact counts; and SQLite runs in a bounded worker. The remaining pre-daemon hardening item is the SQL statement/query-plan budget harness. See [storage.md](storage.md#audit-findings).
-- `@otelux/protocol` now enforces bounded path-aware Electron invoke/runtime-event validation, shared `runtime.json` decoding, tagged-bigint JSON wire codecs, compatibility fixtures, and checked draft 2020-12 schemas for the transition boundary. The complete Runtime JSON-RPC params/results registry, SSE envelope, protocol negotiation, and direct/IPC/HTTP conformance suite remain required before Desktop becomes a daemon client. See [protocol.md](protocol.md#current-gaps).
+- `@otelux/protocol` now enforces bounded path-aware Electron and Runtime RPC/SSE validation, shared `runtime.json` decoding, tagged-bigint JSON wire codecs, compatibility fixtures, protocol-major negotiation, and checked draft 2020-12 schemas. Direct dispatcher and authenticated HTTP/SSE tests are live. A shared direct/IPC/HTTP parity suite, split metric point methods, HTTP/SSE `DataSource` client, and browser session/bootstrap remain before Desktop becomes a daemon client. See [protocol.md](protocol.md#current-gaps).
 
 ## Signals In Scope
 
@@ -162,16 +163,16 @@ Request bodies are bounded:
 Planned receiver work:
 
 - OTLP/gRPC.
-- Backpressure and dropped-record counters.
+
+Bounded export concurrency and visible per-signal overload counters are live.
 
 ## Port Defaults
 
-| Runtime | OTLP/HTTP | MCP HTTP | Notes |
-|---|---:|---:|---|
-| Shared local runtime | `4319` | `4320` by default | Avoids colliding with a user's standard collector on `4318`; both listeners are configurable and MCP can be disabled. The runtime is currently embedded in the Desktop process. |
+| Runtime | OTLP/HTTP | MCP HTTP | Runtime API | Notes |
+|---|---:|---:|---:|---|
+| Shared local runtime | `4319` | `4320` | `4321` | Avoids the standard collector on `4318`. OTLP/MCP are configurable and MCP can be disabled; Runtime API status is discovered through owner-only state. Runtime ownership is still embedded in Desktop. |
 
-Ports are runtime settings. The runtime claims owner-only `runtime.lock` before opening SQLite or binding either listener and publishes effective statuses in `runtime.json`, preventing concurrent local entry points from becoming competing backend owners.
-OTLP and MCP listeners must use different ports. The desktop exposes a copyable OTLP base URL and, while MCP is enabled, a copyable MCP endpoint; failed listener binds leave the previous healthy listener and persisted settings intact.
+The runtime claims owner-only `runtime.lock` before opening SQLite or binding listeners and publishes effective statuses in `runtime.json`, preventing concurrent local entry points from becoming competing backend owners. OTLP and MCP listeners must use different ports. Runtime API bind failure is visible but does not stop OTLP/MCP/SQLite. Desktop exposes copyable OTLP/MCP endpoints; failed configurable listener changes leave the previous healthy listener and persisted settings intact.
 
 The runtime MCP listener requires a per-install bearer token. A random token is generated on first run and stored as `mcp-token` in the canonical OTelux data directory; every MCP `POST` must send `Authorization: Bearer <token>` or receive `401`. The identity probe (`GET /`) stays open so a client can check liveness without the token.
 
@@ -271,7 +272,7 @@ A prerelease may narrow platforms, storage durability, ingest encodings, or supp
 
 ## Security Requirements
 
-- Desktop OTLP and MCP listeners bind to loopback unless the user explicitly configures and acknowledges broader exposure.
+- Desktop OTLP, MCP, and Runtime API listeners bind to loopback; Runtime API additionally validates Host and rejects browser Origin until scoped browser sessions ship.
 - MCP access to captured telemetry requires explicit enablement or a per-install credential. Missing or invalid credentials do not reveal tool results.
 - Request bodies are bounded before parsing. Oversized OTLP and MCP requests return `413`; unsupported media types return `415`.
 - Requests carrying an `Origin` header are rejected with `403` by default. Hosts may configure exact allowed origins; wildcard origins are never combined with credentials, accepted responses vary on `Origin`, and rejected origins receive no telemetry or permissive CORS headers.

@@ -8,6 +8,7 @@ import type {
 	PartialSettings,
 	ReceiverPressure,
 	ReceiverStatus,
+	RuntimeApiStatus,
 	RuntimeEvent,
 	RuntimeLockOwner,
 	RuntimeState,
@@ -536,9 +537,35 @@ export function parseRuntimeState(value: unknown, path = '$'): RuntimeState {
 		dataDirectory: string(input.dataDirectory, `${path}.dataDirectory`, 4_096),
 		databasePath: string(input.databasePath, `${path}.databasePath`, 4_096),
 		mcpTokenFile: string(input.mcpTokenFile, `${path}.mcpTokenFile`, 4_096),
+		...('runtimeTokenFile' in input
+			? { runtimeTokenFile: string(input.runtimeTokenFile, `${path}.runtimeTokenFile`, 4_096) }
+			: {}),
 		receiver: parseReceiverStatus(input.receiver, `${path}.receiver`),
 		mcp: parseMcpStatus(input.mcp, `${path}.mcp`),
+		...('api' in input ? { api: parseRuntimeApiStatus(input.api, `${path}.api`) } : {}),
 	};
+}
+
+export function parseRuntimeApiStatus(value: unknown, path = '$.api'): RuntimeApiStatus {
+	const input = object(value, path);
+	const kind = enumeration(input.kind, ['starting', 'running', 'error'], `${path}.kind`);
+	if (kind === 'starting') {
+		knownKeys(input, ['kind'], path);
+		return { kind };
+	}
+	knownKeys(
+		input,
+		kind === 'running' ? ['kind', 'host', 'port'] : ['kind', 'host', 'port', 'message'],
+		path,
+	);
+	const base = {
+		kind,
+		host: string(input.host, `${path}.host`, 255),
+		port: integer(input.port, `${path}.port`, 1, 65_535),
+	};
+	return kind === 'error'
+		? { ...base, kind, message: string(input.message, `${path}.message`, 2_048) }
+		: { ...base, kind };
 }
 
 export function parseRuntimeEvent(value: unknown): RuntimeEvent {
@@ -568,6 +595,9 @@ export function parseRuntimeEvent(value: unknown): RuntimeEvent {
 		case 'mcp-status-changed':
 			knownKeys(input, ['kind', 'status'], '$');
 			return { kind, status: parseMcpStatus(input.status) };
+		case 'api-status-changed':
+			knownKeys(input, ['kind', 'status'], '$');
+			return { kind, status: parseRuntimeApiStatus(input.status) };
 		default:
 			return fail('$.kind', 'discriminator', 'unknown runtime event kind');
 	}

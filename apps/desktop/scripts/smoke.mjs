@@ -80,8 +80,10 @@ async function availablePort() {
 const otlpPort = await availablePort();
 const mcpPort = await availablePort();
 const debuggingPort = await availablePort();
+const apiPort = await availablePort();
 const baseUrl = `http://127.0.0.1:${otlpPort}`;
 const mcpUrl = `http://127.0.0.1:${mcpPort}/`;
+let runtimeApiUrl;
 const userDataDir = mkdtempSync(join(tmpdir(), 'otelux-smoke-'));
 writeFileSync(
 	join(userDataDir, 'settings.json'),
@@ -264,6 +266,7 @@ const child = spawn(
 			...process.env,
 			OTELUX_DATA_DIR: userDataDir,
 			OTELUX_OTLP_PORT: String(otlpPort),
+			OTELUX_API_PORT: String(apiPort),
 		},
 		stdio: ['ignore', 'pipe', 'pipe'],
 		// POSIX gets a process group for the final wedged-process fallback.
@@ -324,6 +327,7 @@ async function requestCleanQuit() {
 			...process.env,
 			OTELUX_DATA_DIR: userDataDir,
 			OTELUX_OTLP_PORT: String(otlpPort),
+			OTELUX_API_PORT: String(apiPort),
 		},
 		stdio: ['ignore', 'pipe', 'pipe'],
 	});
@@ -373,6 +377,21 @@ try {
 			}
 			if (state.mcp?.kind !== 'running' || state.mcp.port !== mcpPort) {
 				fail(`runtime.json did not report the live MCP port ${mcpPort}`);
+			}
+			if (state.api?.kind === 'running' && typeof state.runtimeTokenFile === 'string') {
+				runtimeApiUrl = `http://${state.api.host}:${state.api.port}`;
+				const token = readFileSync(state.runtimeTokenFile, 'utf8').trim();
+				const response = await fetch(`${runtimeApiUrl}/api/v1/rpc`, {
+					method: 'POST',
+					headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+					body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'runtime/getStatus' }),
+				});
+				const result = await response.json();
+				if (response.status !== 200 || result?.result?.api?.port !== state.api.port) {
+					fail('authenticated Runtime RPC status check failed');
+				} else {
+					console.log('OK: authenticated Runtime RPC answered status');
+				}
 			}
 		}
 
@@ -446,6 +465,11 @@ try {
 		fail('MCP server remained reachable after full shutdown');
 	} else {
 		console.log('OK: full quit stopped the MCP server');
+	}
+	if (runtimeApiUrl && (await endpointResponds(`${runtimeApiUrl}/healthz`))) {
+		fail('Runtime API remained reachable after full shutdown');
+	} else if (runtimeApiUrl) {
+		console.log('OK: full quit stopped the Runtime API');
 	}
 	if (
 		existsSync(join(userDataDir, 'runtime.json')) ||
