@@ -2,17 +2,19 @@
 /**
  * Packaged smoke test for the OTelux desktop app.
  *
- * Launches the packed Linux binary (from `electron-builder --linux dir`)
- * and asserts the end-to-end runtime path that a release must satisfy:
+ * Launches the native unpacked application produced by electron-builder on
+ * Linux, macOS, or Windows and asserts the end-to-end runtime path that a
+ * release must satisfy:
  *   1. The process starts and the OTLP receiver answers `/healthz`.
  *   2. The sandboxed preload bridge loads and the workbench renders.
  *   3. A valid OTLP/HTTP JSON trace is ingested (`200` + partialSuccess).
  *   4. The request hardening survives packaging (a non-JSON `POST` → `415`).
- *   5. The process shuts down cleanly on SIGTERM.
+ *   5. A second invocation requests the same explicit clean-quit path as the
+ *      tray menu, then OTLP/MCP and runtime ownership disappear.
  *
- * Requires a display; CI wraps this with `xvfb-run`. Runs with
- * `--no-sandbox` because CI and containerized hosts often lack user
- * namespaces — this is a functional smoke, not a sandbox test.
+ * Linux requires a display; CI wraps it with `xvfb-run` and uses
+ * `--no-sandbox` because containerized hosts may lack user namespaces. This
+ * is a functional package smoke, not a sandbox-policy test.
  *
  * Exit code 0 on success, non-zero on any failed assertion.
  */
@@ -26,8 +28,33 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const desktopDir = process.env.OTELUX_SMOKE_DESKTOP_DIR ?? join(here, '..');
 const repoRoot = process.env.OTELUX_SMOKE_REPO_ROOT ?? join(desktopDir, '..', '..');
-const binary = join(desktopDir, 'release', 'linux-unpacked', 'otelux');
+function packagedBinaryCandidates() {
+	if (process.env.OTELUX_SMOKE_BINARY) {
+		return [process.env.OTELUX_SMOKE_BINARY];
+	}
+	if (process.platform === 'win32') {
+		return [join(desktopDir, 'release', 'win-unpacked', 'otelux.exe')];
+	}
+	if (process.platform === 'darwin') {
+		const architectureDirectory = process.arch === 'arm64' ? 'mac-arm64' : 'mac';
+		return [
+			join(desktopDir, 'release', architectureDirectory, 'otelux.app', 'Contents', 'MacOS', 'otelux'),
+			join(desktopDir, 'release', 'mac', 'otelux.app', 'Contents', 'MacOS', 'otelux'),
+			join(desktopDir, 'release', 'mac-arm64', 'otelux.app', 'Contents', 'MacOS', 'otelux'),
+		];
+	}
+	return [join(desktopDir, 'release', 'linux-unpacked', 'otelux')];
+}
+
+const candidates = packagedBinaryCandidates();
+const binary = candidates.find((candidate) => existsSync(candidate)) ?? candidates[0];
+if (!binary || !existsSync(binary)) {
+	throw new Error(`packaged application not found; checked: ${candidates.join(', ')}`);
+}
 const fixture = join(repoRoot, 'fixtures', 'sample_trace.json');
+const quitFlag = '--otelux-request-quit';
+const platformArguments =
+	process.platform === 'linux' ? ['--no-sandbox', '--ozone-platform=x11'] : [];
 
 async function availablePort() {
 	return await new Promise((resolve, reject) => {
@@ -223,8 +250,7 @@ function fail(message) {
 const child = spawn(
 	binary,
 	[
-		'--no-sandbox',
-		'--ozone-platform=x11',
+		...platformArguments,
 		`--remote-debugging-port=${debuggingPort}`,
 		`--user-data-dir=${userDataDir}`,
 	],
@@ -235,9 +261,9 @@ const child = spawn(
 			OTELUX_OTLP_PORT: String(otlpPort),
 		},
 		stdio: ['ignore', 'pipe', 'pipe'],
-		// New process group so we can signal Electron and all of its child
-		// processes (GPU, zygote, utility) as one unit on shutdown.
-		detached: true,
+		// POSIX gets a process group for the final wedged-process fallback.
+		// Windows does not support negative-PID process-group signals.
+		detached: process.platform !== 'win32',
 	},
 );
 child.stdout.on('data', record);
@@ -262,6 +288,10 @@ function waitForExit(timeoutMs) {
 }
 
 function signalGroup(signal) {
+	if (process.platform === 'win32') {
+		child.kill();
+		return;
+	}
 	// Negative pid targets the whole process group created by `detached`.
 	try {
 		process.kill(-child.pid, signal);
@@ -270,15 +300,53 @@ function signalGroup(signal) {
 	}
 }
 
+function waitForProcessExit(process_, timeoutMs) {
+	if (process_.exitCode !== null || process_.signalCode !== null) {
+		return Promise.resolve(true);
+	}
+	return new Promise((resolve) => {
+		const timer = setTimeout(() => resolve(false), timeoutMs);
+		process_.once('exit', () => {
+			clearTimeout(timer);
+			resolve(true);
+		});
+	});
+}
+
+async function requestCleanQuit() {
+	const helper = spawn(binary, [...platformArguments, quitFlag, `--user-data-dir=${userDataDir}`], {
+		env: {
+			...process.env,
+			OTELUX_DATA_DIR: userDataDir,
+			OTELUX_OTLP_PORT: String(otlpPort),
+		},
+		stdio: ['ignore', 'pipe', 'pipe'],
+	});
+	helper.stdout?.on('data', record);
+	helper.stderr?.on('data', record);
+	if (!(await waitForProcessExit(helper, 10_000))) {
+		helper.kill();
+		throw new Error('packaged quit helper did not exit within 10s');
+	}
+}
+
 async function shutdown() {
 	if (!exited) {
-		// Signal only Electron's main process first so it can run `will-quit`,
-		// close the runtime, and terminate its own utility processes cleanly.
-		child.kill('SIGTERM');
-		if (!(await waitForExit(5000))) {
-			// A wedged process gets a final process-group kill.
-			signalGroup('SIGKILL');
-			await waitForExit(3000);
+		try {
+			await requestCleanQuit();
+		} catch (error) {
+			record(`${error instanceof Error ? error.message : String(error)}\n`);
+		}
+		if (!(await waitForExit(10_000))) {
+			// Preserve signal compatibility for POSIX process managers, then use
+			// a final group/process kill only if the explicit path wedged.
+			if (process.platform !== 'win32') {
+				child.kill('SIGTERM');
+			}
+			if (!(await waitForExit(5_000))) {
+				signalGroup('SIGKILL');
+				await waitForExit(3_000);
+			}
 		}
 	}
 	child.stdout?.destroy();

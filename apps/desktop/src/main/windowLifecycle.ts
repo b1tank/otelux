@@ -1,3 +1,9 @@
+export const PACKAGED_QUIT_FLAG = '--otelux-request-quit';
+
+export function isPackagedQuitRequest(arguments_: readonly string[]): boolean {
+	return arguments_.includes(PACKAGED_QUIT_FLAG);
+}
+
 export interface LifecycleWindow {
 	isDestroyed(): boolean;
 	isMinimized(): boolean;

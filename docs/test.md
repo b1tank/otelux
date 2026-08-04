@@ -549,6 +549,11 @@ curl -s -D /tmp/otelux-origin-headers.txt -X POST \
 - Run a packaged build and capture main-process stderr while exercising the core workflow.
 - **Expected**: no OTelux uncaught exception, unhandled rejection, disposed-frame error, or crash. Platform Chromium/GPU diagnostics such as `GetVSyncParametersIfAvailable() failed` may be recorded as environmental noise when behavior is unaffected.
 
+### 12.5 Native packaged smoke
+- On each native release runner, build the unpacked application and run `node apps/desktop/scripts/smoke.mjs` (`xvfb-run -a` on Linux).
+- **Expected**: the platform-native executable launches; OTLP and MCP report healthy runtime ownership; the sandboxed preload/workbench render; trace ingest and content-type rejection pass; closing the window leaves the tray runtime healthy; and a second invocation with the internal `--otelux-request-quit` smoke flag exercises the same explicit-quit path as the tray menu. The primary process exits cleanly, OTLP/MCP stop, and `runtime.json` / `runtime.lock` disappear.
+- **Qualification limit**: this smoke proves unpacked application/runtime compatibility. It does not replace signed installer clean-install, OS trust UI, upgrade, or uninstall tests.
+
 ---
 
 ## 13. Negative receiver scenarios

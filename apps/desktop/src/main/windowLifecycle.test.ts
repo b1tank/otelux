@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
 	type LifecycleWindow,
+	PACKAGED_QUIT_FLAG,
 	type PreventableCloseEvent,
 	createDesktopWindowLifecycle,
+	isPackagedQuitRequest,
 } from './windowLifecycle.js';
 
 interface WindowState {
@@ -47,6 +49,12 @@ function initialWindowState(): WindowState {
 }
 
 describe('desktop window lifecycle', () => {
+	it('recognizes only the exact packaged smoke quit flag', () => {
+		expect(isPackagedQuitRequest(['otelux', PACKAGED_QUIT_FLAG])).toBe(true);
+		expect(isPackagedQuitRequest(['otelux', '--otelux-request-quit-now'])).toBe(false);
+		expect(isPackagedQuitRequest(['otelux'])).toBe(false);
+	});
+
 	it('hides a closed window without quitting and restores it later', () => {
 		const state = initialWindowState();
 		const window = createWindow(state);

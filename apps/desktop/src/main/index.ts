@@ -10,7 +10,7 @@ import {
 	type OteluxEvent,
 } from '../shared/ipc.js';
 import { isAllowedExternalUrl, isAllowedNavigation } from './security.js';
-import { createDesktopWindowLifecycle } from './windowLifecycle.js';
+import { createDesktopWindowLifecycle, isPackagedQuitRequest } from './windowLifecycle.js';
 
 const isDev = !app.isPackaged;
 
@@ -312,10 +312,19 @@ process.once('SIGINT', () => windowLifecycle.requestQuit());
 
 // Single-instance lock so we never double-bind the OTLP port.
 const gotLock = app.requestSingleInstanceLock();
+const packagedQuitRequested = isPackagedQuitRequest(process.argv);
 if (!gotLock) {
 	app.quit();
+} else if (packagedQuitRequested) {
+	// A smoke-test quit helper acquired the lock because no primary instance
+	// exists. Exit without starting a runtime or creating a window.
+	app.quit();
 } else {
-	app.on('second-instance', () => {
+	app.on('second-instance', (_event, argv) => {
+		if (isPackagedQuitRequest(argv)) {
+			windowLifecycle.requestQuit();
+			return;
+		}
 		windowLifecycle.showWindow();
 	});
 
