@@ -69,8 +69,19 @@ jobs:
             artifact: linux-x64
             paths: |
               apps/desktop/release/*.deb
+              apps/desktop/release/*.AppImage
               apps/desktop/release/*-linux-x64-sbom.cdx.json
               apps/desktop/release/SHA256SUMS-linux-x64
+          - label: Linux arm64
+            runner: ubuntu-24.04-arm
+            script: package:linux
+            smoke: xvfb-run -a node apps/desktop/scripts/smoke.mjs
+            artifact: linux-arm64
+            paths: |
+              apps/desktop/release/*.deb
+              apps/desktop/release/*.AppImage
+              apps/desktop/release/*-linux-arm64-sbom.cdx.json
+              apps/desktop/release/SHA256SUMS-linux-arm64
           - label: macOS x64 and arm64
             runner: macos-14
             script: package:mac

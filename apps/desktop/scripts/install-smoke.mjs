@@ -54,12 +54,13 @@ function findEntry(root, predicate) {
 	return undefined;
 }
 
-function runPackagedSmoke(binary) {
+function runPackagedSmoke(binary, additionalEnvironment = {}) {
 	if (!existsSync(binary)) {
 		throw new Error(`installed application binary not found: ${binary}`);
 	}
 	const environment = {
 		...process.env,
+		...additionalEnvironment,
 		OTELUX_SMOKE_BINARY: binary,
 		OTELUX_SMOKE_DESKTOP_DIR: desktopDir,
 	};
@@ -72,6 +73,7 @@ function runPackagedSmoke(binary) {
 
 function smokeLinuxPackage() {
 	const packagePath = releaseArtifact((name) => name.endsWith('.deb'), 'Debian package');
+	const appImage = releaseArtifact((name) => name.endsWith('.AppImage'), 'AppImage');
 	try {
 		run('sudo', ['apt-get', 'install', '-y', packagePath]);
 		runPackagedSmoke('/usr/bin/otelux');
@@ -81,6 +83,9 @@ function smokeLinuxPackage() {
 	if (existsSync('/usr/bin/otelux')) {
 		throw new Error('Debian uninstall left /usr/bin/otelux behind');
 	}
+	// CI kernels may not expose FUSE. Electron AppImage supports extracting to
+	// a temporary directory while preserving the same rootless application.
+	runPackagedSmoke(appImage, { APPIMAGE_EXTRACT_AND_RUN: '1' });
 }
 
 function smokeMacPackage() {

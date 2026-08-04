@@ -43,7 +43,12 @@ function packagedBinaryCandidates() {
 			join(desktopDir, 'release', 'mac-arm64', 'otelux.app', 'Contents', 'MacOS', 'otelux'),
 		];
 	}
-	return [join(desktopDir, 'release', 'linux-unpacked', 'otelux')];
+	const architectureDirectory = process.arch === 'arm64' ? 'linux-arm64-unpacked' : 'linux-unpacked';
+	return [
+		join(desktopDir, 'release', architectureDirectory, 'otelux'),
+		join(desktopDir, 'release', 'linux-unpacked', 'otelux'),
+		join(desktopDir, 'release', 'linux-arm64-unpacked', 'otelux'),
+	];
 }
 
 const candidates = packagedBinaryCandidates();

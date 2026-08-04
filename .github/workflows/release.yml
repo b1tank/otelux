@@ -160,7 +160,7 @@ jobs:
 
       - name: Compute checksums
         working-directory: apps/desktop/release
-        run: sha256sum OTelux-*.deb otelux-*-sbom.cdx.json > SHA256SUMS
+        run: sha256sum OTelux-*.deb OTelux-*.AppImage otelux-*-sbom.cdx.json > SHA256SUMS
 
       - name: Attest build provenance
         # Build provenance attestation is only available for public
@@ -173,7 +173,9 @@ jobs:
         if: ${{ !github.event.repository.private && needs.resolve.outputs.target == github.sha }}
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
-          subject-path: apps/desktop/release/OTelux-*.deb
+          subject-path: |
+            apps/desktop/release/OTelux-*.deb
+            apps/desktop/release/OTelux-*.AppImage
 
       - name: Write release notes
         env:
@@ -197,9 +199,16 @@ jobs:
           sudo apt install ./OTelux-*.deb
           ```
 
+          Or run the portable AppImage without installation:
+
+          ```bash
+          chmod +x OTelux-*.AppImage
+          ./OTelux-*.AppImage
+          ```
+
           ## Supported package
 
-          - Linux x64 `.deb`; updates are installed manually with the package manager.
+          - Linux x64 `.deb` and rootless AppImage; updates are installed manually.
           - OTLP/HTTP JSON and protobuf are supported for traces, logs, and metrics.
           - OTLP/gRPC is not supported yet.
           - Telemetry is stored locally in SQLite under the configured retention limits.
@@ -223,5 +232,6 @@ jobs:
             --title "OTelux ${{ needs.resolve.outputs.tag }}" \
             --notes-file "${RUNNER_TEMP}/release-notes.md" \
             --asset "apps/desktop/release/OTelux-${{ needs.resolve.outputs.version }}-amd64.deb" \
+            --asset "apps/desktop/release/OTelux-${{ needs.resolve.outputs.version }}-x86_64.AppImage" \
             --asset "apps/desktop/release/SHA256SUMS" \
             --asset "apps/desktop/release/otelux-${{ needs.resolve.outputs.version }}-sbom.cdx.json"

@@ -6,6 +6,7 @@ import { nativePackageNames } from './prepare-platform-assets.mjs';
 const names = [
 	'OTelux-0.1.8-amd64.deb',
 	'OTelux-0.1.9-amd64.deb',
+	'OTelux-0.1.9-x86_64.AppImage',
 	'OTelux-0.1.9-mac-arm64.dmg',
 	'OTelux-0.1.9-mac-arm64.zip',
 	'OTelux-0.1.9-mac-x64.dmg',
@@ -18,7 +19,10 @@ const names = [
 
 describe('nativePackageNames', () => {
 	it('selects only Debian packages on Linux', () => {
-		assert.deepEqual(nativePackageNames(names, 'linux', '0.1.9'), ['OTelux-0.1.9-amd64.deb']);
+		assert.deepEqual(nativePackageNames(names, 'linux', '0.1.9'), [
+			'OTelux-0.1.9-amd64.deb',
+			'OTelux-0.1.9-x86_64.AppImage',
+		]);
 	});
 
 	it('selects both architectures and formats on macOS', () => {

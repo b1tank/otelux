@@ -556,7 +556,7 @@ curl -s -D /tmp/otelux-origin-headers.txt -X POST \
 
 ### 12.6 Native package install/uninstall smoke
 - Run `node apps/desktop/scripts/install-smoke.mjs` on the native package runner after §12.5.
-- **Linux expected**: install the generated `.deb` with APT, run the packaged smoke against `/usr/bin/otelux`, remove the package, and confirm the executable is gone.
+- **Linux expected**: install the generated `.deb` with APT, run the packaged smoke against `/usr/bin/otelux`, remove the package, and confirm the executable is gone. Then run the architecture-matching rootless AppImage with `APPIMAGE_EXTRACT_AND_RUN=1` for FUSE-independent CI coverage.
 - **macOS expected**: attach the architecture-matching DMG, copy its app bundle to an isolated Applications directory, detach the image, run the packaged smoke against the copied bundle, remove it, and confirm it is gone.
 - **Windows expected**: silently install the NSIS package into an isolated directory, run the packaged smoke against the installed executable, invoke the bundled silent uninstaller, and confirm the installation is gone.
 - **Qualification limit**: unsigned preview CI does not exercise Gatekeeper, SmartScreen, publisher identity, notarization/stapling, system-wide installation, or upgrade from an older public release. Those remain signed release gates.

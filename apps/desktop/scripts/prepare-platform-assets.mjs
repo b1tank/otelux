@@ -15,7 +15,7 @@ export function nativePackageNames(names, platform, version) {
 	const escapedVersion = version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	const expression =
 		platform === 'linux'
-			? new RegExp(`^OTelux-${escapedVersion}-(amd64|arm64)\\.deb$`)
+			? new RegExp(`^OTelux-${escapedVersion}-((amd64|arm64)\\.deb|(x86_64|arm64)\\.AppImage)$`)
 			: platform === 'darwin'
 				? new RegExp(`^OTelux-${escapedVersion}-mac-(x64|arm64)\\.(dmg|zip)$`)
 				: platform === 'win32'
