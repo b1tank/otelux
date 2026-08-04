@@ -106,7 +106,7 @@ Apps are not published packages:
 
 | App | Purpose | Current state |
 |---|---|---|
-| `apps/desktop` | Main Electron workbench. | Runnable Linux-focused pre-release. |
+| `apps/desktop` | Main Electron workbench. | v0.1.10 Linux x64/arm64 `.deb` and AppImage prerelease; unsigned macOS/Windows previews. |
 
 Plugin distributions are thin hosts over the same packages:
 
@@ -116,7 +116,7 @@ Plugin distributions are thin hosts over the same packages:
 | Codex | Shared skills + local desktop MCP bridge. | Built, locally installed; marketplace entry live in-repo. |
 | Pi | Shared skills + native adapter over the local desktop MCP bridge. | Built and locally installable as a Pi package. |
 
-Future packages or apps should be added to this spec only when they support one of the four product forms and enter active implementation.
+The next agent-onboarding milestone adds capability-detected Copilot CLI and OpenCode targets, a shared safe configuration engine, `otelux agents ...`, Settings → Agents, and resumable first-run setup. A host receives only integrations its pinned official version supports; MCP, skills, native plugin/extension, telemetry export, and sensitive-content capture are separate capabilities and choices. See [agent-onboarding.md](agent-onboarding.md). Future packages or apps should be added to the package table only when they enter active implementation.
 
 ## Technology
 
@@ -253,6 +253,8 @@ A supported stable desktop release must let a user:
 - Keep receiving while the desktop window is hidden in the system tray, and stop every listener/database handle after explicit full quit.
 - Use only agent tools that are implemented, bounded, read-only, and accurately described. Incomplete tools are excluded from the supported surface or explicitly marked experimental.
 - Complete core workflows with keyboard input, visible focus, readable contrast, and no pointer-only interaction.
+- Use a bundled `otelux` CLI to start/discover the single runtime, inspect status/endpoints/storage health, open Desktop or the workbench, run diagnostics, and safely preview/apply/verify supported agent integrations.
+- Use Settings → Agents or resumable onboarding to detect supported hosts, inspect exact configuration paths, choose MCP/skills/plugin/telemetry capabilities separately, preview non-secret operations, apply atomically, receive restart guidance, verify end to end, and remove only OTelux-owned state.
 
 A prerelease may narrow platforms, storage durability, ingest encodings, or supported surfaces only when the limitation is visible in the app and stated in its README and release notes. It must not present an unavailable capability as working.
 

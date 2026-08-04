@@ -20,10 +20,10 @@ OTelux has these local product forms:
 
 | Surface | Role |
 |---|---|
-| Agent plugin | Claude/Codex/Pi skills, MCP tools, telemetry setup workflows, and browser-workbench launch over the local runtime. Pi uses a thin native adapter over the same MCP bridge. |
+| Agent integration | Capability-detected MCP, skills, plugin/extension, telemetry setup, and workbench launch for supported coding agents. Claude/Codex/Pi are first-class initial targets; Copilot CLI and OpenCode follow through pinned host adapters. |
 | Direct MCP | Read-only OTelux tools for users who want agent access without packaged skills or Electron. |
-| CLI | Headless runtime, lifecycle, status, configuration, diagnostics, and browser launch. |
-| Desktop app | Native traces, logs, metrics, settings, and ingest-status workbench over the shared runtime. |
+| CLI | Headless runtime lifecycle/status/configuration/diagnostics, workbench/Desktop launch, and safe preview/apply/verify/remove of agent integrations. |
+| Desktop app | Native traces, logs, metrics, ingest/storage settings, Settings → Agents, and resumable first-run onboarding over the shared runtime. |
 
 The visual workbench has two delivery modes, not two products: the plugin and CLI can open the runtime-served UI in a browser, while Desktop embeds the same `@otelux/ui` application.
 
@@ -35,6 +35,7 @@ The core user workflows are:
 - Search structured logs, including agent/user-prompt content carried in log attributes, and narrow an open log drawer to matching details.
 - Inspect metrics through a meter/instrument explorer, compare scan summaries, switch the focused instrument between an axis-labeled graph and a raw table, copy metric data, and open details.
 - Let an agent ask read-only questions over the same local store.
+- Detect installed coding agents and connect only officially supported capabilities after showing exact non-secret configuration operations, with sensitive telemetry capture off by default and equivalent CLI/Desktop verification.
 
 ## Living Documents
 

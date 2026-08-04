@@ -200,11 +200,14 @@ The CLI is both a standalone user form and the common control surface used by in
 - `otelux serve`: run the local runtime in the foreground for headless use and diagnostics;
 - `otelux start` and `otelux stop`: manage the background runtime explicitly;
 - `otelux status`: report effective endpoints, database path, retention, version, and health without revealing tokens;
-- `otelux open`: open or print the browser workbench URL;
-- `otelux config`: inspect and change runtime settings;
-- `otelux doctor`: check ports, permissions, database compatibility, and client connectivity.
+- `otelux open`: open or print the browser workbench URL through a one-time bootstrap that does not expose tokens;
+- `otelux desktop`: launch or focus the native client;
+- `otelux endpoints --json`: expose stable machine-readable endpoint discovery;
+- `otelux config`: inspect and change schema-defined runtime settings;
+- `otelux doctor`: check ports, permissions, database compatibility, package/runtime protocol versions, and client connectivity;
+- `otelux agents list|inspect|install|remove|repair|verify|show-config`: drive the shared capability-aware integration engine with dry-run and JSON support.
 
-The CLI calls the same runtime APIs as other clients. It must not implement a second settings store, migration path, or receiver.
+The CLI calls the same runtime and agent-integration APIs as Desktop. It must not implement a second settings store, migration path, receiver, host parser, or configuration mutation path. Desktop installers bundle a version-matched CLI/daemon; Linux and Windows reserve `otelux` for CLI and rename the GUI executable to `otelux-desktop`, while macOS bundles CLI under the signed app resources. See [agent-onboarding.md](agent-onboarding.md).
 
 ## Security And Data Boundary
 
@@ -241,8 +244,10 @@ The next implementation sequence is:
 2. Add the HTTP/event `DataSource` adapter and serve the shared workbench in browser mode.
 3. Convert Desktop from an embedded runtime host into a daemon client while retaining native shell integration.
 4. Add the CLI and package the same launcher for direct MCP use.
-5. Make the Claude/Codex plugin self-contained and change dashboard launch to the browser URL.
-6. Add confirmation-backed agent and application telemetry setup workflows.
-7. Validate clean installs, upgrades, concurrent clients, port conflicts, retention, and uninstall behavior on every supported platform.
+5. Add the shared typed agent-integration engine and ship Claude/Codex/Pi CLI adapters first.
+6. Add Settings → Agents and resumable first-run onboarding over that same engine.
+7. Make the Claude/Codex/Pi integrations self-contained and change dashboard launch to the browser URL; add capability-pinned Copilot CLI and OpenCode adapters.
+8. Add confirmation-backed agent, application SDK, and Collector telemetry setup workflows.
+9. Validate clean installs, upgrades, concurrent clients/config edits, rollback, port conflicts, retention, and uninstall behavior on every supported platform.
 
 Only after this sequence should the self-contained plugin be published. That prevents two competing local backend models from reaching users.

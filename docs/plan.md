@@ -132,9 +132,11 @@ Done when:
 - A user on every advertised platform can install, launch, ingest, upgrade, and uninstall OTelux through a tested native artifact or package-manager channel.
 - Settings and retained data survive supported upgrades, explicit uninstall/data-removal behavior is documented, and GitHub release presentation matches the actual stability level.
 
-## Phase 6 — Shared Runtime And Agent Ecosystem
+## Phase 6 — Shared Runtime, CLI, And Agent Ecosystem
 
-Goal: make every local OTelux form reuse one per-user runtime, receiver, active database, tool implementation, and visual workbench.
+Goal: make every local OTelux form reuse one per-user runtime, receiver, active database, tool implementation, and visual workbench, with safe CLI/Desktop onboarding for supported coding agents.
+
+The command contract, packaging names, adapter safety model, Settings → Agents UX, onboarding flow, milestones, and acceptance matrix are defined in [agent-onboarding.md](agent-onboarding.md).
 
 Tasks:
 
@@ -149,10 +151,15 @@ Tasks:
 - Add JSON-RPC 2.0 Runtime RPC over loopback HTTP plus SSE invalidations, following [protocol.md](protocol.md); do not expose MCP as the UI API.
 - Add an authenticated HTTP/SSE `DataSource` adapter, serve the existing `@otelux/ui` as a same-origin loopback workbench, and convert Desktop into a client of that runtime.
 - Add dedicated runtime/API and MCP tokens/scopes plus one-time browser session bootstrap; tokens must never appear in dashboard URLs or `runtime.json`.
-- Add the OTelux CLI for runtime lifecycle, status, settings, dashboard launch, and diagnostics.
-- Package the shared stdio MCP launcher for direct-MCP users and make the Claude/Codex plugin ensure the runtime without requiring Desktop.
-- Add confirmation-backed skills for configuring Claude, Codex, OpenTelemetry SDKs, and Collectors, with sensitive telemetry capture disabled by default.
-- Validate plugin-first, Desktop-first, direct-MCP, CLI-only, multi-agent, upgrade, port-conflict, and uninstall scenarios on every supported platform.
+- Add the OTelux CLI for runtime lifecycle, status, endpoints, settings, dashboard/Desktop launch, diagnostics, and machine-readable output.
+- Bundle a version-matched CLI and daemon with Desktop while keeping them independently packageable; reserve `otelux` for CLI and rename GUI executables before stable cross-platform release.
+- Add `@otelux/agent-integrations` as the shared typed detector/planner/applier/verifier used by CLI and Desktop; configuration writes must be previewed, atomic, idempotent, reversible, permission-safe, and secret-redacted.
+- Add Settings → Agents with capability/status cards, inspected paths, exact proposed operations, Install/Verify/Repair/Remove, restart continuation, and accessible vendor-neutral fallback icons.
+- Add a resumable first-run flow for local-data/privacy explanation, sample data, endpoint health, agent detection, separate MCP/skills/telemetry/content choices, preview/apply, restart, and end-to-end verification.
+- Support Claude Code, Codex, and Pi end-to-end first; add capability-pinned Copilot CLI and OpenCode adapters without assuming every host supports native plugins/extensions.
+- Package the shared stdio MCP launcher for direct-MCP users and make agent integrations ensure the runtime without requiring Desktop.
+- Add confirmation-backed workflows for configuring supported agents, OpenTelemetry SDKs, and Collectors, with sensitive telemetry capture disabled by default.
+- Validate plugin-first, Desktop-first, CLI-first, direct-MCP, CLI-only, five-agent, concurrent-edit, rollback, upgrade, port-conflict, and uninstall scenarios on every supported platform.
 - Add validated MCP input and output schemas; keep agent summaries separate from paginated UI query DTOs.
 - Publish prebuilt CLI, direct-MCP, and self-contained Claude/Codex plugin artifacts that require no install-time compilation or separate Desktop installation.
 - Complete marketplace metadata, support/privacy material, clean-install evidence, and Claude/Codex publishing workflows.

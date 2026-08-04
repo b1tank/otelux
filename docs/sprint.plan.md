@@ -111,14 +111,24 @@ Implementation order:
 - Announce a platform only after the exact public artifact passes the release report.
 - Track download/install failures and support load before widening channels.
 
+## Workstream 6 — CLI and agent onboarding (P0 before supported public launch)
+
+- Extract one per-user daemon before standalone CLI/plugin claims so Desktop, CLI, direct MCP, and five agent sessions cannot compete for ports or SQLite ownership.
+- Bundle a version-matched `otelux` CLI with Desktop for lifecycle, status, endpoints, open/Desktop launch, settings, doctor, and safe agent management.
+- Build one typed agent-integration package shared by CLI and Settings → Agents; it owns detection, capability inspection, dry-run plans, atomic/idempotent/reversible configuration, redaction, and verification.
+- Ship Claude Code, Codex, and Pi end-to-end first. Add Copilot CLI and OpenCode through pinned capability adapters rather than assuming native plugin parity.
+- Add a resumable first-run flow that separates MCP/skills/plugin installation, telemetry export, and sensitive-content opt-in; show exact paths/operations and verify after restart.
+- Follow the full architecture, command, packaging, security, UX, milestone, and acceptance contract in [agent-onboarding.md](agent-onboarding.md).
+
 ## Recommended sequence
 
-1. README hero, truthful badges, static screenshot, demo, and social preview.
-2. Version/release metadata automation while retaining prerelease status.
-3. macOS arm64/x64 signed/notarized artifacts and Homebrew tap.
-4. Windows x64 signed installer and Winget.
-5. Linux arm64 and optional AppImage/RPM based on demand.
-6. First stable non-prerelease release after all advertised-platform gates pass; then enable the GitHub “Latest” presentation.
+1. Maintain the delivered README hero, truthful badges, high-density demo, social preview, and prerelease metadata.
+2. Finish Runtime API validation/schema compatibility and extract the single per-user daemon.
+3. Add the bundled CLI and shared agent-integration engine; ship Claude/Codex/Pi CLI workflows.
+4. Add Settings → Agents and resumable onboarding; then capability-pinned Copilot CLI and OpenCode beta adapters.
+5. Obtain macOS/Windows publisher credentials, ship signed native artifacts, then publish Homebrew/Winget metadata.
+6. Run the signed `v0.2.0-beta.1` external beta, accessibility/security/upgrade gates, and release rollback rehearsal.
+7. Publish `v0.2.0` as the first stable non-prerelease only after all advertised-platform and agent-onboarding gates pass; then enable GitHub “Latest.”
 
 ## Explicit non-goals for this sprint
 
