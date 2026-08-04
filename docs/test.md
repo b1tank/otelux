@@ -561,6 +561,10 @@ curl -s -D /tmp/otelux-origin-headers.txt -X POST \
 - **Windows expected**: silently install the NSIS package into an isolated directory, run the packaged smoke against the installed executable, invoke the bundled silent uninstaller, and confirm the installation is gone.
 - **Qualification limit**: unsigned preview CI does not exercise Gatekeeper, SmartScreen, publisher identity, notarization/stapling, system-wide installation, or upgrade from an older public release. Those remain signed release gates.
 
+### 12.7 Platform integrity assets
+- Run `node apps/desktop/scripts/prepare-platform-assets.mjs <platform-label>` after packaging.
+- **Expected**: it selects only native package files for the current desktop version, emits a parseable CycloneDX production SBOM, and writes `SHA256SUMS-<platform-label>` covering every selected package plus that SBOM. Standard checksum verification succeeds. Temporary electron-builder files and stale packages from older versions are excluded.
+
 ---
 
 ## 13. Negative receiver scenarios

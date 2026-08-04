@@ -10,6 +10,7 @@ on:
       - 'apps/desktop/package.json'
       - 'apps/desktop/build/icon.svg'
       - 'apps/desktop/scripts/install-smoke.mjs'
+      - 'apps/desktop/scripts/prepare-platform-assets.mjs'
       - 'apps/desktop/scripts/smoke.mjs'
       - 'apps/desktop/src/main/index.ts'
       - 'apps/desktop/src/main/windowLifecycle.ts'
@@ -66,7 +67,10 @@ jobs:
             script: package:linux
             smoke: xvfb-run -a node apps/desktop/scripts/smoke.mjs
             artifact: linux-x64
-            paths: apps/desktop/release/*.deb
+            paths: |
+              apps/desktop/release/*.deb
+              apps/desktop/release/*-linux-x64-sbom.cdx.json
+              apps/desktop/release/SHA256SUMS-linux-x64
           - label: macOS x64 and arm64
             runner: macos-14
             script: package:mac
@@ -75,6 +79,8 @@ jobs:
             paths: |
               apps/desktop/release/*.dmg
               apps/desktop/release/*-mac-*.zip
+              apps/desktop/release/*-macos-x64-arm64-sbom.cdx.json
+              apps/desktop/release/SHA256SUMS-macos-x64-arm64
           - label: Windows x64
             runner: windows-2022
             script: package:win
@@ -83,6 +89,8 @@ jobs:
             paths: |
               apps/desktop/release/*.exe
               apps/desktop/release/*-windows-*.zip
+              apps/desktop/release/*-windows-x64-sbom.cdx.json
+              apps/desktop/release/SHA256SUMS-windows-x64
 
     steps:
       - name: Checkout
@@ -124,6 +132,9 @@ jobs:
           # support still requires the protected signing/notarization release
           # jobs and native regression gates described in docs/sprint.plan.md.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Generate SBOM and checksums
+        run: node apps/desktop/scripts/prepare-platform-assets.mjs ${{ matrix.artifact }}
 
       - name: Smoke-test native unpacked application
         run: ${{ matrix.smoke }}
