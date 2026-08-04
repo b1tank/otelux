@@ -31,8 +31,8 @@ Make the public repository explain and demonstrate OTelux within seconds, show a
 - The existing app icon is not used as the repository logo.
 - No badge row exposes release, CI, CodeQL, downloads, or license status.
 - No screenshot, animation, or video demonstrates the workbench.
-- All OTelux releases are marked prerelease. GitHub therefore returns no `/releases/latest` release and shows Tags rather than an explicit latest release in the repository sidebar. The README does name v0.1.9, but the main-page release presentation remains weak.
-- Installation covers only Linux x64 `.deb`; there are no macOS, Windows, arm64, package-manager, upgrade, or uninstall paths.
+- OTelux releases remain deliberately marked prerelease. GitHub therefore returns no `/releases/latest` release and shows Tags rather than a stable Latest release in the repository sidebar; the prerelease-aware README badge exposes the current version.
+- Linux x64 and arm64 `.deb` and rootless AppImage paths are qualified for v0.1.10. Signed/notarized macOS and signed Windows distribution, package-manager channels, and supported cross-version upgrade tests remain.
 - No GitHub social-preview image provides a branded link card.
 
 ## Principles
@@ -41,7 +41,7 @@ Make the public repository explain and demonstrate OTelux within seconds, show a
 - Do not use mutable `curl | sudo` or PowerShell-as-administrator pipelines.
 - An optional user-local bootstrap script may come later only with pinned version resolution, checksum/signature verification, and no privilege escalation.
 - A badge or platform name must link to a tested, currently supported artifact.
-- “Latest” must remain truthful: do not relabel v0.1.9 stable merely to change GitHub's sidebar.
+- “Latest” must remain truthful: do not relabel a prerelease stable merely to change GitHub's sidebar.
 
 ## Workstream 1 — brand and repository landing page (P0)
 
@@ -66,7 +66,7 @@ Current groundwork: the README brand hero, navigation, truthful prerelease/downl
 
 ## Workstream 2 — release semantics and presentation (P0)
 
-1. Add a prerelease-aware version badge now (for example Shields `github/v/release` with prereleases included) linked to v0.1.9 or the current release.
+1. Keep the prerelease-aware version badge linked to the current release.
 2. Keep prereleases visibly labeled until the stable-release gate is met.
 3. Publish the first stable, non-prerelease GitHub Release only after its supported platform matrix passes release tests. This is what makes GitHub's sidebar and `/releases/latest` show an explicit version.
 4. Generate release notes with install, upgrade, uninstall, support matrix, checksums, SBOM, provenance/signature, known limitations, and changes.

@@ -151,6 +151,9 @@ function contentType(name) {
 	if (name.endsWith('.deb')) {
 		return 'application/vnd.debian.binary-package';
 	}
+	if (name.endsWith('.AppImage')) {
+		return 'application/octet-stream';
+	}
 	return 'text/plain';
 }
 

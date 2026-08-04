@@ -116,10 +116,10 @@ The decomposed audit and rollout are in [sprint.plan.md](sprint.plan.md).
 
 Tasks:
 
-- Add a centered repository brand hero, truthful status/version badges, synthetic screenshot/demo, concise value proposition, and GitHub social preview.
+- Keep the repository hero, synthetic demo, social preview, status badges, current version, and support matrix synchronized with releases.
 - Keep prerelease status explicit; publish a non-prerelease “Latest” release only after the advertised stable support matrix passes its release gate.
-- Generalize the release pipeline to native Linux, macOS, and Windows runners with per-platform clean-install, upgrade, uninstall, smoke, lifecycle, and artifact-download verification.
-- Stabilize Linux `.deb`, then add Linux arm64 and evaluate AppImage/RPM from demand.
+- Extend the native Linux package gates to signed macOS and Windows releases with OS trust UI, cross-version upgrade, and public-artifact download verification.
+- Evaluate Linux RPM only from demonstrated demand; maintain the qualified x64/arm64 `.deb` and AppImage paths.
 - Ship signed and notarized macOS arm64/x64 artifacts before adding a Homebrew tap/cask.
 - Ship a signed Windows x64 installer before submitting versioned Winget manifests; add arm64 only after runtime validation.
 - Publish checksums, SBOMs, provenance/signatures, platform limitations, and complete install/upgrade/uninstall instructions for every artifact.

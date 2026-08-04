@@ -1,14 +1,9 @@
 name: Release
 
-# Linux release pipeline. Changing the desktop version on `main`, pushing a
-# matching version tag, or manually dispatching a version builds the Debian
-# package, runs the packaged smoke test, produces checksums and an SBOM,
-# attests build provenance, and publishes a GitHub prerelease. A resolver job
-# enforces that the source package version and release tag are identical.
-#
-# The `release` environment's required reviewers are configured in the
-# repository settings (Settings -> Environments -> release); this file only
-# references the environment.
+# Linux release pipeline. A desktop version change on main, a matching tag,
+# or a manual dispatch resolves one immutable source revision, builds native
+# x64 and arm64 packages, runs unpacked and installed package smoke tests,
+# generates checksums/SBOMs and provenance, then assembles one prerelease.
 
 on:
   push:
@@ -21,7 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Version tag to release (e.g. v0.1.0-beta.1)"
+        description: "Version tag to release (e.g. v0.1.10)"
         required: true
       target:
         description: "Optional commit SHA containing that version (defaults to the selected ref)"
@@ -67,22 +62,34 @@ jobs:
         run: node apps/desktop/scripts/resolve-release-version.mjs
 
   linux:
-    name: Build and publish Linux release
+    name: Build Linux ${{ matrix.label }} release
     needs: resolve
     if: needs.resolve.outputs.should-release == 'true'
-    concurrency:
-      group: release-${{ needs.resolve.outputs.tag }}
-      cancel-in-progress: false
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
     environment: release
+    concurrency:
+      group: release-${{ needs.resolve.outputs.tag }}-${{ matrix.artifact }}
+      cancel-in-progress: false
     permissions:
-      contents: write # create the release and upload assets
-      id-token: write # OIDC token for build provenance attestation
-      attestations: write # write the attestation
+      contents: read
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: x64
+            runner: ubuntu-latest
+            artifact: linux-x64
+            performance: true
+          - label: arm64
+            runner: ubuntu-24.04-arm
+            artifact: linux-arm64
+            performance: false
 
     steps:
-      - name: Checkout
+      - name: Checkout release source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
         with:
           ref: ${{ needs.resolve.outputs.target }}
@@ -97,15 +104,9 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: Install packaging system dependencies
+      - name: Install packaging and smoke dependencies
         run: |
           sudo apt-get update
-          # librsvg2-bin rasterizes the icon master; xvfb gives the smoke
-          # test a headless display. The remaining packages are Electron's
-          # runtime libraries so the app can launch under xvfb — they mirror
-          # the .deb's own Depends plus GPU/audio libs. libasound2 was
-          # renamed libasound2t64 on Ubuntu 24.04, so try the new name first
-          # and fall back for older runners.
           sudo apt-get install -y \
             librsvg2-bin xvfb \
             libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 xdg-utils \
@@ -125,15 +126,10 @@ jobs:
         run: bash scripts/build-icons.sh
 
       - name: Build workspace packages
-        # Build every @otelux/* package first so the desktop renderer can
-        # resolve their `dist/` exports (e.g. `@otelux/ui/workbench.css`).
-        # `npm run package` only builds the desktop bundle, not its
-        # workspace dependencies, so packaging fails on a clean checkout
-        # without this step.
         run: npm run build
 
-      - name: Build and package .deb
-        run: npm run package -w @otelux/desktop
+      - name: Build native .deb and AppImage
+        run: npm run package:linux -w @otelux/desktop
 
       - name: Checkout release automation
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
@@ -142,40 +138,78 @@ jobs:
           path: .release-automation
           persist-credentials: false
 
-      - name: Smoke-test the packaged app
+      - name: Smoke-test unpacked application
         env:
           OTELUX_SMOKE_DESKTOP_DIR: ${{ github.workspace }}/apps/desktop
           OTELUX_SMOKE_REPO_ROOT: ${{ github.workspace }}
         run: xvfb-run -a node .release-automation/apps/desktop/scripts/smoke.mjs
 
+      - name: Install, smoke, and uninstall native packages
+        env:
+          OTELUX_SMOKE_DESKTOP_DIR: ${{ github.workspace }}/apps/desktop
+          OTELUX_SMOKE_REPO_ROOT: ${{ github.workspace }}
+        run: node .release-automation/apps/desktop/scripts/install-smoke.mjs
+
       - name: Enforce packaged performance budgets
+        if: matrix.performance
         env:
           OTELUX_SMOKE_DESKTOP_DIR: ${{ github.workspace }}/apps/desktop
         run: xvfb-run -a node apps/desktop/scripts/perf-smoke.mjs
 
-      - name: Generate SBOM
-        run: |
-          npm sbom --sbom-format cyclonedx --omit=dev -w @otelux/desktop \
-            > "apps/desktop/release/otelux-${{ needs.resolve.outputs.version }}-sbom.cdx.json"
-
-      - name: Compute checksums
-        working-directory: apps/desktop/release
-        run: sha256sum OTelux-*.deb OTelux-*.AppImage otelux-*-sbom.cdx.json > SHA256SUMS
+      - name: Generate platform SBOM and checksums
+        run: node apps/desktop/scripts/prepare-platform-assets.mjs ${{ matrix.artifact }}
 
       - name: Attest build provenance
-        # Build provenance attestation is only available for public
-        # repositories (user-owned private repos return "Feature not
-        # available"). Skip it while the repo is private; it runs
-        # automatically once the repository is made public.
-        # Standard provenance claims `github.sha`. Historical manual releases
-        # package another immutable commit, so skip rather than attest the
-        # wrong source. Future automatic version bumps satisfy this equality.
         if: ${{ !github.event.repository.private && needs.resolve.outputs.target == github.sha }}
         uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
           subject-path: |
             apps/desktop/release/OTelux-*.deb
             apps/desktop/release/OTelux-*.AppImage
+
+      - name: Upload release candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: otelux-release-${{ matrix.artifact }}
+          path: |
+            apps/desktop/release/OTelux-*.deb
+            apps/desktop/release/OTelux-*.AppImage
+            apps/desktop/release/otelux-*-${{ matrix.artifact }}-sbom.cdx.json
+            apps/desktop/release/SHA256SUMS-${{ matrix.artifact }}
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish Linux prerelease
+    needs: [resolve, linux]
+    if: needs.resolve.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: release-${{ needs.resolve.outputs.tag }}-publish
+      cancel-in-progress: false
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout release automation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Download native release candidates
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: otelux-release-linux-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Assemble and verify unified checksums
+        run: |
+          cat release-assets/SHA256SUMS-linux-* | sort > release-assets/SHA256SUMS
+          (cd release-assets && sha256sum -c SHA256SUMS)
+          rm release-assets/SHA256SUMS-linux-*
 
       - name: Write release notes
         env:
@@ -190,31 +224,35 @@ jobs:
           cat > "${RUNNER_TEMP}/release-notes.md" <<'EOF'
           OTelux ${{ needs.resolve.outputs.tag }} — Linux prerelease.
 
-          ## Install (Debian/Ubuntu)
+          ## Install
 
-          Download the `.deb`, verify it against `SHA256SUMS`, then install:
-
-          ```bash
-          sha256sum -c SHA256SUMS
-          sudo apt install ./OTelux-*.deb
-          ```
-
-          Or run the portable AppImage without installation:
+          Download `SHA256SUMS` plus one package for your architecture, then verify it:
 
           ```bash
-          chmod +x OTelux-*.AppImage
-          ./OTelux-*.AppImage
+          grep "  OTelux-.*-amd64.deb$" SHA256SUMS | sha256sum -c -
+          sudo apt install ./OTelux-*-amd64.deb
           ```
 
-          ## Supported package
+          For Linux arm64, replace `amd64` with `arm64`.
 
-          - Linux x64 `.deb` and rootless AppImage; updates are installed manually.
+          Or run the rootless AppImage without installation:
+
+          ```bash
+          grep "  OTelux-.*-x86_64.AppImage$" SHA256SUMS | sha256sum -c -
+          chmod +x OTelux-*-x86_64.AppImage
+          ./OTelux-*-x86_64.AppImage
+          ```
+
+          For Linux arm64, replace `x86_64` with `arm64`.
+
+          ## Supported packages
+
+          - Linux x64 and arm64 `.deb` and rootless AppImage; updates are installed manually.
           - OTLP/HTTP JSON and protobuf are supported for traces, logs, and metrics.
           - OTLP/gRPC is not supported yet.
           - Telemetry is stored locally in SQLite under the configured retention limits.
 
-          Artifacts include the package, `SHA256SUMS`, and a CycloneDX SBOM.
-          Build provenance is attested for the `.deb` when the repository and release event support it.
+          Artifacts include unified `SHA256SUMS`, per-architecture CycloneDX SBOMs, and GitHub build provenance attestations.
 
           ## Changes
 
@@ -225,13 +263,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          node .release-automation/apps/desktop/scripts/publish-github-release.mjs \
+          ASSET_ARGS=()
+          while IFS= read -r -d '' asset; do
+            ASSET_ARGS+=(--asset "$asset")
+          done < <(find release-assets -maxdepth 1 -type f \
+            \( -name 'OTelux-*.deb' -o -name 'OTelux-*.AppImage' -o -name 'otelux-*-sbom.cdx.json' -o -name 'SHA256SUMS' \) \
+            -print0 | sort -z)
+          node apps/desktop/scripts/publish-github-release.mjs \
             --repository "${{ github.repository }}" \
             --tag "${{ needs.resolve.outputs.tag }}" \
             --target "${{ needs.resolve.outputs.target }}" \
             --title "OTelux ${{ needs.resolve.outputs.tag }}" \
             --notes-file "${RUNNER_TEMP}/release-notes.md" \
-            --asset "apps/desktop/release/OTelux-${{ needs.resolve.outputs.version }}-amd64.deb" \
-            --asset "apps/desktop/release/OTelux-${{ needs.resolve.outputs.version }}-x86_64.AppImage" \
-            --asset "apps/desktop/release/SHA256SUMS" \
-            --asset "apps/desktop/release/otelux-${{ needs.resolve.outputs.version }}-sbom.cdx.json"
+            "${ASSET_ARGS[@]}"

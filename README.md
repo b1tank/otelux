@@ -40,17 +40,29 @@
 
 ## Install the Linux prerelease
 
-Download `OTelux-0.1.9-amd64.deb` and `SHA256SUMS` from the [v0.1.9 GitHub Release](https://github.com/b1tank/otelux/releases/tag/v0.1.9), then verify and install:
+Download `SHA256SUMS` and one package from the [v0.1.10 GitHub Release](https://github.com/b1tank/otelux/releases/tag/v0.1.10).
+
+Install the x64 Debian/Ubuntu package:
 
 ```bash
-sha256sum -c SHA256SUMS
-sudo apt install ./OTelux-0.1.9-amd64.deb
+grep '  OTelux-.*-amd64.deb$' SHA256SUMS | sha256sum -c -
+sudo apt install ./OTelux-0.1.10-amd64.deb
 ```
+
+Or run the rootless x64 AppImage:
+
+```bash
+grep '  OTelux-.*-x86_64.AppImage$' SHA256SUMS | sha256sum -c -
+chmod +x OTelux-0.1.10-x86_64.AppImage
+./OTelux-0.1.10-x86_64.AppImage
+```
+
+For Linux arm64, use `OTelux-0.1.10-arm64.deb` or `OTelux-0.1.10-arm64.AppImage` and the matching checksum line.
 
 | Platform | Package | Status |
 | --- | --- | --- |
-| Linux x64 | `.deb` | Qualified prerelease |
-| Linux arm64 | — | Planned |
+| Linux x64 | `.deb`, AppImage | Qualified prerelease |
+| Linux arm64 | `.deb`, AppImage | Qualified prerelease |
 | macOS arm64/x64 | — | Signing and notarization planned |
 | Windows x64/arm64 | — | Signed installer planned |
 
@@ -179,7 +191,7 @@ npm run -w @otelux/desktop package
 
 ## Current Status
 
-Pre-release. The Linux x64 Desktop is published as `v0.1.9`. `@otelux/local-runtime` owns storage, engine, OTLP, MCP, settings, lifecycle, canonical data-home migration, and nonce-protected runtime state. Desktop still embeds it in Electron and the `0.1.5` plugin remains a Desktop companion. The standalone daemon, CLI, direct MCP package, and runtime-served workbench are planned. Start with [docs/getting-started.md](docs/getting-started.md). See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities, [docs/arch.md](docs/arch.md#current-implementation) for the architecture transition, [docs/plan.md](docs/plan.md) for future work, and [docs/release-sprint.md](docs/release-sprint.md) for temporary `v0.1.0` launch execution.
+Pre-release. Linux x64 and arm64 Desktop packages are published as `v0.1.10`. `@otelux/local-runtime` owns storage, engine, OTLP, MCP, settings, lifecycle, canonical data-home migration, and nonce-protected runtime state. Desktop still embeds it in Electron and the `0.1.5` plugin remains a Desktop companion. The standalone daemon, CLI, direct MCP package, and runtime-served workbench are planned. Start with [docs/getting-started.md](docs/getting-started.md). See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities, [docs/arch.md](docs/arch.md#current-implementation) for the architecture transition, [docs/plan.md](docs/plan.md) for future work, and [docs/release-sprint.md](docs/release-sprint.md) for temporary `v0.1.0` launch execution.
 
 ## License
 

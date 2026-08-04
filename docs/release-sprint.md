@@ -32,11 +32,11 @@ The sprint is complete when:
 
 - The Electron desktop app is the first released product. Shared-runtime plugin, direct-MCP, and CLI packaging follow separately and are not `v0.1.0` launch gates.
 - Reusable `@otelux/*` packages remain private during this sprint. Publishing npm packages is a separate decision.
-- Linux x64 `.deb` is the first beta target. AppImage remains blocked until its launcher can fail closed when Chromium sandbox prerequisites are unavailable. Windows x64 and macOS arm64/x64 follow from the same release workflow.
+- Linux x64 `.deb` was the first beta target. v0.1.10 adds natively tested Linux x64/arm64 `.deb` and rootless AppImage artifacts. Windows x64 and macOS arm64/x64 remain unsigned preview builds until publisher credentials exist.
 - The first public binary is `v0.1.0-beta.1`. The cross-platform launch is `v0.1.0` unless beta evidence requires another prerelease.
 - GitHub Releases is the canonical artifact source. A product website may provide friendly download links but must resolve to immutable versioned artifacts.
 - Every desktop version bump, including patch releases, must produce a matching `v<version>` tag and GitHub Release from the same commit. The version-bump release workflow is the enforcement path.
-- The `v0.1.0` channels follow the [distribution requirements](spec.md#distribution-requirements): `.deb` installation uses the package manager after download and verification; a future portable Linux artifact must preserve Chromium's sandbox or refuse to start.
+- Release channels follow the [distribution requirements](spec.md#distribution-requirements): `.deb` installation uses the package manager after verification; the AppImage preserves Electron's sandbox behavior on normal hosts and is also exercised through its FUSE-independent extraction path in CI.
 - Manual updates are acceptable for `v0.1.0`. Auto-update is reconsidered after the release process is stable.
 - Release notes must be generated from the matching source version and describe current capabilities; superseded limitations must never be copied forward.
 - OTLP/gRPC, npm publication, Marketplace publication, an apt repository, Flatpak, Snap, and crash reporting are not `v0.1.0` gates.
