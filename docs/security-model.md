@@ -4,7 +4,7 @@ Updated: 2026-07-14
 
 OTelux receives and renders untrusted telemetry on a developer workstation. Its current network trust boundary is the local host, not an individual operating-system user: loopback listeners can be reachable by other local users or processes.
 
-This document describes the current implementation and known gaps. Normative release requirements live in [spec.md](spec.md#security-requirements), vulnerability reporting lives in [SECURITY.md](../SECURITY.md), and implementation work is tracked in [release-sprint.md](release-sprint.md).
+This document describes the current implementation and known gaps. Normative release requirements live in [spec.md](spec.md#security-requirements), the active local-runtime hardening decisions and execution gates live in [security-plan.md](security-plan.md), vulnerability reporting lives in [SECURITY.md](../SECURITY.md), and release work is tracked in [release-sprint.md](release-sprint.md).
 
 ## Assets
 

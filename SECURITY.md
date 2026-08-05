@@ -6,7 +6,7 @@ OTelux publishes Linux prereleases for early testing. During this stage, only th
 
 | Version | Supported |
 |---|---|
-| Latest prerelease (`v0.1.9`) | Yes |
+| Latest prerelease (`v0.1.11`) | Yes |
 | Current `main` branch | Yes |
 | Older prereleases, snapshots, and local builds | No |
 
@@ -16,9 +16,9 @@ This policy will be revisited for the first stable release.
 
 Do not open a public issue for a suspected vulnerability.
 
-Report privately through **GitHub private vulnerability reporting**: open the repository's **Security** tab and choose **Report a vulnerability**. This opens a private security advisory visible only to you and the maintainer, and is the preferred channel.
+The repository is temporarily private during pre-public product hardening, and GitHub private vulnerability reporting is unavailable on the current account plan. Contact the maintainer through the private channel listed on their GitHub profile. Never disclose vulnerability details in an issue, discussion, pull request, or other shared channel.
 
-> GitHub private vulnerability reporting is enabled for this public repository. If the Security-tab flow is unavailable, contact the maintainer through the private channel listed on their GitHub profile. Never disclose vulnerability details in a public issue, discussion, or pull request.
+When the repository returns to public visibility, GitHub private vulnerability reporting must be re-enabled and verified before inviting external security reports.
 
 Please include:
 

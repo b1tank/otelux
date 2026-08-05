@@ -2,9 +2,9 @@
 
 Updated: 2026-07-14
 
-Status: Active
+Status: Active; repository temporarily private during pre-public product hardening
 
-This document is the finite execution plan for taking the now-public OTelux prerelease repository to an installable cross-platform product that is ready for a coordinated stable launch.
+This document is the finite execution plan for returning OTelux to public visibility as an installable cross-platform product that is ready for a coordinated stable launch. The repository was made private again on 2026-08-05 so the sole maintainer can iterate directly on `main`; public release links and external security-reporting flows are unavailable until the public-readiness gate is rerun.
 
 The canonical documents keep separate responsibilities:
 
@@ -280,6 +280,7 @@ No product requirement, defect policy, or verification gate needs migration at r
 
 | Date | Milestone | Evidence |
 |---|---|---|
+| 2026-08-05 | Temporary private-development mode | Changed `b1tank/otelux` from public to private while pre-public product work continues. The current GitHub plan disables branch protection for private repositories, so direct pushes to `main` are possible but required checks, force-push/deletion protection, CodeQL upload, private vulnerability reporting, and public release downloads are no longer available as public safeguards. Before returning public, rerun the full-history/current-tree privacy audit, restore protected `main`, verify CI/CodeQL/security reporting, and reverify immutable release links/assets. |
 | 2026-08-03 | Security alerts and PR audit | Audited nine open Dependabot PRs and 12 alerts (3 high, 8 medium, 1 low). PR #24 upgraded the runtime `@hono/node-server` dependency to 2.0.12 and removed the production advisory; PR #26 refreshed vulnerable transitive development dependencies. Production audit is zero; npm's full audit reports one low esbuild dev-server advisory, dismissed in GitHub as tolerable risk because OTelux never runs that Windows-only dev-server path and tsup 8.5.1 constrains esbuild to `^0.27.0`. Closed superseded patch PRs and broad failing grouped-major PRs; merged the focused GitHub Actions update in PR #13. Dependabot groups minor/patch updates and ignores routine major-version PRs; major framework/toolchain migrations are opened manually after compatibility planning, while GitHub security alerts remain audited separately. Code scanning and secret scanning have zero open alerts. |
 | 2026-08-03 | Public OSS re-audit | Gitleaks 8.30.1 scanned 254 commits / 4.75 MB with zero leaks. TruffleHog 3.95.9 scanned 3,778 chunks / 4.95 MB with zero verified or unverified secrets. Current-tree review found no credential patterns, private network URLs, sensitive tracked files, production telemetry databases/screenshots, or real user home paths. GitHub detects MIT. Published and installed v0.1.9 assets/checksums/package metadata were reverified. The sole-owner project explicitly discloses that independent conduct escalation is unavailable. Repository visibility is public; private vulnerability reporting, secret scanning, push protection, Dependabot security updates, strict required CI, PR enforcement, linear history, admin enforcement, and force-push/deletion protection are enabled. Public CI/CodeQL verification runs on the finalization pull request. |
 | 2026-07-13 | Audit baseline | Tests and builds pass; lint, typecheck, dependency audit, `.deb` packaging, repository hygiene, and artifact pruning require work. Packaged AppImage health, ingest, rendering, and trace selection were exercised successfully. |

@@ -2,7 +2,7 @@
 
 Updated: 2026-08-04
 
-OTelux publishes Linux x64 and arm64 `.deb` and AppImage prereleases through GitHub Releases. Download `SHA256SUMS` plus one immutable package from [v0.1.11](https://github.com/b1tank/otelux/releases/tag/v0.1.11).
+OTelux publishes Linux x64 and arm64 `.deb` and AppImage prereleases through GitHub Releases. The repository is temporarily private during pre-public hardening, so downloads currently require repository access. Download `SHA256SUMS` plus one immutable package from [v0.1.11](https://github.com/b1tank/otelux/releases/tag/v0.1.11).
 
 Install the x64 Debian/Ubuntu package:
 
