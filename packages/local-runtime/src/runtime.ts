@@ -147,6 +147,7 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 	const projectedEvents = createRuntimeEventProjector();
 	let statePublishingEnabled = false;
 	let stateWriteQueue = Promise.resolve();
+	let mutationQueue = Promise.resolve();
 	let closed = false;
 
 	const settings = await SettingsStore.open(settingsFile);
@@ -242,6 +243,15 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 		};
 	};
 
+	const serializeMutation = <T>(operation: () => Promise<T>): Promise<T> => {
+		const result = mutationQueue.then(operation, operation);
+		mutationQueue = result.then(
+			() => undefined,
+			() => undefined,
+		);
+		return result;
+	};
+
 	const runtime: LocalRuntime = {
 		kind: 'otelux/datasource',
 		dataDirectory,
@@ -263,9 +273,10 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 		getStoragePath: () => ({ activePath: activeDbPath, defaultPath: defaultDbPath }),
 		getStorageUsage: () => storage.getStorageUsage(),
 		getRuntimeState: runtimeState,
-		updateSettings: (patch) => updateSettings(settings, receiverHost, mcpHost, patch),
+		updateSettings: (patch) =>
+			serializeMutation(() => updateSettings(settings, receiverHost, mcpHost, patch)),
 		loadSampleData,
-		clearData: () => engine.clear(),
+		clearData: () => serializeMutation(() => engine.clear()),
 		onEvent(listener): Disposable {
 			eventListeners.add(listener);
 			return { dispose: () => eventListeners.delete(listener) };
@@ -281,6 +292,7 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 			offSettings();
 			projectedEvents.close();
 			eventListeners.clear();
+			await mutationQueue;
 			await stateWriteQueue;
 			const failure = await stopResources();
 			try {

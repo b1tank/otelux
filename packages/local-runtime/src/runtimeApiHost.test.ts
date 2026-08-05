@@ -3,14 +3,21 @@ import { describe, expect, it, vi } from 'vitest';
 import { RuntimeApiHost } from './runtimeApiHost.js';
 import { createRuntimeEventProjector } from './runtimeEvents.js';
 
-function host(options: { maxBodyBytes?: number; maxSseClients?: number } = {}) {
+function host(
+	options: { maxBodyBytes?: number; maxResponseBytes?: number; maxSseClients?: number } = {},
+) {
 	const events = createRuntimeEventProjector();
 	const dispatcher = {
 		handle: vi.fn(async (input: unknown) => {
 			const request = input as { id?: string | number | null; method?: string };
 			return request.id === undefined
 				? undefined
-				: { jsonrpc: '2.0' as const, id: request.id ?? null, result: { method: request.method } };
+				: {
+						jsonrpc: '2.0' as const,
+						id: request.id ?? null,
+						result:
+							request.method === 'huge' ? { payload: 'x'.repeat(2_000) } : { method: request.method },
+					};
 		}),
 	};
 	const api = new RuntimeApiHost({
@@ -22,7 +29,9 @@ function host(options: { maxBodyBytes?: number; maxSseClients?: number } = {}) {
 	return { api, events, dispatcher };
 }
 
-async function started(options: { maxBodyBytes?: number; maxSseClients?: number } = {}) {
+async function started(
+	options: { maxBodyBytes?: number; maxResponseBytes?: number; maxSseClients?: number } = {},
+) {
 	const value = host(options);
 	const status = await value.api.start(0);
 	if (status.kind !== 'running') throw new Error(`API failed to start: ${status.kind}`);
@@ -132,6 +141,30 @@ describe('Runtime API host', () => {
 				body: JSON.stringify({ jsonrpc: '2.0', method: 'runtime/getStatus' }),
 			});
 			expect(notification.status).toBe(204);
+		} finally {
+			await value.api.stop();
+		}
+	});
+
+	it('bounds batch width and encoded response size', async () => {
+		const value = await started({ maxResponseBytes: 1_024 });
+		try {
+			const call = async (body: unknown) =>
+				await fetch(`${value.base}/api/v1/rpc`, {
+					method: 'POST',
+					headers: { ...authorization, 'content-type': 'application/json' },
+					body: JSON.stringify(body),
+				});
+			const oversized = await call({ jsonrpc: '2.0', id: 1, method: 'huge' });
+			expect(await oversized.json()).toMatchObject({ error: { code: -32005 } });
+			const wide = await call(
+				Array.from({ length: 11 }, (_, index) => ({
+					jsonrpc: '2.0',
+					id: index,
+					method: 'runtime/getStatus',
+				})),
+			);
+			expect(await wide.json()).toMatchObject({ error: { code: -32600 } });
 		} finally {
 			await value.api.stop();
 		}

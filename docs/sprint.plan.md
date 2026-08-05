@@ -1,48 +1,37 @@
-# Sprint — HTTP DataSource And Daemon Foundation
+# Sprint — Runtime Boundary Hardening
 
 ## Goal
 
-Make the authenticated Runtime API usable by real clients and prove one query contract across direct and HTTP transports. Add a standalone foreground `oteluxd` owner without switching Desktop ownership yet; this creates the executable daemon foundation while preserving current packaged behavior.
+Resolve the confirmed stop-now resource, confused-deputy, retry, and multi-client mutation blockers before Desktop daemon-client conversion.
 
-## Prioritized tasks
+## Tasks
 
-- [x] **T1 — Browser-safe HTTP/SSE Runtime client**
-  - Add `@otelux/adapter-http` with protocol initialization, tagged-bigint JSON-RPC, deterministic errors, and the complete current `DataSource` query surface.
-  - Implement one authenticated fetch-based SSE connection shared by subscribers, revision tracking, reconnect/resync, abort/disposal, and signal-to-`ChangeEvent` projection without tokens in URLs.
-  - Expose status/settings/sample/clear control methods needed by future CLI/Desktop clients.
-- [x] **T2 — Direct/HTTP parity and failure tests**
-  - Run identical bounded trace/log/metric/facet/waterfall/span queries against one real SQLite-backed runtime through direct calls and the HTTP adapter.
-  - Verify bigint fidelity, auth failure, protocol negotiation, runtime errors, SSE invalidation, reconnect, and disposal.
-- [x] **T3 — Standalone `oteluxd` foreground owner**
-  - Add a Node daemon app that starts/discovers one runtime, reports endpoints without secrets, handles SIGINT/SIGTERM once, and exits deterministically on ownership conflict/startup/shutdown failure.
-  - Add process-level lifecycle tests proving runtime state publication, authenticated RPC, second-owner rejection, and complete listener/state cleanup.
-  - Keep Desktop embedded for now; daemon and Desktop must never own the same data directory concurrently.
-- [x] **T4 — Documentation and full verification**
-  - Update architecture/protocol/spec/plan/onboarding/test documentation.
-  - Run lint, all tests, typecheck, full build, daemon process smoke, packaged Desktop smoke, and Deskpal visible verification.
-
-## Out of scope
-
-- Converting Desktop renderer from IPC to HTTP in this sprint.
-- Background service registration or installer bundling for `oteluxd`.
-- Browser cookie/bootstrap and runtime-served static workbench.
-- CLI command parser and agent integration adapters.
+- [x] **T1 — Server output, batch, and SSE backpressure bounds**
+  - Cap aggregate wire strings and encoded RPC responses at 2 MiB.
+  - Reduce batches to 10 and execute calls sequentially so batching cannot multiply concurrency.
+  - Return a deterministic response-too-large error and disconnect slow SSE clients for resync.
+  - Isolate projector listener failures.
+- [x] **T2 — HTTP client trust, deadlines, and retry lifecycle**
+  - Require loopback Runtime URLs, reject credentials/paths/fragments, and disable redirects.
+  - Add RPC deadline, bounded streamed response reads, recoverable initialization, and observable connection failures.
+  - Bound SSE buffers, clean abort listeners, delay normal EOF reconnects, and isolate subscribers.
+- [x] **T3 — Serialized runtime mutations**
+  - Serialize settings and clear mutations so concurrent/batched clients cannot interleave rebind/rollback/commit.
+  - Add concurrency regression tests.
+- [x] **T4 — Production-shaped gates and documentation**
+  - Add oversized log result, batch concurrency, slow SSE, hung RPC, hostile URL, and retry tests.
+  - Update canonical docs and run lint/tests/typecheck/build/package smoke.
 
 ## Hiccups & Notes
 
-- Adding a workspace caused npm to re-resolve unrelated optional tooling (including Lightning CSS). The lockfile was reconstructed from the prior lock plus only the generated `@otelux/adapter-http` workspace subtree, then `npm ci --dry-run` verified consistency.
-- Adapter integration/parity tests need a real `LocalRuntime`; keeping them in `@otelux/local-runtime` avoids a runtime↔adapter dependency cycle. The adapter's package-local Vitest command therefore explicitly permits no local files while the workspace parity suite provides its substantive coverage.
-- The first daemon bundle had two shebangs because both source and tsup banner supplied one. The banner was removed; process tests now execute the actual built `dist/daemon.js` and assert its lifecycle.
-- The first public CI run added enough concurrent SQLite parity load that the existing 4,000-write size-retention test exceeded Vitest's generic 5-second default by a small margin. Its explicit timeout is now 15 seconds; assertions/workload are unchanged, and local execution still completes well below the bound.
-- CodeQL conservatively flagged trailing-slash normalization (`/\\/+$/`) on caller-provided base URLs as a polynomial-regex risk. It was replaced with a bounded-character loop; behavior is unchanged and the high-severity PR gate is satisfied.
+- The concurrent-mutation test initially attempted to restore persisted OTLP `4319` while using a one-shot free-port override; the production listener already owned `4319`. The test now explicitly preserves the runtime's effective port, isolating the intended mutation-order assertion.
+- The first oversized-response implementation returned JSON-RPC id `null`, so a correct client rejected the envelope before seeing `-32005`. Single-call overflow now preserves the request id; batch-wide overflow remains id `null`.
 
 ## Final verification
 
-- Biome lint: PASS (254 files).
-- Workspace tests: PASS (20 tasks; local-runtime 44 Vitest tests plus 2 built-daemon process tests; protocol 46; Desktop 35 plus 16 release-script tests).
-- Workspace typecheck: PASS (20 tasks).
-- Workspace build: PASS (11 packages, including browser-safe ESM/CJS HTTP adapter and daemon entry; sandboxed preload verifier passed).
-- `npm ci --dry-run`: PASS with the minimal workspace lock update.
-- Native x64 `.deb`/AppImage build and packaged Desktop smoke: PASS; authenticated RPC and all listener shutdown checks passed.
-- Foreground daemon process smoke: PASS — state/RPC published, second owner exited `2`, SIGTERM exited `0`, listeners and ownership state removed, invalid env exited `1`.
-- Deskpal scoped UI smoke: PASS — isolated Desktop rendered one synthetic trace while authenticated HTTP RPC returned the same trace count and tagged bigint timestamp.
+- Added a real 3 MB ingest / 30-log HTTP fixture; list response fails deterministically with `-32005` under the 2 MiB budget.
+- Protocol and local-runtime focused suites pass, including aggregate string, batch width, response size, SSE, and mutation ordering.
+- HTTP adapter tests pass for hostile URLs, deadlines, oversized responses, and initialization recovery.
+- Biome lint PASS (256 files); workspace tests/typecheck PASS (20 tasks); build PASS (11 packages).
+- Adapter boundary tests PASS (8); local-runtime tests PASS (47 plus 2 daemon process tests); protocol tests PASS (46).
+- Native x64 `.deb`/AppImage package build and packaged smoke PASS, including authenticated Runtime RPC and full three-listener shutdown.

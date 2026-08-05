@@ -32,7 +32,7 @@ A random token is generated on first run and stored as `mcp-token` in the canoni
 
 ### Runtime API
 
-The embedded runtime binds a separate control/query API on `127.0.0.1:4321` by default. It uses an independent random `runtime-token` stored owner-only in the canonical data directory; `runtime.json` publishes only the token path and API status. JSON-RPC and SSE require `Authorization: Bearer <token>`, reject browser `Origin`, validate `Host`, bound bodies/concurrency/client counts, and expose generic internal errors. Health is the only unauthenticated route. Loopback plus a token does not defend against a compromised process running as the same OS user.
+The embedded runtime binds a separate control/query API on `127.0.0.1:4321` by default. It uses an independent random `runtime-token` stored owner-only in the canonical data directory; `runtime.json` publishes only the token path and API status. JSON-RPC and SSE require `Authorization: Bearer <token>`, reject browser `Origin`, validate `Host`, bound bodies/encoded responses/aggregate batch work/client counts, disconnect slow SSE clients, and expose generic internal errors. The HTTP adapter refuses non-loopback or decorated origins and disables redirects before sending credentials. Health is the only unauthenticated route. Loopback plus a token does not defend against a compromised process running as the same OS user.
 
 ### Electron renderer
 

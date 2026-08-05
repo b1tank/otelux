@@ -49,7 +49,13 @@ export function createRuntimeEventProjector(
 		};
 		history.push(envelope);
 		if (history.length > historyLimit) history.splice(0, history.length - historyLimit);
-		for (const listener of listeners) listener(envelope);
+		for (const listener of listeners) {
+			try {
+				listener(envelope);
+			} catch {
+				// One transport client must not break revision delivery to others.
+			}
+		}
 	};
 
 	return {

@@ -207,13 +207,13 @@ Delivered transition safeguards:
 Delivered transport foundation:
 
 - The embedded runtime now binds a separate loopback Runtime API (default `4321`), publishes its status/token path in owner-only runtime state, and treats API bind failure as visible/nonfatal to OTLP/MCP/SQLite.
-- `POST /api/v1/rpc` supports bounded single/batch JSON-RPC, tagged bigint, deterministic errors, method/param validation, protocol-major negotiation, explicit clear confirmation, 64-request overload rejection, and generic internal errors.
+- `POST /api/v1/rpc` supports bounded single/maximum-10 batch JSON-RPC, sequential batch dispatch, tagged bigint, deterministic errors, method/param validation, protocol-major negotiation, explicit clear confirmation, 64-request overload rejection, a 2 MiB encoded-response budget, and generic internal errors.
 - `GET /api/v1/events` supports bearer-authenticated SSE, one-turn coalescing, decimal revisions, bounded trace hints/history/client count, replay, resync, and keepalive.
 - Health, method, content type, Host, Origin, bearer token, body size, concurrency, client count, notification, shutdown, and secret-exclusion paths have end-to-end tests.
 
 Remaining before daemon conversion:
 
-- `@otelux/adapter-http` now implements current `DataSource` queries plus status/settings/sample/clear controls over initialized tagged-bigint JSON-RPC, with one shared authenticated fetch-SSE connection, revision reconnect/resync, abort/disposal, and no URL tokens.
+- `@otelux/adapter-http` implements current `DataSource` queries plus status/settings/sample/clear controls over initialized tagged-bigint JSON-RPC, with strict loopback-origin pinning, redirects disabled, 10-second RPC deadlines, 2 MiB streamed-response bounds, recoverable initialization, and one shared authenticated fetch-SSE connection with bounded frames/reconnect/resync/abort/disposal and no URL tokens.
 - Real SQLite-backed direct/HTTP parity covers traces, waterfalls, spans, logs, metrics, facets, bigint fidelity, auth failure, RPC errors, SSE invalidation, and clear. IPC parity and Desktop conversion remain.
 - Split metric metadata from point-history RPC methods before moving the current UI.
 - MCP tool input schemas are advertised but handlers still cast inputs rather than validating them; tool results have no output schemas.

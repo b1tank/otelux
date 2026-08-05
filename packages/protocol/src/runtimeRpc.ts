@@ -29,6 +29,7 @@ export const RUNTIME_RPC_ERROR = {
 	NOT_READY: -32002,
 	INVALID_CURSOR: -32003,
 	CONFLICT: -32004,
+	RESPONSE_TOO_LARGE: -32005,
 } as const;
 
 export type JsonRpcId = string | number | null;

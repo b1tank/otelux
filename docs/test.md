@@ -583,6 +583,7 @@ curl -s -D /tmp/otelux-origin-headers.txt -X POST \
 - Start a second daemon against the same data directory → exit code `2`, redacted `already-running`, no competing listeners/database.
 - Send SIGTERM/SIGINT to the owner → exit `0`, stopped record, all listeners closed, `runtime.json`/`runtime.lock` removed.
 - Run the direct/HTTP parity suite → identical bounded traces/waterfalls/spans/logs/metrics/facets and bigint values, plus SSE invalidation, auth failure, RPC error, disposal, and clear coverage.
+- Run the HTTP payload-budget fixture (30 × 100 KB ordinary logs) → deterministic JSON-RPC `-32005 Response too large`, never a multi-megabyte response. Batches above 10 fail; accepted batches execute sequentially.
 - **Qualification limit**: foreground `oteluxd` is not yet installed or registered as a background service; Desktop remains the packaged runtime owner.
 
 ---

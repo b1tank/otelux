@@ -22,6 +22,7 @@ export interface RuntimeApiHostOptions {
 	readonly token: string;
 	readonly host?: string;
 	readonly maxBodyBytes?: number;
+	readonly maxResponseBytes?: number;
 	readonly maxConcurrentRpc?: number;
 	readonly maxSseClients?: number;
 }
@@ -34,12 +35,14 @@ export class RuntimeApiHost {
 	private activeRpc = 0;
 	private readonly host: string;
 	private readonly maxBodyBytes: number;
+	private readonly maxResponseBytes: number;
 	private readonly maxConcurrentRpc: number;
 	private readonly maxSseClients: number;
 
 	constructor(private readonly options: RuntimeApiHostOptions) {
 		this.host = options.host ?? '127.0.0.1';
 		this.maxBodyBytes = options.maxBodyBytes ?? 1024 * 1024;
+		this.maxResponseBytes = options.maxResponseBytes ?? 2 * 1024 * 1024;
 		this.maxConcurrentRpc = options.maxConcurrentRpc ?? 64;
 		this.maxSseClients = options.maxSseClients ?? 32;
 	}
@@ -130,27 +133,34 @@ export class RuntimeApiHost {
 							parseError ? RUNTIME_RPC_ERROR.PARSE_ERROR : RUNTIME_RPC_ERROR.INVALID_REQUEST,
 							parseError ? 'Parse error' : 'Invalid Request',
 						),
+						this.maxResponseBytes,
 					);
 				}
 				if (Array.isArray(input)) {
-					if (input.length === 0 || input.length > 50) {
-						return rpc(response, failure(RUNTIME_RPC_ERROR.INVALID_REQUEST, 'Invalid Request'));
+					if (input.length === 0 || input.length > 10) {
+						return rpc(
+							response,
+							failure(RUNTIME_RPC_ERROR.INVALID_REQUEST, 'Invalid Request'),
+							this.maxResponseBytes,
+						);
 					}
-					const results = (
-						await Promise.all(input.map((request) => this.options.dispatcher.handle(request)))
-					).filter((result): result is RuntimeRpcResponse => result !== undefined);
+					const results: RuntimeRpcResponse[] = [];
+					for (const request of input) {
+						const result = await this.options.dispatcher.handle(request);
+						if (result !== undefined) results.push(result);
+					}
 					if (results.length === 0) {
 						response.writeHead(204).end();
 						return;
 					}
-					return rpc(response, results);
+					return rpc(response, results, this.maxResponseBytes);
 				}
 				const result = await this.options.dispatcher.handle(input);
 				if (result === undefined) {
 					response.writeHead(204).end();
 					return;
 				}
-				return rpc(response, result);
+				return rpc(response, result, this.maxResponseBytes);
 			} catch (error) {
 				if (error instanceof BodyTooLargeError)
 					return json(response, 413, { error: 'payload_too_large' });
@@ -180,12 +190,17 @@ export class RuntimeApiHost {
 		response.write(': connected\n\n');
 		this.sseResponses.add(response);
 		const write = (event: RuntimeSseEnvelope): void => {
-			response.write(`id: ${event.revision}\nevent: ${event.kind}\ndata: ${stringifyWire(event)}\n\n`);
+			const accepted = response.write(
+				`id: ${event.revision}\nevent: ${event.kind}\ndata: ${stringifyWire(event)}\n\n`,
+			);
+			if (!accepted) response.destroy(new Error('SSE client backpressure limit reached'));
 		};
 		for (const event of this.options.events.eventsSince(header(request, 'last-event-id')))
 			write(event);
 		const unsubscribe = this.options.events.subscribe(write);
-		const heartbeat = setInterval(() => response.write(': keepalive\n\n'), 15_000);
+		const heartbeat = setInterval(() => {
+			if (!response.write(': keepalive\n\n')) response.destroy();
+		}, 15_000);
 		heartbeat.unref();
 		request.once('close', () => {
 			clearInterval(heartbeat);
@@ -245,8 +260,27 @@ function failure(code: number, message: string): RuntimeRpcFailure {
 function rpc(
 	response: ServerResponse,
 	value: RuntimeRpcResponse | readonly RuntimeRpcResponse[],
+	maximumBytes: number,
 ): void {
-	const body = stringifyWire(value);
+	let body: string;
+	try {
+		body = stringifyWire(value, {
+			maxTotalStringLength: maximumBytes,
+			maxJsonCharacters: maximumBytes,
+		});
+		if (Buffer.byteLength(body) > maximumBytes)
+			throw new WireCodecError('$', 'max_response_bytes', 'response exceeds byte budget');
+	} catch (error) {
+		if (!(error instanceof WireCodecError)) throw error;
+		body = stringifyWire({
+			jsonrpc: JSON_RPC_VERSION,
+			id: Array.isArray(value) ? null : (value as RuntimeRpcResponse).id,
+			error: {
+				code: RUNTIME_RPC_ERROR.RESPONSE_TOO_LARGE,
+				message: 'Response too large',
+			},
+		});
+	}
 	response.writeHead(200, {
 		'content-type': 'application/json; charset=utf-8',
 		'content-length': Buffer.byteLength(body),

@@ -109,6 +109,36 @@ describe('createLocalRuntime', () => {
 		await expect(fs.access(join(directory, RUNTIME_LOCK_FILE))).rejects.toThrow();
 	});
 
+	it('serializes concurrent control mutations in call order', async () => {
+		runtime = await createLocalRuntime({
+			dataDirectory: directory,
+			otlpPortOverride: 0,
+			apiPortOverride: 0,
+			logger: silentLogger,
+		});
+		const changes: number[] = [];
+		const subscription = runtime.onEvent((event) => {
+			if (event.kind === 'settings-changed') changes.push(event.settings.retention.maxAgeHours);
+		});
+		const receiver = runtime.getReceiverStatus();
+		if (receiver.kind !== 'running') throw new Error('receiver missing');
+		const [first, second] = await Promise.all([
+			runtime.updateSettings({
+				otlp: { port: receiver.port },
+				retention: { maxAgeHours: 1 },
+			}),
+			runtime.updateSettings({
+				otlp: { port: receiver.port },
+				retention: { maxAgeHours: 2 },
+			}),
+		]);
+		if (!first.ok) throw new Error(first.error);
+		if (!second.ok) throw new Error(second.error);
+		expect(runtime.getSettings().retention.maxAgeHours).toBe(2);
+		expect(changes).toEqual([1, 2]);
+		subscription.dispose();
+	});
+
 	it('reopens the same durable database', async () => {
 		runtime = await createLocalRuntime({
 			dataDirectory: directory,

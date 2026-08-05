@@ -10,6 +10,7 @@ export interface WireCodecLimits {
 	readonly maxDepth?: number;
 	readonly maxNodes?: number;
 	readonly maxStringLength?: number;
+	readonly maxTotalStringLength?: number;
 	readonly maxJsonCharacters?: number;
 }
 
@@ -17,6 +18,7 @@ const DEFAULT_LIMITS = {
 	maxDepth: 32,
 	maxNodes: 100_000,
 	maxStringLength: 1_048_576,
+	maxTotalStringLength: 4_194_304,
 	maxJsonCharacters: 4_194_304,
 } as const;
 const BIGINT_PATTERN = /^-?(0|[1-9][0-9]*)$/;
@@ -37,12 +39,14 @@ interface ResolvedWireCodecLimits {
 	readonly maxDepth: number;
 	readonly maxNodes: number;
 	readonly maxStringLength: number;
+	readonly maxTotalStringLength: number;
 	readonly maxJsonCharacters: number;
 }
 
 interface CodecState {
 	readonly limits: ResolvedWireCodecLimits;
 	nodes: number;
+	totalStringLength: number;
 	readonly ancestors: WeakSet<object>;
 }
 
@@ -54,6 +58,11 @@ function limits(options: WireCodecLimits): ResolvedWireCodecLimits {
 			options.maxStringLength,
 			DEFAULT_LIMITS.maxStringLength,
 			'maxStringLength',
+		),
+		maxTotalStringLength: positiveInteger(
+			options.maxTotalStringLength,
+			DEFAULT_LIMITS.maxTotalStringLength,
+			'maxTotalStringLength',
 		),
 		maxJsonCharacters: positiveInteger(
 			options.maxJsonCharacters,
@@ -82,6 +91,14 @@ function visit(state: CodecState, path: string, depth: number): void {
 }
 
 function checkedString(value: string, state: CodecState, path: string): string {
+	state.totalStringLength += value.length;
+	if (state.totalStringLength > state.limits.maxTotalStringLength) {
+		throw new WireCodecError(
+			path,
+			'max_total_string_length',
+			`strings exceed ${state.limits.maxTotalStringLength} total characters`,
+		);
+	}
 	if (value.length > state.limits.maxStringLength) {
 		throw new WireCodecError(
 			path,
@@ -111,7 +128,12 @@ function withAncestor<T>(state: CodecState, value: object, path: string, run: ()
 }
 
 export function encodeWire(value: unknown, options: WireCodecLimits = {}): WireValue {
-	const state: CodecState = { limits: limits(options), nodes: 0, ancestors: new WeakSet() };
+	const state: CodecState = {
+		limits: limits(options),
+		nodes: 0,
+		totalStringLength: 0,
+		ancestors: new WeakSet(),
+	};
 	return encode(value, '$', 0, state);
 }
 
@@ -149,7 +171,12 @@ function encode(value: unknown, path: string, depth: number, state: CodecState):
 }
 
 export function decodeWire(value: unknown, options: WireCodecLimits = {}): unknown {
-	const state: CodecState = { limits: limits(options), nodes: 0, ancestors: new WeakSet() };
+	const state: CodecState = {
+		limits: limits(options),
+		nodes: 0,
+		totalStringLength: 0,
+		ancestors: new WeakSet(),
+	};
 	return decode(value, '$', 0, state);
 }
 

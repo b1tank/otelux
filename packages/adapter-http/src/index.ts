@@ -36,6 +36,9 @@ export interface CreateHttpDataSourceOptions {
 	readonly fetch?: typeof fetch;
 	readonly reconnectDelayMs?: number;
 	readonly maximumReconnectDelayMs?: number;
+	readonly rpcTimeoutMs?: number;
+	readonly maxResponseBytes?: number;
+	readonly onConnectionError?: (error: Error) => void;
 }
 
 export interface RuntimeHttpClient extends DataSource {
@@ -62,9 +65,24 @@ export class RuntimeRpcError extends Error {
 export function createHttpDataSource(options: CreateHttpDataSourceOptions): RuntimeHttpClient {
 	let baseUrl = options.baseUrl;
 	while (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
-	if (!/^https?:\/\//.test(baseUrl)) throw new Error('Runtime baseUrl must use HTTP or HTTPS');
+	const endpoint = new URL(baseUrl);
+	if (!['http:', 'https:'].includes(endpoint.protocol)) {
+		throw new Error('Runtime baseUrl must use HTTP or HTTPS');
+	}
+	if (
+		!['127.0.0.1', 'localhost', '[::1]'].includes(endpoint.hostname) ||
+		endpoint.username !== '' ||
+		endpoint.password !== '' ||
+		(endpoint.pathname !== '' && endpoint.pathname !== '/') ||
+		endpoint.search !== '' ||
+		endpoint.hash !== ''
+	) {
+		throw new Error('Runtime baseUrl must be an uncredentialed loopback origin');
+	}
 	if (options.token.length === 0) throw new Error('Runtime token is required');
 	const fetchImpl = options.fetch ?? fetch;
+	const rpcTimeoutMs = options.rpcTimeoutMs ?? 10_000;
+	const maxResponseBytes = options.maxResponseBytes ?? 2 * 1024 * 1024;
 	const handlers = new Set<(event: ChangeEvent) => void>();
 	let requestId = 0;
 	let initialized: Promise<RuntimeInitializeResult> | undefined;
@@ -75,28 +93,39 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 	const rawCall = async (method: string, params?: unknown): Promise<unknown> => {
 		if (closed) throw new Error('Runtime HTTP client is closed');
 		const id = String(++requestId);
-		const response = await fetchImpl(`${baseUrl}/api/v1/rpc`, {
-			method: 'POST',
-			headers: {
-				authorization: `Bearer ${options.token}`,
-				'content-type': 'application/json',
-			},
-			body: stringifyWire({
-				jsonrpc: JSON_RPC_VERSION,
-				id,
-				method,
-				...(params !== undefined ? { params } : {}),
-			}),
-		});
-		if (!response.ok) throw new Error(`Runtime HTTP ${response.status}`);
-		const envelope = parseWireJson(await response.text()) as RuntimeRpcResponse;
-		if (!isRpcResponse(envelope) || envelope.id !== id) {
-			throw new Error('Runtime returned an invalid JSON-RPC response');
+		const controller = new AbortController();
+		const timeout = setTimeout(() => controller.abort(), rpcTimeoutMs);
+		try {
+			const response = await fetchImpl(`${baseUrl}/api/v1/rpc`, {
+				method: 'POST',
+				redirect: 'error',
+				signal: controller.signal,
+				headers: {
+					authorization: `Bearer ${options.token}`,
+					'content-type': 'application/json',
+				},
+				body: stringifyWire({
+					jsonrpc: JSON_RPC_VERSION,
+					id,
+					method,
+					...(params !== undefined ? { params } : {}),
+				}),
+			});
+			if (!response.ok) throw new Error(`Runtime HTTP ${response.status}`);
+			const envelope = parseWireJson(await readTextBounded(response, maxResponseBytes), {
+				maxJsonCharacters: maxResponseBytes,
+				maxTotalStringLength: maxResponseBytes,
+			}) as RuntimeRpcResponse;
+			if (!isRpcResponse(envelope) || envelope.id !== id) {
+				throw new Error('Runtime returned an invalid JSON-RPC response');
+			}
+			if ('error' in envelope) {
+				throw new RuntimeRpcError(envelope.error.code, envelope.error.message, envelope.error.data);
+			}
+			return envelope.result;
+		} finally {
+			clearTimeout(timeout);
 		}
-		if ('error' in envelope) {
-			throw new RuntimeRpcError(envelope.error.code, envelope.error.message, envelope.error.data);
-		}
-		return envelope.result;
 	};
 
 	const initialize = (): Promise<RuntimeInitializeResult> => {
@@ -106,13 +135,18 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 				name: options.clientName ?? 'otelux-http-client',
 				version: options.clientVersion ?? '0.0.0',
 			},
-		}).then((result) => {
-			const value = result as RuntimeInitializeResult;
-			if (value.protocolVersion !== RUNTIME_RPC_PROTOCOL_VERSION) {
-				throw new Error(`Runtime negotiated unexpected protocol ${value.protocolVersion}`);
-			}
-			return value;
-		});
+		})
+			.then((result) => {
+				const value = result as RuntimeInitializeResult;
+				if (value.protocolVersion !== RUNTIME_RPC_PROTOCOL_VERSION) {
+					throw new Error(`Runtime negotiated unexpected protocol ${value.protocolVersion}`);
+				}
+				return value;
+			})
+			.catch((error) => {
+				initialized = undefined;
+				throw error;
+			});
 		return initialized;
 	};
 
@@ -127,13 +161,22 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 		while (!closed && handlers.size > 0 && eventController === controller) {
 			try {
 				const response = await fetchImpl(`${baseUrl}/api/v1/events`, {
+					redirect: 'error',
 					headers: {
 						authorization: `Bearer ${options.token}`,
 						...(lastEventId !== undefined ? { 'last-event-id': lastEventId } : {}),
 					},
 					signal: controller.signal,
 				});
-				if (!response.ok || !response.body) throw new Error(`Runtime SSE HTTP ${response.status}`);
+				if (!response.ok || !response.body) {
+					const error = new Error(`Runtime SSE HTTP ${response.status}`);
+					options.onConnectionError?.(error);
+					if (response.status === 401 || response.status === 403) return;
+					throw error;
+				}
+				if (!response.headers.get('content-type')?.startsWith('text/event-stream')) {
+					throw new Error('Runtime SSE returned an invalid content type');
+				}
 				delay = options.reconnectDelayMs ?? 250;
 				await consumeSse(response.body, (eventName, id, data) => {
 					const envelope = parseRuntimeSseEnvelope(parseWireJson(data));
@@ -146,11 +189,21 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 						envelope.signals,
 						envelope.kind === 'telemetry.changed' ? envelope.traceIds : undefined,
 					)) {
-						for (const handler of handlers) handler(change);
+						for (const handler of handlers) {
+							try {
+								handler(change);
+							} catch {
+								// One subscriber cannot tear down the shared event stream.
+							}
+						}
 					}
 				});
-			} catch {
+				if (!controller.signal.aborted) await sleep(delay, controller.signal);
+			} catch (error) {
 				if (controller.signal.aborted || closed || handlers.size === 0) return;
+				options.onConnectionError?.(
+					error instanceof Error ? error : new Error('Runtime SSE connection failed'),
+				);
 				await sleep(delay, controller.signal);
 				delay = Math.min(maximumDelay, delay * 2);
 			}
@@ -163,7 +216,11 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 		const controller = eventController;
 		void initialize()
 			.then(() => runEvents(controller))
-			.catch(() => {})
+			.catch((error) => {
+				options.onConnectionError?.(
+					error instanceof Error ? error : new Error('Runtime initialization failed'),
+				);
+			})
 			.finally(() => {
 				if (eventController === controller) eventController = undefined;
 			});
@@ -232,6 +289,38 @@ function changeEvents(
 	return result;
 }
 
+async function readTextBounded(response: Response, maximumBytes: number): Promise<string> {
+	const declared = Number(response.headers.get('content-length'));
+	if (Number.isFinite(declared) && declared > maximumBytes) {
+		throw new Error(`Runtime response exceeds ${maximumBytes} bytes`);
+	}
+	if (!response.body) throw new Error('Runtime response has no body');
+	const reader = response.body.getReader();
+	const chunks: Uint8Array[] = [];
+	let total = 0;
+	try {
+		while (true) {
+			const chunk = await reader.read();
+			if (chunk.done) break;
+			total += chunk.value.length;
+			if (total > maximumBytes) {
+				await reader.cancel();
+				throw new Error(`Runtime response exceeds ${maximumBytes} bytes`);
+			}
+			chunks.push(chunk.value);
+		}
+	} finally {
+		reader.releaseLock();
+	}
+	const combined = new Uint8Array(total);
+	let offset = 0;
+	for (const chunk of chunks) {
+		combined.set(chunk, offset);
+		offset += chunk.length;
+	}
+	return new TextDecoder().decode(combined);
+}
+
 async function consumeSse(
 	body: ReadableStream<Uint8Array>,
 	onEvent: (event: string, id: string, data: string) => void,
@@ -244,6 +333,7 @@ async function consumeSse(
 			const chunk = await reader.read();
 			if (chunk.done) break;
 			buffer += decoder.decode(chunk.value, { stream: true }).replace(/\r\n/g, '\n');
+			if (buffer.length > 1_048_576) throw new Error('Runtime SSE frame exceeds 1 MiB');
 			let boundary = buffer.indexOf('\n\n');
 			while (boundary >= 0) {
 				const block = buffer.slice(0, boundary);
@@ -276,15 +366,13 @@ function parseSseBlock(block: string): { event: string; id: string; data: string
 
 async function sleep(milliseconds: number, signal: AbortSignal): Promise<void> {
 	await new Promise<void>((resolve) => {
-		const timer = setTimeout(resolve, milliseconds);
-		signal.addEventListener(
-			'abort',
-			() => {
-				clearTimeout(timer);
-				resolve();
-			},
-			{ once: true },
-		);
+		const finish = (): void => {
+			clearTimeout(timer);
+			signal.removeEventListener('abort', finish);
+			resolve();
+		};
+		const timer = setTimeout(finish, milliseconds);
+		signal.addEventListener('abort', finish, { once: true });
 	});
 }
 

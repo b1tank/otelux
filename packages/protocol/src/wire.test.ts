@@ -54,6 +54,9 @@ describe('wire codec', () => {
 		expect(() => encodeWire({ a: { b: 1 } }, { maxDepth: 1 })).toThrow('exceeded depth 1');
 		expect(() => encodeWire([1, 2, 3], { maxNodes: 3 })).toThrow('exceeded 3 values');
 		expect(() => encodeWire('abcd', { maxStringLength: 3 })).toThrow('string exceeds 3 characters');
+		expect(() => encodeWire(['abc', 'def'], { maxTotalStringLength: 5 })).toThrow(
+			'strings exceed 5 total characters',
+		);
 		expect(() => parseWireJson('{"a":1}', { maxJsonCharacters: 6 })).toThrow(
 			'JSON exceeds 6 characters',
 		);
