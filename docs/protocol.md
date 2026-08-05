@@ -39,7 +39,7 @@ flowchart LR
 | Claude/Codex -> plugin bridge | Agent tool protocol | stdio | One MCP JSON-RPC 2.0 message per line | MCP specification plus OTelux tool schemas | Live |
 | Plugin bridge -> runtime MCP | Agent tool forwarding | Loopback HTTP | MCP Streamable HTTP JSON-RPC 2.0, bearer token | MCP specification plus `@otelux/mcp-server` | Live |
 | Client -> runtime discovery | Find active owner/endpoints | Owner-only files | Versioned `runtime.json` and `runtime.lock` JSON | `@otelux/local-runtime` | Live |
-| Desktop main, CLI, browser -> runtime | OTelux query and control | Loopback HTTP | JSON-RPC 2.0 at `/api/v1/rpc`, tagged-bigint JSON | `@otelux/protocol` Runtime RPC registry | Live on the embedded runtime; Desktop client conversion pending |
+| Desktop main, CLI, browser -> runtime | OTelux query and control | Loopback HTTP | JSON-RPC 2.0 at `/api/v1/rpc`, tagged-bigint JSON | `@otelux/protocol` Runtime RPC registry | Runtime host and browser-safe `@otelux/adapter-http` live; Desktop conversion pending |
 | Runtime -> Desktop/browser | Live invalidations | Server-Sent Events | SSE at `/api/v1/events` with revisioned v1 envelopes | `@otelux/protocol` event contract | Live on the embedded runtime; client adapters pending |
 | Browser -> runtime | Workbench assets | Same-origin HTTP GET | HTML, CSS, JavaScript | Built `@otelux/ui` assets | Target |
 
@@ -213,7 +213,8 @@ Delivered transport foundation:
 
 Remaining before daemon conversion:
 
-- Add the HTTP/SSE `DataSource` client and shared direct/IPC/HTTP method parity suite.
+- `@otelux/adapter-http` now implements current `DataSource` queries plus status/settings/sample/clear controls over initialized tagged-bigint JSON-RPC, with one shared authenticated fetch-SSE connection, revision reconnect/resync, abort/disposal, and no URL tokens.
+- Real SQLite-backed direct/HTTP parity covers traces, waterfalls, spans, logs, metrics, facets, bigint fidelity, auth failure, RPC errors, SSE invalidation, and clear. IPC parity and Desktop conversion remain.
 - Split metric metadata from point-history RPC methods before moving the current UI.
 - MCP tool input schemas are advertised but handlers still cast inputs rather than validating them; tool results have no output schemas.
 - Add scoped one-time browser sessions and static workbench serving; raw control tokens must not enter renderer/browser context.

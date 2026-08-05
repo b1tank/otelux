@@ -145,12 +145,14 @@ Tasks:
 - [x] Add MCP safety annotations required by agent hosts and public plugin review.
 - [x] Add a thin Pi package adapter that registers the existing MCP bridge tools natively without forking their implementation.
 - [x] Extract backend composition into `@otelux/local-runtime`; Desktop now delegates SQLite, migrations, retention, OTLP, MCP, settings, and sample data to it.
-- Run `@otelux/local-runtime` as a single-instance per-user daemon instead of embedding it in Electron.
+- [x] Build and process-test a foreground `oteluxd` owner with normal runtime state/RPC, duplicate-owner rejection, and complete signal shutdown.
+- Package/register `oteluxd` with per-user background lifecycle, compatibility-aware discovery/start/stop, and upgrade rollback; then stop embedding runtime ownership in Electron.
 - [x] Add canonical per-user data-home resolution, nonce-protected state/locking, protocol/runtime version metadata, and resumable copy-only legacy Desktop migration.
 - [x] Add bounded tagged-bigint wire codecs, path-aware Electron IPC/event and runtime-state validation, checked transition schemas, and backward/compatible-future fixtures in `@otelux/protocol`.
 - [x] Define and validate the initial Runtime JSON-RPC method registry, protocol-major negotiation, revisioned SSE envelopes, checked transport schemas, direct dispatcher tests, and authenticated loopback HTTP/SSE host.
-- Add one shared direct/IPC/HTTP method parity suite and split metric metadata/point-history Runtime methods before UI conversion.
-- Add an authenticated HTTP/SSE `DataSource` adapter, scoped browser session bootstrap, serve the existing `@otelux/ui` as a same-origin loopback workbench, and convert Desktop into a client of that runtime.
+- [x] Add browser-safe authenticated HTTP/SSE `DataSource` and control client plus real SQLite-backed direct/HTTP parity for current query methods.
+- Add IPC to the shared parity suite and split metric metadata/point-history Runtime methods before UI conversion.
+- Add scoped browser session bootstrap, serve the existing `@otelux/ui` as a same-origin loopback workbench, and convert Desktop into a daemon client.
 - Add dedicated runtime/API and MCP tokens/scopes plus one-time browser session bootstrap; tokens must never appear in dashboard URLs or `runtime.json`.
 - Add the OTelux CLI for runtime lifecycle, status, endpoints, settings, dashboard/Desktop launch, diagnostics, and machine-readable output.
 - Bundle a version-matched CLI and daemon with Desktop while keeping them independently packageable; reserve `otelux` for CLI and rename GUI executables before stable cross-platform release.

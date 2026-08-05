@@ -1,0 +1,35 @@
+{
+	"name": "@otelux/adapter-http",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Browser-safe authenticated Runtime JSON-RPC/SSE DataSource adapter.",
+	"license": "MIT",
+	"type": "module",
+	"main": "./dist/index.cjs",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.cjs"
+		}
+	},
+	"files": ["dist", "README.md"],
+	"scripts": {
+		"build": "tsup",
+		"dev": "tsup --watch",
+		"typecheck": "tsc --noEmit",
+		"test": "vitest run --passWithNoTests",
+		"clean": "rm -rf dist .turbo"
+	},
+	"dependencies": {
+		"@otelux/protocol": "*",
+		"@otelux/types": "*"
+	},
+	"devDependencies": {
+		"tsup": "8.5.1",
+		"typescript": "5.7.2",
+		"vitest": "4.1.10"
+	}
+}

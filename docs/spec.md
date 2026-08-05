@@ -32,7 +32,7 @@ The repository currently contains:
 - `apps/desktop`: Electron shell hosting IPC/windows and the React renderer; its main process currently embeds `@otelux/local-runtime`.
 - `@otelux/local-runtime`: backend composition for SQLite, retention, engine queries, OTLP, authenticated MCP, settings, sample data, and lifecycle events.
 - Canonical platform data-home resolution, resumable copy-only migration from legacy Electron state, and nonce-protected `runtime.lock` / `runtime.json` ownership metadata.
-- An authenticated loopback Runtime API (default `4321`) now runs beside embedded Desktop: bounded JSON-RPC at `/api/v1/rpc`, revisioned SSE invalidations at `/api/v1/events`, open health only, a separate owner-only `runtime-token`, and visible/nonfatal API bind status. Desktop still uses IPC until the HTTP/SSE `DataSource` adapter and daemon conversion land.
+- An authenticated loopback Runtime API (default `4321`) runs beside embedded Desktop: bounded JSON-RPC at `/api/v1/rpc`, revisioned SSE invalidations at `/api/v1/events`, open health only, a separate owner-only `runtime-token`, and visible/nonfatal API bind status. The HTTP/SSE `DataSource` adapter and direct/HTTP parity suite are live; Desktop still uses IPC until daemon service lifecycle and client conversion land.
 - OTLP/HTTP JSON and protobuf ingest for traces, logs, and metrics.
 - Durable local storage for all signals via `@otelux/engine-node` (Node `node:sqlite`), with user-configurable retention (age and size). The store versions its schema with forward-only transactional migrations; a failed upgrade leaves the legacy database in place for retry, while an unreadable or newer-version file is quarantined before starting fresh. `@otelux/engine` still ships an in-memory store for tests and small workloads; both back ends pass a shared storage-contract suite.
 - A live SQLite budget meter in Settings shows retention-page pressure against the configured size limit and separately reports physical DB, WAL, and SHM footprint. Retention passes checkpoint and truncate WAL before and after pruning so sustained ingest cannot leave an unbounded WAL sidecar outside the page budget.
@@ -44,6 +44,7 @@ The repository currently contains:
 - Direct in-process and Electron IPC `DataSource` adapters.
 - MCP tool plumbing over the same query layer.
 - A shared OTelux plugin under `plugins/otelux` installs into Claude Code, Codex, and Pi with four observability skills plus a secure stdio bridge to the desktop MCP listener. Pi's thin extension registers the same bridge tools natively; it does not fork the MCP implementation. This is the current companion implementation; see [arch.md](arch.md#current-implementation) for the target shared-runtime architecture.
+- A foreground `oteluxd` build now owns the same runtime without Electron, handles signals, rejects duplicate owners, and passes process-level RPC/cleanup tests. It is a development foundation, not yet installer-bundled or registered as a background service.
 - The desktop app is the current release product. v0.1.10 publishes natively built, packaged, installed, smoke-tested, and checksummed Linux x64/arm64 `.deb` and rootless AppImage artifacts with per-architecture SBOMs and provenance. macOS and Windows remain unsigned preview builds. The agent plugin is currently Desktop's companion; direct MCP and CLI become independent forms after the runtime moves into a separately managed daemon.
 
 Important current limits:
@@ -101,6 +102,7 @@ The daemon transport and storage implementations must conform to [protocol.md](p
 | `@otelux/receiver` | OTLP/HTTP receiver and single-instance helper. | JSON and protobuf routes live for traces/logs/metrics with bounded concurrency and visible overload counters. |
 | `@otelux/ui` | React workbench and primitives. | Traces/logs/metrics live; polish ongoing around details, grouping controls, and footer controls. |
 | `@otelux/adapter-direct` | In-process `DataSource` wrapper. | Live. |
+| `@otelux/adapter-http` | Browser-safe authenticated Runtime JSON-RPC/SSE `DataSource` and control client. | Live with direct/HTTP SQLite-backed parity; Desktop conversion pending. |
 | `@otelux/mcp-server` | Read-only MCP JSON-RPC dispatcher. | Seven bounded read-only tools live, including service health and exact-ID agent-run correlation. |
 
 Apps are not published packages:

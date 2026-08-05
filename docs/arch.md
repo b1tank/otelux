@@ -131,8 +131,8 @@ All listeners bind to loopback by default. LAN exposure requires a future explic
 | Agent analysis tools | `@otelux/mcp-server` | Plugin, direct MCP, CLI diagnostics, and Desktop. |
 | Browser-safe workbench | `@otelux/ui` | Runtime-served browser mode and Desktop renderer. |
 | In-process adapter | `@otelux/adapter-direct` | Tests and deliberately embedded hosts. |
-| HTTP/event adapter | Planned `@otelux/adapter-http` | Runtime-served workbench and Desktop client. |
-| Runtime composition | `@otelux/local-runtime` | Embedded by Desktop now; CLI, plugin launcher, and direct MCP after daemon lifecycle lands. |
+| HTTP/event adapter | `@otelux/adapter-http` | Browser-safe initialized JSON-RPC/SSE `DataSource`; Desktop conversion pending. |
+| Runtime composition | `@otelux/local-runtime` | Embedded by Desktop now; also builds foreground `oteluxd` for lifecycle qualification. |
 | Analysis workflows | `plugins/otelux/skills` | Claude and Codex plugin manifests plus the Pi package adapter. |
 
 The `DataSource` interface remains the load-bearing UI boundary. The workbench asks for traces, logs, metrics, details, and change events through that contract; host adapters decide whether those calls are direct, Electron IPC, or local HTTP/event traffic.
@@ -238,7 +238,9 @@ Today, `@otelux/local-runtime` owns SQLite, retention, engine queries, OTLP, MCP
 
 This embedded shape does not imply same-thread execution. SQLite ingest, queries, retention, clear, and vacuum run behind a typed async worker facade with a 512-request cap and direct-read priority; Electron main owns lifecycle and message routing. Renderer selection uses a latest-only controller and bounded LRU cache; protocol 0.6 separates lightweight waterfall summaries from full selected-span details; effects synchronize DataSource/IPC subscriptions rather than deriving UI state. Trace-list and waterfall DOM are virtualized and independent of total row count. Electron invoke messages and runtime push events are runtime-decoded against bounded shared validators, and runtime ownership/state files use the same checked decoder/schema contract.
 
-The embedded runtime now also hosts the future client transport on loopback: authenticated Runtime JSON-RPC (`/api/v1/rpc`) and revisioned SSE (`/api/v1/events`) use a separate owner-only control token, bounded queues/bodies/clients, protocol-major negotiation, replay/resync, and checked schemas. Desktop deliberately remains on IPC in this phase. The next daemon step moves ownership without changing query semantics or weakening validation, then the HTTP/SSE `DataSource` adapter replaces Desktop IPC.
+The embedded runtime also hosts the client transport on loopback: authenticated Runtime JSON-RPC (`/api/v1/rpc`) and revisioned SSE (`/api/v1/events`) use a separate owner-only control token, bounded queues/bodies/clients, protocol-major negotiation, replay/resync, and checked schemas. The browser-safe HTTP/SSE adapter now passes real SQLite-backed parity against direct runtime calls.
+
+`@otelux/local-runtime` also builds a foreground `oteluxd` executable. It claims the same owner lock, publishes normal runtime state/endpoints, handles SIGINT/SIGTERM once, rejects a second owner deterministically, and cleans every listener/state file on exit. It is not installed as a background service yet, and Desktop deliberately remains an embedded owner/IPC client in this phase; starting both against one data directory fails closed. The next step is installer/service lifecycle plus Desktop client conversion, not another backend model.
 
 The next implementation sequence is:
 

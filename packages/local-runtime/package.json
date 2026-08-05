@@ -8,6 +8,9 @@
 	"main": "./dist/index.js",
 	"module": "./dist/index.js",
 	"types": "./dist/index.d.ts",
+	"bin": {
+		"oteluxd": "./dist/daemon.js"
+	},
 	"exports": {
 		".": {
 			"types": "./dist/index.d.ts",
@@ -20,7 +23,7 @@
 		"build": "tsup",
 		"dev": "tsup --watch",
 		"typecheck": "tsc --noEmit",
-		"test": "vitest run",
+		"test": "vitest run && npm run build && node --test scripts/*.node-test.mjs",
 		"clean": "rm -rf dist .turbo"
 	},
 	"engines": {
@@ -36,6 +39,7 @@
 		"@otelux/types": "*"
 	},
 	"devDependencies": {
+		"@otelux/adapter-http": "*",
 		"@types/node": "22.20.1",
 		"tsup": "8.5.1",
 		"typescript": "5.7.2",

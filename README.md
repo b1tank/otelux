@@ -138,6 +138,7 @@ otelux/
     receiver/           # OTLP receiver
     mcp-server/         # Read-only MCP JSON-RPC tools
     adapter-direct/     # In-process DataSource adapter
+    adapter-http/       # Browser-safe authenticated JSON-RPC/SSE adapter
     ui/                 # React workbench and primitives
   plugins/
     otelux/             # Shared Claude/Codex skills + MCP launcher/bridge
@@ -192,7 +193,7 @@ npm run -w @otelux/desktop package
 
 ## Current Status
 
-Pre-release. Linux x64 and arm64 Desktop packages are published as `v0.1.10`. Current `main` additionally contains the unreleased authenticated Runtime JSON-RPC/SSE foundation. `@otelux/local-runtime` owns storage, engine, OTLP, MCP, Runtime API, settings, lifecycle, canonical data-home migration, and nonce-protected runtime state. Desktop still embeds it in Electron and the `0.1.5` plugin remains a Desktop companion. The standalone daemon, CLI, direct MCP package, and runtime-served workbench are planned. Start with [docs/getting-started.md](docs/getting-started.md). See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities, [docs/arch.md](docs/arch.md#current-implementation) for the architecture transition, [docs/plan.md](docs/plan.md) for future work, and [docs/release-sprint.md](docs/release-sprint.md) for temporary `v0.1.0` launch execution.
+Pre-release. Linux x64 and arm64 Desktop packages are published as `v0.1.10`. Current `main` additionally contains the unreleased authenticated Runtime JSON-RPC/SSE host, browser-safe HTTP adapter, direct/HTTP parity suite, and foreground `oteluxd` foundation. `@otelux/local-runtime` owns storage, engine, OTLP, MCP, Runtime API, settings, lifecycle, canonical data-home migration, and nonce-protected runtime state. Desktop still embeds it in Electron and the `0.1.5` plugin remains a Desktop companion. Daemon service packaging/Desktop client conversion, CLI, direct MCP package, and runtime-served workbench remain planned. Start with [docs/getting-started.md](docs/getting-started.md). See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities, [docs/arch.md](docs/arch.md#current-implementation) for the architecture transition, [docs/plan.md](docs/plan.md) for future work, and [docs/release-sprint.md](docs/release-sprint.md) for temporary `v0.1.0` launch execution.
 
 ## License
 

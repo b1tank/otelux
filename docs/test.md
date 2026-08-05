@@ -577,6 +577,14 @@ curl -s -D /tmp/otelux-origin-headers.txt -X POST \
 - Run `node apps/desktop/scripts/prepare-platform-assets.mjs <platform-label>` after packaging.
 - **Expected**: it selects only native package files for the current desktop version, emits a parseable CycloneDX production SBOM, and writes `SHA256SUMS-<platform-label>` covering every selected package plus that SBOM. Standard checksum verification succeeds. Temporary electron-builder files and stale packages from older versions are excluded.
 
+### 12.8 Foreground daemon and HTTP adapter foundation
+- Build `@otelux/local-runtime`, then run `oteluxd` from `packages/local-runtime/dist/daemon.js` with isolated `OTELUX_DATA_DIR`, `OTELUX_OTLP_PORT=0`, and `OTELUX_API_PORT=0`.
+- **Expected**: it publishes owner-only runtime state with live receiver/API endpoints, prints a redacted ready record, serves authenticated Runtime RPC/SSE, and opens no Electron window.
+- Start a second daemon against the same data directory → exit code `2`, redacted `already-running`, no competing listeners/database.
+- Send SIGTERM/SIGINT to the owner → exit `0`, stopped record, all listeners closed, `runtime.json`/`runtime.lock` removed.
+- Run the direct/HTTP parity suite → identical bounded traces/waterfalls/spans/logs/metrics/facets and bigint values, plus SSE invalidation, auth failure, RPC error, disposal, and clear coverage.
+- **Qualification limit**: foreground `oteluxd` is not yet installed or registered as a background service; Desktop remains the packaged runtime owner.
+
 ---
 
 ## 13. Negative receiver scenarios

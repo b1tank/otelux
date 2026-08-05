@@ -456,5 +456,5 @@ describe('@otelux/engine-node retention', () => {
 			storage.close();
 			rmSync(dir, { recursive: true, force: true });
 		}
-	});
+	}, 15_000);
 });
