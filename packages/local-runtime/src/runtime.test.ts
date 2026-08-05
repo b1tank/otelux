@@ -136,6 +136,9 @@ describe('createLocalRuntime', () => {
 		if (!second.ok) throw new Error(second.error);
 		expect(runtime.getSettings().retention.maxAgeHours).toBe(2);
 		expect(changes).toEqual([1, 2]);
+		if (process.platform !== 'win32') {
+			expect((await fs.stat(join(directory, 'settings.json'))).mode & 0o777).toBe(0o600);
+		}
 		subscription.dispose();
 	});
 

@@ -56,13 +56,13 @@ MCP, LM, browser, clipboard, download, and future export clients operate outside
 
 ## Current Safeguards
 
-- Desktop OTLP, MCP, and Runtime API listeners bind to loopback.
+- Desktop OTLP, MCP, and Runtime API listeners bind to loopback and validate the exact effective Host authority.
 - OTLP, MCP, and Runtime API use distinct default ports.
 - OTLP and MCP request bodies are bounded before parsing; oversized requests return `413`.
 - `POST` listeners require an `application/json` content type (`415` otherwise) and reject requests from non-allowlisted browser origins (`403`).
 - MCP and Runtime API HTTP use separate per-install bearer tokens; requests without the corresponding valid header return `401` before tool/query dispatch.
 - Failed listener changes roll back to the previous healthy listener, including when the subsequent settings-file write fails.
-- Settings writes use a temporary file and rename to avoid partial JSON.
+- Settings writes use an owner-only temporary file and rename to avoid partial JSON; POSIX SQLite database/WAL/SHM files are tightened to owner-only permissions for default and custom paths.
 - The app uses a single-instance lock to avoid duplicate desktop listeners.
 - The Electron renderer is sandboxed and isolated from Node.js.
 - The renderer cannot navigate away from the app, open new windows, attach a `<webview>`, or obtain device permissions; external links open in the system browser only for HTTPS URLs.

@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { request } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { createEngine, createMemoryStorage } from '@otelux/engine';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -9,6 +10,23 @@ import {
 	decodeExportTraceServiceRequest,
 } from './index.js';
 import { ProtoWriter, hexToBytes } from './protoTestEncoder.js';
+
+async function statusWithHost(
+	url: string,
+	host: string,
+): Promise<{ status: number; body: string }> {
+	return await new Promise((resolve, reject) => {
+		const req = request(url, { headers: { host } }, (response) => {
+			const chunks: Buffer[] = [];
+			response.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+			response.on('end', () =>
+				resolve({ status: response.statusCode ?? 0, body: Buffer.concat(chunks).toString('utf8') }),
+			);
+		});
+		req.on('error', reject);
+		req.end();
+	});
+}
 
 /** Build a minimal single-span OTLP protobuf ExportTraceServiceRequest. */
 function sampleTraceProtobuf(): Uint8Array {
@@ -78,6 +96,12 @@ describe('@otelux/receiver', () => {
 			const res = await fetch(`${baseUrl}/healthz`);
 			expect(res.status).toBe(200);
 			expect(await res.text()).toBe('ok');
+		});
+
+		it('rejects a request with an unrelated Host authority', async () => {
+			const response = await statusWithHost(`${baseUrl}/healthz`, 'evil.example');
+			expect(response.status).toBe(400);
+			expect(JSON.parse(response.body)).toEqual({ error: 'invalid_host' });
 		});
 
 		it('ingests an OTLP/HTTP JSON payload into the engine', async () => {

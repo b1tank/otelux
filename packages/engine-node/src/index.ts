@@ -14,7 +14,7 @@
  * `schema.ts` for the layout.
  */
 
-import { statSync } from 'node:fs';
+import { chmodSync, statSync } from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
 import type { FullListLogsResult, Storage } from '@otelux/engine';
 import type {
@@ -101,6 +101,17 @@ function defaultNow(): bigint {
 	return BigInt(Date.now()) * 1_000_000n;
 }
 
+function hardenDatabaseFiles(path: string): void {
+	if (path === ':memory:' || process.platform === 'win32') return;
+	for (const file of [path, `${path}-wal`, `${path}-shm`]) {
+		try {
+			chmodSync(file, 0o600);
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+		}
+	}
+}
+
 function fileSize(path: string): number {
 	try {
 		return statSync(path).size;
@@ -117,6 +128,7 @@ export function createNodeSqliteStorage(options: NodeSqliteStorageOptions): Node
 	let retention = options.retention ?? DEFAULT_RETENTION;
 
 	const db: DatabaseSync = openDatabaseWithRecovery(options.path);
+	hardenDatabaseFiles(options.path);
 	const interner = new Interner(db);
 	const spans = new SpanStore(db, interner);
 	const logs = new LogStore(db, interner);
@@ -124,6 +136,7 @@ export function createNodeSqliteStorage(options: NodeSqliteStorageOptions): Node
 
 	const prune = (): void => {
 		pruneRetention(db, retention, now());
+		hardenDatabaseFiles(options.path);
 	};
 
 	const intervalMs = options.pruneIntervalMs ?? DEFAULT_PRUNE_INTERVAL_MS;
@@ -139,6 +152,7 @@ export function createNodeSqliteStorage(options: NodeSqliteStorageOptions): Node
 
 		writeSpans(input: readonly Span[]): void {
 			spans.write(input, now());
+			hardenDatabaseFiles(options.path);
 		},
 		listTraces(query: ListTracesQuery): ListTracesResult {
 			return spans.listTraces(query);
@@ -152,6 +166,7 @@ export function createNodeSqliteStorage(options: NodeSqliteStorageOptions): Node
 
 		writeLogs(input: readonly LogRecord[]): void {
 			logs.write(input, now());
+			hardenDatabaseFiles(options.path);
 		},
 		listLogs(query: ListLogsQuery): ListLogsResult {
 			return logs.listLogs(query);
@@ -165,6 +180,7 @@ export function createNodeSqliteStorage(options: NodeSqliteStorageOptions): Node
 
 		writeMetrics(input: readonly Metric[]): void {
 			metrics.write(input, now());
+			hardenDatabaseFiles(options.path);
 		},
 		listMetricInstruments(query: ListMetricInstrumentsQuery): ListMetricInstrumentsResult {
 			return metrics.listMetricInstruments(query);
@@ -225,6 +241,7 @@ export function createNodeSqliteStorage(options: NodeSqliteStorageOptions): Node
 			interner.reset();
 			// Reclaim the freed pages so clearing actually shrinks the file.
 			db.exec('PRAGMA incremental_vacuum');
+			hardenDatabaseFiles(options.path);
 		},
 
 		close(): void {

@@ -331,6 +331,14 @@ describe('httpRouter', () => {
 		expect(response.status).toBe(403);
 	});
 
+	it('rejects a request with an unrelated Host authority', async () => {
+		const server = await fixtureServer();
+		const app = httpRouter({ server, allowedHosts: ['localhost'] });
+		const response = await app.request('/', { headers: { host: 'evil.example' } });
+		expect(response.status).toBe(400);
+		expect(await response.json()).toEqual({ error: 'invalid_host' });
+	});
+
 	it('rejects a POST without the bearer token when one is configured', async () => {
 		const server = await fixtureServer();
 		const app = httpRouter({ server, authToken: 'secret-token' });

@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { GaugeMetric, HistogramMetric, LogRecord, Span, SumMetric } from '@otelux/types';
@@ -394,6 +394,21 @@ describe('@otelux/engine-node persistence', () => {
 		dir = mkdtempSync(join(tmpdir(), 'otelux-sqlite-'));
 	});
 	afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+	it('tightens database and sidecar permissions for custom paths', () => {
+		const path = join(dir, 'custom.db');
+		const storage = createNodeSqliteStorage({ path, pruneIntervalMs: 0 });
+		storage.writeLogs([makeLog({ time: 1n, severity: 9, body: 'private' })]);
+		if (process.platform !== 'win32') {
+			expect(statSync(path).mode & 0o777).toBe(0o600);
+			for (const sidecar of [`${path}-wal`, `${path}-shm`]) {
+				if (statSync(sidecar, { throwIfNoEntry: false })) {
+					expect(statSync(sidecar).mode & 0o777).toBe(0o600);
+				}
+			}
+		}
+		storage.close();
+	});
 
 	it('survives close and reopen', () => {
 		const path = join(dir, 'otelux.db');

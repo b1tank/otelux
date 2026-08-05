@@ -32,7 +32,7 @@ ${XDG_DATA_HOME:-$HOME/.local/share}/otelux/
 
 macOS uses `~/Library/Application Support/OTelux`; Windows uses `%LOCALAPPDATA%\OTelux`. `OTELUX_DATA_DIR` provides an explicit test/development override. The Settings UI is the source of truth for the active database path.
 
-`settings.json` does not contain captured telemetry or credentials. The MCP token is stored separately as `mcp-token` with owner-only permissions. While running, `runtime.json` and `runtime.lock` contain process, version, endpoint, and path metadata but never the token value.
+`settings.json` does not contain captured telemetry or credentials. The MCP token is stored separately as `mcp-token` with owner-only permissions. While running, `runtime.json` and `runtime.lock` contain process, version, endpoint, and path metadata but never the token value. On POSIX systems OTelux tightens settings, SQLite database, WAL, and SHM files to owner-only mode (`0600`) for both default and custom database paths; equivalent Windows DACL verification remains a pre-stable gate.
 
 ## Network Behavior
 

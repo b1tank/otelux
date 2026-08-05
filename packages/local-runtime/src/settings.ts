@@ -23,6 +23,13 @@ export class SettingsStore {
 
 	static async open(file: string): Promise<SettingsStore> {
 		const settings = await loadOrDefault(file);
+		if (process.platform !== 'win32') {
+			try {
+				await fs.chmod(file, 0o600);
+			} catch (error) {
+				if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+			}
+		}
 		return new SettingsStore(file, settings);
 	}
 
@@ -72,8 +79,12 @@ async function loadOrDefault(file: string): Promise<Settings> {
 async function persist(file: string, settings: Settings): Promise<void> {
 	await fs.mkdir(dirname(file), { recursive: true });
 	const tmp = `${file}.tmp`;
-	await fs.writeFile(tmp, `${JSON.stringify(settings, null, 2)}\n`, 'utf8');
+	await fs.writeFile(tmp, `${JSON.stringify(settings, null, 2)}\n`, {
+		encoding: 'utf8',
+		mode: 0o600,
+	});
 	await fs.rename(tmp, file);
+	if (process.platform !== 'win32') await fs.chmod(file, 0o600);
 }
 
 function merge(base: Settings, patch: PartialSettings): Settings {

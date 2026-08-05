@@ -496,7 +496,12 @@ curl -s -X POST -H 'Content-Type: application/json' \
 - Quit and relaunch once with `OTELUX_OTLP_MAX_BODY_BYTES=1024`, generate the same JSON shape with `TARGET_BYTES=1025`, and repeat the request. Expect `413`; a 1024-byte body must pass the size gate and proceed to normal payload validation. Restore the default launch afterward.
 - Exercise the MCP limit in its transport integration test with `HttpRouterOptions.maxBodyBytes = 1024`; a 1025-byte JSON-RPC request returns `413` without invoking a tool.
 
-### 10.6 Hostile browser origin
+### 10.6 Host and hostile browser origin
+
+Before the Origin checks, send OTLP and MCP requests with `Host: evil.example`.
+
+- **Expected**: both return `400`, read no request body, ingest nothing, and invoke no MCP tool. Exact `127.0.0.1:<effective-port>` and intentional `localhost:<effective-port>` authorities continue to work.
+
 
 ```bash
 curl -s -D /tmp/otelux-origin-headers.txt -X POST \

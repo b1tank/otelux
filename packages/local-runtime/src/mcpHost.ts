@@ -35,6 +35,10 @@ export class McpHost {
 				server,
 				...(this.maxBodyBytes !== undefined ? { maxBodyBytes: this.maxBodyBytes } : {}),
 				...(this.authToken !== undefined ? { authToken: this.authToken } : {}),
+				allowedHosts: [
+					`${this.host}:${port}`,
+					...(this.host === '127.0.0.1' ? [`localhost:${port}`] : []),
+				],
 			});
 			const httpServer = await new Promise<ServerType>((resolve, reject) => {
 				const created = serve({ fetch: router.fetch, port, hostname: this.host }, () => {

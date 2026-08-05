@@ -153,7 +153,7 @@ Encoding is chosen by `Content-Type`: `application/json` (JSON) or `application/
 
 Both loopback listeners enforce a browser-origin policy:
 
-- Any request carrying an `Origin` header is rejected with `403` unless that origin is on an explicit allowlist (empty by default). This blocks a malicious web page or DNS-rebinding attempt from reaching the listener. Non-browser senders (OTel SDKs, CLIs, MCP clients) omit `Origin` and are unaffected.
+- Every loopback listener rejects a missing, malformed, or unrelated Host authority before body parsing. Any request carrying an `Origin` header is rejected with `403` unless that origin is on an explicit allowlist (empty by default). This blocks a malicious web page or DNS-rebinding attempt from reaching the listener. Non-browser senders (OTel SDKs, CLIs, MCP clients) omit `Origin` and are unaffected.
 - An approved origin receives `Access-Control-Allow-Origin` echoing that origin plus `Vary: Origin`, and CORS preflight (`OPTIONS`) is answered with `204`. A different scheme, host, or port is still rejected.
 
 Request bodies are bounded:
@@ -274,7 +274,7 @@ A prerelease may narrow platforms, storage durability, ingest encodings, or supp
 
 ## Security Requirements
 
-- Desktop OTLP, MCP, and Runtime API listeners bind to loopback; Runtime API additionally validates Host and rejects browser Origin until scoped browser sessions ship.
+- Desktop OTLP, MCP, and Runtime API listeners bind to loopback and validate exact Host authorities; Runtime API additionally rejects every browser Origin until scoped browser sessions ship.
 - MCP access to captured telemetry requires explicit enablement or a per-install credential. Missing or invalid credentials do not reveal tool results.
 - Request bodies are bounded before parsing. Oversized OTLP and MCP requests return `413`; unsupported media types return `415`.
 - Requests carrying an `Origin` header are rejected with `403` by default. Hosts may configure exact allowed origins; wildcard origins are never combined with credentials, accepted responses vary on `Origin`, and rejected origins receive no telemetry or permissive CORS headers.

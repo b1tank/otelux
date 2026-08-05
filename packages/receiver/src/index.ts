@@ -116,7 +116,14 @@ export function createReceiver(options: ReceiverOptions): Receiver {
 
 	// Origin and content-type gate for every route. Runs before body
 	// reading so a rejected request never touches the decoder.
-	app.use('*', (c, next) => enforceRequestPolicy(c, next, allowedOrigins));
+	app.use('*', (c, next) =>
+		enforceRequestPolicy(
+			c,
+			next,
+			allowedOrigins,
+			new Set([`${host}:${boundPort}`, ...(host === '127.0.0.1' ? [`localhost:${boundPort}`] : [])]),
+		),
+	);
 
 	app.get('/healthz', (c) => c.text('ok'));
 
@@ -340,7 +347,12 @@ async function enforceRequestPolicy(
 	c: Context,
 	next: Next,
 	allowedOrigins: ReadonlySet<string>,
+	allowedHosts: ReadonlySet<string>,
 ): Promise<Response | undefined> {
+	const requestHost = c.req.header('host')?.toLowerCase();
+	if (requestHost === undefined || !allowedHosts.has(requestHost)) {
+		return c.json({ error: 'invalid_host' }, 400);
+	}
 	const origin = c.req.header('origin');
 	if (origin !== undefined) {
 		if (!allowedOrigins.has(origin)) {

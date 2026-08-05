@@ -263,9 +263,10 @@ Document that OTelux cannot protect telemetry from:
 
 ### Security patch before further daemon work
 
-- [ ] Enforce owner-only database, sidecar, settings, state, and custom-path permissions.
-- [ ] Add exact Host validation to OTLP and MCP.
-- [ ] Add focused permission and DNS-rebinding tests.
+- [x] Enforce owner-only database, WAL/SHM sidecar, and settings permissions on POSIX default/custom paths.
+- [ ] Define and verify equivalent owner-only Windows DACL behavior.
+- [x] Add exact Host validation to OTLP and MCP runtime listeners.
+- [x] Add focused POSIX permission and hostile-Host/DNS-rebinding tests.
 - [ ] Reconcile `security-model.md`, `privacy.md`, `spec.md`, and `test.md` with the verified behavior.
 - [ ] Add visible local-write trust wording in Settings.
 

@@ -43,6 +43,8 @@ export interface HttpRouterOptions {
 	 * tests and embedders that supply their own gate).
 	 */
 	readonly authToken?: string;
+	/** Exact Host authorities accepted by a bound loopback listener. */
+	readonly allowedHosts?: readonly string[];
 }
 
 const DEFAULT_MCP_MAX_BODY_BYTES = 1024 * 1024;
@@ -51,10 +53,13 @@ export function httpRouter(options: HttpRouterOptions): Hono {
 	const { server, authToken } = options;
 	const maxBodyBytes = options.maxBodyBytes ?? DEFAULT_MCP_MAX_BODY_BYTES;
 	const allowedOrigins = new Set(options.allowedOrigins ?? []);
+	const allowedHosts = options.allowedHosts
+		? new Set(options.allowedHosts.map((value) => value.toLowerCase()))
+		: undefined;
 	const app = new Hono();
 
 	// Reject browser origins and non-JSON POSTs before any dispatch.
-	app.use('*', (c, next) => enforceRequestPolicy(c, next, allowedOrigins));
+	app.use('*', (c, next) => enforceRequestPolicy(c, next, allowedOrigins, allowedHosts));
 
 	app.get('/', (c) =>
 		c.json({
@@ -165,7 +170,14 @@ async function enforceRequestPolicy(
 	c: Context,
 	next: Next,
 	allowedOrigins: ReadonlySet<string>,
+	allowedHosts: ReadonlySet<string> | undefined,
 ): Promise<Response | undefined> {
+	if (allowedHosts !== undefined) {
+		const requestHost = c.req.header('host')?.toLowerCase();
+		if (requestHost === undefined || !allowedHosts.has(requestHost)) {
+			return c.json({ error: 'invalid_host' }, 400);
+		}
+	}
 	const origin = c.req.header('origin');
 	if (origin !== undefined) {
 		if (!allowedOrigins.has(origin)) {
