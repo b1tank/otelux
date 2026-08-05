@@ -80,6 +80,7 @@ Min widths: list ≥ 280 px, waterfall ≥ 480 px. Splitter is 6 px wide with a 
 | **Retention meter tracks SQLite pages, not WAL overhead** | The battery fill matches the exact page budget used by pruning. Real DB/WAL/SHM disk footprint stays visible beneath it without falsely implying temporary WAL growth should trigger retention. |
 | **Receiver pressure is explicit** | A compact `Dropped N` pill appears only after bounded OTLP queues reject exports; its tooltip breaks counts down by signal so overload is never silent or confused with invalid payload rejection. |
 | **Settings uses a left category rail** | Connections and Storage are separate tasks. A fixed rail keeps the modal calm, preserves one Save path, and scales to future categories without stacking every control into one noisy column. |
+| **Connection trust is visible, not configurable by jargon** | Compact Access/Boundary cards state that OTLP is local write-only without auth while MCP is token-authenticated. Users can assess the local trust model without adding a default OTLP-token setup burden. |
 
 ---
 

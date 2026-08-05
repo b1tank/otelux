@@ -319,6 +319,13 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 								<p className="settings-modal__section-description">
 									Receives traces, logs, and metrics over OTLP/HTTP.
 								</p>
+								<ConnectionTrustPosture
+									label="OTLP receiver trust posture"
+									items={[
+										['Access', 'Local write-only · no authentication'],
+										['Boundary', '127.0.0.1 · browser origins blocked'],
+									]}
+								/>
 								<div className="settings-modal__row">
 									<div className="settings-modal__row-copy">
 										<label className="settings-modal__row-title" htmlFor="settings-otlp-port">
@@ -351,6 +358,13 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 								<p className="settings-modal__section-description">
 									Lets authorized local AI tools query OTelux.
 								</p>
+								<ConnectionTrustPosture
+									label="MCP server trust posture"
+									items={[
+										['Access', 'Authenticated · read-only tools'],
+										['Credential', 'Per-install bearer token · owner-only file'],
+									]}
+								/>
 								<div className="settings-modal__row">
 									<div className="settings-modal__row-copy">
 										<label className="settings-modal__row-title" htmlFor="settings-mcp-enabled">
@@ -571,6 +585,22 @@ function parsePreviewLimit(value: string, fallback: number): number {
 
 export function parseRetentionLimit(value: string): number | undefined {
 	return /^\d+$/.test(value) ? Number.parseInt(value, 10) : undefined;
+}
+
+function ConnectionTrustPosture(props: {
+	readonly label: string;
+	readonly items: ReadonlyArray<readonly [label: string, value: string]>;
+}): JSX.Element {
+	return (
+		<div className="settings-modal__trust" aria-label={props.label}>
+			{props.items.map(([label, value]) => (
+				<div className="settings-modal__trust-item" key={label}>
+					<div className="settings-modal__trust-label">{label}</div>
+					<div className="settings-modal__trust-value">{value}</div>
+				</div>
+			))}
+		</div>
+	);
 }
 
 export function validateSettingsInput(input: SettingsInput): SettingsValidationResult {

@@ -268,7 +268,7 @@ Document that OTelux cannot protect telemetry from:
 - [x] Add exact Host validation to OTLP and MCP runtime listeners.
 - [x] Add focused POSIX permission and hostile-Host/DNS-rebinding tests.
 - [ ] Reconcile `security-model.md`, `privacy.md`, `spec.md`, and `test.md` with the verified behavior.
-- [ ] Add visible local-write trust wording in Settings.
+- [x] Add visible local-write trust wording in Settings without adding default OTLP credential configuration.
 
 ### Existing bounded-RPC sprint
 

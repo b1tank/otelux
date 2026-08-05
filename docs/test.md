@@ -142,7 +142,7 @@ cat /tmp/otelux-userdata/settings.json 2>/dev/null
 
 ### 2.6 Settings cog opens settings
 - Click the **Settings** cog at the bottom of the **rail** (not the topbar — the cog moved there in the redesign).
-- **Expected**: backdrop dims, the wide settings dialog appears centered, **Connections** is selected in the left category rail, only the Connections panel is visible, and focus is on the **Connections** tab.
+- **Expected**: backdrop dims, the wide settings dialog appears centered, **Connections** is selected in the left category rail, only the Connections panel is visible, and focus is on the **Connections** tab. Compact trust cards identify OTLP as `Local write-only · no authentication` on `127.0.0.1` with browser origins blocked, and MCP as authenticated read-only tooling using an owner-only per-install token.
 
 ### 2.7 Source and component-service filtering
 - Ingest two records whose resources use `service.namespace=codex` and different `service.name` values such as `codex_exec` and `codex-app-server`.

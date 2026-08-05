@@ -201,7 +201,7 @@ Queries should be bounded by limit and filters. Results should include counts wh
 - Rows expose actions consistently: details, copy, value viewer, and pivots.
 - Long values use the full value viewer wherever messages, attributes, JSON, XML, Markdown, or multiline text exceed the pane.
 - Footer and empty states communicate result scope, live/paused state, and the expected table shape.
-- Endpoint state is explicit: listening port, health, paused/live state, and local trust posture are visible to the user.
+- Endpoint state is explicit: listening port, health, paused/live state, and local trust posture are visible to the user. Settings identifies OTLP as local write-only without authentication and MCP as token-authenticated read-only tooling.
 - Copyable endpoint controls reflect the listeners that are actually running and disappear or become non-actionable when their service is disabled or unavailable.
 - Theme mode is user-switchable from the left rail: Auto follows the OS color scheme, while Light and Dark force a specific token set. Text contrast must stay readable in both explicit themes.
 - The rail exposes About, GitHub, and Settings as distinct support/navigation actions. About is keyboard-dismissible, restores focus to its opener, and shows build/runtime diagnostics without reading telemetry or settings.

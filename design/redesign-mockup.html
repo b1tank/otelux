@@ -484,6 +484,17 @@
                                             border-top: 1px solid var(--border); }
   .settings__section h3 { margin: 0; color: var(--fg); font-size: 13px; font-weight: 650; }
   .settings__section-desc { margin: 0 0 8px; color: var(--fg-mute); font-size: 11px; }
+  .settings__trust { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px;
+                     margin: 4px 0 8px; }
+  .settings__trust-item { min-width: 0; padding: 8px 10px; background: var(--bg);
+                          border: 1px solid var(--border); border-radius: 4px; }
+  .settings__trust-label { display: flex; align-items: center; gap: 6px; color: var(--fg-mute);
+                           font-size: 10px; font-weight: 600; letter-spacing: .04em;
+                           text-transform: uppercase; }
+  .settings__trust-label::before { content:""; width: 6px; height: 6px; border-radius: 50%;
+                                   background: var(--ok); }
+  .settings__trust-value { margin-top: 4px; color: var(--fg-1); font-size: 11px;
+                           line-height: 1.45; }
   .settings__row { min-height: 60px; display: grid; grid-template-columns: minmax(0,1fr) 220px;
                    align-items: center; gap: 24px; border-bottom: 1px solid var(--border); }
   .settings__row:last-child { border-bottom: 0; }
@@ -537,6 +548,7 @@
   @media (max-width: 720px) {
     .settings { grid-template-columns: 164px minmax(0,1fr); }
     .settings__row { grid-template-columns: 1fr; gap: 8px; padding: 12px 0; }
+    .settings__trust { grid-template-columns: 1fr; }
     .settings__control { justify-content: flex-start; }
   }
 
@@ -1232,6 +1244,10 @@
           <section class="settings__section">
             <h3>OTLP receiver</h3>
             <p class="settings__section-desc">Receives traces, logs, and metrics over OTLP/HTTP.</p>
+            <div class="settings__trust" aria-label="OTLP receiver trust posture">
+              <div class="settings__trust-item"><div class="settings__trust-label">Access</div><div class="settings__trust-value">Local write-only · no authentication</div></div>
+              <div class="settings__trust-item"><div class="settings__trust-label">Boundary</div><div class="settings__trust-value mono">127.0.0.1 · browser origins blocked</div></div>
+            </div>
             <div class="settings__row">
               <div class="settings__row-copy">
                 <div class="settings__row-title">Port</div>
@@ -1243,6 +1259,10 @@
           <section class="settings__section">
             <h3>MCP server</h3>
             <p class="settings__section-desc">Lets authorized local AI tools query OTelux.</p>
+            <div class="settings__trust" aria-label="MCP server trust posture">
+              <div class="settings__trust-item"><div class="settings__trust-label">Access</div><div class="settings__trust-value">Authenticated · read-only tools</div></div>
+              <div class="settings__trust-item"><div class="settings__trust-label">Credential</div><div class="settings__trust-value">Per-install bearer token · owner-only file</div></div>
+            </div>
             <div class="settings__row">
               <div class="settings__row-copy"><div class="settings__row-title">Enabled</div><div class="settings__row-hint">OTLP ingest is unaffected when MCP is off.</div></div>
               <div class="settings__control"><button class="settings__toggle" type="button" aria-label="MCP enabled" aria-pressed="true"></button></div>

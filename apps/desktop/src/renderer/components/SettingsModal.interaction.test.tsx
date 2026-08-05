@@ -65,6 +65,16 @@ describe('SettingsModal interactions', () => {
 		expect(maximumSize.value).toBe('256');
 	});
 
+	it('states the local trust posture without adding configuration friction', () => {
+		renderSettings();
+		const otlp = screen.getByLabelText('OTLP receiver trust posture');
+		const mcp = screen.getByLabelText('MCP server trust posture');
+		expect(otlp.textContent).toContain('Local write-only · no authentication');
+		expect(otlp.textContent).toContain('127.0.0.1 · browser origins blocked');
+		expect(mcp.textContent).toContain('Authenticated · read-only tools');
+		expect(mcp.textContent).toContain('Per-install bearer token · owner-only file');
+	});
+
 	it('reveals and focuses Storage when a hidden retention value is invalid', () => {
 		const { onSave } = renderSettings();
 		const connections = screen.getByRole('tab', { name: 'Connections' });
