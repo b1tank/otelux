@@ -126,9 +126,9 @@ describe('OTeluxWorkbench', () => {
 				calls.logs++;
 				return engine.listLogs(query);
 			},
-			listMetrics: async (query: Parameters<typeof engine.listMetrics>[0]) => {
+			listMetricInstruments: async (query: Parameters<typeof engine.listMetricInstruments>[0]) => {
 				calls.metrics++;
-				return engine.listMetrics(query);
+				return engine.listMetricInstruments(query);
 			},
 			listResourceFacets: async (query: Parameters<typeof engine.listResourceFacets>[0]) => {
 				calls.facetSignals.push(query.signal);

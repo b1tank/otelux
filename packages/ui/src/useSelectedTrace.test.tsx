@@ -32,7 +32,10 @@ class TraceDataSource implements DataSource {
 	getLogDetails = async () => {
 		throw new Error('unused');
 	};
-	listMetrics = async () => ({ rows: [], totalCount: 0 });
+	listMetricInstruments = async () => ({ rows: [], totalCount: 0 });
+	getMetricPoints = async () => {
+		throw new Error('unused');
+	};
 	listResourceFacets = async () => ({ rows: [] });
 	subscribe = (handler: (event: ChangeEvent) => void) => {
 		this.listeners.add(handler);

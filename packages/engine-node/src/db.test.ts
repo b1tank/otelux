@@ -30,7 +30,9 @@ describe('db schema versioning and recovery', () => {
 
 	it('bootstraps a fresh database to the current schema version', () => {
 		const db = openDatabase(join(dir, 'otelux.db'));
-		expect(userVersion(db)).toBe(4);
+		expect(userVersion(db)).toBe(5);
+		const indexes = db.prepare("PRAGMA index_list('metric_points')").all() as Array<{ name: string }>;
+		expect(indexes.map((index) => index.name)).toContain('idx_points_instrument_time');
 		db.close();
 	});
 
@@ -89,7 +91,7 @@ INSERT INTO scopes (id, hash, name) VALUES (1, 'scope', 'test');
 		db.close();
 
 		const migrated = openDatabase(path);
-		expect(userVersion(migrated)).toBe(4);
+		expect(userVersion(migrated)).toBe(5);
 		expect(migrated.prepare('SELECT trace_id, span_id, name FROM spans').get()).toEqual({
 			trace_id: 'a'.repeat(32),
 			span_id: '1'.repeat(16),
@@ -175,7 +177,7 @@ INSERT INTO scopes (id, hash, name) VALUES (1, 'scope', 'test');
 		db.exec('DROP TABLE spans_v2');
 		db.close();
 		const retried = openDatabaseWithRecovery(path);
-		expect(userVersion(retried)).toBe(4);
+		expect(userVersion(retried)).toBe(5);
 		expect(retried.prepare('SELECT name FROM spans').get()).toEqual({
 			name: 'preserved-v1-span',
 		});
@@ -196,7 +198,7 @@ PRAGMA user_version = 2;
 		db.close();
 
 		const migrated = openDatabase(path);
-		expect(userVersion(migrated)).toBe(4);
+		expect(userVersion(migrated)).toBe(5);
 		expect(
 			migrated.prepare('SELECT service_name FROM trace_services ORDER BY service_name').all(),
 		).toEqual([{ service_name: 'api' }, { service_name: 'worker' }]);
@@ -228,7 +230,7 @@ PRAGMA user_version = 3;
 		db.close();
 
 		const migrated = openDatabase(path);
-		expect(userVersion(migrated)).toBe(4);
+		expect(userVersion(migrated)).toBe(5);
 		for (const table of ['resources', 'spans', 'logs', 'metric_instruments']) {
 			const columns = migrated.prepare(`PRAGMA table_info(${table})`).all() as Array<{
 				name: string;
@@ -270,7 +272,7 @@ PRAGMA user_version = 3;
 		db.close();
 
 		const recovered = openDatabaseWithRecovery(path);
-		expect(userVersion(recovered)).toBe(4);
+		expect(userVersion(recovered)).toBe(5);
 		recovered.close();
 
 		const quarantined = readdirSync(dir).filter((f) => f.startsWith('otelux.db.corrupt-'));

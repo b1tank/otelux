@@ -170,8 +170,10 @@ async function startBackend(): Promise<{
 				return runtime.listLogs(message.query);
 			case 'getLogDetails':
 				return runtime.getLogDetails(message.query);
-			case 'listMetrics':
-				return runtime.listMetrics(message.query);
+			case 'listMetricInstruments':
+				return runtime.listMetricInstruments(message.query);
+			case 'getMetricPoints':
+				return runtime.getMetricPoints(message.query);
 			case 'listResourceFacets':
 				return runtime.listResourceFacets(message.query);
 			case 'getSettings':

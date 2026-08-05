@@ -16,7 +16,7 @@
  * per-row storage.
  */
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 export const SPAN_COLUMN_NAMES = `
   span_id, trace_id, parent_span_id, name, kind,
@@ -177,5 +177,7 @@ CREATE TABLE IF NOT EXISTS metric_points (
   ingested_unix_nano    INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_points_instrument ON metric_points(instrument_id, id);
+CREATE INDEX IF NOT EXISTS idx_points_instrument_time
+  ON metric_points(instrument_id, time_unix_nano DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_points_ingested   ON metric_points(ingested_unix_nano);
 `;

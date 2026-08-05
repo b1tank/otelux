@@ -2,12 +2,14 @@ import type {
 	DataSource,
 	Disposable,
 	GetLogDetailsQuery,
+	GetMetricPointsQuery,
+	GetMetricPointsResult,
 	GetSpanDetailsQuery,
 	GetTraceQuery,
 	ListLogsQuery,
 	ListLogsResult,
-	ListMetricsQuery,
-	ListMetricsResult,
+	ListMetricInstrumentsQuery,
+	ListMetricInstrumentsResult,
 	ListResourceFacetsQuery,
 	ListResourceFacetsResult,
 	ListTracesQuery,
@@ -68,8 +70,16 @@ export function createIpcDataSource(bridge: OteluxWindowBridge): DataSource {
 		async getLogDetails(query: GetLogDetailsQuery): Promise<LogDetails> {
 			return (await bridge.invoke({ kind: 'getLogDetails', query })) as LogDetails;
 		},
-		async listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult> {
-			return (await bridge.invoke({ kind: 'listMetrics', query })) as ListMetricsResult;
+		async listMetricInstruments(
+			query: ListMetricInstrumentsQuery,
+		): Promise<ListMetricInstrumentsResult> {
+			return (await bridge.invoke({
+				kind: 'listMetricInstruments',
+				query,
+			})) as ListMetricInstrumentsResult;
+		},
+		async getMetricPoints(query: GetMetricPointsQuery): Promise<GetMetricPointsResult> {
+			return (await bridge.invoke({ kind: 'getMetricPoints', query })) as GetMetricPointsResult;
 		},
 		async listResourceFacets(query: ListResourceFacetsQuery): Promise<ListResourceFacetsResult> {
 			return (await bridge.invoke({ kind: 'listResourceFacets', query })) as ListResourceFacetsResult;

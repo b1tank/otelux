@@ -187,17 +187,24 @@ const logListQuery = object(
 	},
 	[],
 );
-const metricListQuery = object(
+const metricInstrumentListQuery = object(
 	{
 		limit: integer(1, 500),
 		offset: integer(0, 10000000),
-		pointLimit: integer(1, 10000),
 		sources: stringArray,
 		services: stringArray,
 		meters: stringArray,
 		search: text(),
 	},
 	[],
+);
+const metricPointsQuery = object(
+	{
+		instrumentId: text(32, '^[1-9][0-9]*$'),
+		limit: integer(1, 1000),
+		cursor: text(128, '^[0-9]+:[0-9]+$'),
+	},
+	['instrumentId'],
 );
 const facetQuery = object(
 	{
@@ -222,7 +229,8 @@ schemas['invoke-message'] = {
 		queryRequest('getSpanDetails', spanQuery),
 		queryRequest('listLogs', logListQuery),
 		queryRequest('getLogDetails', logQuery),
-		queryRequest('listMetrics', metricListQuery),
+		queryRequest('listMetricInstruments', metricInstrumentListQuery),
+		queryRequest('getMetricPoints', metricPointsQuery),
 		queryRequest('listResourceFacets', facetQuery),
 		object({ kind: { const: 'updateSettings' }, patch: partialSettings }),
 		...[
@@ -259,7 +267,8 @@ schemas['runtime-rpc-request'] = {
 					'telemetry/getSpan',
 					'telemetry/listLogs',
 					'telemetry/getLog',
-					'telemetry/listMetrics',
+					'telemetry/listMetricInstruments',
+					'telemetry/getMetricPoints',
 					'telemetry/getFacets',
 				],
 			},

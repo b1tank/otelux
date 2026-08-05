@@ -33,8 +33,8 @@ OTelux uses SQLite as a local telemetry engine, not as a JSON file cabinet. The 
 |---|---|---|---|
 | Resolved P0 | Schema v1 used global `span_id` identity across storage and detail contracts, although OTLP span IDs are unique only within a trace. | SQLite could overwrite another trace's span and return stale rollups/details. | Fixed: schema v2 uses `PRIMARY KEY(trace_id, span_id)`, migrates v1 transactionally, repairs surviving rollups, preserves v1 for retry if migration fails, and all detail APIs require both IDs. |
 | Resolved P1 | Trace service filtering occurred after SQL `LIMIT/OFFSET`; the count query omitted the service filter. | Short/empty pages and incorrect totals. | Fixed: schema v3 normalizes `trace_services(trace_id, service_name)`, migrates existing service JSON, updates membership transactionally with trace rollups, and applies one service-indexed membership subquery to count and page queries. |
-| Resolved P1 | `listMetrics` selected points once per returned instrument. | $N+2$ SQL statements and multi-second responses. | Fixed: one compound indexed statement fetches a bounded tail for every requested instrument; the workbench list asks for one latest point and loads the selected instrument's 120-point history separately. |
-| Resolved P1 | Metric list results could carry up to 10,000 points per instrument. | An 81.5 MB IPC payload retained hundreds of MB in the renderer. | Fixed: `pointLimit` is bounded to 10,000, defaults to 120, and the workbench list/detail split transfers about 60 KB plus one selected series instead of every history. |
+| Resolved P1 | `listMetrics` selected points once per returned instrument. | $N+2$ SQL statements and multi-second responses. | Fixed: internal bounded composition uses one compound indexed tail statement; the transport/workbench list now returns metadata plus scalar latest-value summaries without point/resource/scope bags, and one selected opaque instrument ID loads a separately bounded history (120 by default, 2,000 maximum). |
+| Resolved P1 | Metric list results could carry up to 10,000 points per instrument. | An 81.5 MB IPC payload retained hundreds of MB in the renderer. | Fixed: transport lists carry no point/resource/scope bags, only bounded latest-value summaries and counts; `getMetricPoints` pages one selected event-time-ordered series (120 default / 1,000 maximum) and explicitly reports chart-attribute truncation. Internal MCP/service composition no longer loads histories for service availability. |
 | Resolved P2 | UI discovered service facets by fetching 500 traces, 500 logs, and 500 full metric instruments. | Redundant startup queries and payloads in hidden views. | Fixed in protocol 0.4 and generalized in 0.5: `listResourceFacets` executes grouped source/service SQL; inactive views do not fetch or subscribe. |
 | P2 | Durable SQLite queries and structured-clone serialization still execute through Electron's main process. | A future accidentally unbounded query can stall ingest and renderer IPC together. | Keep every current query bounded and budget-tested; move storage/query execution behind the planned local runtime daemon/worker boundary before adding heavier analysis queries. |
 | P2 | Offset pagination is used while new telemetry arrives. | Duplicate or skipped rows between pages. | Use opaque keyset cursors with stable ID tie-breakers. |
@@ -96,7 +96,7 @@ FTS5 should index body, event name, severity text, and flattened attribute keys/
 
 ### Metrics
 
-`metric_instruments` remains one row per identity. Add latest-point summary columns only when they are proven useful for list rendering. Point history stays in `metric_points` with an index matching selected-instrument windows:
+`metric_instruments` remains one row per identity. Schema v5 adds the event-time point index required by latest summaries and selected-history paging. Add materialized latest-point summary columns only when they are proven useful for list rendering. Point history stays in `metric_points` with an index matching selected-instrument windows:
 
 ```sql
 CREATE INDEX idx_points_instrument_time
@@ -114,7 +114,7 @@ Do not join all point rows into an instrument list page. Fetch one selected inst
 | Get span detail | 1 | Composite `(trace_id, span_id)` lookup with resource/scope joins. |
 | List logs | <=2 | Optional count plus one page query. |
 | List metric instruments | <=2 | Optional count plus metadata page; zero per-instrument point queries. |
-| Get metric points | 1 | One instrument/time-window/cursor query. |
+| Get metric points | 1 | One event-time-ordered instrument/cursor query returning metadata, exact count, and one bounded page. |
 | Get facets | <=3 | Grouped trace/log/metric queries inside one RPC; no raw telemetry payload. |
 | Clear all data | 1 transaction | Foreign-key order or cascades; reset intern caches. |
 | Ingest one export batch | 1 transaction | Prepared row statements are allowed; no connection or transaction per item. |

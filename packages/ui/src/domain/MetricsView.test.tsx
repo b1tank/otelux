@@ -5,14 +5,17 @@
 import type {
 	ChangeEvent,
 	DataSource,
+	GetMetricPointsQuery,
+	GetMetricPointsResult,
 	GetSpanDetailsQuery,
 	GetTraceQuery,
 	ListLogsQuery,
 	ListLogsResult,
-	ListMetricsQuery,
-	ListMetricsResult,
+	ListMetricInstrumentsQuery,
+	ListMetricInstrumentsResult,
 	ListTracesQuery,
 	ListTracesResult,
+	MetricInstrumentSummary,
 	SpanDetails,
 } from '@otelux/protocol';
 import type { HistogramMetric, Metric, SumMetric, Trace } from '@otelux/types';
@@ -66,9 +69,63 @@ function makeHistogram(over: Partial<HistogramMetric> = {}): HistogramMetric {
 	};
 }
 
+function summary(metric: Metric, instrumentId: string): MetricInstrumentSummary {
+	const service = metric.resource.attributes['service.name'];
+	const namespace = metric.resource.attributes['service.namespace'];
+	const base = {
+		instrumentId,
+		name: metric.name,
+		...(metric.description !== undefined ? { description: metric.description } : {}),
+		...(metric.unit !== undefined ? { unit: metric.unit } : {}),
+		type: metric.type,
+		...(typeof namespace === 'string'
+			? { sourceName: namespace }
+			: typeof service === 'string'
+				? { sourceName: service }
+				: {}),
+		...(typeof service === 'string' ? { serviceName: service } : {}),
+		meterName: metric.scope.name,
+		pointCount: metric.dataPoints.length,
+	};
+	if (metric.type === 'histogram') {
+		const latest = metric.dataPoints.at(-1);
+		return {
+			...base,
+			temporality: metric.temporality,
+			...(latest
+				? {
+						latest: {
+							kind: 'histogram' as const,
+							timeUnixNano: latest.timeUnixNano,
+							count: latest.count,
+							...(latest.sum !== undefined ? { sum: latest.sum } : {}),
+						},
+					}
+				: {}),
+		};
+	}
+	const latest = metric.dataPoints.at(-1);
+	return {
+		...base,
+		...(metric.type === 'sum'
+			? { isMonotonic: metric.isMonotonic, temporality: metric.temporality }
+			: {}),
+		...(latest
+			? {
+					latest: {
+						kind: 'number' as const,
+						timeUnixNano: latest.timeUnixNano,
+						value: latest.value,
+					},
+				}
+			: {}),
+	};
+}
+
 class FakeDataSource implements DataSource {
 	readonly kind = 'otelux/datasource' as const;
-	calls: ListMetricsQuery[] = [];
+	calls: ListMetricInstrumentsQuery[] = [];
+	pointCalls: GetMetricPointsQuery[] = [];
 	rows: readonly Metric[] = [];
 
 	listTraces(_query: ListTracesQuery): Promise<ListTracesResult> {
@@ -86,9 +143,18 @@ class FakeDataSource implements DataSource {
 	getLogDetails(): Promise<never> {
 		throw new Error('not used');
 	}
-	listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult> {
+	listMetricInstruments(query: ListMetricInstrumentsQuery): Promise<ListMetricInstrumentsResult> {
 		this.calls.push(query);
-		return Promise.resolve({ rows: this.rows, totalCount: this.rows.length });
+		return Promise.resolve({
+			rows: this.rows.map((metric, index) => summary(metric, String(index + 1))),
+			totalCount: this.rows.length,
+		});
+	}
+	getMetricPoints(query: GetMetricPointsQuery): Promise<GetMetricPointsResult> {
+		this.pointCalls.push(query);
+		const metric = this.rows[Number(query.instrumentId) - 1];
+		if (!metric) throw new Error('metric not found');
+		return Promise.resolve({ metric, totalPointCount: metric.dataPoints.length });
 	}
 	listResourceFacets() {
 		return Promise.resolve({ rows: [] });
@@ -112,7 +178,7 @@ describe('MetricsView', () => {
 		await findAllByText('codex.api_request');
 		expect(container.querySelector('.otelux-metrics-nav')).toBeTruthy();
 		expect(container.querySelectorAll('.otelux-metrics-tree__instrument').length).toBe(2);
-		expect(container.querySelectorAll('.otelux-metric').length).toBe(1);
+		await waitFor(() => expect(container.querySelectorAll('.otelux-metric').length).toBe(1));
 		expect(container.textContent).toContain('Counter');
 		expect(container.textContent).toContain('Histogram');
 	});
@@ -135,8 +201,8 @@ describe('MetricsView', () => {
 		ds.rows = [makeSum(), makeHistogram()];
 		render(<MetricsView dataSource={ds} />);
 		await waitFor(() => {
-			expect(ds.calls.some((query) => query.pointLimit === 1)).toBe(true);
-			expect(ds.calls.some((query) => query.pointLimit === 120)).toBe(true);
+			expect(ds.calls).toHaveLength(1);
+			expect(ds.pointCalls).toContainEqual({ instrumentId: '1', limit: 120 });
 		});
 	});
 
@@ -150,7 +216,9 @@ describe('MetricsView', () => {
 			throw new Error('expected a meter button');
 		}
 		fireEvent.click(meterButton);
-		expect(container.querySelector('.otelux-meter-overview__table')).toBeTruthy();
+		await waitFor(() =>
+			expect(container.querySelector('.otelux-meter-overview__table')).toBeTruthy(),
+		);
 		expect(container.textContent).toContain('Name');
 		expect(container.textContent).toContain('Latest');
 		expect(container.textContent).toContain('Updated');
@@ -159,11 +227,16 @@ describe('MetricsView', () => {
 	it('renders scan summary fields and metric actions', async () => {
 		const ds = new FakeDataSource();
 		ds.rows = [makeSum()];
+		ds.getMetricPoints = async (query) => ({
+			metric: ds.rows[Number(query.instrumentId) - 1] as Metric,
+			totalPointCount: 1_000,
+		});
 		const { findAllByText, getByLabelText, container } = render(<MetricsView dataSource={ds} />);
 		await findAllByText('codex.api_request');
 		expect(container.textContent).toContain('Latest');
 		expect(container.textContent).toContain('Updated');
 		expect(container.textContent).toContain('Points');
+		expect(container.textContent).toContain('2 loaded / 1000 total');
 		expect(getByLabelText('Copy metric name codex.api_request')).toBeTruthy();
 		expect(getByLabelText('Copy metric data codex.api_request')).toBeTruthy();
 		expect(getByLabelText('View metric details codex.api_request')).toBeTruthy();
@@ -193,7 +266,7 @@ describe('MetricsView', () => {
 		expect(container.querySelector('.otelux-linechart__x-axis')).toBeTruthy();
 		expect(container.querySelector('.otelux-linechart__dot')?.tagName).toBe('SPAN');
 		fireEvent.click(getByText('codex.turn.e2e_duration_ms'));
-		expect(container.querySelector('.otelux-histogram')).toBeTruthy();
+		await waitFor(() => expect(container.querySelector('.otelux-histogram')).toBeTruthy());
 	});
 
 	it('aggregates scalar chart points that share an export timestamp', async () => {
@@ -243,6 +316,18 @@ describe('MetricsView', () => {
 		fireEvent.click(tableButton);
 		expect(container.querySelector('.otelux-metric-table')).toBeTruthy();
 		expect(container.textContent).toContain('status=ok');
+	});
+
+	it('offers targeted recovery when a selected instrument reference is stale', async () => {
+		const ds = new FakeDataSource();
+		ds.rows = [makeSum()];
+		ds.getMetricPoints = async () => {
+			throw new Error('stale reference');
+		};
+		const { findByRole, findByText } = render(<MetricsView dataSource={ds} />);
+		expect((await findByRole('alert')).textContent).toContain('no longer retained');
+		fireEvent.click(await findByText('Refresh instruments'));
+		await waitFor(() => expect(ds.calls.length).toBeGreaterThan(1));
 	});
 
 	it('forwards filters to the data source query', async () => {

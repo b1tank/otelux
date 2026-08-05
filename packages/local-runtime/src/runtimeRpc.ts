@@ -9,6 +9,7 @@ import {
 	type RuntimeRpcResponse,
 	type RuntimeRpcSuccess,
 	type RuntimeStatusResult,
+	StaleReferenceError,
 	decodeRuntimeRpcCall,
 	negotiateRuntimeProtocol,
 	parseRuntimeRpcRequest,
@@ -63,7 +64,7 @@ export function createRuntimeRpcDispatcher(runtime: LocalRuntime): RuntimeRpcDis
 								clearData: true,
 								events: true,
 							},
-							limits: { traces: 200, logs: 500, metrics: 500, metricPoints: 10_000 },
+							limits: { traces: 200, logs: 500, metrics: 500, metricPoints: 1_000 },
 						} satisfies RuntimeInitializeResult;
 						break;
 					}
@@ -101,8 +102,11 @@ export function createRuntimeRpcDispatcher(runtime: LocalRuntime): RuntimeRpcDis
 					case 'telemetry/getLog':
 						result = await runtime.getLogDetails(call.params);
 						break;
-					case 'telemetry/listMetrics':
-						result = await runtime.listMetrics(call.params);
+					case 'telemetry/listMetricInstruments':
+						result = await runtime.listMetricInstruments(call.params);
+						break;
+					case 'telemetry/getMetricPoints':
+						result = await runtime.getMetricPoints(call.params);
 						break;
 					case 'telemetry/getFacets':
 						result = await runtime.listResourceFacets(call.params);
@@ -111,6 +115,11 @@ export function createRuntimeRpcDispatcher(runtime: LocalRuntime): RuntimeRpcDis
 				return notification ? undefined : success(id, result);
 			} catch (error) {
 				if (notification) return undefined;
+				if (error instanceof StaleReferenceError) {
+					return failure(id, RUNTIME_RPC_ERROR.STALE_REFERENCE, 'Stale reference', {
+						referenceKind: error.referenceKind,
+					});
+				}
 				if (error instanceof ProtocolValidationError) {
 					const methodMissing = error.code === 'method';
 					return failure(

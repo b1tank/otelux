@@ -1,6 +1,10 @@
 import type {
+	GetMetricPointsQuery,
+	GetMetricPointsResult,
 	ListLogsQuery,
 	ListLogsResult,
+	ListMetricInstrumentsQuery,
+	ListMetricInstrumentsResult,
 	ListMetricsQuery,
 	ListMetricsResult,
 	ListResourceFacetsQuery,
@@ -37,6 +41,12 @@ export interface Storage {
 	getLog(logId: string): Promise<LogRecord | undefined> | LogRecord | undefined;
 	searchLogs(query: ListLogsQuery): Promise<FullListLogsResult> | FullListLogsResult;
 	writeMetrics(metrics: readonly Metric[]): Promise<void> | void;
+	listMetricInstruments(
+		query: ListMetricInstrumentsQuery,
+	): Promise<ListMetricInstrumentsResult> | ListMetricInstrumentsResult;
+	getMetricPoints(
+		query: GetMetricPointsQuery,
+	): Promise<GetMetricPointsResult | undefined> | GetMetricPointsResult | undefined;
 	listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult> | ListMetricsResult;
 	listResourceFacets(
 		query: ListResourceFacetsQuery,
@@ -171,6 +181,81 @@ function limitMetricPoints(metric: Metric, limit: number): Metric {
 	return { ...metric, dataPoints: tail(metric.dataPoints, limit) };
 }
 
+function latestPoint<T extends { readonly timeUnixNano: bigint }>(
+	points: readonly T[],
+): T | undefined {
+	return points.reduce<T | undefined>(
+		(current, point) =>
+			current === undefined || point.timeUnixNano > current.timeUnixNano ? point : current,
+		undefined,
+	);
+}
+
+function metricInstrumentSummary(
+	metric: Metric,
+	instrumentId: string,
+): ListMetricInstrumentsResult['rows'][number] {
+	const sourceName = resourceSourceName(metric.resource);
+	const serviceName = metricServiceName(metric);
+	const base = {
+		instrumentId,
+		name: metric.name,
+		...(metric.description !== undefined ? { description: metric.description } : {}),
+		...(metric.unit !== undefined ? { unit: metric.unit } : {}),
+		type: metric.type,
+		...(sourceName !== '' ? { sourceName } : {}),
+		...(serviceName !== '' ? { serviceName } : {}),
+		meterName: metric.scope.name,
+		pointCount: metric.dataPoints.length,
+	};
+	if (metric.type === 'histogram') {
+		const latest = latestPoint(metric.dataPoints);
+		return {
+			...base,
+			temporality: metric.temporality,
+			...(latest !== undefined
+				? {
+						latest: {
+							kind: 'histogram' as const,
+							timeUnixNano: latest.timeUnixNano,
+							count: latest.count,
+							...(latest.sum !== undefined ? { sum: latest.sum } : {}),
+						},
+					}
+				: {}),
+		};
+	}
+	const latest = latestPoint(metric.dataPoints);
+	return {
+		...base,
+		...(metric.type === 'sum'
+			? { isMonotonic: metric.isMonotonic, temporality: metric.temporality }
+			: {}),
+		...(latest !== undefined
+			? {
+					latest: {
+						kind: 'number' as const,
+						timeUnixNano: latest.timeUnixNano,
+						value: latest.value,
+					},
+				}
+			: {}),
+	};
+}
+
+function replaceMetricPoints(
+	metric: Metric,
+	points: readonly Metric['dataPoints'][number][],
+): Metric {
+	if (metric.type === 'histogram') {
+		return { ...metric, dataPoints: points as typeof metric.dataPoints };
+	}
+	if (metric.type === 'gauge') {
+		return { ...metric, dataPoints: points as typeof metric.dataPoints };
+	}
+	return { ...metric, dataPoints: points as typeof metric.dataPoints };
+}
+
 function mergeMetric(existing: Metric, incoming: Metric): Metric {
 	if (existing.type !== incoming.type) {
 		// Identity collision across kinds (should not happen — `type` is part
@@ -209,6 +294,11 @@ export function createMemoryStorage(): Storage {
 	// Metrics are merged by instrument identity so repeated exports of the
 	// same instrument grow one time series rather than piling up duplicates.
 	const metrics = new Map<string, Metric>();
+	const metricIds = new Map<string, number>();
+	const metricKeysById = new Map<number, string>();
+	const metricPointIds = new WeakMap<object, number>();
+	let nextMetricId = 1;
+	let nextMetricPointId = 1;
 
 	function rowFromTrace(spans: readonly Span[]):
 		| {
@@ -491,10 +581,62 @@ export function createMemoryStorage(): Storage {
 
 		writeMetrics(incoming: readonly Metric[]): void {
 			for (const metric of incoming) {
+				for (const point of metric.dataPoints) {
+					if (!metricPointIds.has(point)) metricPointIds.set(point, nextMetricPointId++);
+				}
 				const key = metricIdentity(metric);
 				const existing = metrics.get(key);
+				if (!metricIds.has(key)) {
+					const id = nextMetricId++;
+					metricIds.set(key, id);
+					metricKeysById.set(id, key);
+				}
 				metrics.set(key, existing ? mergeMetric(existing, metric) : metric);
 			}
+		},
+
+		listMetricInstruments(query: ListMetricInstrumentsQuery): ListMetricInstrumentsResult {
+			const result = this.listMetrics({ ...query, pointLimit: 1 }) as ListMetricsResult;
+			return {
+				rows: result.rows.map((metric) => {
+					const key = metricIdentity(metric);
+					return metricInstrumentSummary(metrics.get(key) ?? metric, String(metricIds.get(key)));
+				}),
+				totalCount: result.totalCount,
+			};
+		},
+
+		getMetricPoints(query: GetMetricPointsQuery): GetMetricPointsResult | undefined {
+			if (!/^\d+$/.test(query.instrumentId)) return undefined;
+			const key = metricKeysById.get(Number(query.instrumentId));
+			const metric = key ? metrics.get(key) : undefined;
+			if (!metric) return undefined;
+			const limit = Math.max(1, Math.min(query.limit ?? 120, 1_000));
+			const cursor = query.cursor ? /^(\d+):(\d+)$/.exec(query.cursor) : undefined;
+			const cursorTime = cursor ? BigInt(cursor[1] as string) : undefined;
+			const cursorId = cursor ? Number(cursor[2]) : undefined;
+			const ordered = [...metric.dataPoints]
+				.sort((a, b) => {
+					if (a.timeUnixNano !== b.timeUnixNano) return a.timeUnixNano > b.timeUnixNano ? -1 : 1;
+					return (metricPointIds.get(b) ?? 0) - (metricPointIds.get(a) ?? 0);
+				})
+				.filter((point) => {
+					if (cursorTime === undefined || cursorId === undefined) return true;
+					const id = metricPointIds.get(point) ?? 0;
+					return point.timeUnixNano < cursorTime || (point.timeUnixNano === cursorTime && id < cursorId);
+				});
+			const candidates = ordered.slice(0, limit + 1);
+			const hasMore = candidates.length > limit;
+			const descendingPage = candidates.slice(0, limit);
+			const last = descendingPage.at(-1);
+			const page = [...descendingPage].reverse();
+			return {
+				metric: replaceMetricPoints(metric, page),
+				totalPointCount: metric.dataPoints.length,
+				...(hasMore && last
+					? { nextCursor: `${last.timeUnixNano}:${metricPointIds.get(last) ?? 0}` }
+					: {}),
+			};
 		},
 
 		listMetrics(query: ListMetricsQuery): ListMetricsResult {
@@ -582,6 +724,8 @@ export function createMemoryStorage(): Storage {
 			logs.length = 0;
 			logsById.clear();
 			metrics.clear();
+			metricIds.clear();
+			metricKeysById.clear();
 		},
 
 		close(): void {
@@ -589,6 +733,8 @@ export function createMemoryStorage(): Storage {
 			logs.length = 0;
 			logsById.clear();
 			metrics.clear();
+			metricIds.clear();
+			metricKeysById.clear();
 		},
 	};
 }

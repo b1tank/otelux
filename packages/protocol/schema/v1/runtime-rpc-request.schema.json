@@ -28,7 +28,8 @@
         "telemetry/getSpan",
         "telemetry/listLogs",
         "telemetry/getLog",
-        "telemetry/listMetrics",
+        "telemetry/listMetricInstruments",
+        "telemetry/getMetricPoints",
         "telemetry/getFacets"
       ]
     },

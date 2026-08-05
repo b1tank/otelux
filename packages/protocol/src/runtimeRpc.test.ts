@@ -69,6 +69,29 @@ describe('Runtime RPC method params', () => {
 		);
 	});
 
+	it('decodes bounded metric instrument and point queries', () => {
+		const list = parseRuntimeRpcRequest({
+			jsonrpc: '2.0',
+			id: 1,
+			method: 'telemetry/listMetricInstruments',
+			params: { limit: 25, services: ['api'] },
+		});
+		expect(decodeRuntimeRpcCall(list)).toEqual({
+			method: 'telemetry/listMetricInstruments',
+			params: { limit: 25, services: ['api'] },
+		});
+		const points = parseRuntimeRpcRequest({
+			jsonrpc: '2.0',
+			id: 2,
+			method: 'telemetry/getMetricPoints',
+			params: { instrumentId: '42', limit: 1_000, cursor: '1000:42' },
+		});
+		expect(decodeRuntimeRpcCall(points)).toEqual({
+			method: 'telemetry/getMetricPoints',
+			params: { instrumentId: '42', limit: 1_000, cursor: '1000:42' },
+		});
+	});
+
 	it('requires explicit clear confirmation', () => {
 		const request = parseRuntimeRpcRequest({
 			jsonrpc: '2.0',
@@ -95,11 +118,11 @@ describe('Runtime RPC method params', () => {
 describe('Runtime protocol negotiation', () => {
 	it('accepts compatible major versions and selects the server version', () => {
 		expect(protocolMajor('1.9.0-beta.2')).toBe(1);
-		expect(negotiateRuntimeProtocol('1.9.0')).toBe(RUNTIME_RPC_PROTOCOL_VERSION);
+		expect(negotiateRuntimeProtocol('2.9.0')).toBe(RUNTIME_RPC_PROTOCOL_VERSION);
 	});
 
 	it('rejects malformed or unsupported major versions', () => {
 		expect(protocolMajor('latest')).toBeUndefined();
-		expect(() => negotiateRuntimeProtocol('2.0.0')).toThrow('supported protocol major is 1');
+		expect(() => negotiateRuntimeProtocol('1.0.0')).toThrow('supported protocol major is 2');
 	});
 });

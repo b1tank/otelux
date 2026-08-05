@@ -22,7 +22,11 @@
  * other domain components.
  */
 
-import type { DataSource, ListMetricsResult } from '@otelux/protocol';
+import type {
+	DataSource,
+	ListMetricInstrumentsResult,
+	MetricInstrumentSummary,
+} from '@otelux/protocol';
 import type {
 	AttributeValue,
 	HistogramDataPoint,
@@ -79,17 +83,23 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 	} = props;
 	const [selectedMeter, setSelectedMeter] = useState<string | null>(null);
 	const [selectedMetricKey, setSelectedMetricKey] = useState<string | null>(null);
-	const [detailsMetric, setDetailsMetric] = useState<Metric | null>(null);
+	const [listRevision, setListRevision] = useState(0);
+	const [detailsMetric, setDetailsMetric] = useState<{
+		metric: Metric;
+		totalPointCount: number;
+		truncatedPointCount: number;
+		metadataTruncated: boolean;
+	} | null>(null);
 	const [mode, setMode] = useState<ViewMode>('chart');
 	const [viewValue, setViewValue] = useState<{ key: string; value: AttributeValue } | null>(null);
 
 	// The serialization key must include every input that changes the
 	// result set; otherwise the hook reuses a stale fetch when filters change.
-	const queryKey = `metrics:${limit}:${(sources ?? []).join(',')}:${(services ?? []).join(',')}:${(meters ?? []).join(',')}:${search ?? ''}`;
-	const query = useDataSourceQuery<ListMetricsResult>(
+	const queryKey = `metrics:${limit}:${(sources ?? []).join(',')}:${(services ?? []).join(',')}:${(meters ?? []).join(',')}:${search ?? ''}:${listRevision}`;
+	const query = useDataSourceQuery<ListMetricInstrumentsResult>(
 		dataSource,
 		(ds) => {
-			const q: Parameters<DataSource['listMetrics']>[0] = { limit, pointLimit: 1 };
+			const q: Parameters<DataSource['listMetricInstruments']>[0] = { limit };
 			if (sources && sources.length > 0) {
 				q.sources = sources;
 			}
@@ -102,7 +112,7 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 			if (search) {
 				q.search = search;
 			}
-			return ds.listMetrics(q);
+			return ds.listMetricInstruments(q);
 		},
 		queryKey,
 		paused,
@@ -116,22 +126,35 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 	const groups = groupByMeter(rows);
 	const selection = resolveMetricSelection(groups, selectedMeter, selectedMetricKey);
 	const selectedSummary = selection.activeMetric;
-	const selectedKey = selectedSummary ? metricKey(selectedSummary) : '';
-	const detailQuery = useDataSourceQuery<Metric | undefined>(
+	const selectedKey = selectedSummary?.instrumentId ?? '';
+	const detailQuery = useDataSourceQuery<
+		| {
+				instrumentId: string;
+				metric: Metric;
+				totalPointCount: number;
+				truncatedPointCount: number;
+				metadataTruncated: boolean;
+		  }
+		| undefined
+	>(
 		dataSource,
 		async (ds) => {
 			if (!selectedSummary) return undefined;
-			const service = metricService(selectedSummary);
-			const source = metricSource(selectedSummary);
-			const result = await ds.listMetrics({
-				limit: 20,
-				pointLimit: 120,
-				meters: [meterName(selectedSummary)],
-				search: selectedSummary.name,
-				...(source ? { sources: [source] } : {}),
-				...(service ? { services: [service] } : {}),
+			const result = await ds.getMetricPoints({
+				instrumentId: selectedSummary.instrumentId,
+				limit: 120,
 			});
-			return result.rows.find((metric) => metricKey(metric) === selectedKey);
+			return {
+				instrumentId: selectedSummary.instrumentId,
+				metric: result.metric,
+				totalPointCount: result.totalPointCount,
+				truncatedPointCount: result.truncatedAttributes?.length ?? 0,
+				metadataTruncated:
+					result.metadataTruncated === true ||
+					result.resourceAttributesTruncated !== undefined ||
+					result.scopeAttributesTruncated !== undefined ||
+					result.histogramBucketsTruncated !== undefined,
+			};
 		},
 		`metric-detail:${selectedKey}`,
 		paused,
@@ -141,9 +164,9 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 		2_000,
 	);
 	const activeMetric =
-		detailQuery.value && metricKey(detailQuery.value) === selectedKey
+		detailQuery.value && detailQuery.value.instrumentId === selectedSummary?.instrumentId
 			? detailQuery.value
-			: selectedSummary;
+			: undefined;
 
 	return (
 		<>
@@ -166,30 +189,47 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 							<MetricTree
 								groups={groups}
 								activeMeter={selection.activeMeter}
-								activeMetricKey={selection.activeMetric ? metricKey(selection.activeMetric) : undefined}
+								activeMetricKey={selection.activeMetric?.instrumentId}
 								onSelectMeter={(meter) => {
 									setSelectedMeter(meter);
 									setSelectedMetricKey(null);
 								}}
 								onSelectMetric={(metric) => {
-									setSelectedMeter(metricGroupKey(metric));
-									setSelectedMetricKey(metricKey(metric));
+									setSelectedMeter(instrumentGroupKey(metric));
+									setSelectedMetricKey(metric.instrumentId);
 								}}
 							/>
 							<div className="otelux-metrics__workspace">
 								{activeMetric ? (
 									<MetricWorkspace
-										metric={activeMetric}
+										metric={activeMetric.metric}
+										totalPointCount={activeMetric.totalPointCount}
 										mode={mode}
 										onModeChange={setMode}
 										onShowDetails={() => setDetailsMetric(activeMetric)}
 									/>
+								) : detailQuery.error ? (
+									<div className="otelux-metrics__empty" role="alert">
+										<p>This instrument is no longer retained.</p>
+										<button
+											type="button"
+											className="otelux-load-more"
+											onClick={() => {
+												setSelectedMetricKey(null);
+												setListRevision((revision) => revision + 1);
+											}}
+										>
+											Refresh instruments
+										</button>
+									</div>
+								) : selectedSummary ? (
+									<div className="otelux-metrics__empty">Loading metric points…</div>
 								) : selection.activeGroup ? (
 									<MeterInstrumentTable
 										group={selection.activeGroup}
 										onSelectMetric={(metric) => {
-											setSelectedMeter(metricGroupKey(metric));
-											setSelectedMetricKey(metricKey(metric));
+											setSelectedMeter(instrumentGroupKey(metric));
+											setSelectedMetricKey(metric.instrumentId);
 										}}
 									/>
 								) : null}
@@ -210,15 +250,18 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 				onClose={() => setDetailsMetric(null)}
 				{...(detailsMetric
 					? {
-							title: detailsMetric.name,
-							accentVar: serviceColorVar(metricService(detailsMetric) ?? detailsMetric.name),
-							kindLabel: kindLabel(detailsMetric),
+							title: detailsMetric.metric.name,
+							accentVar: serviceColorVar(metricService(detailsMetric.metric) ?? detailsMetric.metric.name),
+							kindLabel: kindLabel(detailsMetric.metric),
 						}
 					: {})}
 			>
 				{detailsMetric ? (
 					<MetricDetail
-						metric={detailsMetric}
+						metric={detailsMetric.metric}
+						totalPointCount={detailsMetric.totalPointCount}
+						truncatedPointCount={detailsMetric.truncatedPointCount}
+						metadataTruncated={detailsMetric.metadataTruncated}
 						onViewValue={(key, value) => setViewValue({ key, value })}
 					/>
 				) : null}
@@ -237,25 +280,25 @@ interface MeterGroup {
 	label: string;
 	meter: string;
 	service: string;
-	metrics: Metric[];
+	metrics: MetricInstrumentSummary[];
 }
 
 interface MetricSelection {
 	activeGroup: MeterGroup | undefined;
-	activeMetric: Metric | undefined;
+	activeMetric: MetricInstrumentSummary | undefined;
 	activeMeter: string | undefined;
 }
 
 // OpenTelemetry instrument identity includes service + meter + name + type.
 // Group by the same service/meter boundary so equal names from codex_exec and
 // codex_cli_rs never appear as unexplained duplicates under one heading.
-function groupByMeter(rows: readonly Metric[]): MeterGroup[] {
+function groupByMeter(rows: readonly MetricInstrumentSummary[]): MeterGroup[] {
 	const groups = new Map<string, MeterGroup>();
 	for (const metric of rows) {
-		const meter = meterName(metric);
-		const service = metricService(metric) ?? '(no service)';
-		const source = metricSource(metric) ?? service;
-		const key = metricGroupKey(metric);
+		const meter = metric.meterName || '(default)';
+		const service = metric.serviceName ?? '(no service)';
+		const source = metric.sourceName ?? service;
+		const key = instrumentGroupKey(metric);
 		const existing = groups.get(key);
 		if (existing) existing.metrics.push(metric);
 		else {
@@ -285,7 +328,7 @@ function resolveMetricSelection(
 ): MetricSelection {
 	if (selectedMetricKey !== null) {
 		for (const group of groups) {
-			const metric = group.metrics.find((candidate) => metricKey(candidate) === selectedMetricKey);
+			const metric = group.metrics.find((candidate) => candidate.instrumentId === selectedMetricKey);
 			if (metric !== undefined) {
 				return { activeGroup: group, activeMetric: metric, activeMeter: group.key };
 			}
@@ -309,7 +352,7 @@ function MetricTree(props: {
 	activeMeter: string | undefined;
 	activeMetricKey: string | undefined;
 	onSelectMeter(meter: string): void;
-	onSelectMetric(metric: Metric): void;
+	onSelectMetric(metric: MetricInstrumentSummary): void;
 }): JSX.Element {
 	return (
 		<aside className="otelux-metrics-nav" aria-label="Metric instruments">
@@ -337,7 +380,7 @@ function MetricTree(props: {
 							</button>
 							<div className="otelux-metrics-tree__instruments">
 								{group.metrics.map((metric) => {
-									const key = metricKey(metric);
+									const key = metric.instrumentId;
 									return (
 										<button
 											type="button"
@@ -369,7 +412,7 @@ function MetricTree(props: {
 
 function MeterInstrumentTable(props: {
 	group: MeterGroup;
-	onSelectMetric(metric: Metric): void;
+	onSelectMetric(metric: MetricInstrumentSummary): void;
 }): JSX.Element {
 	return (
 		<section className="otelux-meter-overview" aria-label={`Meter ${props.group.label}`}>
@@ -396,10 +439,9 @@ function MeterInstrumentTable(props: {
 				</thead>
 				<tbody>
 					{props.group.metrics.map((metric) => {
-						const service = metricService(metric);
-						const updated = latestMetricTime(metric);
+						const updated = metric.latest?.timeUnixNano;
 						return (
-							<tr key={metricKey(metric)}>
+							<tr key={metric.instrumentId}>
 								<td>
 									<button
 										type="button"
@@ -410,11 +452,11 @@ function MeterInstrumentTable(props: {
 									</button>
 								</td>
 								<td>{kindLabel(metric)}</td>
-								<td>{service ?? '—'}</td>
-								<td className="otelux-metric-table__num">{latestMetricSummary(metric)}</td>
+								<td>{metric.serviceName ?? '—'}</td>
+								<td className="otelux-metric-table__num">{latestInstrumentSummary(metric)}</td>
 								<td>{metric.unit || '—'}</td>
 								<td>{updated !== undefined ? formatWallClock(updated) : '—'}</td>
-								<td className="otelux-metric-table__num">{metricPointCount(metric)}</td>
+								<td className="otelux-metric-table__num">{metric.pointCount}</td>
 							</tr>
 						);
 					})}
@@ -426,11 +468,12 @@ function MeterInstrumentTable(props: {
 
 function MetricWorkspace(props: {
 	metric: Metric;
+	totalPointCount: number;
 	mode: ViewMode;
 	onModeChange(mode: ViewMode): void;
 	onShowDetails(): void;
 }): JSX.Element {
-	const { metric, mode, onModeChange, onShowDetails } = props;
+	const { metric, totalPointCount, mode, onModeChange, onShowDetails } = props;
 	const service = metricService(metric);
 	const latest = latestMetricSummary(metric);
 	const updated = latestMetricTime(metric);
@@ -521,7 +564,14 @@ function MetricWorkspace(props: {
 					label="Updated"
 					value={updated !== undefined ? formatWallClock(updated) : '—'}
 				/>
-				<MetricSummaryCell label="Points" value={String(metricPointCount(metric))} />
+				<MetricSummaryCell
+					label="Points"
+					value={
+						totalPointCount === metricPointCount(metric)
+							? String(totalPointCount)
+							: `${metricPointCount(metric)} loaded / ${totalPointCount} total`
+					}
+				/>
 			</div>
 			{metric.description ? <p className="otelux-metric__desc">{metric.description}</p> : null}
 			<div className="otelux-metric__chart">
@@ -541,16 +591,8 @@ function MetricWorkspace(props: {
 	);
 }
 
-function metricKey(metric: Metric): string {
-	return `${metricGroupKey(metric)}\u0000${metric.name}\u0000${metric.type}`;
-}
-
-function metricGroupKey(metric: Metric): string {
-	return `${metricSource(metric) ?? ''}\u0000${metricService(metric) ?? ''}\u0000${meterName(metric)}`;
-}
-
-function meterName(metric: Metric): string {
-	return metric.scope.name || '(default)';
+function instrumentGroupKey(metric: MetricInstrumentSummary): string {
+	return `${metric.sourceName ?? ''}\u0000${metric.serviceName ?? ''}\u0000${metric.meterName || '(default)'}`;
 }
 
 function MetricSummaryCell(props: { label: string; value: string; strong?: boolean }): JSX.Element {
@@ -569,17 +611,20 @@ function MetricSummaryCell(props: { label: string; value: string; strong?: boole
 
 interface MetricDetailProps {
 	metric: Metric;
+	totalPointCount: number;
+	truncatedPointCount: number;
+	metadataTruncated: boolean;
 	onViewValue?: (key: string, value: AttributeValue) => void;
 }
 
 function MetricDetail(props: MetricDetailProps): JSX.Element {
-	const { metric, onViewValue } = props;
+	const { metric, totalPointCount, truncatedPointCount, metadataTruncated, onViewValue } = props;
 	const items: AccordionItem[] = [
 		{
 			id: 'instrument',
 			label: 'Instrument',
 			defaultOpen: true,
-			children: <MetricFacts metric={metric} />,
+			children: <MetricFacts metric={metric} totalPointCount={totalPointCount} />,
 		},
 		{
 			id: 'data-points',
@@ -621,13 +666,19 @@ function MetricDetail(props: MetricDetailProps): JSX.Element {
 
 	return (
 		<div className="otelux-metric-detail">
+			{truncatedPointCount > 0 || metadataTruncated ? (
+				<output className="otelux-metric__desc">
+					Large telemetry was projected to bounded chart data
+					{truncatedPointCount > 0 ? ` for ${truncatedPointCount} points` : ''}.
+				</output>
+			) : null}
 			<Accordion items={items} />
 		</div>
 	);
 }
 
-function MetricFacts(props: { metric: Metric }): JSX.Element {
-	const { metric } = props;
+function MetricFacts(props: { metric: Metric; totalPointCount: number }): JSX.Element {
+	const { metric, totalPointCount } = props;
 	const service = metricService(metric);
 	const updated = latestMetricTime(metric);
 	const temporality = temporalityLabel(metric);
@@ -643,7 +694,14 @@ function MetricFacts(props: { metric: Metric }): JSX.Element {
 			) : null}
 			<KVRow label="Latest" value={latestMetricSummary(metric)} />
 			<KVRow label="Updated" value={updated !== undefined ? formatWallClock(updated) : '—'} />
-			<KVRow label="Data points" value={String(metricPointCount(metric))} />
+			<KVRow
+				label="Data points"
+				value={
+					totalPointCount === metricPointCount(metric)
+						? String(totalPointCount)
+						: `${metricPointCount(metric)} loaded / ${totalPointCount} total`
+				}
+			/>
 		</div>
 	);
 }
@@ -741,6 +799,15 @@ function MetricDataPointTable(props: { metric: Metric }): JSX.Element {
 	}
 
 	return <ScalarTable points={metric.dataPoints} />;
+}
+
+function latestInstrumentSummary(metric: MetricInstrumentSummary): string {
+	const latest = metric.latest;
+	if (!latest) return '—';
+	if (latest.kind === 'histogram') {
+		return `${latest.count} obs${latest.sum !== undefined && latest.sum > 0 ? ` / ${formatNumber(latest.sum)} sum` : ''}`;
+	}
+	return formatNumber(latest.value);
 }
 
 function latestMetricSummary(metric: Metric): string {
@@ -1091,7 +1158,7 @@ function HistogramTable(props: { metric: HistogramMetric }): JSX.Element {
 	);
 }
 
-function kindLabel(metric: Metric): string {
+function kindLabel(metric: { type: Metric['type']; isMonotonic?: boolean }): string {
 	switch (metric.type) {
 		case 'sum':
 			return metric.isMonotonic ? 'Counter' : 'UpDownCounter';
@@ -1121,11 +1188,6 @@ function temporalityLabel(metric: Metric): string | undefined {
 function metricService(metric: Metric): string | undefined {
 	const v = metric.resource.attributes['service.name'];
 	return typeof v === 'string' ? v : undefined;
-}
-
-function metricSource(metric: Metric): string | undefined {
-	const namespace = metric.resource.attributes['service.namespace'];
-	return typeof namespace === 'string' && namespace !== '' ? namespace : metricService(metric);
 }
 
 // Compact number formatting: keep small integers exact, abbreviate large

@@ -1,3 +1,4 @@
+import { StaleReferenceError } from '@otelux/protocol';
 import { describe, expect, it, vi } from 'vitest';
 import type { LocalRuntime } from './runtime.js';
 import { createRuntimeRpcDispatcher } from './runtimeRpc.js';
@@ -40,7 +41,8 @@ function runtime(): LocalRuntime {
 			resource: { attributes: {} },
 			scope: { name: 'test' },
 		})),
-		listMetrics: vi.fn(async () => ({ rows: [], totalCount: 0 })),
+		listMetricInstruments: vi.fn(async () => ({ rows: [], totalCount: 0 })),
+		getMetricPoints: vi.fn(),
 		listResourceFacets: vi.fn(async () => ({ rows: [] })),
 		updateSettings: vi.fn(),
 		loadSampleData: vi.fn(async () => ({ traces: 1, logs: 1, metrics: 1 })),
@@ -60,13 +62,13 @@ describe('Runtime RPC dispatcher', () => {
 		const dispatcher = createRuntimeRpcDispatcher(runtime());
 		const response = await dispatcher.handle(
 			request('runtime/initialize', {
-				protocolVersion: '1.7.0',
+				protocolVersion: '2.7.0',
 				client: { name: 'test', version: '1.0.0' },
 			}),
 		);
 		expect(response).toMatchObject({
 			result: {
-				protocolVersion: '1.0.0',
+				protocolVersion: '2.0.0',
 				runtime: { name: 'otelux-runtime', version: '0.2.0-beta.1' },
 				capabilities: { events: true },
 				limits: { traces: 200, logs: 500 },
@@ -104,11 +106,21 @@ describe('Runtime RPC dispatcher', () => {
 		expect(
 			await dispatcher.handle(
 				request('runtime/initialize', {
-					protocolVersion: '2.0.0',
+					protocolVersion: '1.0.0',
 					client: { name: 'test', version: '1' },
 				}),
 			),
-		).toMatchObject({ error: { code: -32001, data: { supportedVersions: ['1.0.0'] } } });
+		).toMatchObject({ error: { code: -32001, data: { supportedVersions: ['2.0.0'] } } });
+		vi.mocked(local.getMetricPoints).mockRejectedValueOnce(new StaleReferenceError('metric'));
+		expect(
+			await dispatcher.handle(request('telemetry/getMetricPoints', { instrumentId: '1', limit: 10 })),
+		).toMatchObject({
+			error: {
+				code: -32006,
+				message: 'Stale reference',
+				data: { referenceKind: 'metric' },
+			},
+		});
 		const internal = await dispatcher.handle(request('telemetry/listTraces', {}));
 		expect(internal).toMatchObject({ error: { code: -32603, message: 'Internal error' } });
 		expect(JSON.stringify(internal)).not.toContain('SQL secret');

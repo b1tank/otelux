@@ -9,8 +9,6 @@ import type {
 	GetTraceQuery,
 	ListLogsQuery,
 	ListLogsResult,
-	ListMetricsQuery,
-	ListMetricsResult,
 	ListTracesQuery,
 	ListTracesResult,
 	SpanDetails,
@@ -42,7 +40,10 @@ class DeferredTraceSource implements DataSource {
 	getLogDetails(): Promise<never> {
 		throw new Error('not used');
 	}
-	listMetrics(_query: ListMetricsQuery): Promise<ListMetricsResult> {
+	listMetricInstruments(): Promise<never> {
+		throw new Error('not used');
+	}
+	getMetricPoints(): Promise<never> {
 		throw new Error('not used');
 	}
 	listResourceFacets() {

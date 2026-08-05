@@ -1,5 +1,13 @@
 import type { DatabaseSync, StatementSync } from 'node:sqlite';
-import type { ListMetricsQuery, ListMetricsResult } from '@otelux/protocol';
+import type {
+	GetMetricPointsQuery,
+	GetMetricPointsResult,
+	ListMetricInstrumentsQuery,
+	ListMetricInstrumentsResult,
+	ListMetricsQuery,
+	ListMetricsResult,
+	MetricInstrumentSummary,
+} from '@otelux/protocol';
 import type {
 	AggregationTemporality,
 	GaugeMetric,
@@ -34,6 +42,40 @@ interface InstrumentRow {
 	scope_version: string | null;
 	scope_attributes: string | null;
 	resource_attributes: string;
+}
+
+interface InstrumentSummaryRow {
+	id: bigint;
+	name: string;
+	description: string | null;
+	unit: string | null;
+	type: string;
+	is_monotonic: bigint | null;
+	temporality: bigint | null;
+	source_name: string;
+	service_name: string;
+	scope_name: string;
+	point_count: bigint;
+	time_unix_nano: bigint | null;
+	value: number | null;
+	count: bigint | null;
+	sum: number | null;
+}
+
+interface MetricPageRow extends InstrumentRow {
+	point_id: bigint | null;
+	point_time_unix_nano: bigint | null;
+	point_start_time_unix_nano: bigint | null;
+	point_flags: bigint | null;
+	point_attributes: string | null;
+	point_value: number | null;
+	point_count: bigint | null;
+	point_sum: number | null;
+	point_min: number | null;
+	point_max: number | null;
+	point_bucket_counts: string | null;
+	point_explicit_bounds: string | null;
+	total_point_count: bigint;
 }
 
 interface PointRow {
@@ -187,6 +229,109 @@ WHERE instrument_id = ?
 		}
 	}
 
+	listMetricInstruments(query: ListMetricInstrumentsQuery): ListMetricInstrumentsResult {
+		const where: string[] = [];
+		const params: Array<string | number | bigint> = [];
+		if (query.sources && query.sources.length > 0) {
+			where.push(`i.source_name IN (${query.sources.map(() => '?').join(', ')})`);
+			params.push(...query.sources);
+		}
+		if (query.services && query.services.length > 0) {
+			where.push(`i.service_name IN (${query.services.map(() => '?').join(', ')})`);
+			params.push(...query.services);
+		}
+		if (query.meters && query.meters.length > 0) {
+			where.push(`i.scope_name IN (${query.meters.map(() => '?').join(', ')})`);
+			params.push(...query.meters);
+		}
+		if (query.search) {
+			where.push("(lower(i.name) LIKE ? OR lower(coalesce(i.description, '')) LIKE ?)");
+			const needle = `%${query.search.toLowerCase()}%`;
+			params.push(needle, needle);
+		}
+		const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+		const countRow = this.db
+			.prepare(`SELECT COUNT(*) AS n FROM metric_instruments i ${whereSql}`)
+			.get(...params) as { n: number };
+		const limit = query.limit ?? 500;
+		const offset = query.offset ?? 0;
+		const stmt = this.db.prepare(`
+SELECT i.id, i.name, i.description, i.unit, i.type, i.is_monotonic, i.temporality,
+       i.source_name, i.service_name, i.scope_name,
+       (SELECT COUNT(*) FROM metric_points pc WHERE pc.instrument_id = i.id) AS point_count,
+       lp.time_unix_nano, lp.value, lp.count, lp.sum
+FROM metric_instruments i
+LEFT JOIN metric_points lp ON lp.id = (
+  SELECT id FROM metric_points
+  WHERE instrument_id = i.id
+  ORDER BY time_unix_nano DESC, id DESC
+  LIMIT 1
+)
+${whereSql}
+ORDER BY i.source_name ASC, i.service_name ASC, i.scope_name ASC, i.name ASC
+LIMIT ? OFFSET ?`);
+		stmt.setReadBigInts(true);
+		const rows = stmt.all(
+			...params,
+			BigInt(limit),
+			BigInt(offset),
+		) as unknown as InstrumentSummaryRow[];
+		return { rows: rows.map(instrumentSummaryFromRow), totalCount: countRow.n };
+	}
+
+	getMetricPoints(query: GetMetricPointsQuery): GetMetricPointsResult | undefined {
+		if (!/^\d+$/.test(query.instrumentId)) return undefined;
+		const limit = Math.max(1, Math.min(query.limit ?? 120, 1_000));
+		const cursor = query.cursor ? /^(\d+):(\d+)$/.exec(query.cursor) : undefined;
+		const cursorSql = cursor ? 'AND (time_unix_nano < ? OR (time_unix_nano = ? AND id < ?))' : '';
+		const stmt = this.db.prepare(`
+SELECT i.id, i.name, i.description, i.unit, i.type, i.is_monotonic, i.temporality,
+       i.scope_name, sc.version AS scope_version, sc.attributes AS scope_attributes,
+       r.attributes AS resource_attributes,
+       p.id AS point_id, p.time_unix_nano AS point_time_unix_nano,
+       p.start_time_unix_nano AS point_start_time_unix_nano, p.flags AS point_flags,
+       p.attributes AS point_attributes, p.value AS point_value, p.count AS point_count,
+       p.sum AS point_sum, p.min AS point_min, p.max AS point_max,
+       p.bucket_counts AS point_bucket_counts, p.explicit_bounds AS point_explicit_bounds,
+       (SELECT COUNT(*) FROM metric_points pc WHERE pc.instrument_id = i.id) AS total_point_count
+FROM metric_instruments i
+JOIN resources r ON r.id = i.resource_id
+JOIN scopes sc ON sc.id = i.scope_id
+LEFT JOIN (
+  SELECT * FROM metric_points
+  WHERE instrument_id = ?
+  ${cursorSql}
+  ORDER BY time_unix_nano DESC, id DESC
+  LIMIT ?
+) p ON p.instrument_id = i.id
+WHERE i.id = ?
+ORDER BY p.time_unix_nano DESC, p.id DESC`);
+		stmt.setReadBigInts(true);
+		const cursorParams = cursor
+			? [BigInt(cursor[1] as string), BigInt(cursor[1] as string), BigInt(cursor[2] as string)]
+			: [];
+		const rows = stmt.all(
+			query.instrumentId,
+			...cursorParams,
+			BigInt(limit + 1),
+			query.instrumentId,
+		) as unknown as MetricPageRow[];
+		const first = rows[0];
+		if (!first) return undefined;
+		const pointPageRows = rows.filter((row) => row.point_id !== null);
+		const hasMore = pointPageRows.length > limit;
+		const selectedRows = pointPageRows.slice(0, limit);
+		const last = selectedRows.at(-1);
+		const pointRows = selectedRows.flatMap(pointRowFromPageRow).reverse();
+		return {
+			metric: this.metricFromRow(first, pointRows),
+			totalPointCount: Number(first.total_point_count),
+			...(hasMore && last && last.point_time_unix_nano !== null && last.point_id !== null
+				? { nextCursor: `${last.point_time_unix_nano}:${last.point_id}` }
+				: {}),
+		};
+	}
+
 	listMetrics(query: ListMetricsQuery): ListMetricsResult {
 		const where: string[] = [];
 		const params: Array<string | number | bigint> = [];
@@ -305,6 +450,78 @@ ORDER BY instrument_id ASC, id ASC`);
 		};
 		return metric;
 	}
+}
+
+function pointRowFromPageRow(row: MetricPageRow): PointRow[] {
+	if (row.point_id === null || row.point_time_unix_nano === null || row.point_attributes === null) {
+		return [];
+	}
+	return [
+		{
+			instrument_id: row.id,
+			time_unix_nano: row.point_time_unix_nano,
+			start_time_unix_nano: row.point_start_time_unix_nano,
+			flags: row.point_flags,
+			attributes: row.point_attributes,
+			value: row.point_value,
+			count: row.point_count,
+			sum: row.point_sum,
+			min: row.point_min,
+			max: row.point_max,
+			bucket_counts: row.point_bucket_counts,
+			explicit_bounds: row.point_explicit_bounds,
+		},
+	];
+}
+
+function instrumentSummaryFromRow(row: InstrumentSummaryRow): MetricInstrumentSummary {
+	const base = {
+		instrumentId: row.id.toString(),
+		name: row.name,
+		...(row.description !== null ? { description: row.description } : {}),
+		...(row.unit !== null ? { unit: row.unit } : {}),
+		type: row.type as Metric['type'],
+		...(row.source_name !== '' ? { sourceName: row.source_name } : {}),
+		...(row.service_name !== '' ? { serviceName: row.service_name } : {}),
+		meterName: row.scope_name,
+		pointCount: Number(row.point_count),
+	};
+	if (row.type === 'histogram') {
+		return {
+			...base,
+			type: 'histogram',
+			temporality: Number(row.temporality ?? 0) as AggregationTemporality,
+			...(row.time_unix_nano !== null
+				? {
+						latest: {
+							kind: 'histogram' as const,
+							timeUnixNano: row.time_unix_nano,
+							count: Number(row.count ?? 0),
+							...(row.sum !== null ? { sum: row.sum } : {}),
+						},
+					}
+				: {}),
+		};
+	}
+	return {
+		...base,
+		type: row.type === 'sum' ? 'sum' : 'gauge',
+		...(row.type === 'sum'
+			? {
+					isMonotonic: row.is_monotonic === 1n,
+					temporality: Number(row.temporality ?? 0) as AggregationTemporality,
+				}
+			: {}),
+		...(row.time_unix_nano !== null
+			? {
+					latest: {
+						kind: 'number' as const,
+						timeUnixNano: row.time_unix_nano,
+						value: row.value ?? 0,
+					},
+				}
+			: {}),
+	};
 }
 
 function numberPointFromRow(row: PointRow): NumberDataPoint {

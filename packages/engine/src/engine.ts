@@ -3,10 +3,14 @@ import type {
 	DataSource,
 	Disposable,
 	GetLogDetailsQuery,
+	GetMetricPointsQuery,
+	GetMetricPointsResult,
 	GetSpanDetailsQuery,
 	GetTraceQuery,
 	ListLogsQuery,
 	ListLogsResult,
+	ListMetricInstrumentsQuery,
+	ListMetricInstrumentsResult,
 	ListMetricsQuery,
 	ListMetricsResult,
 	ListResourceFacetsQuery,
@@ -16,7 +20,8 @@ import type {
 	LogDetails,
 	SpanDetails,
 } from '@otelux/protocol';
-import type { LogRecord, Metric, Span, Trace } from '@otelux/types';
+import { StaleReferenceError } from '@otelux/protocol';
+import type { AttributeMap, AttributeValue, LogRecord, Metric, Span, Trace } from '@otelux/types';
 import type { Storage } from './storage.js';
 import { traceFromSpans } from './trace.js';
 
@@ -39,6 +44,8 @@ export interface ServiceOverviewRow {
 
 export interface Engine extends DataSource {
 	getTraceWaterfall(query: GetTraceQuery): Promise<Trace>;
+	/** Internal bounded composition method for MCP/service summaries. */
+	listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult>;
 	getServiceOverview(sinceMinutes: number): Promise<readonly ServiceOverviewRow[]>;
 	/** Full records for bounded agent summaries; UI list RPCs use lightweight DTOs. */
 	searchLogs(query: ListLogsQuery): Promise<{ rows: readonly LogRecord[]; totalCount: number }>;
@@ -158,6 +165,30 @@ export function createEngine(options: EngineOptions): Engine {
 			return await storage.searchLogs(query);
 		},
 
+		async listMetricInstruments(
+			query: ListMetricInstrumentsQuery,
+		): Promise<ListMetricInstrumentsResult> {
+			const result = await storage.listMetricInstruments(query);
+			return {
+				...result,
+				rows: result.rows.map((row) => ({
+					...row,
+					name: row.name.slice(0, 512),
+					...(row.description !== undefined ? { description: row.description.slice(0, 2_048) } : {}),
+					...(row.unit !== undefined ? { unit: row.unit.slice(0, 128) } : {}),
+					meterName: row.meterName.slice(0, 512),
+					...(row.sourceName !== undefined ? { sourceName: row.sourceName.slice(0, 512) } : {}),
+					...(row.serviceName !== undefined ? { serviceName: row.serviceName.slice(0, 512) } : {}),
+				})),
+			};
+		},
+
+		async getMetricPoints(query: GetMetricPointsQuery): Promise<GetMetricPointsResult> {
+			const result = await storage.getMetricPoints(query);
+			if (!result) throw new StaleReferenceError('metric');
+			return boundMetricPointAttributes(result);
+		},
+
 		async listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult> {
 			return await storage.listMetrics(query);
 		},
@@ -207,10 +238,10 @@ export function createEngine(options: EngineOptions): Engine {
 				entry.logSeverity[band] = (entry.logSeverity[band] ?? 0) + 1;
 			}
 
-			const metrics = await storage.listMetrics({ limit: 5_000, pointLimit: 1 });
+			const metrics = await storage.listMetricInstruments({ limit: 5_000 });
 			for (const metric of metrics.rows) {
-				const name = metric.resource.attributes['service.name'];
-				if (typeof name !== 'string' || name === '') continue;
+				const name = metric.serviceName;
+				if (!name) continue;
 				overviewEntry(services, name).metricInstruments++;
 			}
 
@@ -241,6 +272,134 @@ export function createEngine(options: EngineOptions): Engine {
 			listeners.clear();
 			await storage.close();
 		},
+	};
+}
+
+const MAX_METRIC_POINT_ATTRIBUTES = 2;
+const MAX_METRIC_ATTRIBUTE_STRING = 256;
+const MAX_METRIC_ATTRIBUTE_ARRAY_ITEMS = 16;
+
+function boundAttributeValue(value: AttributeValue): { value: AttributeValue; truncated: boolean } {
+	if (typeof value === 'string') {
+		return value.length > MAX_METRIC_ATTRIBUTE_STRING
+			? { value: value.slice(0, MAX_METRIC_ATTRIBUTE_STRING), truncated: true }
+			: { value, truncated: false };
+	}
+	if (!Array.isArray(value)) return { value, truncated: false };
+	const items = value
+		.slice(0, MAX_METRIC_ATTRIBUTE_ARRAY_ITEMS)
+		.map((item) =>
+			typeof item === 'string' ? item.slice(0, MAX_METRIC_ATTRIBUTE_STRING) : item,
+		) as AttributeValue;
+	const stringWasTruncated = value.some(
+		(item) => typeof item === 'string' && item.length > MAX_METRIC_ATTRIBUTE_STRING,
+	);
+	return {
+		value: items,
+		truncated: value.length > MAX_METRIC_ATTRIBUTE_ARRAY_ITEMS || stringWasTruncated,
+	};
+}
+
+function boundAttributes(
+	attributes: AttributeMap,
+	priorityKeys: readonly string[] = [],
+): {
+	attributes: AttributeMap;
+	omittedAttributeCount: number;
+} {
+	const priority = new Map(priorityKeys.map((key, index) => [key, index] as const));
+	const entries = Object.entries(attributes).sort(([a], [b]) => {
+		const aPriority = priority.get(a) ?? Number.MAX_SAFE_INTEGER;
+		const bPriority = priority.get(b) ?? Number.MAX_SAFE_INTEGER;
+		return aPriority - bPriority || a.localeCompare(b);
+	});
+	const kept: Record<string, AttributeValue> = {};
+	let omittedAttributeCount = Math.max(0, entries.length - MAX_METRIC_POINT_ATTRIBUTES);
+	for (const [key, value] of entries.slice(0, MAX_METRIC_POINT_ATTRIBUTES)) {
+		if (key.length > 128) {
+			omittedAttributeCount++;
+			continue;
+		}
+		const bounded = boundAttributeValue(value);
+		kept[key] = bounded.value;
+		if (bounded.truncated) omittedAttributeCount++;
+	}
+	return { attributes: kept, omittedAttributeCount };
+}
+
+function boundMetricPointAttributes(result: GetMetricPointsResult): GetMetricPointsResult {
+	const truncatedAttributes: Array<{
+		pointIndex: number;
+		truncatedOrOmittedAttributeCount: number;
+	}> = [];
+	const histogramBucketsTruncated: number[] = [];
+	const points = result.metric.dataPoints.map((point, pointIndex) => {
+		const bounded = boundAttributes(point.attributes);
+		if (bounded.omittedAttributeCount > 0) {
+			truncatedAttributes.push({
+				pointIndex,
+				truncatedOrOmittedAttributeCount: bounded.omittedAttributeCount,
+			});
+		}
+		if ('bucketCounts' in point && point.bucketCounts.length > 256) {
+			histogramBucketsTruncated.push(pointIndex);
+			return {
+				...point,
+				attributes: bounded.attributes,
+				bucketCounts: point.bucketCounts.slice(0, 256),
+				explicitBounds: point.explicitBounds.slice(0, 255),
+			};
+		}
+		return { ...point, attributes: bounded.attributes };
+	});
+	const resource = boundAttributes(result.metric.resource.attributes, [
+		'service.name',
+		'service.namespace',
+	]);
+	const scope = result.metric.scope.attributes
+		? boundAttributes(result.metric.scope.attributes)
+		: undefined;
+	const name = result.metric.name.slice(0, 512);
+	const description = result.metric.description?.slice(0, 2_048);
+	const unit = result.metric.unit?.slice(0, 128);
+	const scopeName = result.metric.scope.name.slice(0, 512);
+	const scopeVersion = result.metric.scope.version?.slice(0, 128);
+	const metadataTruncated =
+		name !== result.metric.name ||
+		description !== result.metric.description ||
+		unit !== result.metric.unit ||
+		scopeName !== result.metric.scope.name ||
+		scopeVersion !== result.metric.scope.version;
+	const common = {
+		name,
+		...(description !== undefined ? { description } : {}),
+		...(unit !== undefined ? { unit } : {}),
+		resource: { ...result.metric.resource, attributes: resource.attributes },
+		scope: {
+			...result.metric.scope,
+			name: scopeName,
+			...(scopeVersion !== undefined ? { version: scopeVersion } : {}),
+			...(scope ? { attributes: scope.attributes } : {}),
+		},
+	};
+	const metric =
+		result.metric.type === 'histogram'
+			? { ...result.metric, ...common, dataPoints: points as typeof result.metric.dataPoints }
+			: result.metric.type === 'gauge'
+				? { ...result.metric, ...common, dataPoints: points as typeof result.metric.dataPoints }
+				: { ...result.metric, ...common, dataPoints: points as typeof result.metric.dataPoints };
+	return {
+		...result,
+		metric,
+		...(truncatedAttributes.length > 0 ? { truncatedAttributes } : {}),
+		...(resource.omittedAttributeCount > 0
+			? { resourceAttributesTruncated: resource.omittedAttributeCount }
+			: {}),
+		...(scope && scope.omittedAttributeCount > 0
+			? { scopeAttributesTruncated: scope.omittedAttributeCount }
+			: {}),
+		...(metadataTruncated ? { metadataTruncated: true } : {}),
+		...(histogramBucketsTruncated.length > 0 ? { histogramBucketsTruncated } : {}),
 	};
 }
 

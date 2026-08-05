@@ -4,7 +4,15 @@
  * implement the same interface so the UI is unaware of where data lives.
  */
 
-import type { LogRecord, Metric, Span, SpanId, Trace, TraceId } from '@otelux/types';
+import type {
+	AggregationTemporality,
+	LogRecord,
+	Metric,
+	Span,
+	SpanId,
+	Trace,
+	TraceId,
+} from '@otelux/types';
 
 export interface Disposable {
 	dispose(): void;
@@ -124,21 +132,10 @@ export interface GetLogDetailsQuery {
 
 export type LogDetails = LogRecord;
 
-/**
- * Query for the metrics page.
- *
- * Filters compose with AND; values inside an array compose with OR.
- * `services` filters by resource `service.name`; `meters` filters by
- * instrumentation-scope (meter) name; `search` matches the instrument
- * name/description. Unlike traces/logs there is no time window here yet —
- * the engine returns whole instruments (with all their buffered data
- * points) and the UI windows them client-side when charting.
- */
-export interface ListMetricsQuery {
+/** Shared filters for metric instrument discovery. */
+export interface ListMetricInstrumentsQuery {
 	limit?: number;
 	offset?: number;
-	/** Most-recent points returned per instrument. Defaults to 120; maximum 10,000. */
-	pointLimit?: number;
 	/** Application-level source (`service.namespace`, falling back to `service.name`). */
 	sources?: readonly string[];
 	services?: readonly string[];
@@ -146,6 +143,67 @@ export interface ListMetricsQuery {
 	search?: string;
 }
 
+export type MetricLatestValue =
+	| { readonly kind: 'number'; readonly timeUnixNano: bigint; readonly value: number }
+	| {
+			readonly kind: 'histogram';
+			readonly timeUnixNano: bigint;
+			readonly count: number;
+			readonly sum?: number;
+	  };
+
+export interface MetricInstrumentSummary {
+	/** Opaque storage identity used only with getMetricPoints. */
+	instrumentId: string;
+	name: string;
+	description?: string;
+	unit?: string;
+	type: Metric['type'];
+	isMonotonic?: boolean;
+	temporality?: AggregationTemporality;
+	sourceName?: string;
+	serviceName?: string;
+	meterName: string;
+	pointCount: number;
+	latest?: MetricLatestValue;
+}
+
+export interface ListMetricInstrumentsResult {
+	rows: readonly MetricInstrumentSummary[];
+	totalCount: number;
+}
+
+export interface GetMetricPointsQuery {
+	instrumentId: string;
+	/** Most-recent points to return. Defaults to 120; maximum 1,000. */
+	limit?: number;
+	/** Opaque continuation returned by the previous point page. */
+	cursor?: string;
+}
+
+export interface TruncatedMetricPointAttributes {
+	pointIndex: number;
+	truncatedOrOmittedAttributeCount: number;
+}
+
+export interface GetMetricPointsResult {
+	metric: Metric;
+	totalPointCount: number;
+	nextCursor?: string;
+	truncatedAttributes?: readonly TruncatedMetricPointAttributes[];
+	resourceAttributesTruncated?: number;
+	scopeAttributesTruncated?: number;
+	metadataTruncated?: boolean;
+	histogramBucketsTruncated?: readonly number[];
+}
+
+/** Internal engine query retained for bounded MCP/service composition. */
+export interface ListMetricsQuery extends ListMetricInstrumentsQuery {
+	/** Most-recent points returned per instrument. Defaults to 120; maximum 10,000. */
+	pointLimit?: number;
+}
+
+/** Internal engine result retained for bounded MCP/service composition. */
 export interface ListMetricsResult {
 	rows: readonly Metric[];
 	totalCount: number;
@@ -196,7 +254,8 @@ export type InvokeMessage =
 	| { kind: 'getSpanDetails'; query: GetSpanDetailsQuery }
 	| { kind: 'listLogs'; query: ListLogsQuery }
 	| { kind: 'getLogDetails'; query: GetLogDetailsQuery }
-	| { kind: 'listMetrics'; query: ListMetricsQuery }
+	| { kind: 'listMetricInstruments'; query: ListMetricInstrumentsQuery }
+	| { kind: 'getMetricPoints'; query: GetMetricPointsQuery }
 	| { kind: 'listResourceFacets'; query: ListResourceFacetsQuery }
 	| { kind: 'getSettings' }
 	| { kind: 'updateSettings'; patch: PartialSettings }
@@ -217,27 +276,29 @@ export type InvokeResultFor<M extends InvokeMessage> = M extends { kind: 'listTr
 				? ListLogsResult
 				: M extends { kind: 'getLogDetails' }
 					? LogDetails
-					: M extends { kind: 'listMetrics' }
-						? ListMetricsResult
-						: M extends { kind: 'listResourceFacets' }
-							? ListResourceFacetsResult
-							: M extends { kind: 'getSettings' }
-								? Settings
-								: M extends { kind: 'updateSettings' }
-									? UpdateSettingsResult
-									: M extends { kind: 'getReceiverStatus' }
-										? ReceiverStatus
-										: M extends { kind: 'getMcpStatus' }
-											? McpStatus
-											: M extends { kind: 'getStoragePath' }
-												? StoragePathInfo
-												: M extends { kind: 'getStorageUsage' }
-													? StorageUsageInfo
-													: M extends { kind: 'loadSampleData' }
-														? LoadSampleDataResult
-														: M extends { kind: 'clearData' }
-															? undefined
-															: never;
+					: M extends { kind: 'listMetricInstruments' }
+						? ListMetricInstrumentsResult
+						: M extends { kind: 'getMetricPoints' }
+							? GetMetricPointsResult
+							: M extends { kind: 'listResourceFacets' }
+								? ListResourceFacetsResult
+								: M extends { kind: 'getSettings' }
+									? Settings
+									: M extends { kind: 'updateSettings' }
+										? UpdateSettingsResult
+										: M extends { kind: 'getReceiverStatus' }
+											? ReceiverStatus
+											: M extends { kind: 'getMcpStatus' }
+												? McpStatus
+												: M extends { kind: 'getStoragePath' }
+													? StoragePathInfo
+													: M extends { kind: 'getStorageUsage' }
+														? StorageUsageInfo
+														: M extends { kind: 'loadSampleData' }
+															? LoadSampleDataResult
+															: M extends { kind: 'clearData' }
+																? undefined
+																: never;
 
 export interface DataSource {
 	readonly kind: 'otelux/datasource';
@@ -248,7 +309,8 @@ export interface DataSource {
 	getSpanDetails(query: GetSpanDetailsQuery): Promise<SpanDetails>;
 	listLogs(query: ListLogsQuery): Promise<ListLogsResult>;
 	getLogDetails(query: GetLogDetailsQuery): Promise<LogDetails>;
-	listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult>;
+	listMetricInstruments(query: ListMetricInstrumentsQuery): Promise<ListMetricInstrumentsResult>;
+	getMetricPoints(query: GetMetricPointsQuery): Promise<GetMetricPointsResult>;
 	listResourceFacets(query: ListResourceFacetsQuery): Promise<ListResourceFacetsResult>;
 	subscribe(handler: (event: ChangeEvent) => void): Disposable;
 }

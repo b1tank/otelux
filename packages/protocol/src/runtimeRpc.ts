@@ -1,6 +1,7 @@
 import type {
+	GetMetricPointsQuery,
 	ListLogsQuery,
-	ListMetricsQuery,
+	ListMetricInstrumentsQuery,
 	ListResourceFacetsQuery,
 	ListTracesQuery,
 	PartialSettings,
@@ -9,15 +10,16 @@ import type {
 } from './index.js';
 import {
 	ProtocolValidationError,
+	parseGetMetricPointsQuery,
 	parseListLogsQuery,
-	parseListMetricsQuery,
+	parseListMetricInstrumentsQuery,
 	parseListResourceFacetsQuery,
 	parseListTracesQuery,
 	parsePartialSettings,
 } from './validation.js';
 
 export const JSON_RPC_VERSION = '2.0' as const;
-export const RUNTIME_RPC_PROTOCOL_VERSION = '1.0.0' as const;
+export const RUNTIME_RPC_PROTOCOL_VERSION = '2.0.0' as const;
 
 export const RUNTIME_RPC_ERROR = {
 	PARSE_ERROR: -32700,
@@ -30,7 +32,15 @@ export const RUNTIME_RPC_ERROR = {
 	INVALID_CURSOR: -32003,
 	CONFLICT: -32004,
 	RESPONSE_TOO_LARGE: -32005,
+	STALE_REFERENCE: -32006,
 } as const;
+
+export class StaleReferenceError extends Error {
+	constructor(readonly referenceKind: 'log' | 'metric') {
+		super(`${referenceKind} reference is no longer available`);
+		this.name = 'StaleReferenceError';
+	}
+}
 
 export type JsonRpcId = string | number | null;
 
@@ -81,7 +91,7 @@ export interface RuntimeInitializeResult {
 		readonly traces: 200;
 		readonly logs: 500;
 		readonly metrics: 500;
-		readonly metricPoints: 10_000;
+		readonly metricPoints: 1_000;
 	};
 }
 
@@ -111,7 +121,8 @@ export type RuntimeRpcMethod =
 	| 'telemetry/getSpan'
 	| 'telemetry/listLogs'
 	| 'telemetry/getLog'
-	| 'telemetry/listMetrics'
+	| 'telemetry/listMetricInstruments'
+	| 'telemetry/getMetricPoints'
 	| 'telemetry/getFacets';
 
 export type DecodedRuntimeRpcCall =
@@ -130,7 +141,11 @@ export type DecodedRuntimeRpcCall =
 	  }
 	| { readonly method: 'telemetry/listLogs'; readonly params: ListLogsQuery }
 	| { readonly method: 'telemetry/getLog'; readonly params: { readonly logId: string } }
-	| { readonly method: 'telemetry/listMetrics'; readonly params: ListMetricsQuery }
+	| {
+			readonly method: 'telemetry/listMetricInstruments';
+			readonly params: ListMetricInstrumentsQuery;
+	  }
+	| { readonly method: 'telemetry/getMetricPoints'; readonly params: GetMetricPointsQuery }
 	| { readonly method: 'telemetry/getFacets'; readonly params: ListResourceFacetsQuery };
 
 function record(value: unknown, path: string): Record<string, unknown> {
@@ -274,8 +289,10 @@ export function decodeRuntimeRpcCall(request: RuntimeRpcRequest): DecodedRuntime
 			return { method, params: parseListLogsQuery(request.params, '$.params') };
 		case 'telemetry/getLog':
 			return { method, params: logParams(request.params) };
-		case 'telemetry/listMetrics':
-			return { method, params: parseListMetricsQuery(request.params, '$.params') };
+		case 'telemetry/listMetricInstruments':
+			return { method, params: parseListMetricInstrumentsQuery(request.params, '$.params') };
+		case 'telemetry/getMetricPoints':
+			return { method, params: parseGetMetricPointsQuery(request.params, '$.params') };
 		case 'telemetry/getFacets':
 			return {
 				method,

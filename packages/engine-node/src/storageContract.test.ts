@@ -434,6 +434,54 @@ function runStorageContract(label: string, make: () => Storage): void {
 			expect(metric.dataPoints.map((p) => p.value)).toEqual([5, 7]);
 			const recent = (await storage.listMetrics({ pointLimit: 1 })).rows[0] as SumMetric;
 			expect(recent.dataPoints.map((p) => p.value)).toEqual([7]);
+
+			const instruments = await storage.listMetricInstruments({});
+			expect(instruments).toMatchObject({
+				totalCount: 1,
+				rows: [
+					{
+						name: 'codex.tokens',
+						type: 'sum',
+						serviceName: 'codex',
+						meterName: 'codex-meter',
+						pointCount: 2,
+						latest: { kind: 'number', timeUnixNano: 2n, value: 7 },
+					},
+				],
+			});
+			const instrumentId = instruments.rows[0]?.instrumentId;
+			if (!instrumentId) throw new Error('expected instrument ID');
+			const points = await storage.getMetricPoints({ instrumentId, limit: 1 });
+			expect(points?.totalPointCount).toBe(2);
+			expect((points?.metric as SumMetric).dataPoints.map((point) => point.value)).toEqual([7]);
+			expect(points?.metric.resource.attributes['service.name']).toBe('codex');
+			expect(points?.nextCursor).toBe('2:2');
+			const firstCursor = points?.nextCursor;
+			if (!firstCursor) throw new Error('expected point cursor');
+			const older = await storage.getMetricPoints({
+				instrumentId,
+				limit: 1,
+				cursor: firstCursor,
+			});
+			expect((older?.metric as SumMetric).dataPoints.map((point) => point.value)).toEqual([5]);
+			expect(older?.nextCursor).toBeUndefined();
+
+			await storage.writeMetrics([
+				{ ...base, dataPoints: [{ timeUnixNano: 0n, value: 3, attributes: {} }] },
+			]);
+			const eventTimePage = await storage.getMetricPoints({ instrumentId, limit: 2 });
+			expect((eventTimePage?.metric as SumMetric).dataPoints.map((point) => point.value)).toEqual([
+				5, 7,
+			]);
+			expect(eventTimePage?.nextCursor).toBe('1:1');
+			const eventCursor = eventTimePage?.nextCursor;
+			if (!eventCursor) throw new Error('expected event-time cursor');
+			const oldest = await storage.getMetricPoints({
+				instrumentId,
+				limit: 2,
+				cursor: eventCursor,
+			});
+			expect((oldest?.metric as SumMetric).dataPoints.map((point) => point.value)).toEqual([3]);
 		});
 
 		it('stores gauge and histogram instruments and filters by service/meter', async () => {
@@ -495,6 +543,7 @@ function runStorageContract(label: string, make: () => Storage): void {
 			expect((await storage.listTraces({})).totalCount).toBe(0);
 			expect((await storage.listLogs({})).totalCount).toBe(0);
 			expect((await storage.listMetrics({})).totalCount).toBe(0);
+			expect((await storage.listMetricInstruments({})).totalCount).toBe(0);
 
 			// Writing after a clear must still work — for SQLite this proves the
 			// interner cache was reset so resource/scope ids are re-created rather

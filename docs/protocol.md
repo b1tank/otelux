@@ -77,7 +77,7 @@ Protocol 0.6 also separates trace inspection payloads: `getTraceWaterfall` retur
 
 Trace and log list pages may use the opaque `cursor` returned as `nextCursor`; memory and SQLite backends order by the selected sort field plus a stable trace/log ID and apply the cursor before the next bounded page. Offset remains for backward compatibility. Setting `includeTotalCount: false` skips SQLite's filtered `COUNT(*)`; `totalCountIsExact: false` then identifies the page-size fallback.
 
-Source and service dropdowns use `listResourceFacets({ signal, facet, sources? })`, a grouped bounded result, rather than sampling raw telemetry. `source` is resource `service.namespace` with exact `service.name` fallback; selecting a source scopes the secondary service facet. Trace membership is deduplicated before counting. Metric lists request one latest point per instrument; a second bounded query loads the selected instrument's recent history. These payload-shape rules are part of the DataSource contract and must survive the HTTP/SSE adapter.
+Source and service dropdowns use `listResourceFacets({ signal, facet, sources? })`, a grouped bounded result, rather than sampling raw telemetry. `source` is resource `service.namespace` with exact `service.name` fallback; selecting a source scopes the secondary service facet. Trace membership is deduplicated before counting. Metric lists return metadata, total point counts, and bounded latest-value summaries without point/resource/scope bags. A second event-time-ordered query loads the selected instrument's recent history with an opaque continuation cursor. Point attributes are explicitly projected to a small chart-safe budget; truncation metadata reports every affected point instead of silently omitting content. These payload-shape rules are part of the DataSource contract and must survive every adapter.
 
 ### No internal gRPC
 
@@ -93,13 +93,13 @@ The first request from a client is `runtime/initialize`:
   "id": "1",
   "method": "runtime/initialize",
   "params": {
-    "protocolVersion": "1.0",
+    "protocolVersion": "2.0",
     "client": { "name": "otelux-desktop", "version": "0.1.0" }
   }
 }
 ```
 
-A successful response returns the negotiated version, runtime identity, capabilities, and limits. An unsupported major version returns JSON-RPC error `-32001` with supported versions in `error.data`.
+A successful response returns the negotiated version, runtime identity, capabilities, and limits. An unsupported major version returns JSON-RPC error `-32001` with supported versions in `error.data`. Runtime protocol 2 removes the pre-daemon combined `telemetry/listMetrics` method in favor of bounded `telemetry/listMetricInstruments` and `telemetry/getMetricPoints`; this API has not shipped as an independently managed daemon yet.
 
 Required method families:
 
@@ -115,8 +115,8 @@ Required method families:
 | `telemetry/getSpan` | `traceId`, `spanId` | one span | one span |
 | `telemetry/listLogs` | cursor query | lightweight log-summary page | max 500 rows; messages capped at 4,096 characters |
 | `telemetry/getLog` | opaque decimal `logId` from a list row | one full log record | one selected record |
-| `telemetry/listMetricInstruments` | cursor query | instrument metadata page, no point history | max 500 rows |
-| `telemetry/getMetricPoints` | instrument ID, time window, cursor | one bounded point page | max 2,000 points |
+| `telemetry/listMetricInstruments` | bounded filter/offset query | instrument metadata/latest-value page, no point or attribute bags | max 500 rows |
+| `telemetry/getMetricPoints` | opaque instrument ID, limit, and continuation cursor | one selected instrument with event-time-ordered points, full resource/scope metadata, and explicit attribute-truncation metadata | max 1,000 points/page and 2 MiB encoded response |
 | `telemetry/getFacets` | signal/time/filter scope | service, scope, meter, severity counts | bounded grouped values |
 
 Methods must use one canonical registry that generates or validates Desktop/CLI/browser adapters. MCP tools call engine query services directly and may compose several methods, but they do not redefine the underlying query semantics.
@@ -135,6 +135,7 @@ Runtime methods use JSON-RPC errors consistently:
 | `-32002` | Runtime not ready or shutting down |
 | `-32003` | Cursor expired or invalid |
 | `-32004` | Conflict, including competing mutation or migration state |
+| `-32006` | Stale opaque reference removed by retention, clear, or replacement; refetch the owning list |
 
 Validation failures include a stable machine-readable path/code in `error.data`, not stack traces or SQL text.
 
@@ -189,7 +190,7 @@ Rules:
 
 Before the daemon API is considered stable:
 
-1. Split domain types from the complete Runtime RPC wire DTO registry in `@otelux/protocol` — **delivered for initialize/status/settings/sample/clear and current telemetry methods; dedicated split metric metadata/point methods remain before UI adapter conversion**.
+1. Split domain types from the complete Runtime RPC wire DTO registry in `@otelux/protocol` — **delivered for initialize/status/settings/sample/clear and current telemetry methods, including separate metric instrument metadata and selected point-history methods**.
 2. Add explicit bounded `encodeWire` / `decodeWire` codecs with tagged bigint, malformed-input, finite-number, cycle, depth/node/string, and compatibility tests — **delivered**.
 3. Generate checked-in JSON Schema draft 2020-12 snapshots under `packages/protocol/schema/v1/` — **delivered for tagged bigint, `runtime.json`, Electron invoke/runtime events, Runtime RPC envelopes, and SSE envelopes; method-specific result schemas remain**. Every schema has a stable `$id` under `https://otelux.dev/schema/v1/`.
 4. Add schema compatibility tests: old fixture -> new decoder, compatible future fields -> sanitized current decoder behavior, unsupported major -> deterministic error — **delivered for runtime state, wire codecs, and Runtime RPC major negotiation**.
@@ -217,7 +218,7 @@ Remaining before daemon conversion:
 
 - `@otelux/adapter-http` implements current `DataSource` queries plus status/settings/sample/clear controls over initialized tagged-bigint JSON-RPC, with strict loopback-origin pinning, redirects disabled, 10-second RPC deadlines, 2 MiB streamed-response bounds, recoverable initialization, and one shared authenticated fetch-SSE connection with bounded frames/reconnect/resync/abort/disposal and no URL tokens.
 - Real SQLite-backed direct/HTTP parity covers traces, waterfalls, spans, lightweight log lists plus selected full-log details, metrics, facets, bigint fidelity, auth failure, RPC errors, SSE invalidation, and clear. IPC parity and Desktop conversion remain.
-- Split metric metadata from point-history RPC methods before moving the current UI.
+- Metric discovery uses lightweight metadata/latest-value summaries, while `getMetricPoints` pages at most 1,000 event-time-ordered points plus full resource/scope metadata for one opaque instrument ID. Chart-safe attribute projection is explicit through per-point truncation metadata, and stale IDs have a targeted recovery error.
 - MCP tool input schemas are advertised but handlers still cast inputs rather than validating them; tool results have no output schemas.
 - Add scoped one-time browser sessions and static workbench serving; raw control tokens must not enter renderer/browser context.
 

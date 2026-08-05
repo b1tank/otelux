@@ -24,7 +24,7 @@ Test quality is measured by release-risk coverage rather than by pursuing 100% l
 - Pi package smoke verification loads `plugins/otelux`, exposes `/otelux-status`, and registers the bridge's `otel_*` tools without a second MCP implementation.
 - Packaged end-to-end tests launch release artifacts, assert the sandboxed preload bridge loads and the workbench visibly renders, close the window while ingest remains live, ingest traces, logs, and metrics, exercise one inspection path per signal, restart, verify persistence, clear data, and fully quit without orphaned listeners.
 - Accessibility checks combine automated scans with keyboard-only testing, focus order and return, dialog trapping, accessible names, both themes, high contrast, and 200% zoom.
-- Performance checks use checked-in deterministic workloads and enforce [spec.md](spec.md) budgets. They cover 10,000 trace summaries / 200,000 stored spans, 10,000-wide and 5,000-deep traces, 50 rapid selections, continuous ingest, query/IPC counts and bytes, React commits/row rerenders, mounted DOM, stack safety, renderer heap, cache/queue caps, and packaged pointer/scroll latency. Traces startup issues no hidden log/metric lists; facets stay below 16 KiB; metric lists carry one latest point and only the selected metric loads bounded history. Effects are used only for external synchronization, and tests reject stale waterfall commits or root-wide selection rerenders.
+- Performance checks use checked-in deterministic workloads and enforce [spec.md](spec.md) budgets. They cover 10,000 trace summaries / 200,000 stored spans, 10,000-wide and 5,000-deep traces, 50 rapid selections, continuous ingest, query/IPC counts and bytes, React commits/row rerenders, mounted DOM, stack safety, renderer heap, cache/queue caps, and packaged pointer/scroll latency. Traces startup issues no hidden log/metric lists; facets stay below 16 KiB; metric lists carry bounded latest-value summaries without point/resource/scope bags, and only the selected metric loads event-time-ordered cursor pages with explicit attribute-truncation metadata. Effects are used only for external synchronization, and tests reject stale waterfall commits or root-wide selection rerenders.
 - CI publishes coverage for release-critical packages. Stable releases require checked-in thresholds of at least 80% line coverage and 70% branch coverage for `engine`, `engine-node`, `receiver`, `protocol`, `mcp-server`, and desktop main/preload code unless a documented exception demonstrates equivalent behavioral coverage.
 - Every bug fixed during release work receives a regression test at the lowest useful layer.
 
@@ -583,7 +583,7 @@ curl -s -D /tmp/otelux-origin-headers.txt -X POST \
 - Start a second daemon against the same data directory → exit code `2`, redacted `already-running`, no competing listeners/database.
 - Send SIGTERM/SIGINT to the owner → exit `0`, stopped record, all listeners closed, `runtime.json`/`runtime.lock` removed.
 - Run the direct/HTTP parity suite → identical bounded traces/waterfalls/spans/logs/metrics/facets and bigint values, plus SSE invalidation, auth failure, RPC error, disposal, and clear coverage.
-- Run the HTTP payload-budget fixture (30 × 100 KB ordinary logs) → deterministic JSON-RPC `-32005 Response too large`, never a multi-megabyte response. Batches above 10 fail; accepted batches execute sequentially.
+- Run the HTTP payload-budget fixture (30 × 100 KB ordinary logs) → the log summary page remains below 150 KiB and one selected full detail loads separately. Run the metric fixture with more than 1,000 out-of-order points and oversized attributes → each point page remains below 2 MiB, returns a continuation cursor, preserves values/timestamps, and reports every truncated attribute projection. Batches above 10 fail; accepted batches execute sequentially.
 - **Qualification limit**: foreground `oteluxd` is not yet installed or registered as a background service; Desktop remains the packaged runtime owner.
 
 ---
@@ -662,7 +662,7 @@ curl -s -X POST -H 'Content-Type: application/json' \
 
 ### 15.4 Instrument chart + table toggle
 - Select an instrument from the left pane.
-- **Expected**: a chart renders its data points over time with visible time and value axes. Scalar charts aggregate raw attribute series that share the same export timestamp into one plotted total, avoiding vertical stacks of duplicate-time dots. A **graph / table** toggle switches between the chart and a raw data-point table (timestamp, value, attributes). Histograms render their bucket distribution.
+- **Expected**: a chart renders its data points in event-time order with visible time and value axes. Scalar charts aggregate raw attribute series that share the same export timestamp into one plotted total, avoiding vertical stacks of duplicate-time dots. A **graph / table** toggle switches between the chart and a raw data-point table (timestamp, value, attributes). Histograms render their bucket distribution. Histories above the selected page show `N loaded / M total`; oversized chart attributes are bounded and reported through truncation metadata rather than silently expanding or failing the response.
 
 ### 15.5 Live update
 - Re-send the fixture (or run a live Codex turn, see §E2E).

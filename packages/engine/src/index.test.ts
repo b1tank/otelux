@@ -1,5 +1,6 @@
+import { stringifyWire } from '@otelux/protocol';
 import type { Span } from '@otelux/types';
-import { SpanKind, SpanStatusCode } from '@otelux/types';
+import { AggregationTemporality, SpanKind, SpanStatusCode } from '@otelux/types';
 import { describe, expect, it } from 'vitest';
 import {
 	computeWaterfallLayout,
@@ -219,6 +220,62 @@ describe('createMemoryStorage + createEngine', () => {
 		expect(search.totalCount).toBe(1);
 		expect(search.rows[0]?.rootName).toBe('happy');
 
+		await engine.close();
+	});
+
+	it('bounds oversized metric attributes with explicit truncation metadata', async () => {
+		const engine = createEngine({ storage: createMemoryStorage() });
+		await engine.ingestMetrics([
+			{
+				type: 'sum',
+				name: 'large.attributes',
+				isMonotonic: true,
+				temporality: AggregationTemporality.Delta,
+				resource: { attributes: { 'service.name': 'svc' } },
+				scope: { name: 'meter' },
+				dataPoints: [
+					{
+						timeUnixNano: 1n,
+						value: 1,
+						attributes: { a: 'x'.repeat(1_000), b: 'ok', c: 'omitted' },
+					},
+				],
+			},
+		]);
+		const summary = await engine.listMetricInstruments({});
+		const instrumentId = summary.rows[0]?.instrumentId;
+		if (!instrumentId) throw new Error('expected metric');
+		const result = await engine.getMetricPoints({ instrumentId });
+		expect(Object.keys(result.metric.dataPoints[0]?.attributes ?? {})).toEqual(['a', 'b']);
+		expect(String(result.metric.dataPoints[0]?.attributes.a)).toHaveLength(256);
+		expect(result.truncatedAttributes).toEqual([
+			{ pointIndex: 0, truncatedOrOmittedAttributeCount: 2 },
+		]);
+		await engine.close();
+	});
+
+	it('keeps a maximum metric point page under the Runtime response budget', async () => {
+		const engine = createEngine({ storage: createMemoryStorage() });
+		const value = 'x'.repeat(1_000);
+		await engine.ingestMetrics([
+			{
+				type: 'gauge',
+				name: 'bounded.page',
+				resource: { attributes: { 'service.name': 'svc', extra: value } },
+				scope: { name: 'meter' },
+				dataPoints: Array.from({ length: 1_001 }, (_, index) => ({
+					timeUnixNano: BigInt(index + 1),
+					value: index,
+					attributes: { a: value, b: value, c: value },
+				})),
+			},
+		]);
+		const instrumentId = (await engine.listMetricInstruments({})).rows[0]?.instrumentId;
+		if (!instrumentId) throw new Error('expected metric');
+		const page = await engine.getMetricPoints({ instrumentId, limit: 1_000 });
+		expect(page.metric.dataPoints).toHaveLength(1_000);
+		expect(page.nextCursor).toBeDefined();
+		expect(Buffer.byteLength(stringifyWire(page))).toBeLessThan(2 * 1024 * 1024);
 		await engine.close();
 	});
 

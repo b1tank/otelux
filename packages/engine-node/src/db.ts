@@ -88,7 +88,20 @@ const MIGRATIONS: readonly Migration[] = [
 		to: 4,
 		apply: migrateResourceSources,
 	},
+	{
+		to: 5,
+		apply: migrateMetricPointTimeIndex,
+	},
 ];
+
+function migrateMetricPointTimeIndex(db: DatabaseSync): void {
+	db.exec(`
+BEGIN IMMEDIATE;
+CREATE INDEX IF NOT EXISTS idx_points_instrument_time
+  ON metric_points(instrument_id, time_unix_nano DESC, id DESC);
+COMMIT;
+`);
+}
 
 /**
  * Promote the standard service.namespace resource attribute into an indexed

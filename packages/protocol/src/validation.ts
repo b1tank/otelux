@@ -1,6 +1,8 @@
 import type {
+	GetMetricPointsQuery,
 	InvokeMessage,
 	ListLogsQuery,
+	ListMetricInstrumentsQuery,
 	ListMetricsQuery,
 	ListResourceFacetsQuery,
 	ListTracesQuery,
@@ -241,6 +243,62 @@ export function parseListLogsQuery(value: unknown, path = '$.query'): ListLogsQu
 	);
 	assign(result, 'search', optional(input, 'search', string, path));
 	return result as ListLogsQuery;
+}
+
+export function parseListMetricInstrumentsQuery(
+	value: unknown,
+	path = '$.query',
+): ListMetricInstrumentsQuery {
+	const input = object(value, path);
+	knownKeys(input, ['limit', 'offset', 'sources', 'services', 'meters', 'search'], path);
+	const result: Record<string, unknown> = {};
+	assign(
+		result,
+		'limit',
+		optional(input, 'limit', (v, p) => integer(v, p, 1, 500), path),
+	);
+	assign(
+		result,
+		'offset',
+		optional(input, 'offset', (v, p) => integer(v, p, 0, 10_000_000), path),
+	);
+	assign(result, 'sources', optional(input, 'sources', stringArray, path));
+	assign(result, 'services', optional(input, 'services', stringArray, path));
+	assign(result, 'meters', optional(input, 'meters', stringArray, path));
+	assign(result, 'search', optional(input, 'search', string, path));
+	return result as ListMetricInstrumentsQuery;
+}
+
+export function parseGetMetricPointsQuery(value: unknown, path = '$.query'): GetMetricPointsQuery {
+	const input = object(value, path);
+	knownKeys(input, ['instrumentId', 'limit', 'cursor'], path);
+	const instrumentId = string(input.instrumentId, `${path}.instrumentId`, 32);
+	if (!/^[1-9]\d*$/.test(instrumentId)) {
+		return fail(`${path}.instrumentId`, 'format', 'expected a decimal instrument ID');
+	}
+	const result: Record<string, unknown> = { instrumentId };
+	assign(
+		result,
+		'limit',
+		optional(input, 'limit', (v, p) => integer(v, p, 1, 1_000), path),
+	);
+	assign(
+		result,
+		'cursor',
+		optional(
+			input,
+			'cursor',
+			(value, cursorPath) => {
+				const cursor = string(value, cursorPath, 128);
+				if (!/^\d+:\d+$/.test(cursor)) {
+					return fail(cursorPath, 'format', 'expected an opaque metric point cursor');
+				}
+				return cursor;
+			},
+			path,
+		),
+	);
+	return result as unknown as GetMetricPointsQuery;
 }
 
 export function parseListMetricsQuery(value: unknown, path = '$.query'): ListMetricsQuery {
@@ -494,8 +552,10 @@ export function parseInvokeMessage(value: unknown): InvokeMessage {
 			return queryMessage(parseListLogsQuery);
 		case 'getLogDetails':
 			return queryMessage(parseLogQuery);
-		case 'listMetrics':
-			return queryMessage(parseListMetricsQuery);
+		case 'listMetricInstruments':
+			return queryMessage(parseListMetricInstrumentsQuery);
+		case 'getMetricPoints':
+			return queryMessage(parseGetMetricPointsQuery);
 		case 'listResourceFacets':
 			return queryMessage(parseListResourceFacetsQuery);
 		case 'updateSettings':

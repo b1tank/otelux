@@ -9,7 +9,8 @@ The current contract covers traces, logs, and metrics:
 - `getSpanDetails({ traceId, spanId })` — detail view using the full OTLP span identity.
 - `listLogs(query)` — lightweight structured-log summaries with severity, service, free-text filters, and opaque detail IDs.
 - `getLogDetails({ logId })` — the full selected log record, including attribute, resource, and scope bags.
-- `listMetrics(query)` — meter/instrument query surface for sums, gauges, and histograms.
+- `listMetricInstruments(query)` — lightweight instrument metadata, latest-value summaries, and opaque instrument IDs.
+- `getMetricPoints({ instrumentId, limit, cursor? })` — one selected instrument with at most 1,000 event-time-ordered points, continuation, full resource/scope metadata, and explicit attribute-truncation metadata.
 - `subscribe(handler)` — live change events used by the workbench to refresh as new traces, logs, and metrics arrive.
 
 Profile queries are not part of the current contract.

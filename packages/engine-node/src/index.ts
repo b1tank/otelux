@@ -18,8 +18,12 @@ import { statSync } from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
 import type { FullListLogsResult, Storage } from '@otelux/engine';
 import type {
+	GetMetricPointsQuery,
+	GetMetricPointsResult,
 	ListLogsQuery,
 	ListLogsResult,
+	ListMetricInstrumentsQuery,
+	ListMetricInstrumentsResult,
 	ListMetricsQuery,
 	ListMetricsResult,
 	ListResourceFacetsQuery,
@@ -76,6 +80,8 @@ export interface NodeSqliteStorage extends Storage {
 	getLog(logId: string): LogRecord | undefined;
 	searchLogs(query: ListLogsQuery): FullListLogsResult;
 	writeMetrics(metrics: readonly Metric[]): void;
+	listMetricInstruments(query: ListMetricInstrumentsQuery): ListMetricInstrumentsResult;
+	getMetricPoints(query: GetMetricPointsQuery): GetMetricPointsResult | undefined;
 	listMetrics(query: ListMetricsQuery): ListMetricsResult;
 	listResourceFacets(query: ListResourceFacetsQuery): ListResourceFacetsResult;
 	getStorageUsage(): StorageUsageInfo;
@@ -159,6 +165,12 @@ export function createNodeSqliteStorage(options: NodeSqliteStorageOptions): Node
 
 		writeMetrics(input: readonly Metric[]): void {
 			metrics.write(input, now());
+		},
+		listMetricInstruments(query: ListMetricInstrumentsQuery): ListMetricInstrumentsResult {
+			return metrics.listMetricInstruments(query);
+		},
+		getMetricPoints(query: GetMetricPointsQuery): GetMetricPointsResult | undefined {
+			return metrics.getMetricPoints(query);
 		},
 		listMetrics(query: ListMetricsQuery): ListMetricsResult {
 			return metrics.listMetrics(query);

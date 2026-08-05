@@ -3,13 +3,15 @@ import {
 	type DataSource,
 	type Disposable,
 	type GetLogDetailsQuery,
+	type GetMetricPointsQuery,
+	type GetMetricPointsResult,
 	type GetSpanDetailsQuery,
 	type GetTraceQuery,
 	JSON_RPC_VERSION,
 	type ListLogsQuery,
 	type ListLogsResult,
-	type ListMetricsQuery,
-	type ListMetricsResult,
+	type ListMetricInstrumentsQuery,
+	type ListMetricInstrumentsResult,
 	type ListResourceFacetsQuery,
 	type ListResourceFacetsResult,
 	type ListTracesQuery,
@@ -244,7 +246,10 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 		getSpanDetails: (query: GetSpanDetailsQuery) => call<SpanDetails>('telemetry/getSpan', query),
 		listLogs: (query: ListLogsQuery) => call<ListLogsResult>('telemetry/listLogs', query),
 		getLogDetails: (query: GetLogDetailsQuery) => call<LogDetails>('telemetry/getLog', query),
-		listMetrics: (query: ListMetricsQuery) => call<ListMetricsResult>('telemetry/listMetrics', query),
+		listMetricInstruments: (query: ListMetricInstrumentsQuery) =>
+			call<ListMetricInstrumentsResult>('telemetry/listMetricInstruments', query),
+		getMetricPoints: (query: GetMetricPointsQuery) =>
+			call<GetMetricPointsResult>('telemetry/getMetricPoints', query),
 		listResourceFacets: (query: ListResourceFacetsQuery) =>
 			call<ListResourceFacetsResult>('telemetry/getFacets', query),
 		subscribe(handler: (event: ChangeEvent) => void): Disposable {

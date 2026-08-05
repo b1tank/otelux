@@ -40,7 +40,8 @@ describe('invoke validation', () => {
 		{ kind: 'getSpanDetails', query: { traceId, spanId } },
 		{ kind: 'listLogs', query: { limit: 500, traceId } },
 		{ kind: 'getLogDetails', query: { logId: '42' } },
-		{ kind: 'listMetrics', query: { pointLimit: 10_000 } },
+		{ kind: 'listMetricInstruments', query: { limit: 500 } },
+		{ kind: 'getMetricPoints', query: { instrumentId: '42', limit: 1_000, cursor: '1000:42' } },
 		{ kind: 'listResourceFacets', query: { signal: 'traces', facet: 'source' } },
 		{ kind: 'getSettings' },
 		{ kind: 'updateSettings', patch: { otlp: { port: 4319 } } },
@@ -81,6 +82,9 @@ describe('invoke validation', () => {
 		expect(() => parseInvokeMessage({ kind: 'getLogDetails', query: { logId: '0' } })).toThrow(
 			'$.query.logId: expected a decimal log ID',
 		);
+		expect(() =>
+			parseInvokeMessage({ kind: 'getMetricPoints', query: { instrumentId: 'metric' } }),
+		).toThrow('$.query.instrumentId: expected a decimal instrument ID');
 	});
 
 	it('sanitizes accepted objects instead of retaining prototypes', () => {

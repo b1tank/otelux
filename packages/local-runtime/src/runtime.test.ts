@@ -71,7 +71,7 @@ describe('createLocalRuntime', () => {
 		expect(await runtime.loadSampleData()).toEqual({ traces: 2, logs: 5, metrics: 3 });
 		expect((await runtime.listTraces({})).totalCount).toBe(2);
 		expect((await runtime.listLogs({})).totalCount).toBe(5);
-		expect((await runtime.listMetrics({})).totalCount).toBe(3);
+		expect((await runtime.listMetricInstruments({})).totalCount).toBe(3);
 		expect(events.map((event) => event.kind)).toEqual([
 			'tracesChanged',
 			'logsChanged',
@@ -81,7 +81,7 @@ describe('createLocalRuntime', () => {
 		await runtime.clearData();
 		expect((await runtime.listTraces({})).totalCount).toBe(0);
 		expect((await runtime.listLogs({})).totalCount).toBe(0);
-		expect((await runtime.listMetrics({})).totalCount).toBe(0);
+		expect((await runtime.listMetricInstruments({})).totalCount).toBe(0);
 		subscription.dispose();
 	});
 

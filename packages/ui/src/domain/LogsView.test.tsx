@@ -10,8 +10,6 @@ import type {
 	GetTraceQuery,
 	ListLogsQuery,
 	ListLogsResult,
-	ListMetricsQuery,
-	ListMetricsResult,
 	ListTracesQuery,
 	ListTracesResult,
 	LogListResultRow,
@@ -88,8 +86,11 @@ class FakeDataSource implements DataSource {
 		if (!log) throw new Error('log not found');
 		return Promise.resolve(log);
 	}
-	listMetrics(_query: ListMetricsQuery): Promise<ListMetricsResult> {
+	listMetricInstruments(): Promise<{ rows: []; totalCount: number }> {
 		return Promise.resolve({ rows: [], totalCount: 0 });
+	}
+	getMetricPoints(): Promise<never> {
+		throw new Error('not used');
 	}
 	listResourceFacets() {
 		return Promise.resolve({ rows: [] });

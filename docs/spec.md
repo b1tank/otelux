@@ -51,8 +51,8 @@ Important current limits:
 
 - OTLP/gRPC ingest is planned, not shipped (OTLP/HTTP JSON and protobuf are live).
 - Dense trace modes need polish; span and log detail drawers provide internal key/value search. Trace interaction uses iterative layout, constant-DOM indentation, virtualized trace/waterfall rows, stable memoized row props, latest-only same-turn selection, stale-result rejection, and a bounded recent-trace cache. Protocol 0.6 sends lightweight waterfall spans and loads full selected-span details separately; log pages likewise return bounded summaries with opaque IDs and load one full selected log on demand. SQLite ingest/query/retention runs in a bounded worker queue with direct-read priority rather than Electron main. Trace/log keyset cursors, optional exact counts, and visible per-signal overload counters are live. Trace/log views page incrementally through cursor-backed `Load more` controls. The packaged performance gate builds 10,000 traces / 200,000 spans plus 5,000-deep and 10,000-wide traces, runs interaction during continuous ingest, forces renderer GC, and enforces mounted-row/DOM, paging, frame-gap, and heap budgets in release CI.
-- The storage audit's span-identity P0 is fixed in schema v2; trace-service count/page correctness is fixed in schema v3; schema v4 indexes the standard `service.namespace` source dimension; metric histories are bounded; protocol 0.6 provides grouped facets, lightweight waterfall payloads, cursor paging, and optional exact counts; and SQLite runs in a bounded worker. The remaining pre-daemon hardening item is the SQL statement/query-plan budget harness. See [storage.md](storage.md#audit-findings).
-- `@otelux/protocol` now enforces bounded path-aware Electron and Runtime RPC/SSE validation, aggregate wire-string budgets, shared `runtime.json` decoding, tagged-bigint JSON wire codecs, compatibility fixtures, protocol-major negotiation, and checked draft 2020-12 schemas. Direct dispatcher and authenticated HTTP/SSE tests are live. A shared direct/IPC/HTTP parity suite, split metric point methods, HTTP/SSE `DataSource` client, and browser session/bootstrap remain before Desktop becomes a daemon client. See [protocol.md](protocol.md#current-gaps).
+- The storage audit's span-identity P0 is fixed in schema v2; trace-service count/page correctness is fixed in schema v3; schema v4 indexes the standard `service.namespace` source dimension; schema v5 indexes event-time metric history; metric histories are bounded and cursor-paged; protocol 0.6 provides grouped facets, lightweight waterfall payloads, cursor paging, and optional exact counts; and SQLite runs in a bounded worker. The remaining pre-daemon hardening item is the SQL statement/query-plan budget harness. See [storage.md](storage.md#audit-findings).
+- `@otelux/protocol` now enforces bounded path-aware Electron and Runtime RPC/SSE validation, aggregate wire-string budgets, shared `runtime.json` decoding, tagged-bigint JSON wire codecs, compatibility fixtures, protocol-major negotiation, and checked draft 2020-12 schemas. Direct dispatcher and authenticated HTTP/SSE tests are live. Metric discovery returns lightweight metadata/latest-value summaries and selected history loads separately through an opaque instrument ID with event-time ordering, 1,000-point pages, continuation cursors, explicit chart-attribute truncation metadata, and stale-reference recovery. A shared direct/IPC/HTTP parity suite, method-specific response validation, and browser session/bootstrap remain before Desktop becomes a daemon client. See [protocol.md](protocol.md#current-gaps).
 
 ## Signals In Scope
 
@@ -95,7 +95,7 @@ The daemon transport and storage implementations must conform to [protocol.md](p
 | Package | Purpose | Current state |
 |---|---|---|
 | `@otelux/types` | Shared trace, log, metric, resource, scope, and attribute types. | Live. |
-| `@otelux/protocol` | `DataSource` interface and query/result contracts. | Live for traces/logs/metrics, grouped source/service facets, lightweight waterfalls, and cursor paging (v0.6). |
+| `@otelux/protocol` | `DataSource` interface and query/result contracts. | Live for traces/logs/metrics, grouped source/service facets, lightweight list/detail splits, and cursor paging; Runtime protocol 2 carries the split metric methods. |
 | `@otelux/engine` | Pure TypeScript ingest, query, layout, subscriptions, memory storage. | Live. |
 | `@otelux/engine-node` | Durable Node storage adapter (`node:sqlite`) with retention (age/size). | Live. |
 | `@otelux/local-runtime` | Backend composition and control API for storage, engine, OTLP, MCP, settings, and lifecycle. | Live; currently embedded by Desktop. |
@@ -184,7 +184,7 @@ The `DataSource` contract covers:
 
 - `listTraces`, `getTrace`, `getSpanDetails`.
 - `listLogs` summaries and `getLogDetails` for one selected full record.
-- `listMetrics`.
+- `listMetricInstruments` summaries and `getMetricPoints` for one selected bounded history.
 - `subscribe` for trace/log/metric change events.
 
 Queries should be bounded by limit and filters. Results should include counts where the UI needs to show scope. Optional fields should not be passed as explicit `undefined` in TypeScript code because `exactOptionalPropertyTypes` is enabled.

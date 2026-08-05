@@ -68,7 +68,7 @@ Tasks:
 - [x] Run the storage contract test suite against both memory and SQLite backends.
 - [x] Change span identity and every detail lookup to `(traceId, spanId)`; schema v2 transactionally rebuilds v1 spans, repairs surviving rollups, and has duplicate-span-ID-across-traces coverage for memory and SQLite.
 - [x] Normalize trace services in schema v3 and apply the same indexed service predicate before count and offset pagination; reuse it when cursor pagination lands.
-- [x] Split metric list metadata from selected-series history, replace the point-query N+1 with one compound indexed tail query, and bound point windows/payloads.
+- [x] Split metric list metadata from selected-series history; schema v5 adds event-time ordering/indexing, selected history uses bounded cursor pages with explicit attribute projection metadata, and service overview no longer builds per-instrument point-tail unions.
 - [x] Add grouped resource facet queries so inactive workbench views do not fetch raw records to discover filters; protocol 0.5 and schema v4 use standard `service.namespace` as the primary Source dimension with exact `service.name` fallback and a contextual component-Service facet.
 - Add statement-count and `EXPLAIN QUERY PLAN` tests enforcing the budgets in [storage.md](storage.md#query-contracts-and-statement-budgets).
 - Add FTS5 log search only after tokenizer/fallback parity tests define exact semantics.
@@ -152,7 +152,8 @@ Tasks:
 - [x] Define and validate the initial Runtime JSON-RPC method registry, protocol-major negotiation, revisioned SSE envelopes, checked transport schemas, direct dispatcher tests, and authenticated loopback HTTP/SSE host.
 - [x] Add browser-safe authenticated HTTP/SSE `DataSource` and control client plus real SQLite-backed direct/HTTP parity for current query methods.
 - [x] Harden Runtime HTTP with loopback endpoint pinning, redirects disabled, RPC deadlines, bounded streamed responses/SSE frames, aggregate batch/output budgets, slow-client disconnect, recoverable initialization, and serialized settings/clear mutations.
-- Add IPC to the shared parity suite and split metric metadata/point-history Runtime methods before UI conversion.
+- [x] Split metric metadata from selected bounded point history across direct, Runtime HTTP, and Electron IPC adapters, then convert the workbench UI to the split methods.
+- Add IPC to the shared direct/HTTP parity suite.
 - Add scoped browser session bootstrap, serve the existing `@otelux/ui` as a same-origin loopback workbench, and convert Desktop into a daemon client.
 - Add dedicated runtime/API and MCP tokens/scopes plus one-time browser session bootstrap; tokens must never appear in dashboard URLs or `runtime.json`.
 - Add the OTelux CLI for runtime lifecycle, status, endpoints, settings, dashboard/Desktop launch, diagnostics, and machine-readable output.

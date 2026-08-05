@@ -55,7 +55,7 @@ describe('direct and HTTP DataSource parity', () => {
 		await runtime.loadSampleData();
 		const http = await authenticatedClient();
 		try {
-			expect(await http.initialize()).toMatchObject({ protocolVersion: '1.0.0' });
+			expect(await http.initialize()).toMatchObject({ protocolVersion: '2.0.0' });
 			expect(await http.getStatus()).toMatchObject({
 				databasePath: runtime.getStoragePath().activePath,
 			});
@@ -83,9 +83,17 @@ describe('direct and HTTP DataSource parity', () => {
 			const logId = httpLogs.rows[0]?.logId;
 			if (!logId) throw new Error('sample log missing');
 			expect(await http.getLogDetails({ logId })).toEqual(await runtime.getLogDetails({ logId }));
-			expect(await http.listMetrics({ pointLimit: 10 })).toEqual(
-				await runtime.listMetrics({ pointLimit: 10 }),
+			const httpInstruments = await http.listMetricInstruments({ limit: 50 });
+			expect(httpInstruments).toEqual(await runtime.listMetricInstruments({ limit: 50 }));
+			expect(httpInstruments.rows.every((row) => !('dataPoints' in row))).toBe(true);
+			expect(httpInstruments.rows.every((row) => !('resource' in row) && !('scope' in row))).toBe(
+				true,
 			);
+			const instrumentId = httpInstruments.rows[0]?.instrumentId;
+			if (!instrumentId) throw new Error('sample metric missing');
+			const httpPoints = await http.getMetricPoints({ instrumentId, limit: 10 });
+			expect(httpPoints).toEqual(await runtime.getMetricPoints({ instrumentId, limit: 10 }));
+			expect(httpPoints.metric.dataPoints.length).toBeLessThanOrEqual(10);
 			expect(await http.listResourceFacets({ signal: 'traces', facet: 'source' })).toEqual(
 				await runtime.listResourceFacets({ signal: 'traces', facet: 'source' }),
 			);

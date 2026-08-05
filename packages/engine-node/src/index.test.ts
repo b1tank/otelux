@@ -347,6 +347,24 @@ describe('@otelux/engine-node metrics', () => {
 		expect(byName.get('turn.duration_ms')).toEqual(histogram);
 	});
 
+	it('lists more than SQLite compound-select limit without loading histories', () => {
+		storage.writeMetrics(
+			Array.from(
+				{ length: 501 },
+				(_, index): GaugeMetric => ({
+					type: 'gauge',
+					name: `metric.${index}`,
+					resource: { attributes: { 'service.name': 'svc' } },
+					scope: { name: 'meter' },
+					dataPoints: [{ timeUnixNano: BigInt(index + 1), value: index, attributes: {} }],
+				}),
+			),
+		);
+		const summaries = storage.listMetricInstruments({ limit: 5_000 });
+		expect(summaries.totalCount).toBe(501);
+		expect(summaries.rows).toHaveLength(501);
+	});
+
 	it('filters instruments by service, meter, and search', () => {
 		storage.writeMetrics([
 			{

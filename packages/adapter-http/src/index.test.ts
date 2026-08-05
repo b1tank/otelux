@@ -61,7 +61,7 @@ describe('HTTP adapter boundary safety', () => {
 			const request = JSON.parse(String(init?.body)) as { id: string; method: string };
 			if (request.method === 'runtime/initialize') {
 				return rpcResponse(request.id, {
-					protocolVersion: '1.0.0',
+					protocolVersion: '2.0.0',
 					runtime: { name: 'otelux-runtime', version: 'test' },
 					capabilities: {
 						queries: true,
@@ -70,7 +70,7 @@ describe('HTTP adapter boundary safety', () => {
 						clearData: true,
 						events: true,
 					},
-					limits: { traces: 200, logs: 500, metrics: 500, metricPoints: 10_000 },
+					limits: { traces: 200, logs: 500, metrics: 500, metricPoints: 1_000 },
 				});
 			}
 			return rpcResponse(request.id, { runtimeVersion: 'test' });
