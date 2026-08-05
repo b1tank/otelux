@@ -113,7 +113,8 @@ Required method families:
 | `telemetry/listTraces` | cursor query | trace summary page | max 200 rows |
 | `telemetry/getTrace` | `traceId`, expansion flags | one trace and spans; optional bounded logs | one trace, explicit log limit |
 | `telemetry/getSpan` | `traceId`, `spanId` | one span | one span |
-| `telemetry/listLogs` | cursor query | log page | max 500 rows |
+| `telemetry/listLogs` | cursor query | lightweight log-summary page | max 500 rows; messages capped at 4,096 characters |
+| `telemetry/getLog` | opaque decimal `logId` from a list row | one full log record | one selected record |
 | `telemetry/listMetricInstruments` | cursor query | instrument metadata page, no point history | max 500 rows |
 | `telemetry/getMetricPoints` | instrument ID, time window, cursor | one bounded point page | max 2,000 points |
 | `telemetry/getFacets` | signal/time/filter scope | service, scope, meter, severity counts | bounded grouped values |
@@ -145,6 +146,7 @@ Wire rules:
 
 - Trace IDs are lowercase 32-character hexadecimal strings.
 - Span IDs are lowercase 16-character hexadecimal strings and are always paired with `traceId` when identifying a span.
+- Log IDs are opaque positive decimal strings returned by `listLogs`; clients use them only with `getLog` and do not derive identity from timestamps or content.
 - Nanosecond timestamps and durations are base-10 strings matching `^-?[0-9]+$`.
 - Ordinary finite metric values remain JSON numbers.
 - Non-finite numbers are rejected at the contract boundary.
@@ -214,7 +216,7 @@ Delivered transport foundation:
 Remaining before daemon conversion:
 
 - `@otelux/adapter-http` implements current `DataSource` queries plus status/settings/sample/clear controls over initialized tagged-bigint JSON-RPC, with strict loopback-origin pinning, redirects disabled, 10-second RPC deadlines, 2 MiB streamed-response bounds, recoverable initialization, and one shared authenticated fetch-SSE connection with bounded frames/reconnect/resync/abort/disposal and no URL tokens.
-- Real SQLite-backed direct/HTTP parity covers traces, waterfalls, spans, logs, metrics, facets, bigint fidelity, auth failure, RPC errors, SSE invalidation, and clear. IPC parity and Desktop conversion remain.
+- Real SQLite-backed direct/HTTP parity covers traces, waterfalls, spans, lightweight log lists plus selected full-log details, metrics, facets, bigint fidelity, auth failure, RPC errors, SSE invalidation, and clear. IPC parity and Desktop conversion remain.
 - Split metric metadata from point-history RPC methods before moving the current UI.
 - MCP tool input schemas are advertised but handlers still cast inputs rather than validating them; tool results have no output schemas.
 - Add scoped one-time browser sessions and static workbench serving; raw control tokens must not enter renderer/browser context.

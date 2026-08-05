@@ -98,6 +98,9 @@ export function createRuntimeRpcDispatcher(runtime: LocalRuntime): RuntimeRpcDis
 					case 'telemetry/listLogs':
 						result = await runtime.listLogs(call.params);
 						break;
+					case 'telemetry/getLog':
+						result = await runtime.getLogDetails(call.params);
+						break;
 					case 'telemetry/listMetrics':
 						result = await runtime.listMetrics(call.params);
 						break;

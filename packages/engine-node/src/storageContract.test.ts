@@ -381,7 +381,8 @@ function runStorageContract(label: string, make: () => Storage): void {
 			expect((await storage.listLogs({ search: 'nope' })).totalCount).toBe(0);
 			// bigint attribute round-trips losslessly.
 			const hit = (await storage.listLogs({ traceId: TRACE_A })).rows[0];
-			expect(hit?.attributes.id).toBe(9_007_199_254_740_993n);
+			const details = hit ? await storage.getLog(hit.logId) : undefined;
+			expect(details?.attributes.id).toBe(9_007_199_254_740_993n);
 		});
 
 		it('sorts logs by time descending by default and pages', async () => {
@@ -390,23 +391,23 @@ function runStorageContract(label: string, make: () => Storage): void {
 				makeLog({ time: 30n, severity: 9, body: 'third' }),
 				makeLog({ time: 20n, severity: 9, body: 'second' }),
 			]);
-			expect((await storage.listLogs({})).rows.map((r) => r.body)).toEqual([
+			expect((await storage.listLogs({})).rows.map((r) => r.message)).toEqual([
 				'third',
 				'second',
 				'first',
 			]);
 			const page = await storage.listLogs({ limit: 1, offset: 1 });
 			expect(page.totalCount).toBe(3);
-			expect(page.rows.map((r) => r.body)).toEqual(['second']);
+			expect(page.rows.map((r) => r.message)).toEqual(['second']);
 
 			const first = await storage.listLogs({ limit: 1 });
-			expect(first.rows.map((row) => row.body)).toEqual(['third']);
+			expect(first.rows.map((row) => row.message)).toEqual(['third']);
 			if (!first.nextCursor) throw new Error('expected log cursor');
 			const second = await storage.listLogs({ limit: 1, cursor: first.nextCursor });
-			expect(second.rows.map((row) => row.body)).toEqual(['second']);
+			expect(second.rows.map((row) => row.message)).toEqual(['second']);
 			if (!second.nextCursor) throw new Error('expected second log cursor');
 			const third = await storage.listLogs({ limit: 1, cursor: second.nextCursor });
-			expect(third.rows.map((row) => row.body)).toEqual(['first']);
+			expect(third.rows.map((row) => row.message)).toEqual(['first']);
 			expect(third.nextCursor).toBeUndefined();
 		});
 
@@ -501,7 +502,7 @@ function runStorageContract(label: string, make: () => Storage): void {
 			await storage.writeLogs([makeLog({ time: 5n, severity: 9, body: 'after-clear' })]);
 			const logs = await storage.listLogs({});
 			expect(logs.totalCount).toBe(1);
-			expect(logs.rows[0]?.body).toBe('after-clear');
+			expect(logs.rows[0]?.message).toBe('after-clear');
 		});
 	});
 }

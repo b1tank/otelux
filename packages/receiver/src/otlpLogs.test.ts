@@ -123,7 +123,7 @@ describe('@otelux/receiver logs', () => {
 			expect(all.totalCount).toBeGreaterThan(0);
 
 			// Free-text search hits the prompt attribute, not the body.
-			const hit = await engine.listLogs({ search: 'otelux-logs-fixture' });
+			const hit = await engine.searchLogs({ search: 'otelux-logs-fixture' });
 			expect(hit.totalCount).toBeGreaterThan(0);
 			expect(hit.rows.some((r) => r.attributes.prompt === PROMPT_TEXT)).toBe(true);
 		});

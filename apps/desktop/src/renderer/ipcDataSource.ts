@@ -1,6 +1,7 @@
 import type {
 	DataSource,
 	Disposable,
+	GetLogDetailsQuery,
 	GetSpanDetailsQuery,
 	GetTraceQuery,
 	ListLogsQuery,
@@ -11,6 +12,7 @@ import type {
 	ListResourceFacetsResult,
 	ListTracesQuery,
 	ListTracesResult,
+	LogDetails,
 	SpanDetails,
 } from '@otelux/protocol';
 import type { Trace } from '@otelux/types';
@@ -62,6 +64,9 @@ export function createIpcDataSource(bridge: OteluxWindowBridge): DataSource {
 		},
 		async listLogs(query: ListLogsQuery): Promise<ListLogsResult> {
 			return (await bridge.invoke({ kind: 'listLogs', query })) as ListLogsResult;
+		},
+		async getLogDetails(query: GetLogDetailsQuery): Promise<LogDetails> {
+			return (await bridge.invoke({ kind: 'getLogDetails', query })) as LogDetails;
 		},
 		async listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult> {
 			return (await bridge.invoke({ kind: 'listMetrics', query })) as ListMetricsResult;

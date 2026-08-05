@@ -7,7 +7,8 @@ The current contract covers traces, logs, and metrics:
 - `listTraces(query)` — paginated trace list with sort, time-window, service, error, and free-text filters.
 - `getTrace({ traceId })` — fully materialized trace with spans, root, services, and timings.
 - `getSpanDetails({ traceId, spanId })` — detail view using the full OTLP span identity.
-- `listLogs(query)` — structured log search with severity, service, and free-text filters.
+- `listLogs(query)` — lightweight structured-log summaries with severity, service, free-text filters, and opaque detail IDs.
+- `getLogDetails({ logId })` — the full selected log record, including attribute, resource, and scope bags.
 - `listMetrics(query)` — meter/instrument query surface for sums, gauges, and histograms.
 - `subscribe(handler)` — live change events used by the workbench to refresh as new traces, logs, and metrics arrive.
 

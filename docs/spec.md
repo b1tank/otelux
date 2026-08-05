@@ -50,7 +50,7 @@ The repository currently contains:
 Important current limits:
 
 - OTLP/gRPC ingest is planned, not shipped (OTLP/HTTP JSON and protobuf are live).
-- Dense trace modes need polish; span and log detail drawers provide internal key/value search. Trace interaction uses iterative layout, constant-DOM indentation, virtualized trace/waterfall rows, stable memoized row props, latest-only same-turn selection, stale-result rejection, and a bounded recent-trace cache. Protocol 0.6 sends lightweight waterfall spans and loads full selected-span details separately. SQLite ingest/query/retention runs in a bounded worker queue with direct-read priority rather than Electron main. Trace/log keyset cursors, optional exact counts, and visible per-signal overload counters are live. Trace/log views page incrementally through cursor-backed `Load more` controls. The packaged performance gate builds 10,000 traces / 200,000 spans plus 5,000-deep and 10,000-wide traces, runs interaction during continuous ingest, forces renderer GC, and enforces mounted-row/DOM, paging, frame-gap, and heap budgets in release CI.
+- Dense trace modes need polish; span and log detail drawers provide internal key/value search. Trace interaction uses iterative layout, constant-DOM indentation, virtualized trace/waterfall rows, stable memoized row props, latest-only same-turn selection, stale-result rejection, and a bounded recent-trace cache. Protocol 0.6 sends lightweight waterfall spans and loads full selected-span details separately; log pages likewise return bounded summaries with opaque IDs and load one full selected log on demand. SQLite ingest/query/retention runs in a bounded worker queue with direct-read priority rather than Electron main. Trace/log keyset cursors, optional exact counts, and visible per-signal overload counters are live. Trace/log views page incrementally through cursor-backed `Load more` controls. The packaged performance gate builds 10,000 traces / 200,000 spans plus 5,000-deep and 10,000-wide traces, runs interaction during continuous ingest, forces renderer GC, and enforces mounted-row/DOM, paging, frame-gap, and heap budgets in release CI.
 - The storage audit's span-identity P0 is fixed in schema v2; trace-service count/page correctness is fixed in schema v3; schema v4 indexes the standard `service.namespace` source dimension; metric histories are bounded; protocol 0.6 provides grouped facets, lightweight waterfall payloads, cursor paging, and optional exact counts; and SQLite runs in a bounded worker. The remaining pre-daemon hardening item is the SQL statement/query-plan budget harness. See [storage.md](storage.md#audit-findings).
 - `@otelux/protocol` now enforces bounded path-aware Electron and Runtime RPC/SSE validation, aggregate wire-string budgets, shared `runtime.json` decoding, tagged-bigint JSON wire codecs, compatibility fixtures, protocol-major negotiation, and checked draft 2020-12 schemas. Direct dispatcher and authenticated HTTP/SSE tests are live. A shared direct/IPC/HTTP parity suite, split metric point methods, HTTP/SSE `DataSource` client, and browser session/bootstrap remain before Desktop becomes a daemon client. See [protocol.md](protocol.md#current-gaps).
 
@@ -183,7 +183,7 @@ The runtime MCP listener requires a per-install bearer token. A random token is 
 The `DataSource` contract covers:
 
 - `listTraces`, `getTrace`, `getSpanDetails`.
-- `listLogs`.
+- `listLogs` summaries and `getLogDetails` for one selected full record.
 - `listMetrics`.
 - `subscribe` for trace/log/metric change events.
 

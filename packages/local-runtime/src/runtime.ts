@@ -263,6 +263,7 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 		getTraceWaterfall: (query) => engine.getTraceWaterfall(query),
 		getSpanDetails: (query) => engine.getSpanDetails(query),
 		listLogs: (query) => engine.listLogs(query),
+		getLogDetails: (query) => engine.getLogDetails(query),
 		listMetrics: (query) => engine.listMetrics(query),
 		listResourceFacets: (query) => engine.listResourceFacets(query),
 		subscribe: (handler) => engine.subscribe(handler),

@@ -14,7 +14,7 @@ export {
 	type ServiceOverviewRow,
 	OTELUX_ENGINE_VERSION,
 } from './engine.js';
-export { createMemoryStorage, type Storage } from './storage.js';
+export { createMemoryStorage, type FullListLogsResult, type Storage } from './storage.js';
 export {
 	computeWaterfallLayout,
 	type WaterfallLayout,

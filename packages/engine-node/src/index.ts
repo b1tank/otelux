@@ -16,7 +16,7 @@
 
 import { statSync } from 'node:fs';
 import type { DatabaseSync } from 'node:sqlite';
-import type { Storage } from '@otelux/engine';
+import type { FullListLogsResult, Storage } from '@otelux/engine';
 import type {
 	ListLogsQuery,
 	ListLogsResult,
@@ -73,6 +73,8 @@ export interface NodeSqliteStorage extends Storage {
 	getSpan(traceId: TraceId, spanId: SpanId): Span | undefined;
 	writeLogs(logs: readonly LogRecord[]): void;
 	listLogs(query: ListLogsQuery): ListLogsResult;
+	getLog(logId: string): LogRecord | undefined;
+	searchLogs(query: ListLogsQuery): FullListLogsResult;
 	writeMetrics(metrics: readonly Metric[]): void;
 	listMetrics(query: ListMetricsQuery): ListMetricsResult;
 	listResourceFacets(query: ListResourceFacetsQuery): ListResourceFacetsResult;
@@ -147,6 +149,12 @@ export function createNodeSqliteStorage(options: NodeSqliteStorageOptions): Node
 		},
 		listLogs(query: ListLogsQuery): ListLogsResult {
 			return logs.listLogs(query);
+		},
+		getLog(logId: string): LogRecord | undefined {
+			return logs.getLog(logId);
+		},
+		searchLogs(query: ListLogsQuery): FullListLogsResult {
+			return logs.searchLogs(query);
 		},
 
 		writeMetrics(input: readonly Metric[]): void {

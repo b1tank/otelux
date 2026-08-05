@@ -39,6 +39,7 @@ describe('invoke validation', () => {
 		{ kind: 'getTraceWaterfall', query: { traceId } },
 		{ kind: 'getSpanDetails', query: { traceId, spanId } },
 		{ kind: 'listLogs', query: { limit: 500, traceId } },
+		{ kind: 'getLogDetails', query: { logId: '42' } },
 		{ kind: 'listMetrics', query: { pointLimit: 10_000 } },
 		{ kind: 'listResourceFacets', query: { signal: 'traces', facet: 'source' } },
 		{ kind: 'getSettings' },
@@ -76,6 +77,9 @@ describe('invoke validation', () => {
 		);
 		expect(() => parseInvokeMessage({ kind: 'getTrace', query: { traceId: 'abc' } })).toThrow(
 			'$.query.traceId: expected a lowercase hexadecimal trace ID',
+		);
+		expect(() => parseInvokeMessage({ kind: 'getLogDetails', query: { logId: '0' } })).toThrow(
+			'$.query.logId: expected a decimal log ID',
 		);
 	});
 

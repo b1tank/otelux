@@ -48,7 +48,7 @@ export const searchLogsTool: ToolDefinition = {
 		// Build the query with conditional spreads: exactOptionalPropertyTypes
 		// forbids passing an explicit `undefined` for optional fields.
 		const minSeverity = input.severity ? SEVERITY_FLOOR[input.severity] : undefined;
-		const result = await engine.listLogs({
+		const result = await engine.searchLogs({
 			search: input.query,
 			...(minSeverity !== undefined ? { minSeverity } : {}),
 			...(input.service ? { services: [input.service] } : {}),

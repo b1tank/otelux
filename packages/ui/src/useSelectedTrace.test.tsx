@@ -29,6 +29,9 @@ class TraceDataSource implements DataSource {
 		throw new Error('unused');
 	};
 	listLogs = async () => ({ rows: [], totalCount: 0 });
+	getLogDetails = async () => {
+		throw new Error('unused');
+	};
 	listMetrics = async () => ({ rows: [], totalCount: 0 });
 	listResourceFacets = async () => ({ rows: [] });
 	subscribe = (handler: (event: ChangeEvent) => void) => {

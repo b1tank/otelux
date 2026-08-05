@@ -2,6 +2,7 @@ import {
 	type ChangeEvent,
 	type DataSource,
 	type Disposable,
+	type GetLogDetailsQuery,
 	type GetSpanDetailsQuery,
 	type GetTraceQuery,
 	JSON_RPC_VERSION,
@@ -14,6 +15,7 @@ import {
 	type ListTracesQuery,
 	type ListTracesResult,
 	type LoadSampleDataResult,
+	type LogDetails,
 	type PartialSettings,
 	RUNTIME_RPC_PROTOCOL_VERSION,
 	type RuntimeInitializeResult,
@@ -241,6 +243,7 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 		getTraceWaterfall: (query: GetTraceQuery) => call<Trace>('telemetry/getTraceWaterfall', query),
 		getSpanDetails: (query: GetSpanDetailsQuery) => call<SpanDetails>('telemetry/getSpan', query),
 		listLogs: (query: ListLogsQuery) => call<ListLogsResult>('telemetry/listLogs', query),
+		getLogDetails: (query: GetLogDetailsQuery) => call<LogDetails>('telemetry/getLog', query),
 		listMetrics: (query: ListMetricsQuery) => call<ListMetricsResult>('telemetry/listMetrics', query),
 		listResourceFacets: (query: ListResourceFacetsQuery) =>
 			call<ListResourceFacetsResult>('telemetry/getFacets', query),

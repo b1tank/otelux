@@ -39,6 +39,9 @@ class DeferredTraceSource implements DataSource {
 	listLogs(_query: ListLogsQuery): Promise<ListLogsResult> {
 		throw new Error('not used');
 	}
+	getLogDetails(): Promise<never> {
+		throw new Error('not used');
+	}
 	listMetrics(_query: ListMetricsQuery): Promise<ListMetricsResult> {
 		throw new Error('not used');
 	}

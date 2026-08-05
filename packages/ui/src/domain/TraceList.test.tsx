@@ -53,6 +53,9 @@ class FakeDataSource implements DataSource {
 	listLogs(_query: ListLogsQuery): Promise<ListLogsResult> {
 		return Promise.resolve({ rows: [], totalCount: 0 });
 	}
+	getLogDetails(): Promise<never> {
+		throw new Error('not used');
+	}
 	listMetrics(_query: ListMetricsQuery): Promise<ListMetricsResult> {
 		return Promise.resolve({ rows: [], totalCount: 0 });
 	}

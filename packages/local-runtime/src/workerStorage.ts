@@ -24,7 +24,7 @@ import(workerData.moduleUrl).then(({ createNodeSqliteStorage }) => {
   parentPort.postMessage({ id: 0, result: true });
   const high = [];
   const normal = [];
-  const highMethods = new Set(['listTraces', 'getTraceSpans', 'getSpan', 'listLogs', 'listMetrics', 'listResourceFacets', 'getStorageUsage']);
+  const highMethods = new Set(['listTraces', 'getTraceSpans', 'getSpan', 'listLogs', 'getLog', 'searchLogs', 'listMetrics', 'listResourceFacets', 'getStorageUsage']);
   let scheduled = false;
   const processNext = () => {
     scheduled = false;
@@ -115,6 +115,8 @@ export async function createWorkerSqliteStorage(options: {
 		getSpan: (traceId, spanId) => call('getSpan', traceId, spanId),
 		writeLogs: (logs) => call('writeLogs', logs),
 		listLogs: (query) => call('listLogs', query),
+		getLog: (logId) => call('getLog', logId),
+		searchLogs: (query) => call('searchLogs', query),
 		writeMetrics: (metrics) => call('writeMetrics', metrics),
 		listMetrics: (query) => call('listMetrics', query),
 		listResourceFacets: (query) => call('listResourceFacets', query),

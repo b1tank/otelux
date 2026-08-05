@@ -171,7 +171,7 @@ The production 124 MB dogfood database exposed an architectural payload failure 
 |---|---:|---:|
 | Renderer heap after GC on Traces startup | ~667 MB | ~6.4 MB |
 | Hidden metrics probe | 81.5 MB, ~4.9 s over IPC | not issued |
-| Hidden logs probe | 5.9 MB, ~2.4 s over IPC | not issued |
+| Hidden logs probe | 5.9 MB, ~2.4 s over IPC | bounded summary DTOs; full attributes load only for one selected log |
 | Trace list IPC while main was saturated | ~2.3 s | ~8 ms |
 | Service facet payload | sampled raw records | 165–173 bytes grouped in SQL |
 | Metric instrument list | all histories | ~60 KB with one latest point each |
@@ -179,7 +179,7 @@ The production 124 MB dogfood database exposed an architectural payload failure 
 
 Schema v4 promotes application source into indexed `source_name` columns and `trace_sources(trace_id, source_name)`. Source is the standard resource `service.namespace` when present and exact `service.name` otherwise. Existing records therefore migrate deterministically without vendor mappings; records that never carried a namespace remain separate services/sources.
 
-The renderer DOM was not the primary memory owner in that incident: about 4,200 trace-view elements remained after the fix while heap fell by two orders of magnitude. The root cause was eagerly retaining full hidden-view query results and repeatedly serializing them through the main process. Logs are now capped at 100 visible rows; metrics refresh no faster than every two seconds and load only the selected series history.
+The renderer DOM was not the primary memory owner in that incident: about 4,200 trace-view elements remained after the fix while heap fell by two orders of magnitude. The root cause was eagerly retaining full hidden-view query results and repeatedly serializing them through the main process. Log pages now carry bounded summaries (including a message capped at 4,096 characters) and load one full record by opaque ID when selected; metrics refresh no faster than every two seconds and load only the selected series history.
 
 ## Measured trace interaction audit (2026-08-02)
 
@@ -217,7 +217,7 @@ Required assertions:
 - a 10,000-span waterfall mounts fewer than 100 rows / 2,000 DOM nodes and does not overflow stack or heap;
 - a 200-result trace list mounts fewer than 50 rows and selection rerenders only previous/new rows;
 - 50 rapid selections launch at most two detail requests, never commit stale results, and respect cache byte/entry caps;
-- payload byte limits are respected, including waterfall summary versus selected-span detail payloads;
+- payload byte limits are respected, including waterfall summary versus selected-span detail and log-summary page versus selected-log detail payloads;
 - no SQLite operation executes synchronously in Electron main;
 - the packaged benchmark builds 10,000 traces / 200,000 spans plus deep/wide adversarial traces, exercises rapid selection and cursor paging during continuous ingest, and enforces post-GC heap/frame/DOM budgets;
 - memory and SQLite backends remain behaviorally equivalent.

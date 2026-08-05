@@ -53,6 +53,22 @@ describe('Runtime RPC method params', () => {
 		});
 	});
 
+	it('decodes opaque log detail IDs', () => {
+		const request = parseRuntimeRpcRequest({
+			jsonrpc: '2.0',
+			id: 1,
+			method: 'telemetry/getLog',
+			params: { logId: '42' },
+		});
+		expect(decodeRuntimeRpcCall(request)).toEqual({
+			method: 'telemetry/getLog',
+			params: { logId: '42' },
+		});
+		expect(() => decodeRuntimeRpcCall({ ...request, params: { logId: '../settings.json' } })).toThrow(
+			'$.params.logId: expected a decimal log ID',
+		);
+	});
+
 	it('requires explicit clear confirmation', () => {
 		const request = parseRuntimeRpcRequest({
 			jsonrpc: '2.0',

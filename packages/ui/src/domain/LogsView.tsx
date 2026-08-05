@@ -21,9 +21,15 @@
  * it MUST NOT import other domain components.
  */
 
-import type { DataSource, ListLogsResult, LogListSort, SortDirection } from '@otelux/protocol';
+import type {
+	DataSource,
+	ListLogsResult,
+	LogListResultRow,
+	LogListSort,
+	SortDirection,
+} from '@otelux/protocol';
 import type { AttributeValue, LogRecord, SpanId, TraceId } from '@otelux/types';
-import { type CSSProperties, type JSX, useCallback, useState } from 'react';
+import { type CSSProperties, type JSX, useCallback, useRef, useState } from 'react';
 import { formatWallClock, serviceColorVar, severityLabel, severityTone } from '../format.js';
 import {
 	Accordion,
@@ -85,8 +91,35 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 		sortDirection = 'desc',
 	} = props;
 
-	const [selected, setSelected] = useState<LogRecord | null>(null);
+	const [selected, setSelected] = useState<LogListResultRow | null>(null);
+	const [selectedDetails, setSelectedDetails] = useState<LogRecord | null>(null);
+	const [detailError, setDetailError] = useState(false);
+	const detailRequest = useRef(0);
 	const [viewValue, setViewValue] = useState<{ key: string; value: AttributeValue } | null>(null);
+
+	const selectLog = useCallback(
+		(log: LogListResultRow): void => {
+			const request = ++detailRequest.current;
+			setSelected(log);
+			setSelectedDetails(null);
+			setDetailError(false);
+			void dataSource.getLogDetails({ logId: log.logId }).then(
+				(details) => {
+					if (detailRequest.current === request) setSelectedDetails(details);
+				},
+				() => {
+					if (detailRequest.current === request) setDetailError(true);
+				},
+			);
+		},
+		[dataSource],
+	);
+	const closeDetails = useCallback((): void => {
+		detailRequest.current++;
+		setSelected(null);
+		setSelectedDetails(null);
+		setDetailError(false);
+	}, []);
 
 	// The serialization key must include every input that changes the
 	// result set; otherwise the hook reuses a stale fetch when filters change.
@@ -165,13 +198,12 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 								</td>
 							</tr>
 						) : (
-							rows.map((log, i) => (
+							rows.map((log) => (
 								<LogRow
-									// Logs have no stable id; pair time + index for a stable key.
-									key={`${log.timeUnixNano}:${i}`}
+									key={log.logId}
 									log={log}
-									selected={selected === log}
-									onSelect={() => setSelected(log)}
+									selected={selected?.logId === log.logId}
+									onSelect={() => selectLog(log)}
 									{...(onOpenTrace !== undefined ? { onOpenTrace } : {})}
 								/>
 							))
@@ -197,17 +229,23 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 
 			<Drawer
 				open={selected !== null}
-				onClose={() => setSelected(null)}
+				onClose={closeDetails}
 				{...(selected
 					? {
-							title: logMessage(selected) || '(log)',
-							accentVar: serviceColorVar(serviceName(selected) ?? ''),
+							title: selected.message || '(log)',
+							accentVar: serviceColorVar(selected.serviceName ?? ''),
 							kindLabel: severityLabel(selected.severityNumber, selected.severityText),
 						}
 					: {})}
 			>
-				{selected ? (
-					<LogDetail log={selected} onViewValue={(key, value) => setViewValue({ key, value })} />
+				{selectedDetails ? (
+					<LogDetail log={selectedDetails} onViewValue={(key, value) => setViewValue({ key, value })} />
+				) : detailError ? (
+					<div className="otelux-log-detail" role="alert">
+						Log details are no longer available.
+					</div>
+				) : selected ? (
+					<div className="otelux-log-detail">Loading log details…</div>
 				) : null}
 			</Drawer>
 			<ValueViewer
@@ -220,7 +258,7 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 }
 
 interface LogRowProps {
-	log: LogRecord;
+	log: LogListResultRow;
 	selected: boolean;
 	onSelect(): void;
 	onOpenTrace?: (traceId: TraceId, spanId?: SpanId) => void;
@@ -229,12 +267,12 @@ interface LogRowProps {
 function LogRow(props: LogRowProps): JSX.Element {
 	const { log, selected, onSelect, onOpenTrace } = props;
 	const tone = severityTone(log.severityNumber);
-	const svc = serviceName(log);
+	const svc = log.serviceName;
 	const rowStyle =
 		svc !== undefined
 			? ({ ['--otelux-row-svc' as string]: serviceColorVar(svc) } as CSSProperties)
 			: undefined;
-	const message = logMessage(log);
+	const message = log.message;
 	const traceId = log.traceId;
 	const spanId = log.spanId;
 	const traceLabel = traceId !== undefined ? shortId(traceId) : '—';
@@ -501,31 +539,6 @@ function renderAttributeValue(v: AttributeValue): string {
 		return v.map((item) => String(item)).join(', ');
 	}
 	return String(v);
-}
-
-// `service.name` lives on the resource attribute bag per OTel resource
-// conventions: https://opentelemetry.io/docs/specs/semconv/resource/.
-function serviceName(log: LogRecord): string | undefined {
-	const v = log.resource.attributes['service.name'];
-	return typeof v === 'string' ? v : undefined;
-}
-
-// The row message: prefer the OTLP body, then a conventional `message`
-// attribute, then the event name. For Codex's attribute-only events
-// (e.g. `codex.user_prompt`) the body is absent, so fall back through
-// the most useful attribute the SDK populated.
-function logMessage(log: LogRecord): string {
-	if (typeof log.body === 'string' && log.body !== '') {
-		return log.body;
-	}
-	if (log.body !== undefined && !Array.isArray(log.body)) {
-		return renderAttributeValue(log.body);
-	}
-	const msg = log.attributes.message ?? log.attributes['event.name'] ?? log.attributes.prompt;
-	if (msg !== undefined) {
-		return renderAttributeValue(msg);
-	}
-	return log.eventName ?? '(no message)';
 }
 
 function shortId(id: string): string {

@@ -1,6 +1,4 @@
 import type {
-	GetSpanDetailsQuery,
-	GetTraceQuery,
 	ListLogsQuery,
 	ListLogsResult,
 	ListMetricsQuery,
@@ -9,6 +7,7 @@ import type {
 	ListResourceFacetsResult,
 	ListTracesQuery,
 	ListTracesResult,
+	LogListResultRow,
 } from '@otelux/protocol';
 import type { AttributeValue, LogRecord, Metric, Span, SpanId, TraceId } from '@otelux/types';
 
@@ -22,6 +21,11 @@ import type { AttributeValue, LogRecord, Metric, Span, SpanId, TraceId } from '@
  * the in-memory implementation walks an array. Either way, the engine
  * itself only orchestrates and notifies subscribers.
  */
+export interface FullListLogsResult {
+	readonly rows: readonly LogRecord[];
+	readonly totalCount: number;
+}
+
 export interface Storage {
 	readonly kind: 'otelux/storage';
 	writeSpans(spans: readonly Span[]): Promise<void> | void;
@@ -30,6 +34,8 @@ export interface Storage {
 	getSpan(traceId: TraceId, spanId: SpanId): Promise<Span | undefined> | Span | undefined;
 	writeLogs(logs: readonly LogRecord[]): Promise<void> | void;
 	listLogs(query: ListLogsQuery): Promise<ListLogsResult> | ListLogsResult;
+	getLog(logId: string): Promise<LogRecord | undefined> | LogRecord | undefined;
+	searchLogs(query: ListLogsQuery): Promise<FullListLogsResult> | FullListLogsResult;
 	writeMetrics(metrics: readonly Metric[]): Promise<void> | void;
 	listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult> | ListMetricsResult;
 	listResourceFacets(
@@ -68,6 +74,37 @@ function logMatchesText(log: LogRecord, needle: string): boolean {
 		}
 	}
 	return false;
+}
+
+const MAX_LOG_LIST_MESSAGE_LENGTH = 4_096;
+
+function logMessage(log: LogRecord): string {
+	let value: AttributeValue | undefined;
+	if (typeof log.body === 'string' && log.body !== '') value = log.body;
+	else if (log.body !== undefined && !Array.isArray(log.body)) value = log.body;
+	else value = log.attributes.message ?? log.attributes['event.name'] ?? log.attributes.prompt;
+	const rendered =
+		value !== undefined
+			? Array.isArray(value)
+				? value.map(String).join(', ')
+				: String(value)
+			: (log.eventName ?? '(no message)');
+	return rendered.slice(0, MAX_LOG_LIST_MESSAGE_LENGTH);
+}
+
+function logListRow(log: LogRecord, logId: string): LogListResultRow {
+	const serviceName = resourceServiceName(log.resource);
+	return {
+		logId,
+		timeUnixNano: log.timeUnixNano,
+		severityNumber: log.severityNumber,
+		...(log.severityText !== undefined ? { severityText: log.severityText } : {}),
+		...(log.eventName !== undefined ? { eventName: log.eventName } : {}),
+		message: logMessage(log),
+		...(serviceName !== '' ? { serviceName } : {}),
+		...(log.traceId !== undefined ? { traceId: log.traceId } : {}),
+		...(log.spanId !== undefined ? { spanId: log.spanId } : {}),
+	};
 }
 
 /**
@@ -167,6 +204,7 @@ export function createMemoryStorage(): Storage {
 	// matching the span path. The production backend pushes this into SQL.
 	const logs: LogRecord[] = [];
 	const logIds = new WeakMap<LogRecord, number>();
+	const logsById = new Map<number, LogRecord>();
 	let nextLogId = 1;
 	// Metrics are merged by instrument identity so repeated exports of the
 	// same instrument grow one time series rather than piling up duplicates.
@@ -354,7 +392,9 @@ export function createMemoryStorage(): Storage {
 
 		writeLogs(records: readonly LogRecord[]): void {
 			for (const record of records) {
-				logIds.set(record, nextLogId++);
+				const id = nextLogId++;
+				logIds.set(record, id);
+				logsById.set(id, record);
 				logs.push(record);
 			}
 		},
@@ -427,10 +467,25 @@ export function createMemoryStorage(): Storage {
 					: undefined;
 
 			return {
-				rows: page,
+				rows: page.map((log) => logListRow(log, String(logIds.get(log)))),
 				totalCount: query.includeTotalCount === false ? page.length : totalCount,
 				...(query.includeTotalCount === false ? { totalCountIsExact: false } : {}),
 				...(nextCursor ? { nextCursor } : {}),
+			};
+		},
+
+		getLog(logId: string): LogRecord | undefined {
+			return /^\d+$/.test(logId) ? logsById.get(Number(logId)) : undefined;
+		},
+
+		searchLogs(query: ListLogsQuery): FullListLogsResult {
+			const listed = this.listLogs(query) as ListLogsResult;
+			return {
+				rows: listed.rows.flatMap((row) => {
+					const log = logsById.get(Number(row.logId));
+					return log ? [log] : [];
+				}),
+				totalCount: listed.totalCount,
 			};
 		},
 
@@ -525,16 +580,18 @@ export function createMemoryStorage(): Storage {
 		clear(): void {
 			byTrace.clear();
 			logs.length = 0;
+			logsById.clear();
 			metrics.clear();
 		},
 
 		close(): void {
 			byTrace.clear();
 			logs.length = 0;
+			logsById.clear();
 			metrics.clear();
 		},
 	};
 }
 
 // Re-export for query helpers — not part of the public API.
-export type { GetSpanDetailsQuery, GetTraceQuery };
+export type { GetSpanDetailsQuery, GetTraceQuery } from '@otelux/protocol';

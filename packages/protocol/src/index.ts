@@ -97,12 +97,32 @@ export interface ListLogsQuery {
 	search?: string;
 }
 
+export interface LogListResultRow {
+	/** Opaque storage identity used only to load this record's details. */
+	logId: string;
+	timeUnixNano: bigint;
+	severityNumber: number;
+	severityText?: string;
+	eventName?: string;
+	/** Bounded display value derived from body/message/event attributes. */
+	message: string;
+	serviceName?: string;
+	traceId?: TraceId;
+	spanId?: SpanId;
+}
+
 export interface ListLogsResult {
-	rows: readonly LogRecord[];
+	rows: readonly LogListResultRow[];
 	totalCount: number;
 	totalCountIsExact?: boolean;
 	nextCursor?: string;
 }
+
+export interface GetLogDetailsQuery {
+	logId: string;
+}
+
+export type LogDetails = LogRecord;
 
 /**
  * Query for the metrics page.
@@ -175,6 +195,7 @@ export type InvokeMessage =
 	| { kind: 'getTraceWaterfall'; query: GetTraceQuery }
 	| { kind: 'getSpanDetails'; query: GetSpanDetailsQuery }
 	| { kind: 'listLogs'; query: ListLogsQuery }
+	| { kind: 'getLogDetails'; query: GetLogDetailsQuery }
 	| { kind: 'listMetrics'; query: ListMetricsQuery }
 	| { kind: 'listResourceFacets'; query: ListResourceFacetsQuery }
 	| { kind: 'getSettings' }
@@ -194,27 +215,29 @@ export type InvokeResultFor<M extends InvokeMessage> = M extends { kind: 'listTr
 			? SpanDetails
 			: M extends { kind: 'listLogs' }
 				? ListLogsResult
-				: M extends { kind: 'listMetrics' }
-					? ListMetricsResult
-					: M extends { kind: 'listResourceFacets' }
-						? ListResourceFacetsResult
-						: M extends { kind: 'getSettings' }
-							? Settings
-							: M extends { kind: 'updateSettings' }
-								? UpdateSettingsResult
-								: M extends { kind: 'getReceiverStatus' }
-									? ReceiverStatus
-									: M extends { kind: 'getMcpStatus' }
-										? McpStatus
-										: M extends { kind: 'getStoragePath' }
-											? StoragePathInfo
-											: M extends { kind: 'getStorageUsage' }
-												? StorageUsageInfo
-												: M extends { kind: 'loadSampleData' }
-													? LoadSampleDataResult
-													: M extends { kind: 'clearData' }
-														? undefined
-														: never;
+				: M extends { kind: 'getLogDetails' }
+					? LogDetails
+					: M extends { kind: 'listMetrics' }
+						? ListMetricsResult
+						: M extends { kind: 'listResourceFacets' }
+							? ListResourceFacetsResult
+							: M extends { kind: 'getSettings' }
+								? Settings
+								: M extends { kind: 'updateSettings' }
+									? UpdateSettingsResult
+									: M extends { kind: 'getReceiverStatus' }
+										? ReceiverStatus
+										: M extends { kind: 'getMcpStatus' }
+											? McpStatus
+											: M extends { kind: 'getStoragePath' }
+												? StoragePathInfo
+												: M extends { kind: 'getStorageUsage' }
+													? StorageUsageInfo
+													: M extends { kind: 'loadSampleData' }
+														? LoadSampleDataResult
+														: M extends { kind: 'clearData' }
+															? undefined
+															: never;
 
 export interface DataSource {
 	readonly kind: 'otelux/datasource';
@@ -224,6 +247,7 @@ export interface DataSource {
 	getTraceWaterfall?(query: GetTraceQuery): Promise<Trace>;
 	getSpanDetails(query: GetSpanDetailsQuery): Promise<SpanDetails>;
 	listLogs(query: ListLogsQuery): Promise<ListLogsResult>;
+	getLogDetails(query: GetLogDetailsQuery): Promise<LogDetails>;
 	listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult>;
 	listResourceFacets(query: ListResourceFacetsQuery): Promise<ListResourceFacetsResult>;
 	subscribe(handler: (event: ChangeEvent) => void): Disposable;

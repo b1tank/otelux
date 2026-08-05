@@ -2,6 +2,7 @@ import type {
 	ChangeEvent,
 	DataSource,
 	Disposable,
+	GetLogDetailsQuery,
 	GetSpanDetailsQuery,
 	GetTraceQuery,
 	ListLogsQuery,
@@ -12,6 +13,7 @@ import type {
 	ListResourceFacetsResult,
 	ListTracesQuery,
 	ListTracesResult,
+	LogDetails,
 	SpanDetails,
 } from '@otelux/protocol';
 import type { LogRecord, Metric, Span, Trace } from '@otelux/types';
@@ -38,6 +40,8 @@ export interface ServiceOverviewRow {
 export interface Engine extends DataSource {
 	getTraceWaterfall(query: GetTraceQuery): Promise<Trace>;
 	getServiceOverview(sinceMinutes: number): Promise<readonly ServiceOverviewRow[]>;
+	/** Full records for bounded agent summaries; UI list RPCs use lightweight DTOs. */
+	searchLogs(query: ListLogsQuery): Promise<{ rows: readonly LogRecord[]; totalCount: number }>;
 	ingestSpans(spans: readonly Span[]): Promise<void>;
 	ingestLogs(logs: readonly LogRecord[]): Promise<void>;
 	ingestMetrics(metrics: readonly Metric[]): Promise<void>;
@@ -142,6 +146,18 @@ export function createEngine(options: EngineOptions): Engine {
 			return await storage.listLogs(query);
 		},
 
+		async getLogDetails(query: GetLogDetailsQuery): Promise<LogDetails> {
+			const log = await storage.getLog(query.logId);
+			if (!log) throw new Error(`OTelux engine: log ${query.logId} not found`);
+			return log;
+		},
+
+		async searchLogs(
+			query: ListLogsQuery,
+		): Promise<{ rows: readonly LogRecord[]; totalCount: number }> {
+			return await storage.searchLogs(query);
+		},
+
 		async listMetrics(query: ListMetricsQuery): Promise<ListMetricsResult> {
 			return await storage.listMetrics(query);
 		},
@@ -183,8 +199,8 @@ export function createEngine(options: EngineOptions): Engine {
 				includeTotalCount: false,
 			});
 			for (const log of logs.rows) {
-				const name = log.resource.attributes['service.name'];
-				if (typeof name !== 'string' || name === '') continue;
+				const name = log.serviceName;
+				if (!name) continue;
 				const entry = overviewEntry(services, name);
 				entry.logs++;
 				const band = severityBand(log.severityNumber);

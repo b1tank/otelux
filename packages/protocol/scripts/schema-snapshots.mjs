@@ -208,6 +208,7 @@ const facetQuery = object(
 	},
 	['signal', 'facet'],
 );
+const logQuery = object({ logId: text(32, '^[1-9][0-9]*$') }, ['logId']);
 const queryRequest = (kind, query) => object({ kind: { const: kind }, query });
 const emptyRequest = (kind) => object({ kind: { const: kind } });
 schemas['invoke-message'] = {
@@ -220,6 +221,7 @@ schemas['invoke-message'] = {
 		queryRequest('getTraceWaterfall', traceQuery),
 		queryRequest('getSpanDetails', spanQuery),
 		queryRequest('listLogs', logListQuery),
+		queryRequest('getLogDetails', logQuery),
 		queryRequest('listMetrics', metricListQuery),
 		queryRequest('listResourceFacets', facetQuery),
 		object({ kind: { const: 'updateSettings' }, patch: partialSettings }),
@@ -256,6 +258,7 @@ schemas['runtime-rpc-request'] = {
 					'telemetry/getTraceWaterfall',
 					'telemetry/getSpan',
 					'telemetry/listLogs',
+					'telemetry/getLog',
 					'telemetry/listMetrics',
 					'telemetry/getFacets',
 				],

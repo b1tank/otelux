@@ -1,5 +1,6 @@
 import type { DatabaseSync, StatementSync } from 'node:sqlite';
-import type { ListLogsQuery, ListLogsResult } from '@otelux/protocol';
+import type { FullListLogsResult } from '@otelux/engine';
+import type { ListLogsQuery, ListLogsResult, LogListResultRow } from '@otelux/protocol';
 import type { InstrumentationScope, LogRecord, Resource, SpanId, TraceId } from '@otelux/types';
 import {
 	attributeValueToSearchText,
@@ -21,6 +22,33 @@ FROM logs l
 JOIN resources r ON r.id = l.resource_id
 JOIN scopes sc   ON sc.id = l.scope_id
 `;
+
+const LOG_LIST_SELECT = `
+SELECT l.id, l.time_unix_nano, l.severity_number, l.severity_text, l.event_name,
+       substr(COALESCE(
+         CASE WHEN json_type(l.body) IN ('text', 'integer', 'real', 'true', 'false')
+              THEN CAST(json_extract(l.body, '$') AS TEXT) END,
+         CAST(json_extract(l.attributes, '$.message') AS TEXT),
+         CAST(json_extract(l.attributes, '$."event.name"') AS TEXT),
+         CAST(json_extract(l.attributes, '$.prompt') AS TEXT),
+         l.event_name,
+         '(no message)'
+       ), 1, 4096) AS message,
+       l.service_name, l.trace_id, l.span_id
+FROM logs l
+`;
+
+interface LogListRow {
+	id: bigint;
+	time_unix_nano: bigint;
+	severity_number: bigint;
+	severity_text: string | null;
+	event_name: string | null;
+	message: string;
+	service_name: string;
+	trace_id: string | null;
+	span_id: string | null;
+}
 
 interface LogRow {
 	id: bigint;
@@ -148,18 +176,47 @@ INSERT INTO logs (
 		const limit = query.limit ?? 100;
 		const offset = query.cursor ? 0 : (query.offset ?? 0);
 		const stmt = this.db.prepare(
-			`${LOG_SELECT} ${pageWhereSql} ORDER BY ${sortColumn} ${direction}, l.id ${direction} LIMIT ? OFFSET ?`,
+			`${LOG_LIST_SELECT} ${pageWhereSql} ORDER BY ${sortColumn} ${direction}, l.id ${direction} LIMIT ? OFFSET ?`,
 		);
 		stmt.setReadBigInts(true);
-		const rows = stmt.all(...pageParams, BigInt(limit + 1), BigInt(offset)) as unknown as LogRow[];
+		const rows = stmt.all(
+			...pageParams,
+			BigInt(limit + 1),
+			BigInt(offset),
+		) as unknown as LogListRow[];
 		const hasMore = rows.length > limit;
 		const page = rows.slice(0, limit);
 		const nextCursor = hasMore ? page.at(-1)?.id.toString() : undefined;
 		return {
-			rows: page.map(logFromRow),
+			rows: page.map(logListFromRow),
 			totalCount: countRow?.n ?? page.length,
 			...(!includeTotalCount ? { totalCountIsExact: false } : {}),
 			...(nextCursor ? { nextCursor } : {}),
+		};
+	}
+
+	getLog(logId: string): LogRecord | undefined {
+		if (!/^\d+$/.test(logId)) return undefined;
+		const stmt = this.db.prepare(`${LOG_SELECT} WHERE l.id = ?`);
+		stmt.setReadBigInts(true);
+		const row = stmt.get(logId) as unknown as LogRow | undefined;
+		return row ? logFromRow(row) : undefined;
+	}
+
+	searchLogs(query: ListLogsQuery): FullListLogsResult {
+		const listed = this.listLogs(query);
+		const ids = listed.rows.map((row) => row.logId);
+		if (ids.length === 0) return { rows: [], totalCount: listed.totalCount };
+		const stmt = this.db.prepare(`${LOG_SELECT} WHERE l.id IN (${ids.map(() => '?').join(', ')})`);
+		stmt.setReadBigInts(true);
+		const records = stmt.all(...ids) as unknown as LogRow[];
+		const byId = new Map(records.map((row) => [row.id.toString(), logFromRow(row)] as const));
+		return {
+			rows: ids.flatMap((id) => {
+				const log = byId.get(id);
+				return log ? [log] : [];
+			}),
+			totalCount: listed.totalCount,
 		};
 	}
 }
@@ -186,6 +243,20 @@ function buildSearchText(log: LogRecord): string {
 		parts.push(attributeValueToSearchText(value));
 	}
 	return parts.join(' ').toLowerCase();
+}
+
+function logListFromRow(row: LogListRow): LogListResultRow {
+	return {
+		logId: row.id.toString(),
+		timeUnixNano: row.time_unix_nano,
+		severityNumber: Number(row.severity_number),
+		...(row.severity_text !== null ? { severityText: row.severity_text } : {}),
+		...(row.event_name !== null ? { eventName: row.event_name } : {}),
+		message: row.message,
+		...(row.service_name !== '' ? { serviceName: row.service_name } : {}),
+		...(row.trace_id !== null ? { traceId: row.trace_id as TraceId } : {}),
+		...(row.span_id !== null ? { spanId: row.span_id as SpanId } : {}),
+	};
 }
 
 function logFromRow(row: LogRow): LogRecord {

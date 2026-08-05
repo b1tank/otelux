@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { RuntimeRpcError, createHttpDataSource } from '@otelux/adapter-http';
+import { createHttpDataSource } from '@otelux/adapter-http';
 import { DEFAULT_SETTINGS } from '@otelux/protocol';
 import { describe, expect, it } from 'vitest';
 import { createLocalRuntime } from './runtime.js';
@@ -9,7 +9,7 @@ import { createLocalRuntime } from './runtime.js';
 const silentLogger = { info: (): void => {}, error: (): void => {} };
 
 describe('Runtime HTTP payload budgets', () => {
-	it('rejects a large ordinary log page instead of serializing beyond 2 MiB', async () => {
+	it('keeps a large log page bounded and loads one selected record separately', async () => {
 		const directory = await fs.mkdtemp(join(tmpdir(), 'otelux-http-budget-'));
 		await fs.writeFile(
 			join(directory, 'settings.json'),
@@ -54,10 +54,17 @@ describe('Runtime HTTP payload budgets', () => {
 				baseUrl: `http://${api.host}:${api.port}`,
 				token,
 			});
-			await expect(client.listLogs({ limit: 30 })).rejects.toMatchObject({
-				name: RuntimeRpcError.name,
-				code: -32005,
-			});
+			const page = await client.listLogs({ limit: 30 });
+			expect(page.rows).toHaveLength(30);
+			expect(page.rows.every((row) => row.message.length <= 4_096)).toBe(true);
+			expect(
+				JSON.stringify(page, (_key, value) => (typeof value === 'bigint' ? value.toString() : value))
+					.length,
+			).toBeLessThan(150_000);
+			const first = page.rows[0];
+			if (!first) throw new Error('expected a log row');
+			const details = await client.getLogDetails({ logId: first.logId });
+			expect(String(details.body).length).toBeGreaterThan(100_000);
 			client.close();
 		} finally {
 			await runtime.close();

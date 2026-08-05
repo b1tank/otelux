@@ -33,6 +33,13 @@ function runtime(): LocalRuntime {
 		getTraceWaterfall: vi.fn(async () => ({ traceId, spans: [] })),
 		getSpanDetails: vi.fn(),
 		listLogs: vi.fn(async () => ({ rows: [], totalCount: 0 })),
+		getLogDetails: vi.fn(async () => ({
+			timeUnixNano: 1n,
+			severityNumber: 9,
+			attributes: {},
+			resource: { attributes: {} },
+			scope: { name: 'test' },
+		})),
 		listMetrics: vi.fn(async () => ({ rows: [], totalCount: 0 })),
 		listResourceFacets: vi.fn(async () => ({ rows: [] })),
 		updateSettings: vi.fn(),

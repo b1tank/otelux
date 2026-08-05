@@ -27,6 +27,7 @@
         "telemetry/getTraceWaterfall",
         "telemetry/getSpan",
         "telemetry/listLogs",
+        "telemetry/getLog",
         "telemetry/listMetrics",
         "telemetry/getFacets"
       ]

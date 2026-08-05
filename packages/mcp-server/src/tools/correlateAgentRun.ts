@@ -21,7 +21,7 @@ export const correlateAgentRunTool: ToolDefinition = {
 		const agentRunId = input.agentRunId?.trim();
 		if (!agentRunId) throw new Error('agentRunId is required');
 		const limit = Math.max(1, Math.min(500, Math.floor(input.limit ?? 100)));
-		const logs = await engine.listLogs({ search: agentRunId, limit });
+		const logs = await engine.searchLogs({ search: agentRunId, limit });
 		const traceIds = [
 			...new Set(logs.rows.flatMap((log) => (log.traceId ? [log.traceId] : []))),
 		].slice(0, limit);

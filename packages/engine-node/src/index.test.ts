@@ -270,7 +270,8 @@ describe('@otelux/engine-node logs', () => {
 		storage.writeLogs([
 			makeLog({ time: 1n, severity: 9, attributes: { id: 9_007_199_254_740_993n } }),
 		]);
-		const log = storage.listLogs({}).rows[0];
+		const row = storage.listLogs({}).rows[0];
+		const log = row ? storage.getLog(row.logId) : undefined;
 		expect(log?.attributes.id).toBe(9_007_199_254_740_993n);
 	});
 
@@ -280,7 +281,7 @@ describe('@otelux/engine-node logs', () => {
 			makeLog({ time: 30n, severity: 9, body: 'third' }),
 			makeLog({ time: 20n, severity: 9, body: 'second' }),
 		]);
-		expect(storage.listLogs({}).rows.map((r) => r.body)).toEqual(['third', 'second', 'first']);
+		expect(storage.listLogs({}).rows.map((r) => r.message)).toEqual(['third', 'second', 'first']);
 	});
 });
 
@@ -387,7 +388,7 @@ describe('@otelux/engine-node persistence', () => {
 
 		const second = createNodeSqliteStorage({ path, pruneIntervalMs: 0 });
 		expect(second.listTraces({}).totalCount).toBe(1);
-		expect(second.listLogs({}).rows[0]?.body).toBe('persisted');
+		expect(second.listLogs({}).rows[0]?.message).toBe('persisted');
 		second.close();
 	});
 });
@@ -419,7 +420,7 @@ describe('@otelux/engine-node retention', () => {
 		expect(traces.rows[0]?.rootName).toBe('new');
 		const logs = storage.listLogs({});
 		expect(logs.totalCount).toBe(1);
-		expect(logs.rows[0]?.body).toBe('new');
+		expect(logs.rows[0]?.message).toBe('new');
 		storage.close();
 	});
 
@@ -448,7 +449,7 @@ describe('@otelux/engine-node retention', () => {
 			expect(after.totalCount).toBeGreaterThan(0);
 			expect(after.totalCount).toBeLessThan(4000);
 			// The survivors are the newest logs (highest time), not the oldest.
-			expect(after.rows[0]?.body?.toString().startsWith('3999:')).toBe(true);
+			expect(after.rows[0]?.message.startsWith('3999:')).toBe(true);
 			const usage = storage.getStorageUsage();
 			expect(usage.retentionBytes).toBeLessThanOrEqual(2 * 1024 * 1024);
 			expect(usage.walBytes).toBe(0);

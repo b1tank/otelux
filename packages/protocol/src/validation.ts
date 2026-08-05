@@ -305,6 +305,14 @@ function parseTraceQuery(value: unknown, path: string): { traceId: string } {
 	return { traceId: identifier(input.traceId, `${path}.traceId`, TRACE_ID, 'trace ID') };
 }
 
+function parseLogQuery(value: unknown, path: string): { logId: string } {
+	const input = object(value, path);
+	knownKeys(input, ['logId'], path);
+	const logId = string(input.logId, `${path}.logId`, 32);
+	if (!/^[1-9]\d*$/.test(logId)) return fail(`${path}.logId`, 'format', 'expected a decimal log ID');
+	return { logId };
+}
+
 function parseSpanQuery(value: unknown, path: string): { traceId: string; spanId: string } {
 	const input = object(value, path);
 	knownKeys(input, ['traceId', 'spanId'], path);
@@ -484,6 +492,8 @@ export function parseInvokeMessage(value: unknown): InvokeMessage {
 			return queryMessage(parseSpanQuery);
 		case 'listLogs':
 			return queryMessage(parseListLogsQuery);
+		case 'getLogDetails':
+			return queryMessage(parseLogQuery);
 		case 'listMetrics':
 			return queryMessage(parseListMetricsQuery);
 		case 'listResourceFacets':

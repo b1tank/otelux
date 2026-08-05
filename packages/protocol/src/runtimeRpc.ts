@@ -110,6 +110,7 @@ export type RuntimeRpcMethod =
 	| 'telemetry/getTraceWaterfall'
 	| 'telemetry/getSpan'
 	| 'telemetry/listLogs'
+	| 'telemetry/getLog'
 	| 'telemetry/listMetrics'
 	| 'telemetry/getFacets';
 
@@ -128,6 +129,7 @@ export type DecodedRuntimeRpcCall =
 			readonly params: { readonly traceId: string; readonly spanId: string };
 	  }
 	| { readonly method: 'telemetry/listLogs'; readonly params: ListLogsQuery }
+	| { readonly method: 'telemetry/getLog'; readonly params: { readonly logId: string } }
 	| { readonly method: 'telemetry/listMetrics'; readonly params: ListMetricsQuery }
 	| { readonly method: 'telemetry/getFacets'; readonly params: ListResourceFacetsQuery };
 
@@ -161,6 +163,16 @@ function emptyParams(value: unknown, path = '$.params'): void {
 	if (value === undefined) return;
 	const input = record(value, path);
 	keys(input, [], path);
+}
+
+function logParams(value: unknown): { logId: string } {
+	const input = record(value, '$.params');
+	keys(input, ['logId'], '$.params');
+	const logId = text(input.logId, '$.params.logId', 32);
+	if (!/^[1-9]\d*$/.test(logId)) {
+		throw new ProtocolValidationError('$.params.logId', 'format', 'expected a decimal log ID');
+	}
+	return { logId };
 }
 
 function traceParams(value: unknown, withSpan = false): { traceId: string; spanId?: string } {
@@ -260,6 +272,8 @@ export function decodeRuntimeRpcCall(request: RuntimeRpcRequest): DecodedRuntime
 		}
 		case 'telemetry/listLogs':
 			return { method, params: parseListLogsQuery(request.params, '$.params') };
+		case 'telemetry/getLog':
+			return { method, params: logParams(request.params) };
 		case 'telemetry/listMetrics':
 			return { method, params: parseListMetricsQuery(request.params, '$.params') };
 		case 'telemetry/getFacets':

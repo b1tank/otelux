@@ -5,6 +5,7 @@
 import type {
 	ChangeEvent,
 	DataSource,
+	GetLogDetailsQuery,
 	GetSpanDetailsQuery,
 	GetTraceQuery,
 	ListLogsQuery,
@@ -13,6 +14,7 @@ import type {
 	ListMetricsResult,
 	ListTracesQuery,
 	ListTracesResult,
+	LogListResultRow,
 	SpanDetails,
 } from '@otelux/protocol';
 import type { LogRecord, Trace } from '@otelux/types';
@@ -35,6 +37,31 @@ function makeLog(over: Partial<LogRecord> = {}): LogRecord {
 	};
 }
 
+function summary(log: LogRecord, logId: string): LogListResultRow {
+	const service = log.resource.attributes['service.name'];
+	const message =
+		typeof log.body === 'string'
+			? log.body
+			: String(
+					log.attributes.message ??
+						log.attributes['event.name'] ??
+						log.attributes.prompt ??
+						log.eventName ??
+						'(no message)',
+				);
+	return {
+		logId,
+		timeUnixNano: log.timeUnixNano,
+		severityNumber: log.severityNumber,
+		...(log.severityText !== undefined ? { severityText: log.severityText } : {}),
+		...(log.eventName !== undefined ? { eventName: log.eventName } : {}),
+		message,
+		...(typeof service === 'string' ? { serviceName: service } : {}),
+		...(log.traceId !== undefined ? { traceId: log.traceId } : {}),
+		...(log.spanId !== undefined ? { spanId: log.spanId } : {}),
+	};
+}
+
 class FakeDataSource implements DataSource {
 	readonly kind = 'otelux/datasource' as const;
 	calls: ListLogsQuery[] = [];
@@ -51,7 +78,15 @@ class FakeDataSource implements DataSource {
 	}
 	listLogs(query: ListLogsQuery): Promise<ListLogsResult> {
 		this.calls.push(query);
-		return Promise.resolve({ rows: this.rows, totalCount: this.rows.length });
+		return Promise.resolve({
+			rows: this.rows.map((log, index) => summary(log, String(index + 1))),
+			totalCount: this.rows.length,
+		});
+	}
+	getLogDetails(query: GetLogDetailsQuery): Promise<LogRecord> {
+		const log = this.rows[Number(query.logId) - 1];
+		if (!log) throw new Error('log not found');
+		return Promise.resolve(log);
 	}
 	listMetrics(_query: ListMetricsQuery): Promise<ListMetricsResult> {
 		return Promise.resolve({ rows: [], totalCount: 0 });
@@ -190,8 +225,8 @@ describe('LogsView', () => {
 		ds.listLogs = async (query) => {
 			ds.calls.push(query);
 			return query.cursor
-				? { rows: [makeLog({ body: 'second page' })], totalCount: 1 }
-				: { rows: [makeLog()], totalCount: 2, nextCursor: '1' };
+				? { rows: [summary(makeLog({ body: 'second page' }), '2')], totalCount: 1 }
+				: { rows: [summary(makeLog(), '1')], totalCount: 2, nextCursor: '1' };
 		};
 		const { findByText } = render(<LogsView dataSource={ds} />);
 		fireEvent.click(await findByText('Load more logs'));
@@ -206,7 +241,7 @@ describe('LogsView', () => {
 		const hit = await findByText('hello world');
 		fireEvent.click(hit);
 		const dialog = getByRole('dialog');
-		expect(dialog.textContent).toContain('Attributes');
+		await within(dialog).findByText('Attributes');
 		expect(dialog.textContent).toContain('do the thing');
 	});
 
@@ -216,7 +251,7 @@ describe('LogsView', () => {
 		const { findByText, getByRole } = render(<LogsView dataSource={ds} />);
 		fireEvent.click(await findByText('hello world'));
 		const dialog = getByRole('dialog');
-		fireEvent.change(within(dialog).getByLabelText('Search log details'), {
+		fireEvent.change(await within(dialog).findByLabelText('Search log details'), {
 			target: { value: 'do the thing' },
 		});
 		expect(within(dialog).getByText('prompt')).toBeTruthy();

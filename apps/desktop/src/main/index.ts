@@ -168,6 +168,8 @@ async function startBackend(): Promise<{
 				return runtime.getSpanDetails(message.query);
 			case 'listLogs':
 				return runtime.listLogs(message.query);
+			case 'getLogDetails':
+				return runtime.getLogDetails(message.query);
 			case 'listMetrics':
 				return runtime.listMetrics(message.query);
 			case 'listResourceFacets':

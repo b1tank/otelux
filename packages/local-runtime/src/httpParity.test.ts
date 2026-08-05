@@ -78,7 +78,11 @@ describe('direct and HTTP DataSource parity', () => {
 			expect(await http.getSpanDetails({ traceId, spanId })).toEqual(
 				await runtime.getSpanDetails({ traceId, spanId }),
 			);
-			expect(await http.listLogs({ limit: 50 })).toEqual(await runtime.listLogs({ limit: 50 }));
+			const httpLogs = await http.listLogs({ limit: 50 });
+			expect(httpLogs).toEqual(await runtime.listLogs({ limit: 50 }));
+			const logId = httpLogs.rows[0]?.logId;
+			if (!logId) throw new Error('sample log missing');
+			expect(await http.getLogDetails({ logId })).toEqual(await runtime.getLogDetails({ logId }));
 			expect(await http.listMetrics({ pointLimit: 10 })).toEqual(
 				await runtime.listMetrics({ pointLimit: 10 }),
 			);
