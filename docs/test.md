@@ -566,7 +566,7 @@ curl -s -D /tmp/otelux-origin-headers.txt -X POST \
 - Choose **Open OTelux** from the tray menu.
 - **Expected**: the workbench returns with telemetry received while hidden.
 - Choose **Quit Desktop** from the tray menu.
-- **Expected**: the window, tray item, and Electron process disappear, while OTLP/MCP/Runtime API and the daemon PID in `runtime.json` remain healthy. Send another telemetry item and confirm it persists. Relaunch Desktop, choose **Stop Runtime and Quit**, cancel once to prove nothing stops, then confirm; listeners and ownership state disappear cleanly.
+- **Expected**: the window, tray item, and Electron process disappear, while OTLP/MCP/Runtime API and the daemon PID in `runtime.json` remain healthy. Send another telemetry item and confirm it persists. Relaunch Desktop and choose **Restart Runtime** → the old instance shuts down, a new instance appears, retained telemetry remains, and the shell reopens. Then choose **Stop Runtime and Quit**, cancel once to prove nothing stops, then confirm; listeners and ownership state disappear cleanly.
 
 ### 12.3 DevTools open
 - F12 or Ctrl+Shift+I on Linux/Windows; F12 or Command+Shift+I on macOS.

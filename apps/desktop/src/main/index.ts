@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 import {
 	ensureRuntimeClient,
 	prepareDataDirectory,
+	readRuntimeState,
 	resolveOteluxDataDirectory,
 } from '@otelux/local-runtime';
 import {
@@ -156,6 +157,13 @@ async function startBackend(): Promise<{ stop: () => Promise<void> }> {
 		runtime.close();
 		windowLifecycle.requestQuit();
 	};
+	restartRuntime = async () => {
+		await runtime.shutdown();
+		runtime.close();
+		await waitForRuntimeStop(dataDirectory, discovered.state.instanceId);
+		app.relaunch();
+		windowLifecycle.requestQuit();
+	};
 
 	const broadcast = (event: OteluxEvent): void => {
 		let validated: OteluxEvent;
@@ -304,6 +312,7 @@ async function startBackend(): Promise<{ stop: () => Promise<void> }> {
 	return {
 		stop: async () => {
 			shutdownRuntime = undefined;
+			restartRuntime = undefined;
 			events.dispose();
 			controlSignals.dispose();
 			await controlRefresh;
@@ -311,6 +320,16 @@ async function startBackend(): Promise<{ stop: () => Promise<void> }> {
 			ipcMain.removeHandler(OTELUX_INVOKE_CHANNEL);
 		},
 	};
+}
+
+async function waitForRuntimeStop(dataDirectory: string, instanceId: string): Promise<void> {
+	const deadline = Date.now() + 10_000;
+	while (Date.now() < deadline) {
+		const state = await readRuntimeState(dataDirectory);
+		if (!state || state.instanceId !== instanceId) return;
+		await new Promise((resolve) => setTimeout(resolve, 50));
+	}
+	throw new Error('Timed out waiting for the runtime to stop');
 }
 
 function startPackagedDaemon(dataDirectory: string): void {
@@ -479,6 +498,7 @@ const windowLifecycle = createDesktopWindowLifecycle(createWindow, () => app.qui
 
 let tray: Tray | undefined;
 let shutdownRuntime: (() => Promise<void>) | undefined;
+let restartRuntime: (() => Promise<void>) | undefined;
 
 async function confirmRuntimeShutdown(): Promise<void> {
 	if (!shutdownRuntime) return;
@@ -506,6 +526,17 @@ function createTray(): void {
 				click: () => windowLifecycle.showWindow(),
 			},
 			{ type: 'separator' },
+			{
+				label: 'Restart Runtime',
+				click: () => {
+					void restartRuntime?.().catch(() => {
+						dialog.showErrorBox(
+							'Runtime restart failed',
+							'The runtime could not be restarted cleanly. Quit Desktop and try again.',
+						);
+					});
+				},
+			},
 			{
 				label: 'Quit Desktop',
 				click: () => windowLifecycle.requestQuit(),
