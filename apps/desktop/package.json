@@ -27,6 +27,7 @@
 		"package:win": "npm run generate:notices && npm run build && electron-builder --win --x64 --publish=never",
 		"package:dir": "npm run generate:notices && npm run build && electron-builder --linux dir",
 		"smoke": "node scripts/smoke.mjs",
+		"smoke:daemon": "node scripts/daemon-smoke.mjs",
 		"perf:package": "node scripts/perf-smoke.mjs"
 	},
 	"engines": {

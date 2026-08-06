@@ -172,7 +172,7 @@ Verified foundation: foreground `oteluxd`, authenticated Runtime RPC/SSE, method
 
 Before Electron relinquishes ownership:
 
-- package one version-matched daemon entry that works from supported Linux `.deb` and AppImage layouts;
+- package one version-matched daemon entry that works from supported Linux `.deb` and AppImage layouts; Electron Node mode now passes from the unpacked Linux layout with `node:sqlite`, release-version publication, authenticated RPC, and clean shutdown, while installed `.deb` and extracted AppImage coverage remains;
 - define start/stop/restart and stale-version behavior without automatically killing an unknown or incompatible owner; daemon hosts can now inject their release version and discovery fails closed on a mismatched expected version, but replacement/rollback is not implemented;
 - make Desktop use the shared HTTP/SSE client and prove it never opens the active SQLite database;
 - prove the daemon survives Desktop window/tray exit, a second Desktop reconnects to the same instance/data, and an explicit runtime stop cleans listeners/state;
