@@ -27,6 +27,7 @@ export function useSelectedTrace(
 	const [error, setError] = useState<Error>();
 	const [revision, setRevision] = useState(0);
 	const generation = useRef(0);
+	const displayedTraceId = useRef<TraceId>();
 	const cache = useRef(new Map<TraceId, CacheEntry>());
 	const cacheSource = useRef(dataSource);
 	if (cacheSource.current !== dataSource) {
@@ -51,6 +52,7 @@ export function useSelectedTrace(
 		void revision;
 		const currentGeneration = ++generation.current;
 		if (!enabled || traceId === undefined) {
+			displayedTraceId.current = undefined;
 			setTrace(undefined);
 			setLoading(false);
 			setError(undefined);
@@ -61,15 +63,19 @@ export function useSelectedTrace(
 		if (hit) {
 			cache.current.delete(traceId);
 			cache.current.set(traceId, hit);
+			displayedTraceId.current = traceId;
 			setTrace(hit.trace);
 			setLoading(false);
 			setError(undefined);
 			return;
 		}
 
-		// Never present the previous trace beneath the newly selected identity.
-		setTrace(undefined);
-		setLoading(true);
+		// Keep the selected trace mounted while a live invalidation refreshes
+		// that same identity. Clearing it here made the waterfall and drawer
+		// flash on every ingest batch. A real trace switch still clears first.
+		const refreshingDisplayedTrace = displayedTraceId.current === traceId;
+		if (!refreshingDisplayedTrace) setTrace(undefined);
+		setLoading(!refreshingDisplayedTrace);
 		setError(undefined);
 		// Same-turn selections coalesce because cleanup cancels this timer before
 		// any IPC starts. Once started, generation prevents stale commits.
@@ -80,6 +86,7 @@ export function useSelectedTrace(
 				.then((result) => {
 					if (generation.current !== currentGeneration) return;
 					insertCache(cache.current, traceId, result);
+					displayedTraceId.current = traceId;
 					setTrace(result);
 					setLoading(false);
 				})

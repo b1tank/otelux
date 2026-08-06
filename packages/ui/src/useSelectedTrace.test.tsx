@@ -20,8 +20,15 @@ class TraceDataSource implements DataSource {
 	readonly kind = 'otelux/datasource' as const;
 	readonly calls: TraceId[] = [];
 	private readonly listeners = new Set<(event: ChangeEvent) => void>();
+	blockRefresh = false;
+	resolveRefresh: (() => void) | undefined;
 	async getTrace(query: { traceId: TraceId }): Promise<Trace> {
 		this.calls.push(query.traceId);
+		if (this.blockRefresh) {
+			await new Promise<void>((resolve) => {
+				this.resolveRefresh = resolve;
+			});
+		}
 		return emptyTrace(query.traceId);
 	}
 	listTraces = async () => ({ rows: [], totalCount: 0 });
@@ -37,6 +44,9 @@ class TraceDataSource implements DataSource {
 		throw new Error('unused');
 	};
 	listResourceFacets = async () => ({ rows: [] });
+	emit(event: ChangeEvent): void {
+		for (const listener of this.listeners) listener(event);
+	}
 	subscribe = (handler: (event: ChangeEvent) => void) => {
 		this.listeners.add(handler);
 		return { dispose: () => this.listeners.delete(handler) };
@@ -61,6 +71,17 @@ describe('useSelectedTrace', () => {
 		});
 		await waitFor(() => expect(getByText('trace-49')).toBeTruthy());
 		expect(dataSource.calls).toEqual(['trace-49']);
+	});
+
+	it('keeps the selected trace visible during a live refresh', async () => {
+		const dataSource = new TraceDataSource();
+		const { getByText } = render(<Probe dataSource={dataSource} traceId={'a' as TraceId} />);
+		await waitFor(() => expect(getByText('a')).toBeTruthy());
+		dataSource.blockRefresh = true;
+		act(() => dataSource.emit({ kind: 'tracesChanged', traceIds: ['a'] }));
+		expect(getByText('a')).toBeTruthy();
+		act(() => dataSource.resolveRefresh?.());
+		await waitFor(() => expect(dataSource.calls).toEqual(['a', 'a']));
 	});
 
 	it('serves back-and-forth selection from its recent cache', async () => {
