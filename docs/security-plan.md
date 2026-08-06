@@ -97,7 +97,7 @@ Required changes:
 - Inspect custom database parent permissions.
 - Warn or reject when a custom path cannot provide the documented privacy boundary.
 - Test Linux and macOS modes.
-- Define and test equivalent owner-only Windows DACL behavior; POSIX mode values are not a Windows security boundary.
+- Keep native Windows/macOS permission and signing work in [platform-security-plan.md](platform-security-plan.md); it is deferred until those platforms become supported.
 
 Acceptance:
 
@@ -264,7 +264,6 @@ Document that OTelux cannot protect telemetry from:
 ### Security patch before further daemon work
 
 - [x] Enforce owner-only database, WAL/SHM sidecar, and settings permissions on POSIX default/custom paths.
-- [ ] Define and verify equivalent owner-only Windows DACL behavior.
 - [x] Add exact Host validation to OTLP and MCP runtime listeners.
 - [x] Add focused POSIX permission and hostile-Host/DNS-rebinding tests.
 - [ ] Reconcile `security-model.md`, `privacy.md`, `spec.md`, and `test.md` with the verified behavior.
@@ -314,6 +313,6 @@ For every security-boundary change:
 - [ ] Token files and runtime state never expose token values.
 - [ ] Default and custom data files have verified owner-only permissions.
 - [ ] Packaged Linux x64/arm64 smoke passes.
-- [ ] Windows and macOS permission behavior is tested on native runners.
+- [ ] Native platform requirements are completed when a platform enters supported-release scope; see [platform-security-plan.md](platform-security-plan.md).
 - [ ] Deskpal verifies visible trust/status and recovery UX.
 - [ ] Documentation describes observed behavior rather than intended configuration.
