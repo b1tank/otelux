@@ -8,6 +8,7 @@ export interface DaemonEnvironment {
 	readonly OTELUX_OTLP_MAX_BODY_BYTES?: string;
 	readonly OTELUX_MCP_MAX_BODY_BYTES?: string;
 	readonly OTELUX_API_MAX_BODY_BYTES?: string;
+	readonly OTELUX_RUNTIME_VERSION?: string;
 }
 
 export async function runDaemon(
@@ -17,6 +18,7 @@ export async function runDaemon(
 	try {
 		const runtime = await createLocalRuntime({
 			...(environment.OTELUX_DATA_DIR ? { dataDirectory: environment.OTELUX_DATA_DIR } : {}),
+			...optionalRuntimeVersion(environment.OTELUX_RUNTIME_VERSION),
 			...optionalPort(environment.OTELUX_OTLP_PORT, 'OTELUX_OTLP_PORT', 'otlpPortOverride'),
 			...optionalPort(environment.OTELUX_API_PORT, 'OTELUX_API_PORT', 'apiPortOverride'),
 			...optionalPositive(
@@ -97,6 +99,14 @@ export async function runDaemon(
 		);
 		return 1;
 	}
+}
+
+function optionalRuntimeVersion(value: string | undefined): { runtimeVersion?: string } {
+	if (value === undefined || value === '') return {};
+	if (value.length > 64 || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(value)) {
+		throw new Error('OTELUX_RUNTIME_VERSION must be a semantic version');
+	}
+	return { runtimeVersion: value };
 }
 
 function optionalPort<K extends 'otlpPortOverride' | 'apiPortOverride'>(

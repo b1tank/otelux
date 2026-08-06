@@ -8,6 +8,7 @@ import { RUNTIME_STATE_FILE } from './runtimeState.js';
 export type RuntimeClientDiscoveryErrorCode =
 	| 'authentication'
 	| 'invalid-state'
+	| 'incompatible-version'
 	| 'timeout'
 	| 'unavailable';
 
@@ -26,6 +27,8 @@ export interface ConnectRuntimeClientOptions {
 	readonly dataDirectory?: string;
 	readonly clientName?: string;
 	readonly clientVersion?: string;
+	/** Require the daemon build from the same host release. */
+	readonly expectedRuntimeVersion?: string;
 }
 
 export interface EnsureRuntimeClientOptions extends ConnectRuntimeClientOptions {
@@ -70,6 +73,15 @@ export async function connectRuntimeClient(
 			throw new RuntimeClientDiscoveryError(
 				'invalid-state',
 				'Runtime discovery identity changed while connecting',
+			);
+		}
+		if (
+			options.expectedRuntimeVersion !== undefined &&
+			status.runtimeVersion !== options.expectedRuntimeVersion
+		) {
+			throw new RuntimeClientDiscoveryError(
+				'incompatible-version',
+				`Runtime version ${status.runtimeVersion} does not match host version ${options.expectedRuntimeVersion}`,
 			);
 		}
 		return { state, client };

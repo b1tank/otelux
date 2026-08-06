@@ -71,7 +71,7 @@ describe('oteluxd process', () => {
 	it('publishes state, serves RPC, rejects a second owner, and shuts down cleanly', async () => {
 		const directory = await mkdtemp(join(tmpdir(), 'oteluxd-process-'));
 		await writeFile(join(directory, 'settings.json'), `${JSON.stringify(settings)}\n`);
-		const primary = launch(directory);
+		const primary = launch(directory, { OTELUX_RUNTIME_VERSION: '1.2.3' });
 		try {
 			const running = await waitFor(async () => {
 				const value = await state(directory);
@@ -80,6 +80,7 @@ describe('oteluxd process', () => {
 					: undefined;
 			});
 			assert.equal(running.pid, primary.child.pid);
+			assert.equal(running.runtimeVersion, '1.2.3');
 			assert.ok(!primary.stdout().includes('runtime-token'));
 			const token = (await readFile(running.runtimeTokenFile, 'utf8')).trim();
 			const response = await fetch(`http://${running.api.host}:${running.api.port}/api/v1/rpc`, {

@@ -110,6 +110,16 @@ describe('Node runtime client discovery', () => {
 		});
 	});
 
+	it('rejects a daemon from a different host release', async () => {
+		await start();
+		await expect(
+			connectRuntimeClient({
+				dataDirectory: directory,
+				expectedRuntimeVersion: '9.9.9',
+			}),
+		).rejects.toMatchObject({ code: 'incompatible-version' });
+	});
+
 	it('rejects a state file replaced with another runtime identity', async () => {
 		await start();
 		const statePath = join(directory, RUNTIME_STATE_FILE);

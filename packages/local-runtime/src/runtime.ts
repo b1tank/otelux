@@ -54,6 +54,8 @@ export interface CreateLocalRuntimeOptions {
 	/** One-shot Runtime API bind override. `0` asks the OS for a free port. */
 	readonly apiPortOverride?: number;
 	readonly apiMaxBodyBytes?: number;
+	/** Host release version published for compatibility-aware clients. */
+	readonly runtimeVersion?: string;
 	readonly logger?: RuntimeLogger;
 }
 
@@ -170,7 +172,7 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 
 	const runtimeState = (): RuntimeState => ({
 		version: 1,
-		runtimeVersion: OTELUX_LOCAL_RUNTIME_VERSION,
+		runtimeVersion: options.runtimeVersion ?? OTELUX_LOCAL_RUNTIME_VERSION,
 		protocolVersion: OTELUX_PROTOCOL_VERSION,
 		instanceId: owner.instanceId,
 		pid: owner.pid,
