@@ -56,6 +56,18 @@ test('CLI owns one start/restart/stop lifecycle', async () => {
 		assert.equal(invoke(['status'], environment).healthy, true);
 		assert.equal(invoke(['endpoints'], environment).otlp, `http://127.0.0.1:${otlpPort}`);
 		assert.equal(invoke(['doctor'], environment).healthy, true);
+		const preview = invoke(
+			['config', 'set', 'retention.maxAgeHours', '24', '--dry-run'],
+			environment,
+		);
+		assert.equal(preview.dryRun, true);
+		assert.equal(preview.settings.retention.maxAgeHours, 24);
+		assert.equal(invoke(['status'], environment).settings.retention.maxAgeHours, 72);
+		assert.equal(
+			invoke(['config', 'set', 'retention.maxAgeHours', '24', '--yes'], environment).updated,
+			true,
+		);
+		assert.equal(invoke(['config', 'get', 'retention.maxAgeHours'], environment).value, 24);
 		const restarted = invoke(['restart'], environment);
 		assert.notEqual(restarted.instanceId, started.instanceId);
 		assert.equal(invoke(['stop'], environment).stopped, true);

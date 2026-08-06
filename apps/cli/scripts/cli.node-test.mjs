@@ -21,9 +21,27 @@ const state = {
 function harness(found = true) {
 	const logs = [];
 	const errors = [];
+	const settings = {
+		version: 1,
+		revision: 3,
+		otlp: { port: 4319 },
+		mcp: { enabled: true, port: 4320 },
+		retention: { maxAgeHours: 72, maxSizeMb: 512 },
+		storage: { dbPath: '' },
+	};
 	const client = {
 		getStatus: mock.fn(async () => ({ ...state })),
-		getSettings: mock.fn(async () => ({ version: 1, revision: 0 })),
+		getSettings: mock.fn(async () => settings),
+		updateSettings: mock.fn(async (patch) => ({
+			ok: true,
+			settings: {
+				...settings,
+				revision: 4,
+				retention: { ...settings.retention, ...patch.retention },
+			},
+			status: state.receiver,
+			mcpStatus: state.mcp,
+		})),
 		getStoragePath: mock.fn(async () => ({ activePath: state.databasePath })),
 		getStorageUsage: mock.fn(async () => ({ totalBytes: 1 })),
 		shutdown: mock.fn(async () => {}),
@@ -74,6 +92,96 @@ describe('otelux CLI', () => {
 		const test = harness(false);
 		assert.equal(await runCli(['start', '--json'], test.output, test.dependencies), 0);
 		assert.equal(test.dependencies.ensure.mock.callCount(), 1);
+	});
+
+	it('reads one schema-defined configuration key', async () => {
+		const test = harness();
+		assert.equal(
+			await runCli(
+				['config', 'get', 'retention.maxAgeHours', '--json'],
+				test.output,
+				test.dependencies,
+			),
+			0,
+		);
+		assert.deepEqual(JSON.parse(test.logs[0]), {
+			key: 'retention.maxAgeHours',
+			value: 72,
+			revision: 3,
+		});
+	});
+
+	it('previews a complete validated candidate without writing', async () => {
+		const test = harness();
+		assert.equal(
+			await runCli(
+				['config', 'set', 'retention.maxAgeHours', '24', '--dry-run', '--json'],
+				test.output,
+				test.dependencies,
+			),
+			0,
+		);
+		assert.equal(test.client.updateSettings.mock.callCount(), 0);
+		const result = JSON.parse(test.logs[0]);
+		assert.equal(result.dryRun, true);
+		assert.equal(result.settings.retention.maxAgeHours, 24);
+		assert.equal(result.expectedRevision, 3);
+	});
+
+	it('applies a validated configuration patch with revision CAS', async () => {
+		const test = harness();
+		assert.equal(
+			await runCli(
+				['config', 'set', 'retention.maxAgeHours', '24', '--yes', '--json'],
+				test.output,
+				test.dependencies,
+			),
+			0,
+		);
+		assert.deepEqual(test.client.updateSettings.mock.calls[0].arguments, [
+			{ retention: { maxAgeHours: 24 } },
+			3,
+		]);
+	});
+
+	it('requires an explicit preview or apply flag and rejects invalid candidates', async () => {
+		const missing = harness();
+		assert.equal(
+			await runCli(
+				['config', 'set', 'retention.maxAgeHours', '24'],
+				missing.output,
+				missing.dependencies,
+			),
+			1,
+		);
+		const invalid = harness();
+		assert.equal(
+			await runCli(
+				['config', 'set', 'otlp.port', '0', '--dry-run'],
+				invalid.output,
+				invalid.dependencies,
+			),
+			1,
+		);
+		assert.equal(invalid.client.updateSettings.mock.callCount(), 0);
+	});
+
+	it('returns the stable conflict exit code', async () => {
+		const test = harness();
+		test.client.updateSettings = mock.fn(async () => ({
+			ok: false,
+			conflict: true,
+			error: 'Settings changed',
+			settings: await test.client.getSettings(),
+		}));
+		assert.equal(
+			await runCli(
+				['config', 'set', 'retention.maxAgeHours', '24', '--yes'],
+				test.output,
+				test.dependencies,
+			),
+			5,
+		);
 	});
 
 	it('rejects unknown commands without guessing', async () => {

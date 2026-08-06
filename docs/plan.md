@@ -155,7 +155,7 @@ Tasks:
 - [x] Split metric metadata from selected bounded point history across direct, Runtime HTTP, and Electron IPC adapters, then convert the workbench UI to the split methods.
 - Add scoped browser session bootstrap and serve the existing `@otelux/ui` as a same-origin loopback workbench. Desktop daemon-client conversion is delivered.
 - Add dedicated runtime/API and MCP tokens/scopes plus one-time browser session bootstrap; tokens must never appear in dashboard URLs or `runtime.json`.
-- Complete M1 CLI control: source-build `start`, `stop`, `restart`, `status`, `endpoints`, basic listener-only `doctor`, stable JSON, and exit codes are delivered over the shared runtime client. Add schema-defined config preview/apply with settings CAS, broaden `doctor` to its documented checks, and prove packaged CLI-owned start/restart/stop. Dashboard `open` waits for the separate browser-session gate; native Desktop launch and public PATH installation are later distribution work.
+- Complete M1 CLI control: source-build lifecycle/status/endpoints, schema-defined config get/preview/apply with settings CAS, stable JSON, and exit codes are delivered over the shared runtime client. Broaden basic listener-only `doctor` to its documented checks and prove packaged CLI-owned start/restart/stop. Dashboard `open` waits for the separate browser-session gate; native Desktop launch and public PATH installation are later distribution work.
 - [x] Bundle a version-matched private `oteluxctl` CLI/daemon launcher with Desktop while keeping it independently packageable later; unpacked, `.deb`, and AppImage artifact smokes pass, and the Desktop product/executable remains `otelux` by explicit decision.
 - Add `@otelux/agent-integrations` as the shared typed detector/planner/applier/verifier used by CLI and Desktop; configuration writes must be previewed, atomic, idempotent, reversible, permission-safe, and secret-redacted.
 - Add Settings → Agents with capability/status cards, inspected paths, exact proposed operations, Install/Verify/Repair/Remove, restart continuation, and accessible vendor-neutral fallback icons.
@@ -175,7 +175,7 @@ Verified foundation: packaged on-demand `oteluxd`, authenticated Runtime RPC/SSE
 Before starting M2 agent integration:
 
 - [x] enforce one Desktop/CLI release version in release-resolution tests so the next version bump cannot package a CLI that rejects or starts the matching daemon under a stale version;
-- add schema-defined `config get/set` over Runtime RPC with complete-candidate validation, revision CAS, `--dry-run`, and explicit `--yes` for non-interactive mutation;
+- [x] add schema-defined `config get/set` over Runtime RPC with complete-candidate validation, revision CAS, `--dry-run`, and explicit `--yes` for non-interactive mutation;
 - expand `doctor` beyond listener errors to check discovered-state/token permissions, client/runtime version compatibility, storage path/usage, and actionable listener health without exposing tokens; database quick-check requires a separately bounded Runtime RPC method and is not implied by the first slice;
 - extend artifact smoke so the bundled CLI, rather than the test harness, owns start/restart/stop and exact-instance cleanup in unpacked, `.deb`, and AppImage layouts;
 - keep `otelux` as the Desktop executable and `oteluxctl` as the CLI; defer public PATH installation until this command contract passes the gate.

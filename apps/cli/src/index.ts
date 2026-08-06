@@ -10,6 +10,7 @@ import {
 	readRuntimeState,
 	resolveOteluxDataDirectory,
 } from '@otelux/local-runtime';
+import { type PartialSettings, type Settings, parseSettings } from '@otelux/protocol';
 
 export interface CliOutput {
 	log(message: string): void;
@@ -38,14 +39,23 @@ export async function runCli(
 	dependencies: CliDependencies = defaultDependencies,
 ): Promise<number> {
 	const json = args.includes('--json');
-	const positional = args.filter((arg) => arg !== '--json');
+	const dryRun = args.includes('--dry-run');
+	const yes = args.includes('--yes');
+	const unknownFlag = args.find(
+		(arg) => arg.startsWith('--') && !['--json', '--dry-run', '--yes', '--help'].includes(arg),
+	);
+	if (unknownFlag) {
+		output.error(`Unknown option: ${unknownFlag}`);
+		return 1;
+	}
+	const positional = args.filter((arg) => !['--json', '--dry-run', '--yes'].includes(arg));
 	const command = positional[0];
 	if (!command || command === 'help' || command === '--help' || command === '-h') {
 		output.log(help());
 		return command ? 0 : 1;
 	}
-	if (positional.length !== 1) {
-		output.error(`Unexpected arguments: ${positional.slice(1).join(' ')}`);
+	if (command !== 'config' && (positional.length !== 1 || dryRun || yes)) {
+		output.error(`Unexpected arguments: ${args.slice(1).join(' ')}`);
 		return 1;
 	}
 	const dataDirectory = resolveOteluxDataDirectory();
@@ -143,6 +153,14 @@ export async function runCli(
 					found.client.close();
 				}
 			}
+			case 'config':
+				return await runConfig(
+					positional.slice(1),
+					{ json, dryRun, yes },
+					output,
+					dependencies,
+					dataDirectory,
+				);
 			default:
 				output.error(`Unknown command: ${command}\n\n${help()}`);
 				return 1;
@@ -152,6 +170,181 @@ export async function runCli(
 		output.error(json ? stringify({ error: String(value.code ?? 'internal') }) : safeError(value));
 		return value.code === 'incompatible-version' ? 3 : 1;
 	}
+}
+
+interface ConfigFlags {
+	readonly json: boolean;
+	readonly dryRun: boolean;
+	readonly yes: boolean;
+}
+
+async function runConfig(
+	args: readonly string[],
+	flags: ConfigFlags,
+	output: CliOutput,
+	dependencies: CliDependencies,
+	dataDirectory: string,
+): Promise<number> {
+	const operation = args[0];
+	if (operation !== 'get' && operation !== 'set') {
+		output.error('Usage: oteluxctl config get [key] | config set <key> <value> (--dry-run | --yes)');
+		return 1;
+	}
+	if (operation === 'get' && (args.length > 2 || flags.dryRun || flags.yes)) {
+		output.error('Usage: oteluxctl config get [key] [--json]');
+		return 1;
+	}
+	if (operation === 'set' && (args.length !== 3 || flags.dryRun === flags.yes)) {
+		output.error('Usage: oteluxctl config set <key> <value> (--dry-run | --yes)');
+		return 1;
+	}
+	const key = args[1];
+	if (key !== undefined && !isConfigKey(key)) {
+		output.error(`Unknown configuration key: ${key}`);
+		return 1;
+	}
+	const found = await dependencies.connect(clientOptions(dataDirectory));
+	if (!found) return notRunning(output, flags.json);
+	try {
+		const current = await found.client.getSettings();
+		if (operation === 'get') {
+			print(
+				output,
+				flags.json,
+				key === undefined
+					? current
+					: { key, value: readConfigValue(current, key), revision: current.revision },
+			);
+			return 0;
+		}
+		if (key === undefined) return 1;
+		let parsed: ConfigValue;
+		let candidate: Settings;
+		try {
+			parsed = parseConfigValue(key, args[2] ?? '');
+			candidate = applyConfigValue(current, key, parsed);
+		} catch (error) {
+			output.error(error instanceof Error ? error.message : String(error));
+			return 1;
+		}
+		const previous = readConfigValue(current, key);
+		const restartRequired = key === 'storage.dbPath' && previous !== parsed;
+		if (flags.dryRun) {
+			print(output, flags.json, {
+				dryRun: true,
+				changed: previous !== parsed,
+				key,
+				previous,
+				value: parsed,
+				expectedRevision: current.revision,
+				restartRequired,
+				settings: candidate,
+			});
+			return 0;
+		}
+		if (previous === parsed) {
+			print(output, flags.json, {
+				updated: false,
+				changed: false,
+				key,
+				value: parsed,
+				revision: current.revision,
+			});
+			return 0;
+		}
+		const result = await found.client.updateSettings(configPatch(key, parsed), current.revision);
+		if (!result.ok) {
+			output.error(
+				flags.json ? stringify({ error: result.error, conflict: 'conflict' in result }) : result.error,
+			);
+			return 'conflict' in result ? 5 : 4;
+		}
+		print(output, flags.json, {
+			updated: true,
+			changed: true,
+			key,
+			value: parsed,
+			revision: result.settings.revision,
+			restartRequired,
+			settings: result.settings,
+		});
+		return 0;
+	} finally {
+		found.client.close();
+	}
+}
+
+const CONFIG_KEYS = [
+	'otlp.port',
+	'mcp.enabled',
+	'mcp.port',
+	'retention.maxAgeHours',
+	'retention.maxSizeMb',
+	'storage.dbPath',
+] as const;
+type ConfigKey = (typeof CONFIG_KEYS)[number];
+type ConfigValue = string | number | boolean;
+
+function isConfigKey(value: string): value is ConfigKey {
+	return (CONFIG_KEYS as readonly string[]).includes(value);
+}
+
+function parseConfigValue(key: ConfigKey, value: string): ConfigValue {
+	if (key === 'mcp.enabled') {
+		if (value === 'true') return true;
+		if (value === 'false') return false;
+		throw new Error(`${key} must be true or false`);
+	}
+	if (key === 'storage.dbPath') return value;
+	if (!/^(0|[1-9][0-9]*)$/.test(value)) throw new Error(`${key} must be a non-negative integer`);
+	const parsed = Number(value);
+	if (!Number.isSafeInteger(parsed)) throw new Error(`${key} must be a safe integer`);
+	return parsed;
+}
+
+function readConfigValue(settings: Settings, key: ConfigKey): ConfigValue {
+	switch (key) {
+		case 'otlp.port':
+			return settings.otlp.port;
+		case 'mcp.enabled':
+			return settings.mcp.enabled;
+		case 'mcp.port':
+			return settings.mcp.port;
+		case 'retention.maxAgeHours':
+			return settings.retention.maxAgeHours;
+		case 'retention.maxSizeMb':
+			return settings.retention.maxSizeMb;
+		case 'storage.dbPath':
+			return settings.storage.dbPath;
+	}
+}
+
+function configPatch(key: ConfigKey, value: ConfigValue): PartialSettings {
+	switch (key) {
+		case 'otlp.port':
+			return { otlp: { port: value as number } };
+		case 'mcp.enabled':
+			return { mcp: { enabled: value as boolean } };
+		case 'mcp.port':
+			return { mcp: { port: value as number } };
+		case 'retention.maxAgeHours':
+			return { retention: { maxAgeHours: value as number } };
+		case 'retention.maxSizeMb':
+			return { retention: { maxSizeMb: value as number } };
+		case 'storage.dbPath':
+			return { storage: { dbPath: value as string } };
+	}
+}
+
+function applyConfigValue(settings: Settings, key: ConfigKey, value: ConfigValue): Settings {
+	const patch = configPatch(key, value);
+	return parseSettings({
+		...settings,
+		otlp: { ...settings.otlp, ...patch.otlp },
+		mcp: { ...settings.mcp, ...patch.mcp },
+		retention: { ...settings.retention, ...patch.retention },
+		storage: { ...settings.storage, ...patch.storage },
+	});
 }
 
 function clientOptions(dataDirectory: string): ConnectRuntimeClientOptions {
@@ -219,7 +412,7 @@ function safeError(value: { code?: unknown; message?: unknown }): string {
 }
 
 function help(): string {
-	return 'Usage: oteluxctl <command> [--json]\n\nCommands:\n  start      Start or reuse the local runtime\n  stop       Stop the local runtime\n  restart    Restart the local runtime\n  status     Show runtime, settings, and storage status\n  endpoints  Show local OTLP, MCP, and Runtime API endpoints\n  doctor     Check listener health';
+	return 'Usage: oteluxctl <command> [--json]\n\nCommands:\n  start      Start or reuse the local runtime\n  stop       Stop the local runtime\n  restart    Restart the local runtime\n  status     Show runtime, settings, and storage status\n  endpoints  Show local OTLP, MCP, and Runtime API endpoints\n  doctor     Check runtime health\n  config get [key]\n  config set <key> <value> (--dry-run | --yes)';
 }
 
 if (process.argv[1]?.endsWith('/otelux') || process.argv[1]?.endsWith('/index.js')) {

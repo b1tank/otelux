@@ -110,7 +110,7 @@ Apps are not published packages:
 | App | Purpose | Current state |
 |---|---|---|
 | `apps/desktop` | Main Electron workbench. | `v0.1.11` is the latest published Linux x64/arm64 `.deb` and AppImage prerelease; `main` is an unpublished `0.1.12` candidate; unsigned macOS/Windows remain preview targets. |
-| `apps/cli` | Thin runtime lifecycle/status/diagnostics client (`oteluxctl`). | Source commands live and a version-matched private launcher is bundled in Desktop artifacts; no PATH installation yet. |
+| `apps/cli` | Thin runtime lifecycle/status/config client (`oteluxctl`). | Source lifecycle, status, endpoints, schema-defined config preview/apply, and basic doctor commands live; a version-matched private launcher is bundled in Desktop artifacts, with no PATH installation yet. |
 
 Plugin distributions are thin hosts over the same packages:
 
@@ -120,7 +120,7 @@ Plugin distributions are thin hosts over the same packages:
 | Codex | Shared skills + local desktop MCP bridge. | Built, locally installed; marketplace entry live in-repo. |
 | Pi | Shared skills + native adapter over the local desktop MCP bridge. | Built and locally installable as a Pi package. |
 
-The current agent-onboarding milestone is M1 CLI control: close the daemon migration race and release-version parity gap, add schema-defined config preview/apply with revision CAS, broaden doctor, and qualify packaged CLI-owned lifecycle. M2 then adds the shared safe configuration engine and Claude/Codex/Pi adapters; Copilot CLI and OpenCode remain M4 targets. A host receives only integrations its pinned official version supports; MCP, skills, native plugin/extension, telemetry export, and sensitive-content capture are separate capabilities and choices. See [agent-onboarding.md](agent-onboarding.md). Future packages or apps should be added to the package table only when they enter active implementation.
+The current agent-onboarding milestone is M1 CLI control: owner-locked migration, release-version parity, and schema-defined config preview/apply with revision CAS are live; broaden doctor and qualify packaged CLI-owned lifecycle next. M2 then adds the shared safe configuration engine and Claude/Codex/Pi adapters; Copilot CLI and OpenCode remain M4 targets. A host receives only integrations its pinned official version supports; MCP, skills, native plugin/extension, telemetry export, and sensitive-content capture are separate capabilities and choices. See [agent-onboarding.md](agent-onboarding.md). Future packages or apps should be added to the package table only when they enter active implementation.
 
 ## Technology
 
