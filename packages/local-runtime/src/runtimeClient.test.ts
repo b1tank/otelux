@@ -58,6 +58,19 @@ describe('Node runtime client discovery', () => {
 		discovered?.client.close();
 	});
 
+	it('does not invoke startup work when an owner is already live', async () => {
+		await start();
+		let starts = 0;
+		const discovered = await ensureRuntimeClient({
+			dataDirectory: directory,
+			start: () => {
+				starts++;
+			},
+		});
+		expect(starts).toBe(0);
+		discovered.client.close();
+	});
+
 	it('starts an absent runtime and waits through the publication race', async () => {
 		const discovered = await ensureRuntimeClient({
 			dataDirectory: directory,

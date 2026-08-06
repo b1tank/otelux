@@ -129,17 +129,19 @@ function resolveMaxBodyBytes(envName: string): number | undefined {
 
 async function startBackend(): Promise<{ stop: () => Promise<void> }> {
 	const dataDirectory = resolveOteluxDataDirectory();
-	await prepareDataDirectory({
-		dataDirectory,
-		legacyDataDirectories: [app.getPath('userData')],
-		logger: console,
-	});
 	const discovered = await ensureRuntimeClient({
 		dataDirectory,
 		clientName: 'otelux-desktop',
 		clientVersion: desktopVersion,
 		expectedRuntimeVersion: desktopVersion,
-		start: () => startPackagedDaemon(dataDirectory),
+		start: async () => {
+			await prepareDataDirectory({
+				dataDirectory,
+				legacyDataDirectories: [app.getPath('userData')],
+				logger: console,
+			});
+			startPackagedDaemon(dataDirectory);
+		},
 	});
 	const runtime = discovered.client;
 
