@@ -474,6 +474,7 @@ export type RuntimeEvent =
 
 export const OTELUX_PROTOCOL_VERSION = '0.6.0' as const;
 
+export * from './resultValidation.js';
 export * from './runtimeEvents.js';
 export * from './runtimeRpc.js';
 export * from './validation.js';

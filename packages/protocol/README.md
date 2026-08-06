@@ -13,4 +13,6 @@ The current contract covers traces, logs, and metrics:
 - `getMetricPoints({ instrumentId, limit, cursor? })` — one selected instrument with at most 1,000 event-time-ordered points, continuation, full resource/scope metadata, and explicit attribute-truncation metadata.
 - `subscribe(handler)` — live change events used by the workbench to refresh as new traces, logs, and metrics arrive.
 
+Every advertised Runtime RPC and Electron invoke result is covered by an exhaustive canonical decoder registry. HTTP and IPC adapters use these method-specific decoders at runtime rather than trusting TypeScript casts. Checked draft 2020-12 result schemas live under `schema/v1/`, and `fixtures/results/v1.json` is the shared tagged-bigint parity fixture for all current methods.
+
 Profile queries are not part of the current contract.

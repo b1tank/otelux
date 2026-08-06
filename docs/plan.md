@@ -153,7 +153,6 @@ Tasks:
 - [x] Add browser-safe authenticated HTTP/SSE `DataSource` and control client plus real SQLite-backed direct/HTTP parity for current query methods.
 - [x] Harden Runtime HTTP with loopback endpoint pinning, redirects disabled, RPC deadlines, bounded streamed responses/SSE frames, aggregate batch/output budgets, slow-client disconnect, recoverable initialization, and serialized settings/clear mutations.
 - [x] Split metric metadata from selected bounded point history across direct, Runtime HTTP, and Electron IPC adapters, then convert the workbench UI to the split methods.
-- Add IPC to the shared direct/HTTP parity suite.
 - Add scoped browser session bootstrap, serve the existing `@otelux/ui` as a same-origin loopback workbench, and convert Desktop into a daemon client.
 - Add dedicated runtime/API and MCP tokens/scopes plus one-time browser session bootstrap; tokens must never appear in dashboard URLs or `runtime.json`.
 - Add the OTelux CLI for runtime lifecycle, status, endpoints, settings, dashboard/Desktop launch, diagnostics, and machine-readable output.

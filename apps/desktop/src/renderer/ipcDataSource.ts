@@ -1,3 +1,4 @@
+import { parseInvokeResult } from '@otelux/protocol';
 import type {
 	DataSource,
 	Disposable,
@@ -18,7 +19,7 @@ import type {
 	SpanDetails,
 } from '@otelux/protocol';
 import type { Trace } from '@otelux/types';
-import type { InvokeMessage, OteluxEvent } from '../shared/ipc.js';
+import type { InvokeMessage, InvokeResultFor, OteluxEvent } from '../shared/ipc.js';
 
 /**
  * Subset of the preload bridge the renderer actually consumes. Declared
@@ -50,39 +51,40 @@ declare global {
  * the workbench refreshes via the subscription contract.
  */
 export function createIpcDataSource(bridge: OteluxWindowBridge): DataSource {
+	const invoke = async <M extends InvokeMessage>(message: M): Promise<InvokeResultFor<M>> => {
+		const result = await bridge.invoke(message);
+		return parseInvokeResult(message.kind, result) as InvokeResultFor<M>;
+	};
 	return {
 		kind: 'otelux/datasource',
 		async listTraces(query: ListTracesQuery): Promise<ListTracesResult> {
-			return (await bridge.invoke({ kind: 'listTraces', query })) as ListTracesResult;
+			return invoke({ kind: 'listTraces', query });
 		},
 		async getTrace(query: GetTraceQuery): Promise<Trace> {
-			return (await bridge.invoke({ kind: 'getTrace', query })) as Trace;
+			return invoke({ kind: 'getTrace', query });
 		},
 		async getTraceWaterfall(query: GetTraceQuery): Promise<Trace> {
-			return (await bridge.invoke({ kind: 'getTraceWaterfall', query })) as Trace;
+			return invoke({ kind: 'getTraceWaterfall', query });
 		},
 		async getSpanDetails(query: GetSpanDetailsQuery): Promise<SpanDetails> {
-			return (await bridge.invoke({ kind: 'getSpanDetails', query })) as SpanDetails;
+			return invoke({ kind: 'getSpanDetails', query });
 		},
 		async listLogs(query: ListLogsQuery): Promise<ListLogsResult> {
-			return (await bridge.invoke({ kind: 'listLogs', query })) as ListLogsResult;
+			return invoke({ kind: 'listLogs', query });
 		},
 		async getLogDetails(query: GetLogDetailsQuery): Promise<LogDetails> {
-			return (await bridge.invoke({ kind: 'getLogDetails', query })) as LogDetails;
+			return invoke({ kind: 'getLogDetails', query });
 		},
 		async listMetricInstruments(
 			query: ListMetricInstrumentsQuery,
 		): Promise<ListMetricInstrumentsResult> {
-			return (await bridge.invoke({
-				kind: 'listMetricInstruments',
-				query,
-			})) as ListMetricInstrumentsResult;
+			return invoke({ kind: 'listMetricInstruments', query });
 		},
 		async getMetricPoints(query: GetMetricPointsQuery): Promise<GetMetricPointsResult> {
-			return (await bridge.invoke({ kind: 'getMetricPoints', query })) as GetMetricPointsResult;
+			return invoke({ kind: 'getMetricPoints', query });
 		},
 		async listResourceFacets(query: ListResourceFacetsQuery): Promise<ListResourceFacetsResult> {
-			return (await bridge.invoke({ kind: 'listResourceFacets', query })) as ListResourceFacetsResult;
+			return invoke({ kind: 'listResourceFacets', query });
 		},
 		subscribe(handler): Disposable {
 			// The bridge surface delivers a wider event union (settings and

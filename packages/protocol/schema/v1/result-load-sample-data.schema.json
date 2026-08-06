@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otelux.dev/schema/v1/result-load-sample-data.schema.json",
+  "title": "runtime/loadSampleData result",
+  "type": "object",
+  "properties": {
+    "traces": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "logs": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "metrics": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    }
+  },
+  "required": [
+    "traces",
+    "logs",
+    "metrics"
+  ],
+  "additionalProperties": false
+}

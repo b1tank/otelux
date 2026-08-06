@@ -1,7 +1,13 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createLocalRuntime, resolveOteluxDataDirectory } from '@otelux/local-runtime';
-import { MAX_PORT, MIN_PORT, parseInvokeMessage, parseRuntimeEvent } from '@otelux/protocol';
+import {
+	MAX_PORT,
+	MIN_PORT,
+	parseInvokeMessage,
+	parseInvokeResult,
+	parseRuntimeEvent,
+} from '@otelux/protocol';
 import { BrowserWindow, Menu, Tray, app, ipcMain, shell } from 'electron';
 import {
 	type InvokeMessage,
@@ -157,42 +163,61 @@ async function startBackend(): Promise<{
 	// to stay exhaustive when the protocol grows.
 	ipcMain.handle(OTELUX_INVOKE_CHANNEL, async (_event, input: unknown) => {
 		const message: InvokeMessage = parseInvokeMessage(input);
+		let result: unknown;
 		switch (message.kind) {
 			case 'listTraces':
-				return runtime.listTraces(message.query);
+				result = await runtime.listTraces(message.query);
+				break;
 			case 'getTrace':
-				return runtime.getTrace(message.query);
+				result = await runtime.getTrace(message.query);
+				break;
 			case 'getTraceWaterfall':
-				return runtime.getTraceWaterfall?.(message.query) ?? runtime.getTrace(message.query);
+				result = await (runtime.getTraceWaterfall?.(message.query) ?? runtime.getTrace(message.query));
+				break;
 			case 'getSpanDetails':
-				return runtime.getSpanDetails(message.query);
+				result = await runtime.getSpanDetails(message.query);
+				break;
 			case 'listLogs':
-				return runtime.listLogs(message.query);
+				result = await runtime.listLogs(message.query);
+				break;
 			case 'getLogDetails':
-				return runtime.getLogDetails(message.query);
+				result = await runtime.getLogDetails(message.query);
+				break;
 			case 'listMetricInstruments':
-				return runtime.listMetricInstruments(message.query);
+				result = await runtime.listMetricInstruments(message.query);
+				break;
 			case 'getMetricPoints':
-				return runtime.getMetricPoints(message.query);
+				result = await runtime.getMetricPoints(message.query);
+				break;
 			case 'listResourceFacets':
-				return runtime.listResourceFacets(message.query);
+				result = await runtime.listResourceFacets(message.query);
+				break;
 			case 'getSettings':
-				return runtime.getSettings();
+				result = runtime.getSettings();
+				break;
 			case 'getReceiverStatus':
-				return runtime.getReceiverStatus();
+				result = runtime.getReceiverStatus();
+				break;
 			case 'getMcpStatus':
-				return runtime.getMcpStatus();
+				result = runtime.getMcpStatus();
+				break;
 			case 'getStoragePath':
-				return runtime.getStoragePath();
+				result = runtime.getStoragePath();
+				break;
 			case 'getStorageUsage':
-				return runtime.getStorageUsage();
+				result = runtime.getStorageUsage();
+				break;
 			case 'loadSampleData':
-				return runtime.loadSampleData();
+				result = await runtime.loadSampleData();
+				break;
 			case 'updateSettings':
-				return runtime.updateSettings(message.patch);
+				result = await runtime.updateSettings(message.patch);
+				break;
 			case 'clearData':
-				return runtime.clearData();
+				result = await runtime.clearData();
+				break;
 		}
+		return parseInvokeResult(message.kind, result);
 	});
 
 	return {

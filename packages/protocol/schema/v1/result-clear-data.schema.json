@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otelux.dev/schema/v1/result-clear-data.schema.json",
+  "title": "runtime/clearData result",
+  "type": "null"
+}

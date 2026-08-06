@@ -119,7 +119,7 @@ Required method families:
 | `telemetry/getMetricPoints` | opaque instrument ID, limit, and continuation cursor | one selected instrument with event-time-ordered points, full resource/scope metadata, and explicit attribute-truncation metadata | max 1,000 points/page and 2 MiB encoded response |
 | `telemetry/getFacets` | signal/time/filter scope | service, scope, meter, severity counts | bounded grouped values |
 
-Methods must use one canonical registry that generates or validates Desktop/CLI/browser adapters. MCP tools call engine query services directly and may compose several methods, but they do not redefine the underlying query semantics.
+Methods use the canonical `runtimeRpcResultDecoders` registry in `@otelux/protocol`; its mapped type makes a missing decoder a compile-time error whenever `RuntimeRpcMethod` grows. The companion `invokeResultDecoders` registry reuses the same telemetry/control decoders for the transition Electron bridge and adds its Desktop-only status/storage operations. HTTP results are decoded after the bounded tagged-bigint wire codec, while Electron main validates structured-clone results before sending them, and the renderer adapter validates them again before use. Compatible future object fields are sanitized away and malformed required fields, non-finite numbers, invalid identifiers, and over-limit collections fail with a path-aware `ProtocolValidationError`. MCP tools call engine query services directly and may compose several methods, but they do not redefine the underlying query semantics.
 
 ### Error envelope
 
@@ -192,9 +192,9 @@ Before the daemon API is considered stable:
 
 1. Split domain types from the complete Runtime RPC wire DTO registry in `@otelux/protocol` — **delivered for initialize/status/settings/sample/clear and current telemetry methods, including separate metric instrument metadata and selected point-history methods**.
 2. Add explicit bounded `encodeWire` / `decodeWire` codecs with tagged bigint, malformed-input, finite-number, cycle, depth/node/string, and compatibility tests — **delivered**.
-3. Generate checked-in JSON Schema draft 2020-12 snapshots under `packages/protocol/schema/v1/` — **delivered for tagged bigint, `runtime.json`, Electron invoke/runtime events, Runtime RPC envelopes, and SSE envelopes; method-specific result schemas remain**. Every schema has a stable `$id` under `https://otelux.dev/schema/v1/`.
-4. Add schema compatibility tests: old fixture -> new decoder, compatible future fields -> sanitized current decoder behavior, unsupported major -> deterministic error — **delivered for runtime state, wire codecs, and Runtime RPC major negotiation**.
-5. Add transport conformance tests that run the same method suite through direct calls, Electron IPC during transition, and HTTP RPC — **direct dispatcher and authenticated HTTP end-to-end suites are live; one shared parity suite and Desktop HTTP adapter remain**.
+3. Generate checked-in JSON Schema draft 2020-12 snapshots under `packages/protocol/schema/v1/` — **delivered for tagged bigint, `runtime.json`, Electron invoke/runtime events, Runtime RPC envelopes, SSE envelopes, and every current method-result shape**. Every schema has a stable `$id` under `https://otelux.dev/schema/v1/`.
+4. Add schema compatibility tests: old fixture -> new decoder, compatible future fields -> sanitized current decoder behavior, unsupported major -> deterministic error — **delivered for runtime state, wire codecs, Runtime RPC major negotiation, and method-specific results**.
+5. Add transport conformance tests that run the same method suite through direct calls, Electron IPC during transition, and HTTP RPC — **real SQLite-backed direct/HTTP parity and the shared all-method direct/HTTP/IPC result fixture are live; Desktop HTTP adapter conversion remains**.
 6. Add payload-size and pagination-limit tests — **delivered at Electron invoke/wire boundaries; pending transport body and complete RPC result budgets**.
 
 ## Current Gaps
@@ -217,7 +217,8 @@ Delivered transport foundation:
 Remaining before daemon conversion:
 
 - `@otelux/adapter-http` implements current `DataSource` queries plus status/settings/sample/clear controls over initialized tagged-bigint JSON-RPC, with strict loopback-origin pinning, redirects disabled, 10-second RPC deadlines, 2 MiB streamed-response bounds, recoverable initialization, and one shared authenticated fetch-SSE connection with bounded frames/reconnect/resync/abort/disposal and no URL tokens.
-- Real SQLite-backed direct/HTTP parity covers traces, waterfalls, spans, lightweight log lists plus selected full-log details, metrics, facets, bigint fidelity, auth failure, RPC errors, SSE invalidation, and clear. IPC parity and Desktop conversion remain.
+- Real SQLite-backed direct/HTTP parity covers traces, waterfalls, spans, lightweight log lists plus selected full-log details, metrics, facets, bigint fidelity, auth failure, RPC errors, SSE invalidation, and clear. One shared tagged-bigint fixture enumerates every advertised Runtime RPC result and Electron invoke result, asserts registry completeness, and verifies identical telemetry/control decoding through HTTP and IPC registries. Desktop daemon-client conversion remains.
+- HTTP no longer trusts generic JSON-RPC `result` casts: every successful response is decoded by method after envelope, ID, body-size, wire, and initialization checks. Electron main validates before structured clone, and the renderer adapter validates again before exposing results to UI code.
 - Metric discovery uses lightweight metadata/latest-value summaries, while `getMetricPoints` pages at most 1,000 event-time-ordered points plus full resource/scope metadata for one opaque instrument ID. Chart-safe attribute projection is explicit through per-point truncation metadata, and stale IDs have a targeted recovery error.
 - MCP tool input schemas are advertised but handlers still cast inputs rather than validating them; tool results have no output schemas.
 - Add scoped one-time browser sessions and static workbench serving; raw control tokens must not enter renderer/browser context.

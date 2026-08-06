@@ -4,33 +4,28 @@ import {
 	type Disposable,
 	type GetLogDetailsQuery,
 	type GetMetricPointsQuery,
-	type GetMetricPointsResult,
 	type GetSpanDetailsQuery,
 	type GetTraceQuery,
 	JSON_RPC_VERSION,
 	type ListLogsQuery,
-	type ListLogsResult,
 	type ListMetricInstrumentsQuery,
-	type ListMetricInstrumentsResult,
 	type ListResourceFacetsQuery,
-	type ListResourceFacetsResult,
 	type ListTracesQuery,
-	type ListTracesResult,
 	type LoadSampleDataResult,
-	type LogDetails,
 	type PartialSettings,
 	RUNTIME_RPC_PROTOCOL_VERSION,
 	type RuntimeInitializeResult,
+	type RuntimeRpcMethod,
 	type RuntimeRpcResponse,
+	type RuntimeRpcResultFor,
 	type RuntimeStatusResult,
 	type Settings,
-	type SpanDetails,
 	type UpdateSettingsResult,
+	parseRuntimeRpcResult,
 	parseRuntimeSseEnvelope,
 	parseWireJson,
 	stringifyWire,
 } from '@otelux/protocol';
-import type { Trace } from '@otelux/types';
 
 export interface CreateHttpDataSourceOptions {
 	readonly baseUrl: string;
@@ -94,7 +89,10 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 	let closed = false;
 	let lastEventId: string | undefined;
 
-	const rawCall = async (method: string, params?: unknown): Promise<unknown> => {
+	const rawCall = async <M extends RuntimeRpcMethod>(
+		method: M,
+		params?: unknown,
+	): Promise<RuntimeRpcResultFor<M>> => {
 		if (closed) throw new Error('Runtime HTTP client is closed');
 		const id = String(++requestId);
 		const controller = new AbortController();
@@ -126,7 +124,7 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 			if ('error' in envelope) {
 				throw new RuntimeRpcError(envelope.error.code, envelope.error.message, envelope.error.data);
 			}
-			return envelope.result;
+			return parseRuntimeRpcResult(method, envelope.result);
 		} finally {
 			clearTimeout(timeout);
 		}
@@ -154,9 +152,12 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 		return initialized;
 	};
 
-	const call = async <T>(method: string, params?: unknown): Promise<T> => {
+	const call = async <M extends Exclude<RuntimeRpcMethod, 'runtime/initialize'>>(
+		method: M,
+		params?: unknown,
+	): Promise<RuntimeRpcResultFor<M>> => {
 		await initialize();
-		return (await rawCall(method, params)) as T;
+		return rawCall(method, params);
 	};
 
 	const runEvents = async (controller: AbortController): Promise<void> => {
@@ -240,18 +241,16 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 		async clearData(): Promise<void> {
 			await call('runtime/clearData', { confirmation: 'clear' });
 		},
-		listTraces: (query: ListTracesQuery) => call<ListTracesResult>('telemetry/listTraces', query),
-		getTrace: (query: GetTraceQuery) => call<Trace>('telemetry/getTrace', query),
-		getTraceWaterfall: (query: GetTraceQuery) => call<Trace>('telemetry/getTraceWaterfall', query),
-		getSpanDetails: (query: GetSpanDetailsQuery) => call<SpanDetails>('telemetry/getSpan', query),
-		listLogs: (query: ListLogsQuery) => call<ListLogsResult>('telemetry/listLogs', query),
-		getLogDetails: (query: GetLogDetailsQuery) => call<LogDetails>('telemetry/getLog', query),
+		listTraces: (query: ListTracesQuery) => call('telemetry/listTraces', query),
+		getTrace: (query: GetTraceQuery) => call('telemetry/getTrace', query),
+		getTraceWaterfall: (query: GetTraceQuery) => call('telemetry/getTraceWaterfall', query),
+		getSpanDetails: (query: GetSpanDetailsQuery) => call('telemetry/getSpan', query),
+		listLogs: (query: ListLogsQuery) => call('telemetry/listLogs', query),
+		getLogDetails: (query: GetLogDetailsQuery) => call('telemetry/getLog', query),
 		listMetricInstruments: (query: ListMetricInstrumentsQuery) =>
-			call<ListMetricInstrumentsResult>('telemetry/listMetricInstruments', query),
-		getMetricPoints: (query: GetMetricPointsQuery) =>
-			call<GetMetricPointsResult>('telemetry/getMetricPoints', query),
-		listResourceFacets: (query: ListResourceFacetsQuery) =>
-			call<ListResourceFacetsResult>('telemetry/getFacets', query),
+			call('telemetry/listMetricInstruments', query),
+		getMetricPoints: (query: GetMetricPointsQuery) => call('telemetry/getMetricPoints', query),
+		listResourceFacets: (query: ListResourceFacetsQuery) => call('telemetry/getFacets', query),
 		subscribe(handler: (event: ChangeEvent) => void): Disposable {
 			if (closed) throw new Error('Runtime HTTP client is closed');
 			handlers.add(handler);

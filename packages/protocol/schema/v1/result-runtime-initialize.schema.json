@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otelux.dev/schema/v1/result-runtime-initialize.schema.json",
+  "title": "runtime/initialize result",
+  "type": "object",
+  "properties": {
+    "protocolVersion": {
+      "const": "2.0.0"
+    },
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "const": "otelux-runtime"
+        },
+        "version": {
+          "type": "string",
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "name",
+        "version"
+      ],
+      "additionalProperties": false
+    },
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "queries": {
+          "const": true
+        },
+        "settings": {
+          "const": true
+        },
+        "sampleData": {
+          "const": true
+        },
+        "clearData": {
+          "const": true
+        },
+        "events": {
+          "const": true
+        }
+      },
+      "required": [
+        "queries",
+        "settings",
+        "sampleData",
+        "clearData",
+        "events"
+      ],
+      "additionalProperties": false
+    },
+    "limits": {
+      "type": "object",
+      "properties": {
+        "traces": {
+          "const": 200
+        },
+        "logs": {
+          "const": 500
+        },
+        "metrics": {
+          "const": 500
+        },
+        "metricPoints": {
+          "const": 1000
+        }
+      },
+      "required": [
+        "traces",
+        "logs",
+        "metrics",
+        "metricPoints"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "protocolVersion",
+    "runtime",
+    "capabilities",
+    "limits"
+  ],
+  "additionalProperties": false
+}

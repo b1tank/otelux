@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otelux.dev/schema/v1/result-list-logs.schema.json",
+  "title": "telemetry/listLogs result",
+  "type": "object",
+  "properties": {
+    "rows": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {
+        "type": "object",
+        "properties": {
+          "logId": {
+            "type": "string",
+            "maxLength": 32,
+            "pattern": "^[1-9][0-9]*$"
+          },
+          "timeUnixNano": {
+            "$ref": "https://otelux.dev/schema/v1/tagged-bigint.schema.json"
+          },
+          "severityNumber": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 24
+          },
+          "severityText": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "eventName": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "serviceName": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "traceId": {
+            "type": "string",
+            "maxLength": 32,
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "spanId": {
+            "type": "string",
+            "maxLength": 16,
+            "pattern": "^[0-9a-f]{16}$"
+          }
+        },
+        "required": [
+          "logId",
+          "timeUnixNano",
+          "severityNumber",
+          "message"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "totalCount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "totalCountIsExact": {
+      "type": "boolean"
+    },
+    "nextCursor": {
+      "type": "string",
+      "maxLength": 512
+    }
+  },
+  "required": [
+    "rows",
+    "totalCount"
+  ],
+  "additionalProperties": false
+}

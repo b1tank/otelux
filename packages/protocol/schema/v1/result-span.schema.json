@@ -1,0 +1,455 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otelux.dev/schema/v1/result-span.schema.json",
+  "title": "telemetry/getSpan result",
+  "type": "object",
+  "properties": {
+    "traceId": {
+      "type": "string",
+      "maxLength": 32,
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "spanId": {
+      "type": "string",
+      "maxLength": 16,
+      "pattern": "^[0-9a-f]{16}$"
+    },
+    "parentSpanId": {
+      "type": "string",
+      "maxLength": 16,
+      "pattern": "^[0-9a-f]{16}$"
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 2048
+    },
+    "kind": {
+      "enum": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    "startTimeUnixNano": {
+      "$ref": "https://otelux.dev/schema/v1/tagged-bigint.schema.json"
+    },
+    "endTimeUnixNano": {
+      "$ref": "https://otelux.dev/schema/v1/tagged-bigint.schema.json"
+    },
+    "status": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 2048
+        }
+      },
+      "required": [
+        "code"
+      ],
+      "additionalProperties": false
+    },
+    "attributes": {
+      "type": "object",
+      "maxProperties": 10000,
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "oneOf": [
+              {
+                "type": "string",
+                "maxLength": 1048576
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "$ref": "https://otelux.dev/schema/v1/tagged-bigint.schema.json"
+              }
+            ]
+          },
+          {
+            "type": "array",
+            "maxItems": 10000,
+            "items": {
+              "type": "string",
+              "maxLength": 1048576
+            }
+          },
+          {
+            "type": "array",
+            "maxItems": 10000,
+            "items": {
+              "type": "number"
+            }
+          },
+          {
+            "type": "array",
+            "maxItems": 10000,
+            "items": {
+              "type": "boolean"
+            }
+          },
+          {
+            "type": "array",
+            "maxItems": 10000,
+            "items": {
+              "$ref": "https://otelux.dev/schema/v1/tagged-bigint.schema.json"
+            }
+          }
+        ]
+      }
+    },
+    "events": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "timeUnixNano": {
+            "$ref": "https://otelux.dev/schema/v1/tagged-bigint.schema.json"
+          },
+          "attributes": {
+            "type": "object",
+            "maxProperties": 10000,
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 1048576
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "$ref": "https://otelux.dev/schema/v1/tagged-bigint.schema.json"
+                    }
+                  ]
+                },
+                {
+                  "type": "array",
+                  "maxItems": 10000,
+                  "items": {
+                    "type": "string",
+                    "maxLength": 1048576
+                  }
+                },
+                {
+                  "type": "array",
+                  "maxItems": 10000,
+                  "items": {
+                    "type": "number"
+                  }
+                },
+                {
+                  "type": "array",
+                  "maxItems": 10000,
+                  "items": {
+                    "type": "boolean"
+                  }
+                },
+                {
+                  "type": "array",
+                  "maxItems": 10000,
+                  "items": {
+                    "$ref": "https://otelux.dev/schema/v1/tagged-bigint.schema.json"
+                  }
+                }
+              ]
+            }
+          },
+          "droppedAttributesCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "name",
+          "timeUnixNano"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "links": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": {
+        "type": "object",
+        "properties": {
+          "traceId": {
+            "type": "string",
+            "maxLength": 32,
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "spanId": {
+            "type": "string",
+            "maxLength": 16,
+            "pattern": "^[0-9a-f]{16}$"
+          },
+          "traceState": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "attributes": {
+            "type": "object",
+            "maxProperties": 10000,
+            "additionalProperties": {
+              "oneOf": [
+                {
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "maxLength": 1048576
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "$ref": "https://otelux.dev/schema/v1/tagged-bigint.schema.json"
+                    }
+                  ]
+                },
+                {
+                  "type": "array",
+                  "maxItems": 10000,
+                  "items": {
+                    "type": "string",
+                    "maxLength": 1048576
+                  }
+                },
+                {
+                  "type": "array",
+                  "maxItems": 10000,
+                  "items": {
+                    "type": "number"
+                  }
+                },
+                {
+                  "type": "array",
+                  "maxItems": 10000,
+                  "items": {
+                    "type": "boolean"
+                  }
+                },
+                {
+                  "type": "array",
+                  "maxItems": 10000,
+                  "items": {
+                    "$ref": "https://otelux.dev/schema/v1/tagged-bigint.schema.json"
+                  }
+                }
+              ]
+            }
+          },
+          "droppedAttributesCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "traceId",
+          "spanId"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "traceState": {
+      "type": "string",
+      "maxLength": 2048
+    },
+    "droppedAttributesCount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "droppedEventsCount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "droppedLinksCount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "resource": {
+      "type": "object",
+      "properties": {
+        "attributes": {
+          "type": "object",
+          "maxProperties": 10000,
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 1048576
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "$ref": "https://otelux.dev/schema/v1/tagged-bigint.schema.json"
+                  }
+                ]
+              },
+              {
+                "type": "array",
+                "maxItems": 10000,
+                "items": {
+                  "type": "string",
+                  "maxLength": 1048576
+                }
+              },
+              {
+                "type": "array",
+                "maxItems": 10000,
+                "items": {
+                  "type": "number"
+                }
+              },
+              {
+                "type": "array",
+                "maxItems": 10000,
+                "items": {
+                  "type": "boolean"
+                }
+              },
+              {
+                "type": "array",
+                "maxItems": 10000,
+                "items": {
+                  "$ref": "https://otelux.dev/schema/v1/tagged-bigint.schema.json"
+                }
+              }
+            ]
+          }
+        },
+        "droppedAttributesCount": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "attributes"
+      ],
+      "additionalProperties": false
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "version": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "attributes": {
+          "type": "object",
+          "maxProperties": 10000,
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "oneOf": [
+                  {
+                    "type": "string",
+                    "maxLength": 1048576
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "$ref": "https://otelux.dev/schema/v1/tagged-bigint.schema.json"
+                  }
+                ]
+              },
+              {
+                "type": "array",
+                "maxItems": 10000,
+                "items": {
+                  "type": "string",
+                  "maxLength": 1048576
+                }
+              },
+              {
+                "type": "array",
+                "maxItems": 10000,
+                "items": {
+                  "type": "number"
+                }
+              },
+              {
+                "type": "array",
+                "maxItems": 10000,
+                "items": {
+                  "type": "boolean"
+                }
+              },
+              {
+                "type": "array",
+                "maxItems": 10000,
+                "items": {
+                  "$ref": "https://otelux.dev/schema/v1/tagged-bigint.schema.json"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "traceId",
+    "spanId",
+    "name",
+    "kind",
+    "startTimeUnixNano",
+    "endTimeUnixNano",
+    "status",
+    "attributes",
+    "resource",
+    "scope"
+  ],
+  "additionalProperties": false
+}

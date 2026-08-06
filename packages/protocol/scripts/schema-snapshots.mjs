@@ -92,6 +92,393 @@ const settings = object({
 	}),
 	storage: object({ dbPath: text(4096) }),
 });
+const taggedBigint = { $ref: id('tagged-bigint') };
+const finiteNumber = { type: 'number' };
+const attributeScalar = { oneOf: [text(1048576), finiteNumber, { type: 'boolean' }, taggedBigint] };
+const attributeValue = {
+	oneOf: [
+		attributeScalar,
+		...attributeScalar.oneOf.map((items) => ({ type: 'array', maxItems: 10000, items })),
+	],
+};
+const attributes = {
+	type: 'object',
+	maxProperties: 10000,
+	additionalProperties: attributeValue,
+};
+const resource = object(
+	{ attributes, droppedAttributesCount: integer(0, Number.MAX_SAFE_INTEGER) },
+	['attributes'],
+);
+const scope = object({ name: text(), version: text(), attributes }, ['name']);
+const spanStatus = object({ code: { enum: [0, 1, 2] }, message: text() }, ['code']);
+const spanEvent = object(
+	{
+		name: text(),
+		timeUnixNano: taggedBigint,
+		attributes,
+		droppedAttributesCount: integer(0, Number.MAX_SAFE_INTEGER),
+	},
+	['name', 'timeUnixNano'],
+);
+const spanLink = object(
+	{
+		traceId,
+		spanId,
+		traceState: text(),
+		attributes,
+		droppedAttributesCount: integer(0, Number.MAX_SAFE_INTEGER),
+	},
+	['traceId', 'spanId'],
+);
+const span = object(
+	{
+		traceId,
+		spanId,
+		parentSpanId: spanId,
+		name: text(),
+		kind: { enum: [0, 1, 2, 3, 4, 5] },
+		startTimeUnixNano: taggedBigint,
+		endTimeUnixNano: taggedBigint,
+		status: spanStatus,
+		attributes,
+		events: { type: 'array', maxItems: 10000, items: spanEvent },
+		links: { type: 'array', maxItems: 10000, items: spanLink },
+		traceState: text(),
+		droppedAttributesCount: integer(0, Number.MAX_SAFE_INTEGER),
+		droppedEventsCount: integer(0, Number.MAX_SAFE_INTEGER),
+		droppedLinksCount: integer(0, Number.MAX_SAFE_INTEGER),
+		resource,
+		scope,
+	},
+	[
+		'traceId',
+		'spanId',
+		'name',
+		'kind',
+		'startTimeUnixNano',
+		'endTimeUnixNano',
+		'status',
+		'attributes',
+		'resource',
+		'scope',
+	],
+);
+const trace = object(
+	{
+		traceId,
+		rootSpan: span,
+		spans: { type: 'array', maxItems: 100000, items: span },
+		startTimeUnixNano: taggedBigint,
+		endTimeUnixNano: taggedBigint,
+		durationNanos: taggedBigint,
+		services: { type: 'array', maxItems: 10000, items: text() },
+		spanCount: integer(0, Number.MAX_SAFE_INTEGER),
+		errorCount: integer(0, Number.MAX_SAFE_INTEGER),
+	},
+	[
+		'traceId',
+		'spans',
+		'startTimeUnixNano',
+		'endTimeUnixNano',
+		'durationNanos',
+		'services',
+		'spanCount',
+		'errorCount',
+	],
+);
+const logRecord = object(
+	{
+		timeUnixNano: taggedBigint,
+		observedTimeUnixNano: taggedBigint,
+		severityNumber: integer(0, 24),
+		severityText: text(),
+		eventName: text(),
+		body: attributeValue,
+		attributes,
+		droppedAttributesCount: integer(0, Number.MAX_SAFE_INTEGER),
+		flags: integer(0, Number.MAX_SAFE_INTEGER),
+		traceId,
+		spanId,
+		resource,
+		scope,
+	},
+	['timeUnixNano', 'severityNumber', 'attributes', 'resource', 'scope'],
+);
+const numberPoint = object(
+	{
+		startTimeUnixNano: taggedBigint,
+		timeUnixNano: taggedBigint,
+		value: finiteNumber,
+		attributes,
+		flags: integer(0, Number.MAX_SAFE_INTEGER),
+	},
+	['timeUnixNano', 'value', 'attributes'],
+);
+const histogramPoint = object(
+	{
+		startTimeUnixNano: taggedBigint,
+		timeUnixNano: taggedBigint,
+		count: integer(0, Number.MAX_SAFE_INTEGER),
+		sum: finiteNumber,
+		min: finiteNumber,
+		max: finiteNumber,
+		bucketCounts: { type: 'array', maxItems: 10000, items: integer(0, Number.MAX_SAFE_INTEGER) },
+		explicitBounds: { type: 'array', maxItems: 10000, items: finiteNumber },
+		attributes,
+		flags: integer(0, Number.MAX_SAFE_INTEGER),
+	},
+	['timeUnixNano', 'count', 'bucketCounts', 'explicitBounds', 'attributes'],
+);
+const metricCommon = { name: text(), description: text(), unit: text(), resource, scope };
+const metric = {
+	oneOf: [
+		object(
+			{
+				...metricCommon,
+				type: { const: 'gauge' },
+				dataPoints: { type: 'array', maxItems: 1000, items: numberPoint },
+			},
+			['name', 'type', 'resource', 'scope', 'dataPoints'],
+		),
+		object(
+			{
+				...metricCommon,
+				type: { const: 'sum' },
+				isMonotonic: { type: 'boolean' },
+				temporality: { enum: [0, 1, 2] },
+				dataPoints: { type: 'array', maxItems: 1000, items: numberPoint },
+			},
+			['name', 'type', 'resource', 'scope', 'isMonotonic', 'temporality', 'dataPoints'],
+		),
+		object(
+			{
+				...metricCommon,
+				type: { const: 'histogram' },
+				temporality: { enum: [0, 1, 2] },
+				dataPoints: { type: 'array', maxItems: 1000, items: histogramPoint },
+			},
+			['name', 'type', 'resource', 'scope', 'temporality', 'dataPoints'],
+		),
+	],
+};
+const resultSchema = (name, title, schema) => ({ $schema: draft, $id: id(name), title, ...schema });
+const resultSchemas = {
+	'result-runtime-initialize': resultSchema(
+		'result-runtime-initialize',
+		'runtime/initialize result',
+		object({
+			protocolVersion: { const: '2.0.0' },
+			runtime: object({ name: { const: 'otelux-runtime' }, version: text(64) }),
+			capabilities: object({
+				queries: { const: true },
+				settings: { const: true },
+				sampleData: { const: true },
+				clearData: { const: true },
+				events: { const: true },
+			}),
+			limits: object({
+				traces: { const: 200 },
+				logs: { const: 500 },
+				metrics: { const: 500 },
+				metricPoints: { const: 1000 },
+			}),
+		}),
+	),
+	'result-runtime-status': resultSchema(
+		'result-runtime-status',
+		'runtime/getStatus result',
+		object(
+			{
+				runtimeVersion: text(64),
+				protocolVersion: text(64),
+				instanceId: text(128),
+				pid: integer(1, Number.MAX_SAFE_INTEGER),
+				startedAt: { type: 'string', format: 'date-time', maxLength: 64 },
+				dataDirectory: text(4096),
+				databasePath: text(4096),
+				receiver: receiverStatus,
+				mcp: mcpStatus,
+				api: {
+					oneOf: [
+						object({ kind: { const: 'starting' } }),
+						object({ kind: { const: 'running' }, host: text(255), port: integer(1, 65535) }),
+						object({
+							kind: { const: 'error' },
+							host: text(255),
+							port: integer(1, 65535),
+							message: text(),
+						}),
+					],
+				},
+			},
+			[
+				'runtimeVersion',
+				'protocolVersion',
+				'instanceId',
+				'pid',
+				'startedAt',
+				'dataDirectory',
+				'databasePath',
+				'receiver',
+				'mcp',
+			],
+		),
+	),
+	'result-settings': resultSchema('result-settings', 'runtime/getSettings result', settings),
+	'result-update-settings': resultSchema('result-update-settings', 'runtime/updateSettings result', {
+		oneOf: [
+			object({ ok: { const: true }, settings, status: receiverStatus, mcpStatus }),
+			object({ ok: { const: false }, error: text() }),
+		],
+	}),
+	'result-load-sample-data': resultSchema(
+		'result-load-sample-data',
+		'runtime/loadSampleData result',
+		object({
+			traces: integer(0, Number.MAX_SAFE_INTEGER),
+			logs: integer(0, Number.MAX_SAFE_INTEGER),
+			metrics: integer(0, Number.MAX_SAFE_INTEGER),
+		}),
+	),
+	'result-clear-data': resultSchema('result-clear-data', 'runtime/clearData result', {
+		type: 'null',
+	}),
+	'result-list-traces': resultSchema(
+		'result-list-traces',
+		'telemetry/listTraces result',
+		object(
+			{
+				rows: {
+					type: 'array',
+					maxItems: 200,
+					items: object({
+						traceId,
+						rootName: text(),
+						startTimeUnixNano: taggedBigint,
+						durationNanos: taggedBigint,
+						services: { type: 'array', maxItems: 10000, items: text() },
+						spanCount: integer(0, Number.MAX_SAFE_INTEGER),
+						errorCount: integer(0, Number.MAX_SAFE_INTEGER),
+					}),
+				},
+				totalCount: integer(0, Number.MAX_SAFE_INTEGER),
+				totalCountIsExact: { type: 'boolean' },
+				nextCursor: text(512),
+			},
+			['rows', 'totalCount'],
+		),
+	),
+	'result-trace': resultSchema('result-trace', 'telemetry trace result', trace),
+	'result-span': resultSchema('result-span', 'telemetry/getSpan result', span),
+	'result-list-logs': resultSchema(
+		'result-list-logs',
+		'telemetry/listLogs result',
+		object(
+			{
+				rows: {
+					type: 'array',
+					maxItems: 500,
+					items: object(
+						{
+							logId: text(32, '^[1-9][0-9]*$'),
+							timeUnixNano: taggedBigint,
+							severityNumber: integer(0, 24),
+							severityText: text(),
+							eventName: text(),
+							message: text(4096),
+							serviceName: text(),
+							traceId,
+							spanId,
+						},
+						['logId', 'timeUnixNano', 'severityNumber', 'message'],
+					),
+				},
+				totalCount: integer(0, Number.MAX_SAFE_INTEGER),
+				totalCountIsExact: { type: 'boolean' },
+				nextCursor: text(512),
+			},
+			['rows', 'totalCount'],
+		),
+	),
+	'result-log': resultSchema('result-log', 'telemetry/getLog result', logRecord),
+	'result-list-metric-instruments': resultSchema(
+		'result-list-metric-instruments',
+		'telemetry/listMetricInstruments result',
+		object({
+			rows: {
+				type: 'array',
+				maxItems: 500,
+				items: object(
+					{
+						instrumentId: text(32, '^[1-9][0-9]*$'),
+						name: text(),
+						description: text(),
+						unit: text(),
+						type: { enum: ['sum', 'gauge', 'histogram'] },
+						isMonotonic: { type: 'boolean' },
+						temporality: { enum: [0, 1, 2] },
+						sourceName: text(),
+						serviceName: text(),
+						meterName: text(),
+						pointCount: integer(0, Number.MAX_SAFE_INTEGER),
+						latest: {
+							oneOf: [
+								object({ kind: { const: 'number' }, timeUnixNano: taggedBigint, value: finiteNumber }),
+								object(
+									{
+										kind: { const: 'histogram' },
+										timeUnixNano: taggedBigint,
+										count: integer(0, Number.MAX_SAFE_INTEGER),
+										sum: finiteNumber,
+									},
+									['kind', 'timeUnixNano', 'count'],
+								),
+							],
+						},
+					},
+					['instrumentId', 'name', 'type', 'meterName', 'pointCount'],
+				),
+			},
+			totalCount: integer(0, Number.MAX_SAFE_INTEGER),
+		}),
+	),
+	'result-metric-points': resultSchema(
+		'result-metric-points',
+		'telemetry/getMetricPoints result',
+		object(
+			{
+				metric,
+				totalPointCount: integer(0, Number.MAX_SAFE_INTEGER),
+				nextCursor: text(128),
+				truncatedAttributes: {
+					type: 'array',
+					maxItems: 1000,
+					items: object({
+						pointIndex: integer(0, 999),
+						truncatedOrOmittedAttributeCount: integer(0, Number.MAX_SAFE_INTEGER),
+					}),
+				},
+				resourceAttributesTruncated: integer(0, Number.MAX_SAFE_INTEGER),
+				scopeAttributesTruncated: integer(0, Number.MAX_SAFE_INTEGER),
+				metadataTruncated: { type: 'boolean' },
+				histogramBucketsTruncated: { type: 'array', maxItems: 1000, items: integer(0, 999) },
+			},
+			['metric', 'totalPointCount'],
+		),
+	),
+	'result-facets': resultSchema(
+		'result-facets',
+		'telemetry/getFacets result',
+		object({
+			rows: {
+				type: 'array',
+				maxItems: 500,
+				items: object({ name: text(512), count: integer(0, Number.MAX_SAFE_INTEGER) }),
+			},
+		}),
+	),
+};
 
 const schemas = {
 	'tagged-bigint': {
@@ -325,6 +712,8 @@ schemas['runtime-sse-event'] = {
 		}),
 	],
 };
+
+Object.assign(schemas, resultSchemas);
 
 schemas['runtime-event'] = {
 	$schema: draft,

@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otelux.dev/schema/v1/result-list-metric-instruments.schema.json",
+  "title": "telemetry/listMetricInstruments result",
+  "type": "object",
+  "properties": {
+    "rows": {
+      "type": "array",
+      "maxItems": 500,
+      "items": {
+        "type": "object",
+        "properties": {
+          "instrumentId": {
+            "type": "string",
+            "maxLength": 32,
+            "pattern": "^[1-9][0-9]*$"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "unit": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "type": {
+            "enum": [
+              "sum",
+              "gauge",
+              "histogram"
+            ]
+          },
+          "isMonotonic": {
+            "type": "boolean"
+          },
+          "temporality": {
+            "enum": [
+              0,
+              1,
+              2
+            ]
+          },
+          "sourceName": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "serviceName": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "meterName": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "pointCount": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "latest": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "number"
+                  },
+                  "timeUnixNano": {
+                    "$ref": "https://otelux.dev/schema/v1/tagged-bigint.schema.json"
+                  },
+                  "value": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "timeUnixNano",
+                  "value"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "histogram"
+                  },
+                  "timeUnixNano": {
+                    "$ref": "https://otelux.dev/schema/v1/tagged-bigint.schema.json"
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "sum": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "timeUnixNano",
+                  "count"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        "required": [
+          "instrumentId",
+          "name",
+          "type",
+          "meterName",
+          "pointCount"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "totalCount": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    }
+  },
+  "required": [
+    "rows",
+    "totalCount"
+  ],
+  "additionalProperties": false
+}

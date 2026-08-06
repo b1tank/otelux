@@ -1,0 +1,482 @@
+{
+  "fixtures": [
+    {
+      "runtimeMethod": "runtime/initialize",
+      "result": {
+        "protocolVersion": "2.0.0",
+        "runtime": {
+          "name": "otelux-runtime",
+          "version": "0.1.11"
+        },
+        "capabilities": {
+          "queries": true,
+          "settings": true,
+          "sampleData": true,
+          "clearData": true,
+          "events": true
+        },
+        "limits": {
+          "traces": 200,
+          "logs": 500,
+          "metrics": 500,
+          "metricPoints": 1000
+        }
+      }
+    },
+    {
+      "runtimeMethod": "runtime/getStatus",
+      "result": {
+        "runtimeVersion": "0.1.11",
+        "protocolVersion": "2.0.0",
+        "instanceId": "fixture",
+        "pid": 123,
+        "startedAt": "2026-08-06T00:00:00.000Z",
+        "dataDirectory": "/tmp/otelux",
+        "databasePath": "/tmp/otelux/otelux.db",
+        "receiver": {
+          "kind": "running",
+          "port": 4319,
+          "host": "127.0.0.1"
+        },
+        "mcp": {
+          "kind": "disabled"
+        },
+        "api": {
+          "kind": "running",
+          "host": "127.0.0.1",
+          "port": 4321
+        }
+      }
+    },
+    {
+      "runtimeMethod": "runtime/getSettings",
+      "invokeKind": "getSettings",
+      "result": {
+        "version": 1,
+        "otlp": {
+          "port": 4319
+        },
+        "mcp": {
+          "enabled": false,
+          "port": 4320
+        },
+        "retention": {
+          "maxAgeHours": 72,
+          "maxSizeMb": 512
+        },
+        "storage": {
+          "dbPath": ""
+        }
+      }
+    },
+    {
+      "runtimeMethod": "runtime/updateSettings",
+      "invokeKind": "updateSettings",
+      "result": {
+        "ok": true,
+        "settings": {
+          "version": 1,
+          "otlp": {
+            "port": 4319
+          },
+          "mcp": {
+            "enabled": false,
+            "port": 4320
+          },
+          "retention": {
+            "maxAgeHours": 72,
+            "maxSizeMb": 512
+          },
+          "storage": {
+            "dbPath": ""
+          }
+        },
+        "status": {
+          "kind": "running",
+          "port": 4319,
+          "host": "127.0.0.1"
+        },
+        "mcpStatus": {
+          "kind": "disabled"
+        }
+      }
+    },
+    {
+      "runtimeMethod": "runtime/loadSampleData",
+      "invokeKind": "loadSampleData",
+      "result": {
+        "traces": 1,
+        "logs": 1,
+        "metrics": 1
+      }
+    },
+    {
+      "runtimeMethod": "runtime/clearData",
+      "result": null
+    },
+    {
+      "runtimeMethod": "telemetry/listTraces",
+      "invokeKind": "listTraces",
+      "result": {
+        "rows": [
+          {
+            "traceId": "0123456789abcdef0123456789abcdef",
+            "rootName": "GET /",
+            "startTimeUnixNano": {
+              "$bigint": "100"
+            },
+            "durationNanos": {
+              "$bigint": "100"
+            },
+            "services": [
+              "api"
+            ],
+            "spanCount": 1,
+            "errorCount": 0
+          }
+        ],
+        "totalCount": 1,
+        "nextCursor": "0123456789abcdef0123456789abcdef"
+      }
+    },
+    {
+      "runtimeMethod": "telemetry/getTrace",
+      "invokeKind": "getTrace",
+      "result": {
+        "traceId": "0123456789abcdef0123456789abcdef",
+        "rootSpan": {
+          "traceId": "0123456789abcdef0123456789abcdef",
+          "spanId": "0123456789abcdef",
+          "name": "GET /",
+          "kind": 2,
+          "startTimeUnixNano": {
+            "$bigint": "100"
+          },
+          "endTimeUnixNano": {
+            "$bigint": "200"
+          },
+          "status": {
+            "code": 1
+          },
+          "attributes": {
+            "answer": {
+              "$bigint": "42"
+            }
+          },
+          "resource": {
+            "attributes": {
+              "service.name": "api"
+            }
+          },
+          "scope": {
+            "name": "test"
+          }
+        },
+        "spans": [
+          {
+            "traceId": "0123456789abcdef0123456789abcdef",
+            "spanId": "0123456789abcdef",
+            "name": "GET /",
+            "kind": 2,
+            "startTimeUnixNano": {
+              "$bigint": "100"
+            },
+            "endTimeUnixNano": {
+              "$bigint": "200"
+            },
+            "status": {
+              "code": 1
+            },
+            "attributes": {
+              "answer": {
+                "$bigint": "42"
+              }
+            },
+            "resource": {
+              "attributes": {
+                "service.name": "api"
+              }
+            },
+            "scope": {
+              "name": "test"
+            }
+          }
+        ],
+        "startTimeUnixNano": {
+          "$bigint": "100"
+        },
+        "endTimeUnixNano": {
+          "$bigint": "200"
+        },
+        "durationNanos": {
+          "$bigint": "100"
+        },
+        "services": [
+          "api"
+        ],
+        "spanCount": 1,
+        "errorCount": 0
+      }
+    },
+    {
+      "runtimeMethod": "telemetry/getTraceWaterfall",
+      "invokeKind": "getTraceWaterfall",
+      "result": {
+        "traceId": "0123456789abcdef0123456789abcdef",
+        "rootSpan": {
+          "traceId": "0123456789abcdef0123456789abcdef",
+          "spanId": "0123456789abcdef",
+          "name": "GET /",
+          "kind": 2,
+          "startTimeUnixNano": {
+            "$bigint": "100"
+          },
+          "endTimeUnixNano": {
+            "$bigint": "200"
+          },
+          "status": {
+            "code": 1
+          },
+          "attributes": {
+            "answer": {
+              "$bigint": "42"
+            }
+          },
+          "resource": {
+            "attributes": {
+              "service.name": "api"
+            }
+          },
+          "scope": {
+            "name": "test"
+          }
+        },
+        "spans": [
+          {
+            "traceId": "0123456789abcdef0123456789abcdef",
+            "spanId": "0123456789abcdef",
+            "name": "GET /",
+            "kind": 2,
+            "startTimeUnixNano": {
+              "$bigint": "100"
+            },
+            "endTimeUnixNano": {
+              "$bigint": "200"
+            },
+            "status": {
+              "code": 1
+            },
+            "attributes": {
+              "answer": {
+                "$bigint": "42"
+              }
+            },
+            "resource": {
+              "attributes": {
+                "service.name": "api"
+              }
+            },
+            "scope": {
+              "name": "test"
+            }
+          }
+        ],
+        "startTimeUnixNano": {
+          "$bigint": "100"
+        },
+        "endTimeUnixNano": {
+          "$bigint": "200"
+        },
+        "durationNanos": {
+          "$bigint": "100"
+        },
+        "services": [
+          "api"
+        ],
+        "spanCount": 1,
+        "errorCount": 0
+      }
+    },
+    {
+      "runtimeMethod": "telemetry/getSpan",
+      "invokeKind": "getSpanDetails",
+      "result": {
+        "traceId": "0123456789abcdef0123456789abcdef",
+        "spanId": "0123456789abcdef",
+        "name": "GET /",
+        "kind": 2,
+        "startTimeUnixNano": {
+          "$bigint": "100"
+        },
+        "endTimeUnixNano": {
+          "$bigint": "200"
+        },
+        "status": {
+          "code": 1
+        },
+        "attributes": {
+          "answer": {
+            "$bigint": "42"
+          }
+        },
+        "resource": {
+          "attributes": {
+            "service.name": "api"
+          }
+        },
+        "scope": {
+          "name": "test"
+        }
+      }
+    },
+    {
+      "runtimeMethod": "telemetry/listLogs",
+      "invokeKind": "listLogs",
+      "result": {
+        "rows": [
+          {
+            "logId": "1",
+            "timeUnixNano": {
+              "$bigint": "150"
+            },
+            "severityNumber": 9,
+            "message": "ready",
+            "serviceName": "api",
+            "traceId": "0123456789abcdef0123456789abcdef",
+            "spanId": "0123456789abcdef"
+          }
+        ],
+        "totalCount": 1
+      }
+    },
+    {
+      "runtimeMethod": "telemetry/getLog",
+      "invokeKind": "getLogDetails",
+      "result": {
+        "timeUnixNano": {
+          "$bigint": "150"
+        },
+        "severityNumber": 9,
+        "body": "ready",
+        "attributes": {
+          "attempt": {
+            "$bigint": "1"
+          }
+        },
+        "traceId": "0123456789abcdef0123456789abcdef",
+        "spanId": "0123456789abcdef",
+        "resource": {
+          "attributes": {
+            "service.name": "api"
+          }
+        },
+        "scope": {
+          "name": "test"
+        }
+      }
+    },
+    {
+      "runtimeMethod": "telemetry/listMetricInstruments",
+      "invokeKind": "listMetricInstruments",
+      "result": {
+        "rows": [
+          {
+            "instrumentId": "1",
+            "name": "requests",
+            "type": "sum",
+            "isMonotonic": true,
+            "temporality": 2,
+            "meterName": "test",
+            "pointCount": 1,
+            "latest": {
+              "kind": "number",
+              "timeUnixNano": {
+                "$bigint": "160"
+              },
+              "value": 1
+            }
+          }
+        ],
+        "totalCount": 1
+      }
+    },
+    {
+      "runtimeMethod": "telemetry/getMetricPoints",
+      "invokeKind": "getMetricPoints",
+      "result": {
+        "metric": {
+          "name": "requests",
+          "type": "sum",
+          "isMonotonic": true,
+          "temporality": 2,
+          "dataPoints": [
+            {
+              "timeUnixNano": {
+                "$bigint": "160"
+              },
+              "value": 1,
+              "attributes": {
+                "route": "/health"
+              }
+            }
+          ],
+          "resource": {
+            "attributes": {
+              "service.name": "api"
+            }
+          },
+          "scope": {
+            "name": "test"
+          }
+        },
+        "totalPointCount": 1
+      }
+    },
+    {
+      "runtimeMethod": "telemetry/getFacets",
+      "invokeKind": "listResourceFacets",
+      "result": {
+        "rows": [
+          {
+            "name": "api",
+            "count": 1
+          }
+        ]
+      }
+    }
+  ],
+  "ipcOnly": [
+    {
+      "invokeKind": "getReceiverStatus",
+      "result": {
+        "kind": "running",
+        "port": 4319,
+        "host": "127.0.0.1"
+      }
+    },
+    {
+      "invokeKind": "getMcpStatus",
+      "result": {
+        "kind": "disabled"
+      }
+    },
+    {
+      "invokeKind": "getStoragePath",
+      "result": {
+        "activePath": "/tmp/otelux/otelux.db",
+        "defaultPath": "/tmp/otelux/otelux.db"
+      }
+    },
+    {
+      "invokeKind": "getStorageUsage",
+      "result": {
+        "activePath": "/tmp/otelux/otelux.db",
+        "retentionBytes": 4096,
+        "databaseFileBytes": 4096,
+        "walBytes": 0,
+        "sharedMemoryBytes": 0,
+        "totalBytes": 4096
+      }
+    }
+  ]
+}
