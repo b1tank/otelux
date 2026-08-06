@@ -5,6 +5,7 @@ import type {
 	Settings,
 	UpdateSettingsResult,
 } from '@otelux/protocol';
+import { SettingsRevisionConflictError } from './settings.js';
 
 export interface ReceiverController {
 	readonly status: ReceiverStatus;
@@ -18,8 +19,9 @@ export interface McpController {
 }
 
 export interface SettingsWriter {
+	get(): Settings;
 	preview(patch: PartialSettings): Settings;
-	commit(next: Settings): Promise<Settings>;
+	commit(next: Settings, expectedRevision: number): Promise<Settings>;
 }
 
 export async function updateSettings(
@@ -27,7 +29,18 @@ export async function updateSettings(
 	receiverHost: ReceiverController,
 	mcpHost: McpController,
 	patch: PartialSettings,
+	expectedRevision: number,
 ): Promise<UpdateSettingsResult> {
+	const current = store.get();
+	if (current.revision !== expectedRevision) {
+		return {
+			ok: false,
+			conflict: true,
+			error: `Settings changed from revision ${expectedRevision} to ${current.revision}. Reload settings and try again.`,
+			settings: current,
+		};
+	}
+
 	let next: Settings;
 	try {
 		next = store.preview(patch);
@@ -84,11 +97,20 @@ export async function updateSettings(
 		}
 	}
 
+	let committed: Settings;
 	try {
-		await store.commit(next);
+		committed = await store.commit(next, expectedRevision);
 	} catch (error) {
 		await rollback();
+		if (error instanceof SettingsRevisionConflictError) {
+			return {
+				ok: false,
+				conflict: true,
+				error: `Settings changed from revision ${expectedRevision} to ${error.current.revision}. Reload settings and try again.`,
+				settings: error.current,
+			};
+		}
 		return { ok: false, error: error instanceof Error ? error.message : String(error) };
 	}
-	return { ok: true, settings: next, status, mcpStatus };
+	return { ok: true, settings: committed, status, mcpStatus };
 }

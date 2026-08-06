@@ -4,9 +4,9 @@ import type {
 	ListMetricInstrumentsQuery,
 	ListResourceFacetsQuery,
 	ListTracesQuery,
-	PartialSettings,
 	RuntimeApiStatus,
 	RuntimeState,
+	UpdateSettingsParams,
 } from './index.js';
 import {
 	ProtocolValidationError,
@@ -129,7 +129,7 @@ export type DecodedRuntimeRpcCall =
 	| { readonly method: 'runtime/initialize'; readonly params: RuntimeInitializeParams }
 	| { readonly method: 'runtime/getStatus' }
 	| { readonly method: 'runtime/getSettings' }
-	| { readonly method: 'runtime/updateSettings'; readonly params: PartialSettings }
+	| { readonly method: 'runtime/updateSettings'; readonly params: UpdateSettingsParams }
 	| { readonly method: 'runtime/loadSampleData' }
 	| { readonly method: 'runtime/clearData'; readonly params: { readonly confirmation: 'clear' } }
 	| { readonly method: 'telemetry/listTraces'; readonly params: ListTracesQuery }
@@ -263,8 +263,28 @@ export function decodeRuntimeRpcCall(request: RuntimeRpcRequest): DecodedRuntime
 		case 'runtime/loadSampleData':
 			emptyParams(request.params);
 			return { method };
-		case 'runtime/updateSettings':
-			return { method, params: parsePartialSettings(request.params, '$.params') };
+		case 'runtime/updateSettings': {
+			const input = record(request.params, '$.params');
+			keys(input, ['patch', 'expectedRevision'], '$.params');
+			if (
+				typeof input.expectedRevision !== 'number' ||
+				!Number.isSafeInteger(input.expectedRevision) ||
+				input.expectedRevision < 0
+			) {
+				throw new ProtocolValidationError(
+					'$.params.expectedRevision',
+					'range',
+					'expected a non-negative safe integer',
+				);
+			}
+			return {
+				method,
+				params: {
+					patch: parsePartialSettings(input.patch, '$.params.patch'),
+					expectedRevision: input.expectedRevision,
+				},
+			};
+		}
 		case 'runtime/clearData': {
 			const input = record(request.params, '$.params');
 			keys(input, ['confirmation'], '$.params');

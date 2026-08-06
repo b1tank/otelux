@@ -24,6 +24,7 @@ function runtime(): LocalRuntime {
 		}),
 		getSettings: vi.fn(() => ({
 			version: 1,
+			revision: 4,
 			otlp: { port: 4319 },
 			mcp: { enabled: true, port: 4320 },
 			retention: { maxAgeHours: 72, maxSizeMb: 512 },
@@ -124,6 +125,30 @@ describe('Runtime RPC dispatcher', () => {
 		const internal = await dispatcher.handle(request('telemetry/listTraces', {}));
 		expect(internal).toMatchObject({ error: { code: -32603, message: 'Internal error' } });
 		expect(JSON.stringify(internal)).not.toContain('SQL secret');
+	});
+
+	it('maps stale settings revisions to the Runtime RPC conflict code', async () => {
+		const local = runtime();
+		vi.mocked(local.updateSettings).mockResolvedValueOnce({
+			ok: false,
+			conflict: true,
+			error: 'stale',
+			settings: local.getSettings(),
+		});
+		const response = await createRuntimeRpcDispatcher(local).handle(
+			request('runtime/updateSettings', {
+				patch: { retention: { maxAgeHours: 24 } },
+				expectedRevision: 3,
+			}),
+		);
+		expect(local.updateSettings).toHaveBeenCalledWith({ retention: { maxAgeHours: 24 } }, 3);
+		expect(response).toMatchObject({
+			error: {
+				code: -32004,
+				message: 'Settings revision conflict',
+				data: { expectedRevision: 3, currentRevision: 4 },
+			},
+		});
 	});
 
 	it('executes valid clear only with confirmation and suppresses notification replies', async () => {

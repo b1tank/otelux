@@ -74,9 +74,19 @@ export function createRuntimeRpcDispatcher(runtime: LocalRuntime): RuntimeRpcDis
 					case 'runtime/getSettings':
 						result = runtime.getSettings();
 						break;
-					case 'runtime/updateSettings':
-						result = await runtime.updateSettings(call.params);
+					case 'runtime/updateSettings': {
+						const update = await runtime.updateSettings(call.params.patch, call.params.expectedRevision);
+						if (!update.ok && 'conflict' in update) {
+							if (notification) return undefined;
+							return failure(id, RUNTIME_RPC_ERROR.CONFLICT, 'Settings revision conflict', {
+								expectedRevision: call.params.expectedRevision,
+								currentRevision: update.settings.revision,
+								settings: update.settings,
+							});
+						}
+						result = update;
 						break;
+					}
 					case 'runtime/loadSampleData':
 						result = await runtime.loadSampleData();
 						break;

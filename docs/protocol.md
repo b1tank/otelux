@@ -107,7 +107,7 @@ Required method families:
 |---|---|---|---|
 | `runtime/getStatus` | empty | endpoints, versions, storage path, listener states | one object |
 | `runtime/getSettings` | empty | `Settings` | one object |
-| `runtime/updateSettings` | `PartialSettings` | `UpdateSettingsResult` | one object |
+| `runtime/updateSettings` | `{ patch: PartialSettings, expectedRevision }` | `UpdateSettingsResult` or conflict `-32004` | one object |
 | `runtime/loadSampleData` | empty | signal counts | fixed |
 | `runtime/clearData` | confirmation token | empty | fixed |
 | `telemetry/listTraces` | cursor query | trace summary page | max 200 rows |
@@ -134,10 +134,10 @@ Runtime methods use JSON-RPC errors consistently:
 | `-32001` | Unsupported protocol version |
 | `-32002` | Runtime not ready or shutting down |
 | `-32003` | Cursor expired or invalid |
-| `-32004` | Conflict, including competing mutation or migration state |
+| `-32004` | Conflict, including a stale settings compare-and-swap revision or competing mutation/migration state |
 | `-32006` | Stale opaque reference removed by retention, clear, or replacement; refetch the owning list |
 
-Validation failures include a stable machine-readable path/code in `error.data`, not stack traces or SQL text.
+Validation failures include a stable machine-readable path/code in `error.data`, not stack traces or SQL text. Every `Settings` snapshot includes a non-negative monotonic `revision`. A settings update must send that value as `expectedRevision`; a successful atomic commit persists and returns revision + 1. A stale Runtime RPC update returns `-32004` with `expectedRevision`, `currentRevision`, and the current sanitized settings in `error.data`. Electron IPC returns the typed conflict result so the Settings form can keep the conflict visible and require a fresh edit session. Revision checks happen before receiver/MCP rebinding, persistence, or change events.
 
 ## Wire Value Encoding
 

@@ -92,6 +92,22 @@ describe('Runtime RPC method params', () => {
 		});
 	});
 
+	it('requires a compare-and-swap revision for settings updates', () => {
+		const request = parseRuntimeRpcRequest({
+			jsonrpc: '2.0',
+			id: 1,
+			method: 'runtime/updateSettings',
+			params: { patch: { retention: { maxAgeHours: 24 } }, expectedRevision: 7 },
+		});
+		expect(decodeRuntimeRpcCall(request)).toEqual({
+			method: 'runtime/updateSettings',
+			params: { patch: { retention: { maxAgeHours: 24 } }, expectedRevision: 7 },
+		});
+		expect(() =>
+			decodeRuntimeRpcCall({ ...request, params: { patch: {}, expectedRevision: -1 } }),
+		).toThrow('$.params.expectedRevision: expected a non-negative safe integer');
+	});
+
 	it('requires explicit clear confirmation', () => {
 		const request = parseRuntimeRpcRequest({
 			jsonrpc: '2.0',

@@ -258,7 +258,7 @@ export type InvokeMessage =
 	| { kind: 'getMetricPoints'; query: GetMetricPointsQuery }
 	| { kind: 'listResourceFacets'; query: ListResourceFacetsQuery }
 	| { kind: 'getSettings' }
-	| { kind: 'updateSettings'; patch: PartialSettings }
+	| { kind: 'updateSettings'; patch: PartialSettings; expectedRevision: number }
 	| { kind: 'getReceiverStatus' }
 	| { kind: 'getMcpStatus' }
 	| { kind: 'getStoragePath' }
@@ -318,6 +318,8 @@ export interface DataSource {
 /** User-controllable settings owned by the shared local runtime. */
 export interface Settings {
 	readonly version: 1;
+	/** Monotonic compare-and-swap revision. Incremented after every committed update. */
+	readonly revision: number;
 	readonly otlp: {
 		readonly port: number;
 	};
@@ -357,6 +359,7 @@ export interface PartialSettings {
 
 export const DEFAULT_SETTINGS: Settings = {
 	version: 1,
+	revision: 0,
 	otlp: { port: 4319 },
 	mcp: { enabled: true, port: 4320 },
 	retention: { maxAgeHours: 72, maxSizeMb: 512 },
@@ -422,6 +425,11 @@ export type McpStatus =
 			readonly message: string;
 	  };
 
+export interface UpdateSettingsParams {
+	readonly patch: PartialSettings;
+	readonly expectedRevision: number;
+}
+
 export type UpdateSettingsResult =
 	| {
 			readonly ok: true;
@@ -429,7 +437,13 @@ export type UpdateSettingsResult =
 			readonly status: ReceiverStatus;
 			readonly mcpStatus: McpStatus;
 	  }
-	| { readonly ok: false; readonly error: string };
+	| { readonly ok: false; readonly error: string }
+	| {
+			readonly ok: false;
+			readonly conflict: true;
+			readonly error: string;
+			readonly settings: Settings;
+	  };
 
 export type RuntimeApiStatus =
 	| { readonly kind: 'starting' }

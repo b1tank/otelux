@@ -69,7 +69,7 @@ export interface LocalRuntime extends DataSource {
 	getStoragePath(): StoragePathInfo;
 	getStorageUsage(): Promise<StorageUsageInfo>;
 	getRuntimeState(): RuntimeState;
-	updateSettings(patch: PartialSettings): Promise<UpdateSettingsResult>;
+	updateSettings(patch: PartialSettings, expectedRevision: number): Promise<UpdateSettingsResult>;
 	loadSampleData(): Promise<LoadSampleDataResult>;
 	clearData(): Promise<void>;
 	onEvent(listener: (event: RuntimeEvent) => void): Disposable;
@@ -275,8 +275,10 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 		getStoragePath: () => ({ activePath: activeDbPath, defaultPath: defaultDbPath }),
 		getStorageUsage: () => storage.getStorageUsage(),
 		getRuntimeState: runtimeState,
-		updateSettings: (patch) =>
-			serializeMutation(() => updateSettings(settings, receiverHost, mcpHost, patch)),
+		updateSettings: (patch, expectedRevision) =>
+			serializeMutation(() =>
+				updateSettings(settings, receiverHost, mcpHost, patch, expectedRevision),
+			),
 		loadSampleData,
 		clearData: () => serializeMutation(() => engine.clear()),
 		onEvent(listener): Disposable {

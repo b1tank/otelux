@@ -595,7 +595,7 @@ function selected(
 
 function parseResultSettings(value: unknown, path = '$.result'): Settings {
 	const input = object(value, path);
-	const result = selected(input, ['version', 'otlp', 'mcp', 'retention', 'storage']);
+	const result = selected(input, ['version', 'revision', 'otlp', 'mcp', 'retention', 'storage']);
 	for (const section of ['otlp', 'mcp', 'retention', 'storage'] as const) {
 		if (section in result) {
 			const sectionInput = object(result[section], `${path}.${section}`);
@@ -684,14 +684,23 @@ function parseStatus(value: unknown, path = '$.result'): RuntimeStatusResult {
 function parseUpdateSettings(value: unknown, path = '$.result'): UpdateSettingsResult {
 	const input = object(value, path);
 	const ok = boolean(input.ok, `${path}.ok`);
-	return ok
-		? {
-				ok,
-				settings: parseResultSettings(input.settings, `${path}.settings`),
-				status: parseResultReceiverStatus(input.status, `${path}.status`),
-				mcpStatus: parseResultMcpStatus(input.mcpStatus, `${path}.mcpStatus`),
-			}
-		: { ok, error: text(input.error, `${path}.error`) };
+	if (ok) {
+		return {
+			ok,
+			settings: parseResultSettings(input.settings, `${path}.settings`),
+			status: parseResultReceiverStatus(input.status, `${path}.status`),
+			mcpStatus: parseResultMcpStatus(input.mcpStatus, `${path}.mcpStatus`),
+		};
+	}
+	if (input.conflict === true) {
+		return {
+			ok,
+			conflict: true,
+			error: text(input.error, `${path}.error`),
+			settings: parseResultSettings(input.settings, `${path}.settings`),
+		};
+	}
+	return { ok, error: text(input.error, `${path}.error`) };
 }
 
 function parseCounts(value: unknown, path = '$.result'): LoadSampleDataResult {

@@ -97,6 +97,7 @@ describe('canonical method result registry', () => {
 		expect(() =>
 			parseRuntimeRpcResult('runtime/getSettings', {
 				version: 1,
+				revision: 0,
 				otlp: { port: 0 },
 				mcp: { enabled: false, port: 4320 },
 				retention: { maxAgeHours: 72, maxSizeMb: 512 },

@@ -9,6 +9,7 @@ import { describe, it } from 'node:test';
 const daemon = new URL('../dist/daemon.js', import.meta.url).pathname;
 const settings = {
 	version: 1,
+	revision: 0,
 	otlp: { port: 4319 },
 	mcp: { enabled: false, port: 4320 },
 	retention: { maxAgeHours: 72, maxSizeMb: 512 },

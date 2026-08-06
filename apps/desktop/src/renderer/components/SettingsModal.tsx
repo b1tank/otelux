@@ -36,7 +36,10 @@ interface SettingsModalProps {
 	 */
 	readonly storagePath?: StoragePathInfo;
 	readonly storageUsage?: StorageUsageInfo;
-	readonly onSave: (patch: PartialSettings) => Promise<UpdateSettingsResult>;
+	readonly onSave: (
+		patch: PartialSettings,
+		expectedRevision: number,
+	) => Promise<UpdateSettingsResult>;
 	readonly onClose: () => void;
 }
 
@@ -70,6 +73,7 @@ type SettingsValidationResult =
 export function SettingsModal(props: SettingsModalProps): JSX.Element {
 	const { settings, currentPort, mcpStatus, storagePath, storageUsage, onSave, onClose } = props;
 	const [activeCategory, setActiveCategory] = useState<SettingsCategory>('connections');
+	const [baseRevision] = useState(settings.revision);
 	const [portInput, setPortInput] = useState(String(currentPort ?? settings.otlp.port));
 	const [mcpEnabled, setMcpEnabled] = useState(settings.mcp.enabled);
 	const [mcpPortInput, setMcpPortInput] = useState(String(settings.mcp.port));
@@ -208,7 +212,7 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 		}
 		setError(undefined);
 		setSaving(true);
-		const result = await onSave(validation.patch);
+		const result = await onSave(validation.patch, baseRevision);
 		setSaving(false);
 		if (result.ok) {
 			onClose();

@@ -42,8 +42,12 @@ export function App(): JSX.Element {
 	}, [status, settings]);
 
 	const onSaveSettings = useCallback(
-		async (patch: PartialSettings): Promise<UpdateSettingsResult> => {
-			return (await bridge.invoke({ kind: 'updateSettings', patch })) as UpdateSettingsResult;
+		async (patch: PartialSettings, expectedRevision: number): Promise<UpdateSettingsResult> => {
+			return (await bridge.invoke({
+				kind: 'updateSettings',
+				patch,
+				expectedRevision,
+			})) as UpdateSettingsResult;
 		},
 		[bridge],
 	);

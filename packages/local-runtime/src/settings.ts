@@ -10,6 +10,13 @@ import {
 	type Settings,
 } from '@otelux/protocol';
 
+export class SettingsRevisionConflictError extends Error {
+	constructor(readonly current: Settings) {
+		super(`Settings changed at revision ${current.revision}`);
+		this.name = 'SettingsRevisionConflictError';
+	}
+}
+
 export class SettingsStore {
 	private current: Settings;
 	private readonly listeners = new Set<(settings: Settings) => void>();
@@ -37,10 +44,9 @@ export class SettingsStore {
 		return this.current;
 	}
 
-	async update(patch: PartialSettings): Promise<Settings> {
+	async update(patch: PartialSettings, expectedRevision = this.current.revision): Promise<Settings> {
 		const next = this.preview(patch);
-		await this.commit(next);
-		return next;
+		return this.commit(next, expectedRevision);
 	}
 
 	preview(patch: PartialSettings): Settings {
@@ -49,14 +55,18 @@ export class SettingsStore {
 		return next;
 	}
 
-	async commit(next: Settings): Promise<Settings> {
-		validate(next);
-		await persist(this.file, next);
-		this.current = next;
-		for (const listener of this.listeners) {
-			listener(next);
+	async commit(next: Settings, expectedRevision: number): Promise<Settings> {
+		if (expectedRevision !== this.current.revision) {
+			throw new SettingsRevisionConflictError(this.current);
 		}
-		return next;
+		const committed = { ...next, revision: expectedRevision + 1 };
+		validate(committed);
+		await persist(this.file, committed);
+		this.current = committed;
+		for (const listener of this.listeners) {
+			listener(committed);
+		}
+		return committed;
 	}
 
 	onChange(listener: (settings: Settings) => void): () => void {
@@ -90,6 +100,7 @@ async function persist(file: string, settings: Settings): Promise<void> {
 function merge(base: Settings, patch: PartialSettings): Settings {
 	return {
 		version: 1,
+		revision: base.revision,
 		otlp: { port: patch.otlp?.port ?? base.otlp.port },
 		mcp: {
 			enabled: patch.mcp?.enabled ?? base.mcp.enabled,
@@ -109,6 +120,7 @@ function coerce(value: unknown): Settings {
 	}
 	const candidate = value as {
 		version?: unknown;
+		revision?: unknown;
 		otlp?: { port?: unknown };
 		mcp?: { enabled?: unknown; port?: unknown };
 		retention?: { maxAgeHours?: unknown; maxSizeMb?: unknown };
@@ -119,6 +131,12 @@ function coerce(value: unknown): Settings {
 	}
 	const settings: Settings = {
 		version: 1,
+		revision:
+			typeof candidate.revision === 'number' &&
+			Number.isSafeInteger(candidate.revision) &&
+			candidate.revision >= 0
+				? candidate.revision
+				: 0,
 		otlp: {
 			port:
 				typeof candidate.otlp?.port === 'number' ? candidate.otlp.port : DEFAULT_SETTINGS.otlp.port,
@@ -156,6 +174,11 @@ function coerce(value: unknown): Settings {
 }
 
 function validate(settings: Settings): void {
+	if (!Number.isSafeInteger(settings.revision) || settings.revision < 0) {
+		throw new Error(
+			`Settings revision must be a non-negative safe integer; got ${settings.revision}`,
+		);
+	}
 	const { port } = settings.otlp;
 	if (!Number.isInteger(port) || port < MIN_PORT || port > MAX_PORT) {
 		throw new Error(`OTLP port must be an integer in [${MIN_PORT}, ${MAX_PORT}]; got ${port}`);

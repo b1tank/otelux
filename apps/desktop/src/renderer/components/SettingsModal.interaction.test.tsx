@@ -7,8 +7,11 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsModal } from './SettingsModal.js';
 
-function renderSettings(onClose = vi.fn(), includeStoragePath = false) {
-	const onSave = vi.fn(() => Promise.resolve({ ok: false as const, error: 'unused' }));
+function renderSettings(
+	onClose = vi.fn(),
+	includeStoragePath = false,
+	onSave = vi.fn(() => Promise.resolve({ ok: false as const, error: 'unused' })),
+) {
 	const result = render(
 		<SettingsModal
 			settings={DEFAULT_SETTINGS}
@@ -40,6 +43,23 @@ afterEach(() => {
 });
 
 describe('SettingsModal interactions', () => {
+	it('sends the opening revision and keeps a CAS conflict visible', async () => {
+		const onSave = vi.fn(() =>
+			Promise.resolve({
+				ok: false as const,
+				conflict: true as const,
+				error: 'Settings changed. Reload settings and try again.',
+				settings: { ...DEFAULT_SETTINGS, revision: 1 },
+			}),
+		);
+		renderSettings(vi.fn(), false, onSave);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+		await waitFor(() => expect(onSave).toHaveBeenCalledWith(expect.any(Object), 0));
+		expect(screen.getByText('Settings changed. Reload settings and try again.')).toBeTruthy();
+	});
+
 	it('switches categories by keyboard and preserves edited values', () => {
 		const { container } = renderSettings();
 		const connections = screen.getByRole('tab', { name: 'Connections' });

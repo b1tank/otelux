@@ -84,6 +84,7 @@ const partialSettings = object(
 );
 const settings = object({
 	version: { const: 1 },
+	revision: integer(0, Number.MAX_SAFE_INTEGER),
 	otlp: object({ port: integer(1, 65535) }),
 	mcp: object({ enabled: { type: 'boolean' }, port: integer(1, 65535) }),
 	retention: object({
@@ -330,6 +331,12 @@ const resultSchemas = {
 		oneOf: [
 			object({ ok: { const: true }, settings, status: receiverStatus, mcpStatus }),
 			object({ ok: { const: false }, error: text() }),
+			object({
+				ok: { const: false },
+				conflict: { const: true },
+				error: text(),
+				settings,
+			}),
 		],
 	}),
 	'result-load-sample-data': resultSchema(
@@ -619,7 +626,11 @@ schemas['invoke-message'] = {
 		queryRequest('listMetricInstruments', metricInstrumentListQuery),
 		queryRequest('getMetricPoints', metricPointsQuery),
 		queryRequest('listResourceFacets', facetQuery),
-		object({ kind: { const: 'updateSettings' }, patch: partialSettings }),
+		object({
+			kind: { const: 'updateSettings' },
+			patch: partialSettings,
+			expectedRevision: integer(0, Number.MAX_SAFE_INTEGER),
+		}),
 		...[
 			'getSettings',
 			'getReceiverStatus',

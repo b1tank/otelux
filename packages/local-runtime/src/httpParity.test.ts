@@ -143,6 +143,31 @@ describe('direct and HTTP DataSource parity', () => {
 		http.close();
 	});
 
+	it('enforces settings revisions over HTTP', async () => {
+		if (!runtime) throw new Error('runtime missing');
+		const http = await authenticatedClient();
+		const current = await http.getSettings();
+		expect(current.revision).toBe(0);
+		const receiver = runtime.getReceiverStatus();
+		if (receiver.kind !== 'running') throw new Error('receiver missing');
+		const updated = await http.updateSettings(
+			{
+				otlp: { port: receiver.port },
+				retention: { maxAgeHours: current.retention.maxAgeHours - 1 },
+			},
+			current.revision,
+		);
+		expect(updated).toMatchObject({ ok: true, settings: { revision: 1 } });
+		await expect(
+			http.updateSettings({ retention: { maxAgeHours: 12 } }, current.revision),
+		).rejects.toMatchObject({
+			name: RuntimeRpcError.name,
+			code: -32004,
+			data: { expectedRevision: 0, currentRevision: 1 },
+		});
+		http.close();
+	});
+
 	it('surfaces JSON-RPC errors without exposing server internals', async () => {
 		const http = await authenticatedClient();
 		await expect(http.listTraces({ limit: 999 })).rejects.toMatchObject({

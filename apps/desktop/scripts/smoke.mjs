@@ -89,6 +89,7 @@ writeFileSync(
 	join(userDataDir, 'settings.json'),
 	JSON.stringify({
 		version: 1,
+		revision: 0,
 		otlp: { port: otlpPort },
 		mcp: { enabled: true, port: mcpPort },
 		retention: { maxAgeHours: 72, maxSizeMb: 512 },

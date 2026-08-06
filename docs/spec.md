@@ -279,7 +279,7 @@ A prerelease may narrow platforms, storage durability, ingest encodings, or supp
 - Request bodies are bounded before parsing. Oversized OTLP and MCP requests return `413`; unsupported media types return `415`.
 - Requests carrying an `Origin` header are rejected with `403` by default. Hosts may configure exact allowed origins; wildcard origins are never combined with credentials, accepted responses vary on `Origin`, and rejected origins receive no telemetry or permissive CORS headers.
 - Electron renderers run sandboxed with context isolation and no Node.js integration. The preload exposes only the typed OTelux bridge, never raw `ipcRenderer`.
-- IPC requests are validated at runtime in the main process; successful results are method-decoded before main-to-renderer structured clone and revalidated by the renderer adapter before UI use. TypeScript annotations are not treated as a security boundary.
+- IPC requests are validated at runtime in the main process; successful results are method-decoded before main-to-renderer structured clone and revalidated by the renderer adapter before UI use. Settings snapshots carry monotonic revisions, and stale compare-and-swap updates fail before listener rebinding or persistence over both IPC and Runtime RPC. TypeScript annotations are not treated as a security boundary.
 - Unexpected top-level navigation and window creation are denied. Permission requests are denied unless a documented feature has an explicit allowlist.
 - Only intentional HTTPS destinations may leave the app through the system browser. Telemetry-derived values are never opened as URLs automatically.
 - Security-sensitive behavior is covered by integration tests and re-reviewed after Electron upgrades.

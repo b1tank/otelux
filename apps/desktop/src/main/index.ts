@@ -205,13 +205,13 @@ async function startBackend(): Promise<{
 				result = runtime.getStoragePath();
 				break;
 			case 'getStorageUsage':
-				result = runtime.getStorageUsage();
+				result = await runtime.getStorageUsage();
 				break;
 			case 'loadSampleData':
 				result = await runtime.loadSampleData();
 				break;
 			case 'updateSettings':
-				result = await runtime.updateSettings(message.patch);
+				result = await runtime.updateSettings(message.patch, message.expectedRevision);
 				break;
 			case 'clearData':
 				result = await runtime.clearData();

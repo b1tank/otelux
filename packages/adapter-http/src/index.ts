@@ -44,7 +44,7 @@ export interface RuntimeHttpClient extends DataSource {
 	initialize(): Promise<RuntimeInitializeResult>;
 	getStatus(): Promise<RuntimeStatusResult>;
 	getSettings(): Promise<Settings>;
-	updateSettings(patch: PartialSettings): Promise<UpdateSettingsResult>;
+	updateSettings(patch: PartialSettings, expectedRevision: number): Promise<UpdateSettingsResult>;
 	loadSampleData(): Promise<LoadSampleDataResult>;
 	clearData(): Promise<void>;
 	close(): void;
@@ -236,7 +236,8 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 		initialize,
 		getStatus: () => call('runtime/getStatus'),
 		getSettings: () => call('runtime/getSettings'),
-		updateSettings: (patch) => call('runtime/updateSettings', patch),
+		updateSettings: (patch, expectedRevision) =>
+			call('runtime/updateSettings', { patch, expectedRevision }),
 		loadSampleData: () => call('runtime/loadSampleData'),
 		async clearData(): Promise<void> {
 			await call('runtime/clearData', { confirmation: 'clear' });

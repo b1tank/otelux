@@ -44,7 +44,7 @@ describe('invoke validation', () => {
 		{ kind: 'getMetricPoints', query: { instrumentId: '42', limit: 1_000, cursor: '1000:42' } },
 		{ kind: 'listResourceFacets', query: { signal: 'traces', facet: 'source' } },
 		{ kind: 'getSettings' },
-		{ kind: 'updateSettings', patch: { otlp: { port: 4319 } } },
+		{ kind: 'updateSettings', patch: { otlp: { port: 4319 } }, expectedRevision: 0 },
 		{ kind: 'getReceiverStatus' },
 		{ kind: 'getMcpStatus' },
 		{ kind: 'getStoragePath' },

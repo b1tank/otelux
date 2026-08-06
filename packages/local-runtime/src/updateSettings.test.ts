@@ -70,9 +70,14 @@ class FakeStore implements SettingsWriter {
 		private readonly commitError?: Error,
 	) {}
 
+	get(): Settings {
+		return this.base;
+	}
+
 	preview(patch: PartialSettings): Settings {
 		return {
 			version: 1,
+			revision: this.base.revision,
 			otlp: { port: patch.otlp?.port ?? this.base.otlp.port },
 			mcp: {
 				enabled: patch.mcp?.enabled ?? this.base.mcp.enabled,
@@ -86,19 +91,20 @@ class FakeStore implements SettingsWriter {
 		};
 	}
 
-	commit(next: Settings): Promise<Settings> {
+	commit(next: Settings, expectedRevision: number): Promise<Settings> {
 		this.commitCalls += 1;
 		if (this.commitError) {
 			return Promise.reject(this.commitError);
 		}
-		this.base = next;
-		return Promise.resolve(next);
+		this.base = { ...next, revision: expectedRevision + 1 };
+		return Promise.resolve(this.base);
 	}
 }
 
 function baseSettings(): Settings {
 	return {
 		version: 1,
+		revision: 0,
 		otlp: { port: 4319 },
 		mcp: { enabled: true, port: 4320 },
 		retention: { maxAgeHours: 72, maxSizeMb: 512 },
@@ -107,12 +113,31 @@ function baseSettings(): Settings {
 }
 
 describe('updateSettings', () => {
+	it('rejects a stale revision before mutating listeners', async () => {
+		const receiver = new FakeReceiver(4319);
+		const mcp = new FakeMcp({ kind: 'running', port: 4320, host: HOST });
+		const current = { ...baseSettings(), revision: 4 };
+		const store = new FakeStore(current);
+
+		const result = await updateSettings(store, receiver, mcp, { otlp: { port: 4400 } }, 3);
+
+		expect(result).toEqual({
+			ok: false,
+			conflict: true,
+			error: 'Settings changed from revision 3 to 4. Reload settings and try again.',
+			settings: current,
+		});
+		expect(receiver.startCalls).toEqual([]);
+		expect(mcp.startCalls).toEqual([]);
+		expect(store.commitCalls).toBe(0);
+	});
+
 	it('rebinds the receiver and commits when the port changes', async () => {
 		const receiver = new FakeReceiver(4319);
 		const mcp = new FakeMcp({ kind: 'running', port: 4320, host: HOST });
 		const store = new FakeStore(baseSettings());
 
-		const result = await updateSettings(store, receiver, mcp, { otlp: { port: 4400 } });
+		const result = await updateSettings(store, receiver, mcp, { otlp: { port: 4400 } }, 0);
 
 		expect(result.ok).toBe(true);
 		expect(receiver.status).toEqual({ kind: 'running', port: 4400, host: HOST });
@@ -127,10 +152,13 @@ describe('updateSettings', () => {
 		const mcp = new FakeMcp({ kind: 'running', port: 4320, host: HOST });
 		const store = new FakeStore(baseSettings(), new Error('disk full'));
 
-		const result = await updateSettings(store, receiver, mcp, {
-			otlp: { port: 4400 },
-			mcp: { port: 4500 },
-		});
+		const result = await updateSettings(
+			store,
+			receiver,
+			mcp,
+			{ otlp: { port: 4400 }, mcp: { port: 4500 } },
+			0,
+		);
 
 		expect(result).toEqual({ ok: false, error: 'disk full' });
 		expect(receiver.startCalls).toEqual([4400, 4319]);
@@ -143,10 +171,13 @@ describe('updateSettings', () => {
 		mcp.failOn(4500);
 		const store = new FakeStore(baseSettings());
 
-		const result = await updateSettings(store, receiver, mcp, {
-			otlp: { port: 4400 },
-			mcp: { port: 4500 },
-		});
+		const result = await updateSettings(
+			store,
+			receiver,
+			mcp,
+			{ otlp: { port: 4400 }, mcp: { port: 4500 } },
+			0,
+		);
 
 		expect(result.ok).toBe(false);
 		expect(receiver.startCalls).toEqual([4400, 4319]);

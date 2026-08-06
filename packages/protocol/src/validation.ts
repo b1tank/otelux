@@ -439,8 +439,9 @@ export function parsePartialSettings(value: unknown, path = '$.patch'): PartialS
 
 export function parseSettings(value: unknown, path = '$.settings'): Settings {
 	const input = object(value, path);
-	knownKeys(input, ['version', 'otlp', 'mcp', 'retention', 'storage'], path);
+	knownKeys(input, ['version', 'revision', 'otlp', 'mcp', 'retention', 'storage'], path);
 	if (input.version !== 1) fail(`${path}.version`, 'literal', 'expected 1');
+	const revision = integer(input.revision, `${path}.revision`, 0, Number.MAX_SAFE_INTEGER);
 	const patchInput: Record<string, unknown> = {};
 	for (const section of ['otlp', 'mcp', 'retention', 'storage']) {
 		if (section in input) patchInput[section] = input[section];
@@ -449,7 +450,7 @@ export function parseSettings(value: unknown, path = '$.settings'): Settings {
 	for (const section of ['otlp', 'mcp', 'retention', 'storage']) {
 		if (!(section in input)) fail(`${path}.${section}`, 'required', 'field is required');
 	}
-	const result = { version: 1, ...patch } as Settings;
+	const result = { version: 1, revision, ...patch } as Settings;
 	if (result.otlp.port === undefined) fail(`${path}.otlp.port`, 'required', 'field is required');
 	if (result.mcp.enabled === undefined) fail(`${path}.mcp.enabled`, 'required', 'field is required');
 	if (result.mcp.port === undefined) fail(`${path}.mcp.port`, 'required', 'field is required');
@@ -559,8 +560,17 @@ export function parseInvokeMessage(value: unknown): InvokeMessage {
 		case 'listResourceFacets':
 			return queryMessage(parseListResourceFacetsQuery);
 		case 'updateSettings':
-			knownKeys(input, ['kind', 'patch'], '$');
-			return { kind, patch: parsePartialSettings(input.patch) };
+			knownKeys(input, ['kind', 'patch', 'expectedRevision'], '$');
+			return {
+				kind,
+				patch: parsePartialSettings(input.patch),
+				expectedRevision: integer(
+					input.expectedRevision,
+					'$.expectedRevision',
+					0,
+					Number.MAX_SAFE_INTEGER,
+				),
+			};
 		case 'getSettings':
 		case 'getReceiverStatus':
 		case 'getMcpStatus':

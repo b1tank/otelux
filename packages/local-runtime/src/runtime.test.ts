@@ -109,7 +109,7 @@ describe('createLocalRuntime', () => {
 		await expect(fs.access(join(directory, RUNTIME_LOCK_FILE))).rejects.toThrow();
 	});
 
-	it('serializes concurrent control mutations in call order', async () => {
+	it('serializes concurrent control mutations and rejects the stale revision', async () => {
 		runtime = await createLocalRuntime({
 			dataDirectory: directory,
 			otlpPortOverride: 0,
@@ -122,24 +122,56 @@ describe('createLocalRuntime', () => {
 		});
 		const receiver = runtime.getReceiverStatus();
 		if (receiver.kind !== 'running') throw new Error('receiver missing');
+		const revision = runtime.getSettings().revision;
 		const [first, second] = await Promise.all([
-			runtime.updateSettings({
-				otlp: { port: receiver.port },
-				retention: { maxAgeHours: 1 },
-			}),
-			runtime.updateSettings({
-				otlp: { port: receiver.port },
-				retention: { maxAgeHours: 2 },
-			}),
+			runtime.updateSettings(
+				{ otlp: { port: receiver.port }, retention: { maxAgeHours: 1 } },
+				revision,
+			),
+			runtime.updateSettings(
+				{ otlp: { port: receiver.port }, retention: { maxAgeHours: 2 } },
+				revision,
+			),
 		]);
 		if (!first.ok) throw new Error(first.error);
-		if (!second.ok) throw new Error(second.error);
-		expect(runtime.getSettings().retention.maxAgeHours).toBe(2);
-		expect(changes).toEqual([1, 2]);
+		expect(second).toMatchObject({ ok: false, conflict: true });
+		expect(runtime.getSettings()).toMatchObject({
+			revision: revision + 1,
+			retention: { maxAgeHours: 1 },
+		});
+		expect(changes).toEqual([1]);
+		const persisted = JSON.parse(await fs.readFile(join(directory, 'settings.json'), 'utf8')) as {
+			revision: number;
+		};
+		expect(persisted.revision).toBe(revision + 1);
 		if (process.platform !== 'win32') {
 			expect((await fs.stat(join(directory, 'settings.json'))).mode & 0o777).toBe(0o600);
 		}
 		subscription.dispose();
+	});
+
+	it('loads legacy revisionless settings at revision zero', async () => {
+		await fs.writeFile(
+			join(directory, 'settings.json'),
+			`${JSON.stringify({
+				version: 1,
+				otlp: { port: 4319 },
+				mcp: { enabled: false, port: 4320 },
+				retention: { maxAgeHours: 72, maxSizeMb: 512 },
+				storage: { dbPath: '' },
+			})}\n`,
+		);
+		runtime = await createLocalRuntime({
+			dataDirectory: directory,
+			otlpPortOverride: 0,
+			apiPortOverride: 0,
+			logger: silentLogger,
+		});
+		expect(runtime.getSettings().revision).toBe(0);
+		const receiver = runtime.getReceiverStatus();
+		if (receiver.kind !== 'running') throw new Error('receiver missing');
+		const result = await runtime.updateSettings({ otlp: { port: receiver.port } }, 0);
+		expect(result).toMatchObject({ ok: true, settings: { revision: 1 } });
 	});
 
 	it('reopens the same durable database', async () => {
