@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
+import { lstat } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import {
 	type ConnectRuntimeClientOptions,
 	type DiscoveredRuntimeClient,
@@ -10,7 +11,12 @@ import {
 	readRuntimeState,
 	resolveOteluxDataDirectory,
 } from '@otelux/local-runtime';
-import { type PartialSettings, type Settings, parseSettings } from '@otelux/protocol';
+import {
+	type PartialSettings,
+	type RuntimeState,
+	type Settings,
+	parseSettings,
+} from '@otelux/protocol';
 
 export interface CliOutput {
 	log(message: string): void;
@@ -22,6 +28,7 @@ export interface CliDependencies {
 	ensure(options: EnsureRuntimeClientOptions): Promise<DiscoveredRuntimeClient>;
 	start(dataDirectory: string): void;
 	waitStopped(dataDirectory: string, instanceId: string): Promise<void>;
+	inspectRuntimeFiles(state: RuntimeState): Promise<string[]>;
 }
 
 declare const __OTELUX_CLI_VERSION__: string;
@@ -31,6 +38,7 @@ const defaultDependencies: CliDependencies = {
 	ensure: ensureRuntimeClient,
 	start: startDaemon,
 	waitStopped: waitForStopped,
+	inspectRuntimeFiles,
 };
 
 export async function runCli(
@@ -141,13 +149,53 @@ export async function runCli(
 				const found = await dependencies.connect(clientOptions(dataDirectory));
 				if (!found) return notRunning(output, json);
 				try {
-					const status = await found.client.getStatus();
+					const [status, settings, storage, usage, ownershipIssues] = await Promise.all([
+						found.client.getStatus(),
+						found.client.getSettings(),
+						found.client.getStoragePath(),
+						found.client.getStorageUsage(),
+						dependencies.inspectRuntimeFiles(found.state),
+					]);
+					const desiredStoragePath = resolve(
+						settings.storage.dbPath === '' ? storage.defaultPath : settings.storage.dbPath,
+					);
+					const restartRequired = desiredStoragePath !== resolve(storage.activePath);
 					const issues = [
-						...(status.receiver.kind === 'error' ? [`OTLP receiver: ${status.receiver.message}`] : []),
-						...(status.mcp.kind === 'error' ? [`MCP server: ${status.mcp.message}`] : []),
-						...(status.api?.kind === 'error' ? [`Runtime API: ${status.api.message}`] : []),
+						...ownershipIssues,
+						...(status.receiver.kind === 'running'
+							? []
+							: [
+									`OTLP receiver: ${status.receiver.kind === 'error' ? status.receiver.message : status.receiver.kind}`,
+								]),
+						...(settings.mcp.enabled && status.mcp.kind !== 'running'
+							? [`MCP server: ${status.mcp.kind === 'error' ? status.mcp.message : status.mcp.kind}`]
+							: []),
+						...(!settings.mcp.enabled && status.mcp.kind !== 'disabled'
+							? ['MCP server is running while disabled in settings']
+							: []),
+						...(status.api?.kind === 'running'
+							? []
+							: [
+									`Runtime API: ${status.api?.kind === 'error' ? status.api.message : (status.api?.kind ?? 'missing')}`,
+								]),
+						...(storage.activePath === usage.activePath
+							? []
+							: ['Storage path and usage snapshots disagree']),
 					];
-					print(output, json, { healthy: issues.length === 0, issues, instanceId: status.instanceId });
+					print(output, json, {
+						healthy: issues.length === 0,
+						issues,
+						restartRequired,
+						instanceId: status.instanceId,
+						versions: {
+							cli: __OTELUX_CLI_VERSION__,
+							runtime: status.runtimeVersion,
+							protocol: status.protocolVersion,
+						},
+						ownership: { secure: ownershipIssues.length === 0 },
+						storage: { ...storage, usage },
+						listeners: { receiver: status.receiver, mcp: status.mcp, api: status.api },
+					});
 					return issues.length === 0 ? 0 : 4;
 				} finally {
 					found.client.close();
@@ -345,6 +393,59 @@ function applyConfigValue(settings: Settings, key: ConfigKey, value: ConfigValue
 		retention: { ...settings.retention, ...patch.retention },
 		storage: { ...settings.storage, ...patch.storage },
 	});
+}
+
+async function inspectRuntimeFiles(state: RuntimeState): Promise<string[]> {
+	const issues: string[] = [];
+	await inspectPrivatePath(state.dataDirectory, 'data directory', 'directory', issues);
+	await inspectPrivatePath(
+		join(state.dataDirectory, 'runtime.json'),
+		'runtime state',
+		'file',
+		issues,
+	);
+	await inspectPrivatePath(
+		join(state.dataDirectory, 'runtime.lock'),
+		'runtime lock',
+		'file',
+		issues,
+	);
+	await inspectPrivatePath(
+		join(state.dataDirectory, 'runtime-token'),
+		'runtime control token',
+		'file',
+		issues,
+	);
+	await inspectPrivatePath(
+		state.mcpTokenFile ?? join(state.dataDirectory, 'mcp-token'),
+		'MCP token',
+		'file',
+		issues,
+	);
+	return issues;
+}
+
+async function inspectPrivatePath(
+	path: string,
+	label: string,
+	kind: 'file' | 'directory',
+	issues: string[],
+): Promise<void> {
+	try {
+		const info = await lstat(path);
+		if (info.isSymbolicLink() || (kind === 'file' ? !info.isFile() : !info.isDirectory())) {
+			issues.push(`${label} is not a regular ${kind}`);
+			return;
+		}
+		if (process.platform !== 'win32') {
+			if ((info.mode & 0o077) !== 0) issues.push(`${label} is accessible by other users`);
+			if (process.getuid && info.uid !== process.getuid()) {
+				issues.push(`${label} is not owned by the current user`);
+			}
+		}
+	} catch {
+		issues.push(`${label} is unavailable`);
+	}
 }
 
 function clientOptions(dataDirectory: string): ConnectRuntimeClientOptions {

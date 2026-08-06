@@ -120,7 +120,7 @@ Plugin distributions are thin hosts over the same packages:
 | Codex | Shared skills + local desktop MCP bridge. | Built, locally installed; marketplace entry live in-repo. |
 | Pi | Shared skills + native adapter over the local desktop MCP bridge. | Built and locally installable as a Pi package. |
 
-The current agent-onboarding milestone is M1 CLI control: owner-locked migration, release-version parity, and schema-defined config preview/apply with revision CAS are live; broaden doctor and qualify packaged CLI-owned lifecycle next. M2 then adds the shared safe configuration engine and Claude/Codex/Pi adapters; Copilot CLI and OpenCode remain M4 targets. A host receives only integrations its pinned official version supports; MCP, skills, native plugin/extension, telemetry export, and sensitive-content capture are separate capabilities and choices. See [agent-onboarding.md](agent-onboarding.md). Future packages or apps should be added to the package table only when they enter active implementation.
+The current agent-onboarding milestone is M1 CLI control: owner-locked migration, release-version parity, schema-defined config preview/apply with revision CAS, and permission/version/storage/listener doctor checks are live; qualify packaged CLI-owned lifecycle next. M2 then adds the shared safe configuration engine and Claude/Codex/Pi adapters; Copilot CLI and OpenCode remain M4 targets. A host receives only integrations its pinned official version supports; MCP, skills, native plugin/extension, telemetry export, and sensitive-content capture are separate capabilities and choices. See [agent-onboarding.md](agent-onboarding.md). Future packages or apps should be added to the package table only when they enter active implementation.
 
 ## Technology
 

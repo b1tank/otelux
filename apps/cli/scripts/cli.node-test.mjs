@@ -25,7 +25,7 @@ function harness(found = true) {
 		version: 1,
 		revision: 3,
 		otlp: { port: 4319 },
-		mcp: { enabled: true, port: 4320 },
+		mcp: { enabled: false, port: 4320 },
 		retention: { maxAgeHours: 72, maxSizeMb: 512 },
 		storage: { dbPath: '' },
 	};
@@ -42,8 +42,11 @@ function harness(found = true) {
 			status: state.receiver,
 			mcpStatus: state.mcp,
 		})),
-		getStoragePath: mock.fn(async () => ({ activePath: state.databasePath })),
-		getStorageUsage: mock.fn(async () => ({ totalBytes: 1 })),
+		getStoragePath: mock.fn(async () => ({
+			activePath: state.databasePath,
+			defaultPath: state.databasePath,
+		})),
+		getStorageUsage: mock.fn(async () => ({ activePath: state.databasePath, totalBytes: 1 })),
 		shutdown: mock.fn(async () => {}),
 		close: mock.fn(),
 	};
@@ -53,6 +56,7 @@ function harness(found = true) {
 		ensure: mock.fn(async () => discovered),
 		start: mock.fn(),
 		waitStopped: mock.fn(async () => {}),
+		inspectRuntimeFiles: mock.fn(async () => []),
 	};
 	return {
 		client,
@@ -92,6 +96,25 @@ describe('otelux CLI', () => {
 		const test = harness(false);
 		assert.equal(await runCli(['start', '--json'], test.output, test.dependencies), 0);
 		assert.equal(test.dependencies.ensure.mock.callCount(), 1);
+	});
+
+	it('reports version, ownership, storage, and listener diagnostics', async () => {
+		const test = harness();
+		assert.equal(await runCli(['doctor', '--json'], test.output, test.dependencies), 0);
+		const result = JSON.parse(test.logs[0]);
+		assert.equal(result.healthy, true);
+		assert.equal(result.ownership.secure, true);
+		assert.equal(result.versions.runtime, '0.1.12');
+		assert.equal(result.storage.activePath, state.databasePath);
+	});
+
+	it('fails doctor when ownership files are insecure', async () => {
+		const test = harness();
+		test.dependencies.inspectRuntimeFiles = mock.fn(async () => [
+			'runtime control token is accessible by other users',
+		]);
+		assert.equal(await runCli(['doctor'], test.output, test.dependencies), 4);
+		assert.match(test.logs[0], /runtime control token/);
 	});
 
 	it('reads one schema-defined configuration key', async () => {

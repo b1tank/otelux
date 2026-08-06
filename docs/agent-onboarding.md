@@ -43,7 +43,7 @@ The implementation order is architectural, not cosmetic:
 
 ## CLI contract
 
-The initial CLI is `oteluxctl`; the Desktop product/executable keeps the established `otelux` name. The implemented subset is `start`, `stop`, `restart`, `status`, `endpoints`, schema-defined `config get/set`, and basic listener-only `doctor`, with stable JSON and exit codes. The remaining commands below are the target contract, not current behavior.
+The initial CLI is `oteluxctl`; the Desktop product/executable keeps the established `otelux` name. The implemented subset is `start`, `stop`, `restart`, `status`, `endpoints`, schema-defined `config get/set`, and permission/version/storage/listener `doctor`, with stable JSON and exit codes. The remaining commands below are the target contract, not current behavior.
 
 ```text
 oteluxctl serve                # foreground runtime for headless use/diagnostics
@@ -226,15 +226,15 @@ A failed or skipped agent setup never blocks use of Desktop or sample data.
 
 ### M1 — CLI foundation (current)
 
-- [x] Source-build lifecycle (`start`/`stop`/`restart`), status, endpoints, basic listener-only doctor, stable JSON, and distinct exit codes over the shared runtime client.
+- [x] Source-build lifecycle (`start`/`stop`/`restart`), status, endpoints, permission/version/storage/listener doctor, stable JSON, and distinct exit codes over the shared runtime client.
 - [x] Desktop artifacts bundle a private CLI/daemon launcher; read-only `status`, `endpoints`, and `doctor` pass in unpacked, extracted `.deb`, and extracted AppImage layouts.
 - [x] Release resolution and packaging metadata require Desktop/CLI/lockfile version parity.
 - [ ] Prove the packaged CLI owns start/restart/stop in every qualified Linux layout.
 - [x] Add schema-validated config get/preview/apply, complete-candidate validation, revision CAS, `--dry-run`, and explicit `--yes` mutation policy.
-- [ ] Expand doctor to the documented permission/version/storage/listener checks. A database quick-check waits for a bounded Runtime RPC method.
+- [x] Expand doctor to owner-file permission, version compatibility, storage path/usage, and listener checks without exposing tokens. Database quick-check waits for a bounded Runtime RPC method.
 - `open` waits for scoped browser-session bootstrap; `desktop`, public PATH installation, clean install/upgrade/uninstall, and standalone release packaging follow the control gate.
 
-**M1 acceptance gate:** no M2 implementation starts until expanded doctor and packaged CLI-owned lifecycle pass on Linux artifacts. Config conflict/dry-run/no-write behavior, owner-locked legacy migration, release-version parity enforcement, and the high-severity dev-tool `js-yaml` update are complete. GitHub-hosted CI/release publication is temporarily unavailable under the account's included-usage/$0 budget; local gates continue, with no paid-usage change assumed.
+**M1 acceptance gate:** no M2 implementation starts until packaged CLI-owned lifecycle passes on Linux artifacts. Config conflict/dry-run/no-write behavior, owner-locked legacy migration, release-version parity enforcement, and the high-severity dev-tool `js-yaml` update are complete. GitHub-hosted CI/release publication is temporarily unavailable under the account's included-usage/$0 budget; local gates continue, with no paid-usage change assumed.
 
 ### M2 — integration engine
 

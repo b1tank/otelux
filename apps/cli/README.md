@@ -18,6 +18,6 @@ The CLI discovers the same owner-only runtime state/token as Desktop and calls a
 
 `config` accepts only `otlp.port`, `mcp.enabled`, `mcp.port`, `retention.maxAgeHours`, `retention.maxSizeMb`, and `storage.dbPath`. Dry-run validates and prints the complete candidate without writing; apply requires `--yes` and uses the fetched revision as a compare-and-swap guard.
 
-`doctor` currently reports listener errors only. Permission, version, storage, database-health, and agent checks remain part of the target contract, not current behavior.
+`doctor` checks owner-only runtime files, CLI/runtime/protocol versions, configured-versus-active storage, usage snapshots, and listener state without exposing tokens. SQLite `quick_check` and agent configuration checks require future bounded Runtime RPC/integration methods and are not claimed yet.
 
 Exit codes: `0` success/healthy, `1` invalid or internal failure, `2` runtime not running, `3` incompatible runtime, `4` runtime reachable with listener/settings issues, `5` settings revision conflict.
