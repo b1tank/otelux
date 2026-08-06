@@ -150,8 +150,17 @@ INSERT INTO logs (
 			params.push(...query.scopes);
 		}
 		if (query.search) {
-			where.push('l.search_text LIKE ?');
-			params.push(`%${query.search.toLowerCase()}%`);
+			where.push(`(
+  l.search_text LIKE ? OR lower(coalesce(l.trace_id, '')) LIKE ? OR
+  lower(coalesce(l.span_id, '')) LIKE ? OR lower(l.scope_name) LIKE ? OR
+  EXISTS (SELECT 1 FROM resources sr WHERE sr.id = l.resource_id AND lower(sr.attributes) LIKE ?) OR
+  EXISTS (SELECT 1 FROM scopes ss WHERE ss.id = l.scope_id AND (
+    lower(ss.name) LIKE ? OR lower(coalesce(ss.version, '')) LIKE ? OR
+    lower(coalesce(ss.attributes, '')) LIKE ?
+  ))
+)`);
+			const needle = `%${query.search.toLowerCase()}%`;
+			params.push(needle, needle, needle, needle, needle, needle, needle, needle);
 		}
 		const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
 
@@ -238,9 +247,15 @@ function buildSearchText(log: LogRecord): string {
 	if (log.severityText) {
 		parts.push(log.severityText);
 	}
-	for (const [key, value] of Object.entries(log.attributes)) {
-		parts.push(key);
-		parts.push(attributeValueToSearchText(value));
+	if (log.traceId) parts.push(log.traceId);
+	if (log.spanId) parts.push(log.spanId);
+	parts.push(log.scope.name);
+	if (log.scope.version) parts.push(log.scope.version);
+	for (const attributes of [log.attributes, log.resource.attributes, log.scope.attributes ?? {}]) {
+		for (const [key, value] of Object.entries(attributes)) {
+			parts.push(key);
+			parts.push(attributeValueToSearchText(value));
+		}
 	}
 	return parts.join(' ').toLowerCase();
 }

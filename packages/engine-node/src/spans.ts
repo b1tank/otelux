@@ -256,10 +256,17 @@ INSERT OR REPLACE INTO traces (
 			params.push(...query.services);
 		}
 		if (query.search) {
-			// Match root name or any service name (services is a JSON array).
-			where.push('(lower(root_name) LIKE ? OR lower(services) LIKE ?)');
+			where.push(`(
+  lower(trace_id) LIKE ? OR lower(root_name) LIKE ? OR lower(services) LIKE ? OR EXISTS (
+    SELECT 1 FROM spans search_span
+    WHERE search_span.trace_id = traces.trace_id AND (
+      lower(search_span.span_id) LIKE ? OR lower(search_span.name) LIKE ? OR
+      lower(search_span.attributes) LIKE ?
+    )
+  )
+)`);
 			const needle = `%${query.search.toLowerCase()}%`;
-			params.push(needle, needle);
+			params.push(needle, needle, needle, needle, needle, needle);
 		}
 		const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
 

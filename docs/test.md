@@ -392,6 +392,10 @@ for i in {1..20}; do PORT=14320 ./scripts/send-traces.sh >/dev/null; done
 - Compare a `api-gateway` chip in two different rows.
 - **Expected**: identical color across rows (deterministic from service name hash).
 
+### 7.5 Shared search semantics
+- Search by full/partial trace ID, span ID, span name, attribute key, and attribute value.
+- **Expected**: each query returns the owning trace. Repeat on Logs with trace/span IDs, body, resource/scope, and attributes; repeat on Metrics with instrument metadata, service/meter, resource/scope, and point attributes. Every surface uses the same search/clear interaction.
+
 ---
 
 ### 7.6 Cursor paging
@@ -441,10 +445,14 @@ Select a distributed_trace.json row (multi-service, multiple spans).
 - If a fixture span has no attributes, the span detail drawer shows empty-state copy ("No attributes." or similar) — confirm no JS error.
 
 ### 9.3 Detail search
-- Enter an attribute key such as `http.method` in **Search details**.
-- **Expected**: only matching sections and key/value rows remain; the trace and selected span do not change. Enter a missing value to see `No matching details.`, then clear search to restore every section.
+- Enter an attribute key such as `http.method`, a resource key such as `service.name`, and a known value in the shared detail search.
+- **Expected**: matching sections open automatically and only matching key/value rows remain; the trace and selected span do not change. Enter a missing value to see `No matching details.`, then clear search to restore every section.
 
-### 9.4 Click-through
+### 9.4 Value viewer copy
+- Open an attribute value with the eye action, then click **Copy**.
+- **Expected**: the exact rendered value reaches the OS clipboard and the button changes to **Copied** with a check icon. Repeat in a sandboxed packaged build where direct `navigator.clipboard` may reject; the fallback must still copy and show success.
+
+### 9.5 Click-through
 - Click the trace name in the waterfall header (if it's a button) — confirm it doesn't crash.
 
 ---

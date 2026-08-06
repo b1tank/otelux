@@ -140,6 +140,9 @@ function runStorageContract(label: string, make: () => Storage): void {
 
 			expect(await storage.getSpan(TRACE_A, '1'.repeat(16))).toEqual(full);
 			expect(await storage.getSpan(TRACE_A, 'deadbeefdeadbeef')).toBeUndefined();
+			expect((await storage.listTraces({ search: TRACE_A })).totalCount).toBe(1);
+			expect((await storage.listTraces({ search: 'http.status_code' })).totalCount).toBe(1);
+			expect((await storage.listTraces({ search: '/x' })).totalCount).toBe(1);
 			const spans = await storage.getTraceSpans(TRACE_A);
 			expect(spans).toEqual([full]);
 		});
@@ -378,6 +381,8 @@ function runStorageContract(label: string, make: () => Storage): void {
 			expect((await storage.listLogs({ scopes: ['s2'] })).totalCount).toBe(1);
 			// Free-text search must hit attribute values, not just the body.
 			expect((await storage.listLogs({ search: 'summarize' })).totalCount).toBe(1);
+			expect((await storage.listLogs({ search: TRACE_A })).totalCount).toBe(1);
+			expect((await storage.listLogs({ search: 'service.name' })).totalCount).toBe(2);
 			expect((await storage.listLogs({ search: 'nope' })).totalCount).toBe(0);
 			// bigint attribute round-trips losslessly.
 			const hit = (await storage.listLogs({ traceId: TRACE_A })).rows[0];
@@ -490,7 +495,7 @@ function runStorageContract(label: string, make: () => Storage): void {
 				name: 'queue.depth',
 				resource: { attributes: { 'service.name': 'one' } },
 				scope: { name: 'meterA' },
-				dataPoints: [{ timeUnixNano: 1n, value: 3, attributes: {} }],
+				dataPoints: [{ timeUnixNano: 1n, value: 3, attributes: { queue: 'critical' } }],
 			};
 			const histogram: Metric = {
 				type: 'histogram',
@@ -521,6 +526,9 @@ function runStorageContract(label: string, make: () => Storage): void {
 			expect((await storage.listMetrics({ meters: ['meterB'] })).rows[0]?.name).toBe(
 				'turn.duration_ms',
 			);
+			expect((await storage.listMetricInstruments({ search: 'meterA' })).totalCount).toBe(1);
+			expect((await storage.listMetricInstruments({ search: 'service.name' })).totalCount).toBe(2);
+			expect((await storage.listMetricInstruments({ search: 'critical' })).totalCount).toBe(1);
 		});
 
 		it('clear() empties every signal and the store stays writable', async () => {

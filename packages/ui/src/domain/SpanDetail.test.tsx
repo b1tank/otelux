@@ -89,6 +89,8 @@ describe('SpanDetail', () => {
 		expect(getByText('No matching details.')).toBeTruthy();
 		fireEvent.click(getByLabelText('Clear search'));
 		expect(getByText('Resource')).toBeTruthy();
+		fireEvent.change(getByLabelText('Search span details'), { target: { value: 'service.name' } });
+		expect(getByText('service.name')).toBeTruthy();
 	});
 
 	it('marks an error span with the error status badge', () => {

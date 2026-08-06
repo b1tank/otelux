@@ -63,6 +63,15 @@ function attributeValueIncludes(value: AttributeValue, needle: string): boolean 
 	return String(value).toLowerCase().includes(needle);
 }
 
+function attributesInclude(
+	attributes: Readonly<Record<string, AttributeValue>> | undefined,
+	needle: string,
+): boolean {
+	return Object.entries(attributes ?? {}).some(
+		([key, value]) => key.toLowerCase().includes(needle) || attributeValueIncludes(value, needle),
+	);
+}
+
 /**
  * Free-text match over a log record. Searches body, event name, severity
  * text, and both attribute keys and values — the Codex workload carries
@@ -78,12 +87,18 @@ function logMatchesText(log: LogRecord, needle: string): boolean {
 	if (log.severityText?.toLowerCase().includes(needle)) {
 		return true;
 	}
-	for (const [key, value] of Object.entries(log.attributes)) {
-		if (key.toLowerCase().includes(needle) || attributeValueIncludes(value, needle)) {
-			return true;
-		}
-	}
-	return false;
+	if (
+		log.traceId?.toLowerCase().includes(needle) ||
+		log.spanId?.toLowerCase().includes(needle) ||
+		log.scope.name.toLowerCase().includes(needle) ||
+		log.scope.version?.toLowerCase().includes(needle)
+	)
+		return true;
+	return (
+		attributesInclude(log.attributes, needle) ||
+		attributesInclude(log.resource.attributes, needle) ||
+		attributesInclude(log.scope.attributes, needle)
+	);
 }
 
 const MAX_LOG_LIST_MESSAGE_LENGTH = 4_096;
@@ -415,10 +430,18 @@ export function createMemoryStorage(): Storage {
 				}
 				if (query.search) {
 					const needle = query.search.toLowerCase();
-					const haystack = `${row.rootName} ${row.services.join(' ')}`.toLowerCase();
-					if (!haystack.includes(needle)) {
-						return false;
-					}
+					const summaryMatches = `${row.traceId} ${row.rootName} ${row.services.join(' ')}`
+						.toLowerCase()
+						.includes(needle);
+					const spanMatches = [...(byTrace.get(row.traceId)?.values() ?? [])].some(
+						(span) =>
+							span.spanId.toLowerCase().includes(needle) ||
+							span.name.toLowerCase().includes(needle) ||
+							span.scope.name.toLowerCase().includes(needle) ||
+							attributesInclude(span.attributes, needle) ||
+							attributesInclude(span.resource.attributes, needle),
+					);
+					if (!summaryMatches && !spanMatches) return false;
 				}
 				return true;
 			});
@@ -658,10 +681,15 @@ export function createMemoryStorage(): Storage {
 				}
 				if (query.search) {
 					const needle = query.search.toLowerCase();
-					const haystack = `${metric.name} ${metric.description ?? ''}`.toLowerCase();
-					if (!haystack.includes(needle)) {
-						return false;
-					}
+					const textMatches =
+						`${metric.name} ${metric.description ?? ''} ${metric.unit ?? ''} ${metric.scope.name} ${metric.scope.version ?? ''} ${metricServiceName(metric)} ${resourceSourceName(metric.resource)}`
+							.toLowerCase()
+							.includes(needle);
+					const attributesMatch =
+						attributesInclude(metric.resource.attributes, needle) ||
+						attributesInclude(metric.scope.attributes, needle) ||
+						metric.dataPoints.some((point) => attributesInclude(point.attributes, needle));
+					if (!textMatches && !attributesMatch) return false;
 				}
 				return true;
 			});

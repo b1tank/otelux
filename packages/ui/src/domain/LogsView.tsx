@@ -440,11 +440,16 @@ function LogDetail(props: LogDetailProps): JSX.Element {
 		},
 	];
 	const items = allItems.filter((item) => detailMatches(query, item.label, ...item.searchValues));
+	const searchOpenIds = query.trim() === '' ? undefined : new Set(items.map((item) => item.id));
 
 	return (
 		<section className="otelux-log-detail" aria-label="Log detail">
 			<DetailSearch value={query} onChange={setQuery} subject="log" />
-			{items.length > 0 ? <Accordion items={items} /> : <DetailSearchEmpty />}
+			{items.length > 0 ? (
+				<Accordion items={items} {...(searchOpenIds ? { openIds: searchOpenIds } : {})} />
+			) : (
+				<DetailSearchEmpty />
+			)}
 		</section>
 	);
 }

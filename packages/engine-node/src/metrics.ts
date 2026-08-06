@@ -245,9 +245,16 @@ WHERE instrument_id = ?
 			params.push(...query.meters);
 		}
 		if (query.search) {
-			where.push("(lower(i.name) LIKE ? OR lower(coalesce(i.description, '')) LIKE ?)");
+			where.push(`(
+  CAST(i.id AS TEXT) LIKE ? OR lower(i.name) LIKE ? OR
+  lower(coalesce(i.description, '')) LIKE ? OR lower(coalesce(i.unit, '')) LIKE ? OR
+  lower(i.source_name) LIKE ? OR lower(i.service_name) LIKE ? OR lower(i.scope_name) LIKE ? OR
+  EXISTS (SELECT 1 FROM resources sr WHERE sr.id = i.resource_id AND lower(sr.attributes) LIKE ?) OR
+  EXISTS (SELECT 1 FROM scopes ss WHERE ss.id = i.scope_id AND lower(coalesce(ss.attributes, '')) LIKE ?) OR
+  EXISTS (SELECT 1 FROM metric_points sp WHERE sp.instrument_id = i.id AND lower(sp.attributes) LIKE ?)
+)`);
 			const needle = `%${query.search.toLowerCase()}%`;
-			params.push(needle, needle);
+			params.push(needle, needle, needle, needle, needle, needle, needle, needle, needle, needle);
 		}
 		const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
 		const countRow = this.db
@@ -348,9 +355,16 @@ ORDER BY p.time_unix_nano DESC, p.id DESC`);
 			params.push(...query.meters);
 		}
 		if (query.search) {
-			where.push("(lower(i.name) LIKE ? OR lower(coalesce(i.description, '')) LIKE ?)");
+			where.push(`(
+  CAST(i.id AS TEXT) LIKE ? OR lower(i.name) LIKE ? OR
+  lower(coalesce(i.description, '')) LIKE ? OR lower(coalesce(i.unit, '')) LIKE ? OR
+  lower(i.source_name) LIKE ? OR lower(i.service_name) LIKE ? OR lower(i.scope_name) LIKE ? OR
+  EXISTS (SELECT 1 FROM resources sr WHERE sr.id = i.resource_id AND lower(sr.attributes) LIKE ?) OR
+  EXISTS (SELECT 1 FROM scopes ss WHERE ss.id = i.scope_id AND lower(coalesce(ss.attributes, '')) LIKE ?) OR
+  EXISTS (SELECT 1 FROM metric_points sp WHERE sp.instrument_id = i.id AND lower(sp.attributes) LIKE ?)
+)`);
 			const needle = `%${query.search.toLowerCase()}%`;
-			params.push(needle, needle);
+			params.push(needle, needle, needle, needle, needle, needle, needle, needle, needle, needle);
 		}
 		const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
 

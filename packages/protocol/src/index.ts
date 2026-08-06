@@ -26,7 +26,7 @@ export type TraceListSort = 'startTime' | 'name' | 'duration' | 'spanCount' | 'e
  * Query for the trace list page.
  *
  * Time windows are inclusive on `from`, exclusive on `to`. Free-text
- * `search` matches against the root span name and resource service names.
+ * `search` matches trace/span IDs, names, services, and span attribute keys/values.
  * Filters compose with AND; values inside an array compose with OR.
  */
 export interface ListTracesQuery {
@@ -132,7 +132,7 @@ export interface GetLogDetailsQuery {
 
 export type LogDetails = LogRecord;
 
-/** Shared filters for metric instrument discovery. */
+/** Shared filters for metric instrument discovery. Search covers identity/metadata, resource/scope, and point attributes. */
 export interface ListMetricInstrumentsQuery {
 	limit?: number;
 	offset?: number;
