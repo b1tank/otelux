@@ -29,6 +29,7 @@
 import { type JSX, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Dropdown } from './Dropdown.js';
 import { IconButton } from './IconButton.js';
+import { writeClipboardText } from './clipboard.js';
 import { CheckIcon, CopyIcon, DownloadIcon, XIcon } from './icons.js';
 
 export interface ValueViewerProps {
@@ -126,11 +127,7 @@ export function ValueViewer(props: ValueViewerProps): JSX.Element | null {
 
 	const headerTitle = title ?? 'Value';
 	const onCopy = (): void => {
-		// navigator.clipboard is unavailable in some sandboxes (older jsdom,
-		// headless contexts without a focused window); degrade silently — the
-		// icon + label still morph so the user gets feedback.
-		const write = navigator.clipboard?.writeText(text) ?? Promise.resolve();
-		void write.then(() => {
+		void writeClipboardText(text).then(() => {
 			setCopied(true);
 			if (copyTimerRef.current !== null) {
 				window.clearTimeout(copyTimerRef.current);

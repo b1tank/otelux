@@ -69,6 +69,21 @@ describe('ValueViewer', () => {
 		await findByRole('button', { name: 'Copied' });
 	});
 
+	it('falls back when the sandbox rejects navigator clipboard writes', async () => {
+		Object.defineProperty(navigator, 'clipboard', {
+			configurable: true,
+			value: { writeText: vi.fn().mockRejectedValue(new Error('denied')) },
+		});
+		const execCommand = vi.fn().mockReturnValue(true);
+		Object.defineProperty(document, 'execCommand', { configurable: true, value: execCommand });
+		const { getByRole, findByRole } = render(
+			<ValueViewer open={true} onClose={() => {}} title="x" value="sandboxed" />,
+		);
+		fireEvent.click(getByRole('button', { name: 'Copy' }));
+		await findByRole('button', { name: 'Copied' });
+		expect(execCommand).toHaveBeenCalledWith('copy');
+	});
+
 	it('morphs the Copy button to "Copied" with a check icon after click', async () => {
 		const writeText = vi.fn().mockResolvedValue(undefined);
 		Object.defineProperty(navigator, 'clipboard', {

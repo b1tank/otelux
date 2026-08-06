@@ -18,6 +18,7 @@
  */
 
 import { type JSX, type ReactNode, useEffect, useRef, useState } from 'react';
+import { writeClipboardText } from './clipboard.js';
 import { CheckIcon, CopyIcon } from './icons.js';
 
 export interface CopyButtonProps {
@@ -53,11 +54,7 @@ export function CopyButton(props: CopyButtonProps): JSX.Element {
 		// itself a role="button"), we don't want a copy click to also
 		// trigger the surrounding row's select handler.
 		e.stopPropagation();
-		// `navigator.clipboard` is unavailable in some sandboxes (older
-		// jsdom, headless contexts without a focused window); degrade
-		// silently — the icon still morphs so the user gets feedback.
-		const write = navigator.clipboard?.writeText(value) ?? Promise.resolve();
-		void write.then(() => {
+		void writeClipboardText(value).then(() => {
 			setCopied(true);
 			if (timerRef.current !== null) {
 				window.clearTimeout(timerRef.current);
