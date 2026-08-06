@@ -222,4 +222,4 @@ Required assertions:
 - the packaged benchmark builds 10,000 traces / 200,000 spans plus deep/wide adversarial traces, exercises rapid selection and cursor paging during continuous ingest, and enforces post-GC heap/frame/DOM budgets;
 - memory and SQLite backends remain behaviorally equivalent.
 
-Performance thresholds should be measured on representative Linux, macOS, and Windows hardware and recorded as release budgets only after the query shapes are corrected. Query-count and bounded-payload invariants can be enforced immediately.
+Performance thresholds should be measured on representative Linux, macOS, and Windows hardware and recorded as release budgets only after the query shapes are corrected. Query-count and bounded-payload invariants can be enforced immediately. The packaged 200,000-span fixture also gates common search paths: full trace IDs use the trace primary key, full span IDs use the composite span identity index, and attribute key/value substring searches retain bounded measured budgets without adding FTS prematurely.

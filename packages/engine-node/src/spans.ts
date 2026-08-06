@@ -256,7 +256,18 @@ INSERT OR REPLACE INTO traces (
 			params.push(...query.services);
 		}
 		if (query.search) {
-			where.push(`(
+			const search = query.search.toLowerCase();
+			if (/^[0-9a-f]{32}$/.test(search)) {
+				where.push('trace_id = ?');
+				params.push(search);
+			} else if (/^[0-9a-f]{16}$/.test(search)) {
+				where.push(`EXISTS (
+  SELECT 1 FROM spans search_span
+  WHERE search_span.trace_id = traces.trace_id AND search_span.span_id = ?
+)`);
+				params.push(search);
+			} else {
+				where.push(`(
   lower(trace_id) LIKE ? OR lower(root_name) LIKE ? OR lower(services) LIKE ? OR EXISTS (
     SELECT 1 FROM spans search_span
     WHERE search_span.trace_id = traces.trace_id AND (
@@ -265,8 +276,9 @@ INSERT OR REPLACE INTO traces (
     )
   )
 )`);
-			const needle = `%${query.search.toLowerCase()}%`;
-			params.push(needle, needle, needle, needle, needle, needle);
+				const needle = `%${search}%`;
+				params.push(needle, needle, needle, needle, needle, needle);
+			}
 		}
 		const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
 

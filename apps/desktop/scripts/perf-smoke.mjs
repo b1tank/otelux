@@ -104,8 +104,32 @@ for (let index = 0; index < 10_000; index++) {
 	if (batch.length >= 2_000) flush();
 }
 flush();
-storage.close();
 console.log(`Fixture ready in ${Math.round(performance.now() - ingestStart)} ms`);
+
+const searchCases = [
+	{ name: 'traceId', query: (5_000).toString(16).padStart(32, '0'), maximumMs: 500 },
+	{
+		name: 'spanId',
+		query: (5_000 * 100_000 + 4).toString(16).padStart(16, '0'),
+		maximumMs: 500,
+	},
+	{ name: 'attributeKey', query: 'perf.index', maximumMs: 2_000 },
+	{ name: 'attributeValue', query: 'x'.repeat(32), maximumMs: 2_000 },
+];
+const searchTimings = {};
+for (const searchCase of searchCases) {
+	const started = performance.now();
+	const result = storage.listTraces({ search: searchCase.query, limit: 100 });
+	const elapsed = performance.now() - started;
+	searchTimings[searchCase.name] = Number(elapsed.toFixed(1));
+	if (result.totalCount < 1) throw new Error(`${searchCase.name} search returned no traces`);
+	if (elapsed >= searchCase.maximumMs) {
+		throw new Error(
+			`${searchCase.name} search budget exceeded: ${elapsed.toFixed(1)} ms >= ${searchCase.maximumMs} ms`,
+		);
+	}
+}
+storage.close();
 
 writeFileSync(
 	join(dataDir, 'settings.json'),
@@ -284,7 +308,11 @@ try {
 	if (heapMb >= 100) throw new Error(`renderer heap budget exceeded: ${heapMb.toFixed(1)} MB`);
 
 	console.log(
-		JSON.stringify({ structural, interaction, heapMb: Number(heapMb.toFixed(1)) }, null, 2),
+		JSON.stringify(
+			{ searchTimings, structural, interaction, heapMb: Number(heapMb.toFixed(1)) },
+			null,
+			2,
+		),
 	);
 	console.log('PERF SMOKE PASS');
 } finally {
