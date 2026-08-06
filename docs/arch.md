@@ -20,7 +20,7 @@ The detailed communication contract is [protocol.md](protocol.md). SQLite schema
 |---|---|---|---|
 | Agent plugin | Install OTelux in Claude, Codex, or Pi, use analysis skills and MCP tools, configure telemetry, and open the visual workbench. | Shared skills, host manifests, a small stdio MCP launcher, and a thin native Pi adapter over that launcher. | Desktop-companion version shipped; self-contained runtime target. |
 | Direct MCP | Register OTelux as an MCP server without installing agent skills or a desktop UI. | The same stdio MCP launcher used by the plugins. It ensures and connects to the local runtime. | Target packaging; the current bridge requires Desktop. |
-| CLI | Run, inspect, configure, stop, and open OTelux from a terminal or headless environment. | The local runtime plus commands such as `otelux serve`, `otelux status`, and `otelux open`. | Planned. |
+| CLI | Run, inspect, configure, stop, and open OTelux from a terminal or headless environment. | The local runtime plus commands such as `oteluxctl serve`, `oteluxctl status`, and `oteluxctl open`. | Planned. |
 | Desktop app | Install a native workbench with receiver and storage settings. | Electron UI plus the shared local runtime. Desktop is a client of that runtime, not a second backend owner. | Runtime package embedded; standalone-daemon connection planned. |
 
 These forms are distribution and entry-point choices. They do not create separate telemetry stores. Browser delivery is an implementation detail of the plugin and CLI experiences, not a separately installed or published artifact.
@@ -37,7 +37,7 @@ These forms are distribution and entry-point choices. They do not create separat
 | A Desktop user installs a plugin later. | The plugin connects to the existing runtime and exposes skills and MCP analysis over the telemetry already visible in Desktop. |
 | A user installs OTelux in Claude, Codex, and Pi. | All launchers reuse one runtime, receiver, and database. Pi registers the bridge tools natively; concurrent agent sessions do not bind duplicate ports. |
 | A user wants only MCP. | They register the standalone OTelux stdio launcher. It exposes the same tools and store without installing plugin skills or Electron. |
-| A headless user installs the CLI. | `otelux serve` runs the receiver, storage, MCP service, and browser assets without a desktop environment. |
+| A headless user installs the CLI. | `oteluxctl serve` runs the receiver, storage, MCP service, and browser assets without a desktop environment. |
 
 ## Local Architecture
 
@@ -115,7 +115,7 @@ Closing Desktop disconnects that client but does not stop ingest or agent access
 |---|---:|---|
 | OTLP/HTTP | `127.0.0.1:4319` | Stable by default because exporters persist this address. Supports `/v1/traces`, `/v1/logs`, and `/v1/metrics`. |
 | MCP HTTP/internal | `127.0.0.1:4320` | Discoverable and token-authenticated. Plugins normally connect through stdio rather than exposing the token to the model. |
-| Workbench/API | `127.0.0.1:4321` | Preferred port; may move when occupied because `otelux open` and the plugin return the effective URL. |
+| Workbench/API | `127.0.0.1:4321` | Preferred port; may move when occupied because `oteluxctl open` and the plugin return the effective URL. |
 
 All listeners bind to loopback by default. LAN exposure requires a future explicit setting with a reviewed authentication and threat model.
 
@@ -197,17 +197,17 @@ Configuration workflows must show proposed edits and receive confirmation before
 
 The CLI is both a standalone user form and the common control surface used by installers and clients. Its intended responsibilities are:
 
-- `otelux serve`: run the local runtime in the foreground for headless use and diagnostics;
-- `otelux start` and `otelux stop`: manage the background runtime explicitly;
-- `otelux status`: report effective endpoints, database path, retention, version, and health without revealing tokens;
-- `otelux open`: open or print the browser workbench URL through a one-time bootstrap that does not expose tokens;
-- `otelux desktop`: launch or focus the native client;
-- `otelux endpoints --json`: expose stable machine-readable endpoint discovery;
-- `otelux config`: inspect and change schema-defined runtime settings;
-- `otelux doctor`: check ports, permissions, database compatibility, package/runtime protocol versions, and client connectivity;
-- `otelux agents list|inspect|install|remove|repair|verify|show-config`: drive the shared capability-aware integration engine with dry-run and JSON support.
+- `oteluxctl serve`: run the local runtime in the foreground for headless use and diagnostics;
+- `oteluxctl start` and `oteluxctl stop`: manage the background runtime explicitly;
+- `oteluxctl status`: report effective endpoints, database path, retention, version, and health without revealing tokens;
+- `oteluxctl open`: open or print the browser workbench URL through a one-time bootstrap that does not expose tokens;
+- `oteluxctl desktop`: launch or focus the native client;
+- `oteluxctl endpoints --json`: expose stable machine-readable endpoint discovery;
+- `oteluxctl config`: inspect and change schema-defined runtime settings;
+- `oteluxctl doctor`: check ports, permissions, database compatibility, package/runtime protocol versions, and client connectivity;
+- `oteluxctl agents list|inspect|install|remove|repair|verify|show-config`: drive the shared capability-aware integration engine with dry-run and JSON support.
 
-The CLI calls the same runtime and agent-integration APIs as Desktop. It must not implement a second settings store, migration path, receiver, host parser, or configuration mutation path. Desktop installers bundle a version-matched CLI/daemon; Linux and Windows reserve `otelux` for CLI and rename the GUI executable to `otelux-desktop`, while macOS bundles CLI under the signed app resources. See [agent-onboarding.md](agent-onboarding.md).
+The CLI calls the same runtime and agent-integration APIs as Desktop. It must not implement a second settings store, migration path, receiver, host parser, or configuration mutation path. Desktop installers bundle a version-matched CLI/daemon; Desktop keeps the `otelux` executable and the bundled CLI uses `oteluxctl`, while macOS bundles CLI under the signed app resources. See [agent-onboarding.md](agent-onboarding.md).
 
 ## Security And Data Boundary
 

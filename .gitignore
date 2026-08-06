@@ -9,12 +9,12 @@ out/
 .vite/
 .turbo/
 build/
-# ...but keep the desktop icon master (a source asset). Its generated PNGs
-# (icon.png, icon@1024.png, icons/) are rebuilt by scripts/build-icons.sh
-# and stay ignored.
+# ...but keep desktop source assets. Generated PNGs (icon.png,
+# icon@1024.png, icons/) and notices are rebuilt and stay ignored.
 !apps/desktop/build/
 apps/desktop/build/*
 !apps/desktop/build/icon.svg
+!apps/desktop/build/oteluxctl
 
 # Test outputs
 coverage/

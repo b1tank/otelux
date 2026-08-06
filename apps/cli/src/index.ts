@@ -23,6 +23,8 @@ export interface CliDependencies {
 	waitStopped(dataDirectory: string, instanceId: string): Promise<void>;
 }
 
+declare const __OTELUX_CLI_VERSION__: string;
+
 const defaultDependencies: CliDependencies = {
 	connect: connectRuntimeClient,
 	ensure: ensureRuntimeClient,
@@ -50,7 +52,7 @@ export async function runCli(
 	try {
 		switch (command) {
 			case 'status': {
-				const found = await dependencies.connect({ dataDirectory, clientName: 'otelux-cli' });
+				const found = await dependencies.connect(clientOptions(dataDirectory));
 				if (!found) return notRunning(output, json);
 				try {
 					const [status, settings, storage, usage] = await Promise.all([
@@ -66,7 +68,7 @@ export async function runCli(
 				}
 			}
 			case 'endpoints': {
-				const found = await dependencies.connect({ dataDirectory, clientName: 'otelux-cli' });
+				const found = await dependencies.connect(clientOptions(dataDirectory));
 				if (!found) return notRunning(output, json);
 				try {
 					const status = await found.client.getStatus();
@@ -86,8 +88,7 @@ export async function runCli(
 			}
 			case 'start': {
 				const found = await dependencies.ensure({
-					dataDirectory,
-					clientName: 'otelux-cli',
+					...clientOptions(dataDirectory),
 					start: () => dependencies.start(dataDirectory),
 				});
 				print(output, json, {
@@ -99,7 +100,7 @@ export async function runCli(
 				return 0;
 			}
 			case 'stop': {
-				const found = await dependencies.connect({ dataDirectory, clientName: 'otelux-cli' });
+				const found = await dependencies.connect(clientOptions(dataDirectory));
 				if (!found) return notRunning(output, json);
 				await found.client.shutdown();
 				found.client.close();
@@ -108,15 +109,14 @@ export async function runCli(
 				return 0;
 			}
 			case 'restart': {
-				const found = await dependencies.connect({ dataDirectory, clientName: 'otelux-cli' });
+				const found = await dependencies.connect(clientOptions(dataDirectory));
 				if (found) {
 					await found.client.shutdown();
 					found.client.close();
 					await dependencies.waitStopped(dataDirectory, found.state.instanceId);
 				}
 				const restarted = await dependencies.ensure({
-					dataDirectory,
-					clientName: 'otelux-cli',
+					...clientOptions(dataDirectory),
 					start: () => dependencies.start(dataDirectory),
 				});
 				print(output, json, {
@@ -128,7 +128,7 @@ export async function runCli(
 				return 0;
 			}
 			case 'doctor': {
-				const found = await dependencies.connect({ dataDirectory, clientName: 'otelux-cli' });
+				const found = await dependencies.connect(clientOptions(dataDirectory));
 				if (!found) return notRunning(output, json);
 				try {
 					const status = await found.client.getStatus();
@@ -154,6 +154,15 @@ export async function runCli(
 	}
 }
 
+function clientOptions(dataDirectory: string): ConnectRuntimeClientOptions {
+	return {
+		dataDirectory,
+		clientName: 'oteluxctl',
+		clientVersion: __OTELUX_CLI_VERSION__,
+		expectedRuntimeVersion: __OTELUX_CLI_VERSION__,
+	};
+}
+
 function startDaemon(dataDirectory: string): void {
 	const require = createRequire(import.meta.url);
 	const entry = require.resolve('@otelux/local-runtime');
@@ -161,7 +170,11 @@ function startDaemon(dataDirectory: string): void {
 	const child = spawn(process.execPath, [daemon], {
 		detached: true,
 		stdio: 'ignore',
-		env: { ...process.env, OTELUX_DATA_DIR: dataDirectory },
+		env: {
+			...process.env,
+			OTELUX_DATA_DIR: dataDirectory,
+			OTELUX_RUNTIME_VERSION: __OTELUX_CLI_VERSION__,
+		},
 	});
 	child.unref();
 }
@@ -206,7 +219,7 @@ function safeError(value: { code?: unknown; message?: unknown }): string {
 }
 
 function help(): string {
-	return 'Usage: otelux <command> [--json]\n\nCommands:\n  start      Start or reuse the local runtime\n  stop       Stop the local runtime\n  restart    Restart the local runtime\n  status     Show runtime, settings, and storage status\n  endpoints  Show local OTLP, MCP, and Runtime API endpoints\n  doctor     Check listener health';
+	return 'Usage: oteluxctl <command> [--json]\n\nCommands:\n  start      Start or reuse the local runtime\n  stop       Stop the local runtime\n  restart    Restart the local runtime\n  status     Show runtime, settings, and storage status\n  endpoints  Show local OTLP, MCP, and Runtime API endpoints\n  doctor     Check listener health';
 }
 
 if (process.argv[1]?.endsWith('/otelux') || process.argv[1]?.endsWith('/index.js')) {

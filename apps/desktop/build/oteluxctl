@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+APP_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+exec env ELECTRON_RUN_AS_NODE=1 \
+  "$APP_ROOT/otelux" \
+  "$APP_ROOT/resources/app.asar/node_modules/@otelux/cli/dist/index.js" \
+  "$@"

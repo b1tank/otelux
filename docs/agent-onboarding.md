@@ -20,7 +20,7 @@ The current Claude, Codex, and Pi plugin is a Desktop companion. It connects thr
 ## Product decisions
 
 1. **Extract the daemon before promising a standalone CLI.** Desktop, CLI, plugins, and direct MCP must never become competing receiver/database owners.
-2. **One integration engine, two front ends.** `otelux agents ...` and Settings → Agents call the same typed package; the UI never shells out to the CLI and neither front end forks configuration logic.
+2. **One integration engine, two front ends.** `oteluxctl agents ...` and Settings → Agents call the same typed package; the UI never shells out to the CLI and neither front end forks configuration logic.
 3. **Capabilities, not vendor assumptions.** Each adapter advertises what the detected host/version officially supports: MCP, skills, plugin, extension, telemetry environment/configuration, and verification. Unsupported controls stay absent rather than pretending every agent has the same model.
 4. **Separate analysis integration from telemetry capture.** Installing OTelux MCP/skills is distinct from configuring an agent to export telemetry. Sensitive prompt/response/tool content remains opt-in and visibly explained.
 5. **Preview before mutation.** Every configuration change has a dry-run plan showing paths, operations, values with secrets redacted, restart requirements, and rollback ownership.
@@ -43,28 +43,28 @@ The implementation order is architectural, not cosmetic:
 
 ## CLI contract
 
-The initial CLI is `otelux`. Commands return human-readable output by default and stable JSON with `--json` where automation is expected.
+The initial CLI is `oteluxctl`; the Desktop product/executable keeps the established `otelux` name. Commands return human-readable output by default and stable JSON with `--json` where automation is expected.
 
 ```text
-otelux serve                # foreground runtime for headless use/diagnostics
-otelux start [--background]
-otelux stop
-otelux restart
-otelux status [--json]
-otelux open                 # open/focus the browser workbench
-otelux desktop              # open/focus the native Desktop client
-otelux endpoints [--json]
-otelux doctor [--json]
-otelux config get <key>
-otelux config set <key> <value>
+oteluxctl serve                # foreground runtime for headless use/diagnostics
+oteluxctl start [--background]
+oteluxctl stop
+oteluxctl restart
+oteluxctl status [--json]
+oteluxctl open                 # open/focus the browser workbench
+oteluxctl desktop              # open/focus the native Desktop client
+oteluxctl endpoints [--json]
+oteluxctl doctor [--json]
+oteluxctl config get <key>
+oteluxctl config set <key> <value>
 
-otelux agents list [--json]
-otelux agents inspect <agent> [--json]
-otelux agents install <agent> [--scope user|project] [--capability <name>] [--dry-run]
-otelux agents remove <agent> [--scope user|project] [--dry-run]
-otelux agents repair <agent> [--dry-run]
-otelux agents verify <agent> [--json]
-otelux agents show-config <agent>
+oteluxctl agents list [--json]
+oteluxctl agents inspect <agent> [--json]
+oteluxctl agents install <agent> [--scope user|project] [--capability <name>] [--dry-run]
+oteluxctl agents remove <agent> [--scope user|project] [--dry-run]
+oteluxctl agents repair <agent> [--dry-run]
+oteluxctl agents verify <agent> [--json]
+oteluxctl agents show-config <agent>
 ```
 
 Implementations reject unknown commands with a useful suggestion rather than guessing.
@@ -87,7 +87,7 @@ The CLI should be installed with Desktop while remaining independently packageab
 ### Linux
 
 - Rename the GUI executable to `otelux-desktop` before the stable cross-platform release.
-- Install CLI as `/usr/bin/otelux`, daemon as a private packaged executable, and make the desktop entry launch `otelux-desktop`.
+- [x] Keep the desktop entry and GUI executable as `otelux`; bundle the version-matched CLI as private `resources/bin/oteluxctl` in unpacked, `.deb`, and AppImage layouts. PATH installation remains deferred until the command contract is stable.
 - `.deb` may register a user service only after lifecycle/upgrade behavior is defined; AppImage exposes `--cli`/portable entry points but does not mutate PATH automatically.
 
 ### macOS
@@ -229,7 +229,7 @@ A failed or skipped agent setup never blocks use of Desktop or sample data.
 
 - [x] Source-build lifecycle (`start`/`stop`/`restart`), status, endpoints, doctor, stable JSON, and distinct exit codes over the shared runtime client.
 - Add `open`, `desktop`, schema-validated config commands, confirmation policy, and release packaging.
-- Desktop installers bundle version-matched CLI/daemon with the platform naming/PATH behavior above.
+- [x] Desktop artifacts bundle a version-matched private CLI/daemon launcher; public PATH installation remains deferred.
 - Clean install, concurrent startup, restart, upgrade, and uninstall on qualified platforms.
 
 ### M2 — integration engine

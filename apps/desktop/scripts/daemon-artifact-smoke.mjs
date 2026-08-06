@@ -12,13 +12,14 @@ const release = join(desktop, 'release');
 const smoke = join(desktop, 'scripts', 'daemon-smoke.mjs');
 const temporary = mkdtempSync(join(tmpdir(), 'otelux-daemon-artifacts-'));
 
-function runSmoke(binary, daemon) {
+function runSmoke(binary, daemon, cli) {
 	execFileSync(process.execPath, [smoke], {
 		stdio: 'inherit',
 		env: {
 			...process.env,
 			OTELUX_DAEMON_SMOKE_BINARY: binary,
 			OTELUX_DAEMON_SMOKE_SCRIPT: daemon,
+			OTELUX_DAEMON_SMOKE_CLI: cli,
 		},
 	});
 }
@@ -43,6 +44,7 @@ try {
 			'dist',
 			'daemon.js',
 		),
+		join(debApp, 'resources', 'bin', 'oteluxctl'),
 	);
 
 	execFileSync(
@@ -63,6 +65,7 @@ try {
 			'dist',
 			'daemon.js',
 		),
+		join(extracted, 'resources', 'bin', 'oteluxctl'),
 	);
 	console.log('DAEMON ARTIFACT SMOKE PASS');
 } finally {

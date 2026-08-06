@@ -154,7 +154,7 @@ Tasks:
 - Add scoped browser session bootstrap and serve the existing `@otelux/ui` as a same-origin loopback workbench. Desktop daemon-client conversion is delivered.
 - Add dedicated runtime/API and MCP tokens/scopes plus one-time browser session bootstrap; tokens must never appear in dashboard URLs or `runtime.json`.
 - Complete the OTelux CLI: source-build `start`, `stop`, `restart`, `status`, `endpoints`, `doctor`, stable JSON, and exit codes are delivered over the shared runtime client; settings mutation plus dashboard/Desktop launch and release packaging remain.
-- Bundle a version-matched CLI and daemon with Desktop while keeping them independently packageable; reserve `otelux` for CLI and rename GUI executables before stable cross-platform release.
+- [x] Bundle a version-matched private `oteluxctl` CLI/daemon launcher with Desktop while keeping it independently packageable later; unpacked, `.deb`, and AppImage artifact smokes pass, and the Desktop product/executable remains `otelux` by explicit decision.
 - Add `@otelux/agent-integrations` as the shared typed detector/planner/applier/verifier used by CLI and Desktop; configuration writes must be previewed, atomic, idempotent, reversible, permission-safe, and secret-redacted.
 - Add Settings → Agents with capability/status cards, inspected paths, exact proposed operations, Install/Verify/Repair/Remove, restart continuation, and accessible vendor-neutral fallback icons.
 - Add a resumable first-run flow for local-data/privacy explanation, sample data, endpoint health, agent detection, separate MCP/skills/telemetry/content choices, preview/apply, restart, and end-to-end verification.

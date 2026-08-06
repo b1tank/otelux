@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -22,8 +22,10 @@ const daemon =
 		'dist',
 		'daemon.js',
 	);
+const cli = process.env.OTELUX_DAEMON_SMOKE_CLI ?? join(root, 'resources', 'bin', 'oteluxctl');
 const version = JSON.parse(readFileSync(join(desktop, 'package.json'), 'utf8')).version;
 assert.ok(existsSync(binary), `packaged Electron binary missing: ${binary}`);
+assert.ok(existsSync(cli), `packaged CLI launcher missing: ${cli}`);
 
 const data = mkdtempSync(join(tmpdir(), 'otelux-packaged-daemon-'));
 writeFileSync(
@@ -86,6 +88,15 @@ try {
 	});
 	assert.equal(response.status, 200);
 	assert.equal((await response.json()).result.instanceId, state.instanceId);
+	for (const command of ['status', 'endpoints', 'doctor']) {
+		const result = JSON.parse(
+			execFileSync(cli, [command, '--json'], {
+				encoding: 'utf8',
+				env: { ...process.env, OTELUX_DATA_DIR: data },
+			}),
+		);
+		assert.notEqual(result.healthy, false, `${command} reported unhealthy`);
+	}
 	child.kill('SIGTERM');
 	assert.equal(await new Promise((resolve) => child.once('exit', resolve)), 0);
 	assert.equal(existsSync(join(data, 'runtime.json')), false);
