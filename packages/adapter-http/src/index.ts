@@ -41,6 +41,7 @@ export interface CreateHttpDataSourceOptions {
 	readonly rpcTimeoutMs?: number;
 	readonly maxResponseBytes?: number;
 	readonly onConnectionError?: (error: Error) => void;
+	readonly onConnectionRestored?: () => void;
 }
 
 export interface RuntimeHttpClient extends DataSource {
@@ -191,6 +192,7 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 					throw new Error('Runtime SSE returned an invalid content type');
 				}
 				delay = options.reconnectDelayMs ?? 250;
+				options.onConnectionRestored?.();
 				await consumeSse(response.body, (eventName, id, data) => {
 					const envelope = parseRuntimeSseEnvelope(parseWireJson(data));
 					if (eventName !== envelope.kind || id !== envelope.revision) {

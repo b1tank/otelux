@@ -130,11 +130,17 @@ function resolveMaxBodyBytes(envName: string): number | undefined {
 
 async function startBackend(): Promise<{ stop: () => Promise<void> }> {
 	const dataDirectory = resolveOteluxDataDirectory();
+	const connectionHandlers: {
+		onError?: (error: Error) => void;
+		onRestored?: () => void;
+	} = {};
 	const discovered = await ensureRuntimeClient({
 		dataDirectory,
 		clientName: 'otelux-desktop',
 		clientVersion: desktopVersion,
 		expectedRuntimeVersion: desktopVersion,
+		onConnectionError: (error) => connectionHandlers.onError?.(error),
+		onConnectionRestored: () => connectionHandlers.onRestored?.(),
 		start: async () => {
 			await prepareDataDirectory({
 				dataDirectory,
@@ -193,6 +199,21 @@ async function startBackend(): Promise<{ stop: () => Promise<void> }> {
 				}
 			});
 	};
+	connectionHandlers.onError = () => {
+		const receiver = discovered.state.receiver;
+		if (receiver.kind === 'running' || receiver.kind === 'error') {
+			broadcast({
+				kind: 'receiver-status-changed',
+				status: {
+					kind: 'error',
+					host: receiver.host,
+					port: receiver.port,
+					message: 'Runtime connection lost; receiver status is unknown.',
+				},
+			});
+		}
+	};
+	connectionHandlers.onRestored = refreshControls;
 	const controlSignals = runtime.subscribeSignals((signals) => {
 		if (signals.includes('settings') || signals.includes('status')) refreshControls();
 	});

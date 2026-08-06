@@ -29,6 +29,8 @@ export interface ConnectRuntimeClientOptions {
 	readonly clientVersion?: string;
 	/** Require the daemon build from the same host release. */
 	readonly expectedRuntimeVersion?: string;
+	readonly onConnectionError?: (error: Error) => void;
+	readonly onConnectionRestored?: () => void;
 }
 
 export interface EnsureRuntimeClientOptions extends ConnectRuntimeClientOptions {
@@ -65,6 +67,8 @@ export async function connectRuntimeClient(
 		token,
 		clientName: options.clientName ?? 'otelux-node-client',
 		clientVersion: options.clientVersion ?? '0.0.0',
+		...(options.onConnectionError ? { onConnectionError: options.onConnectionError } : {}),
+		...(options.onConnectionRestored ? { onConnectionRestored: options.onConnectionRestored } : {}),
 	});
 	try {
 		await client.initialize();
