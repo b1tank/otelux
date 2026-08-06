@@ -98,7 +98,7 @@ The CLI should be installed with Desktop while remaining independently packageab
 
 ### Windows
 
-- Rename the GUI executable to `otelux-desktop.exe`; Windows paths are case-insensitive, so `OTelux.exe` and `otelux.exe` cannot represent different programs.
+- Keep the established GUI executable as `otelux.exe`; use `oteluxctl.exe` for the CLI so Windows case-insensitivity cannot create a name collision.
 - Install `otelux.exe` as the CLI and optionally add its directory to the current user's PATH through an explicit installer choice.
 - Uninstall removes only OTelux's PATH entry and packaged files, not the retained telemetry directory unless the user separately confirms data deletion.
 

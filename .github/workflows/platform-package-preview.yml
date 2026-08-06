@@ -2,13 +2,26 @@ name: Platform package preview
 
 on:
   workflow_dispatch:
+    inputs:
+      full_matrix:
+        description: "Also validate Linux arm64, macOS, and Windows"
+        required: false
+        type: boolean
+        default: false
+      upload_artifacts:
+        description: "Retain unsigned package previews for one day"
+        required: false
+        type: boolean
+        default: false
   pull_request:
     branches: [main]
     paths:
       - '.github/workflows/platform-package-preview.yml'
+      - 'apps/cli/**'
       - 'apps/desktop/electron-builder.yml'
       - 'apps/desktop/package.json'
       - 'apps/desktop/build/icon.svg'
+      - 'apps/desktop/build/oteluxctl'
       - 'apps/desktop/scripts/install-smoke.mjs'
       - 'apps/desktop/scripts/prepare-platform-assets.mjs'
       - 'apps/desktop/scripts/smoke.mjs'
@@ -28,7 +41,23 @@ jobs:
     name: Build package icons
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      package-matrix: ${{ steps.package-matrix.outputs.value }}
     steps:
+      - name: Select requested package matrix
+        id: package-matrix
+        shell: bash
+        env:
+          FULL_MATRIX: ${{ inputs.full_matrix }}
+        run: |
+          linux='{"include":[{"label":"Linux x64","runner":"ubuntu-latest","script":"package:linux","smoke":"xvfb-run -a node apps/desktop/scripts/smoke.mjs","artifact":"linux-x64"}]}'
+          full='{"include":[{"label":"Linux x64","runner":"ubuntu-latest","script":"package:linux","smoke":"xvfb-run -a node apps/desktop/scripts/smoke.mjs","artifact":"linux-x64"},{"label":"Linux arm64","runner":"ubuntu-24.04-arm","script":"package:linux","smoke":"xvfb-run -a node apps/desktop/scripts/smoke.mjs","artifact":"linux-arm64"},{"label":"macOS x64 and arm64","runner":"macos-14","script":"package:mac","smoke":"node apps/desktop/scripts/smoke.mjs","artifact":"macos-x64-arm64"},{"label":"Windows x64","runner":"windows-2022","script":"package:win","smoke":"node apps/desktop/scripts/smoke.mjs","artifact":"windows-x64"}]}'
+          if [[ "$FULL_MATRIX" == "true" ]]; then
+            echo "value=$full" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=$linux" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
         with:
@@ -51,7 +80,7 @@ jobs:
             apps/desktop/build/icon@1024.png
             apps/desktop/build/icons
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 1
 
   package:
     name: Build unsigned ${{ matrix.label }} preview
@@ -60,48 +89,7 @@ jobs:
     timeout-minutes: 35
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - label: Linux x64
-            runner: ubuntu-latest
-            script: package:linux
-            smoke: xvfb-run -a node apps/desktop/scripts/smoke.mjs
-            artifact: linux-x64
-            paths: |
-              apps/desktop/release/*.deb
-              apps/desktop/release/*.AppImage
-              apps/desktop/release/*-linux-x64-sbom.cdx.json
-              apps/desktop/release/SHA256SUMS-linux-x64
-          - label: Linux arm64
-            runner: ubuntu-24.04-arm
-            script: package:linux
-            smoke: xvfb-run -a node apps/desktop/scripts/smoke.mjs
-            artifact: linux-arm64
-            paths: |
-              apps/desktop/release/*.deb
-              apps/desktop/release/*.AppImage
-              apps/desktop/release/*-linux-arm64-sbom.cdx.json
-              apps/desktop/release/SHA256SUMS-linux-arm64
-          - label: macOS x64 and arm64
-            runner: macos-14
-            script: package:mac
-            smoke: node apps/desktop/scripts/smoke.mjs
-            artifact: macos-x64-arm64
-            paths: |
-              apps/desktop/release/*.dmg
-              apps/desktop/release/*-mac-*.zip
-              apps/desktop/release/*-macos-x64-arm64-sbom.cdx.json
-              apps/desktop/release/SHA256SUMS-macos-x64-arm64
-          - label: Windows x64
-            runner: windows-2022
-            script: package:win
-            smoke: node apps/desktop/scripts/smoke.mjs
-            artifact: windows-x64
-            paths: |
-              apps/desktop/release/*.exe
-              apps/desktop/release/*-windows-*.zip
-              apps/desktop/release/*-windows-x64-sbom.cdx.json
-              apps/desktop/release/SHA256SUMS-windows-x64
+      matrix: ${{ fromJSON(needs.icons.outputs.package-matrix) }}
 
     steps:
       - name: Checkout
@@ -159,10 +147,19 @@ jobs:
           OTELUX_SMOKE_DESKTOP_DIR: ${{ github.workspace }}/apps/desktop
           OTELUX_SMOKE_REPO_ROOT: ${{ github.workspace }}
 
-      - name: Upload unsigned preview
+      - name: Upload explicitly requested unsigned preview
+        if: ${{ inputs.upload_artifacts == true }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: otelux-unsigned-${{ matrix.artifact }}
-          path: ${{ matrix.paths }}
+          path: |
+            apps/desktop/release/*.deb
+            apps/desktop/release/*.AppImage
+            apps/desktop/release/*.dmg
+            apps/desktop/release/*-mac-*.zip
+            apps/desktop/release/*.exe
+            apps/desktop/release/*-windows-*.zip
+            apps/desktop/release/*-sbom.cdx.json
+            apps/desktop/release/SHA256SUMS-*
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 1

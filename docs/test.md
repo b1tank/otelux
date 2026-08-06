@@ -605,6 +605,10 @@ curl -s -D /tmp/otelux-origin-headers.txt -X POST \
 - After `package:linux`, run `npm run -w @otelux/desktop smoke:daemon-artifacts` → extract the architecture-matching `.deb` and AppImage, repeat the daemon smoke, and invoke bundled `resources/bin/oteluxctl status|endpoints|doctor --json` against that same instance in each artifact layout.
 - **Qualification limit**: Desktop uses the packaged daemon; smoke proves survival after Electron exit, a second Desktop reconnect to the same instance, explicit authenticated shutdown, and restart UI. Focused tests cover post-start disconnect/recovery, stale crash-owner reclamation, competing-owner rejection, and nonfatal receiver port conflicts. Installed-package upgrade/rollback and uninstall-with-data-preserved coverage remain.
 
+### 12.9 Actions usage controls
+- Pull requests and default manual dispatches of **Platform package preview** run Linux x64 only and retain no package artifacts. Manually enable `full_matrix` only when native Linux arm64/macOS/Windows evidence is needed; enable `upload_artifacts` only when a package must be downloaded, and confirm it expires after one day.
+- Release jobs may upload Linux candidates for transfer to the publish job. After successful GitHub Release publication, confirm the workflow deletes those intermediate Actions artifacts; failed candidates expire after one day so a failed publish can still be retried briefly.
+
 ---
 
 ## 13. Negative receiver scenarios
