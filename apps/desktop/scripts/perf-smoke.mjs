@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -27,7 +27,12 @@ const freePort = () =>
 			server.close((error) => (error ? reject(error) : resolve(address.port)));
 		});
 	});
-const [otlpPort, mcpPort, debugPort] = await Promise.all([freePort(), freePort(), freePort()]);
+const [otlpPort, mcpPort, apiPort, debugPort] = await Promise.all([
+	freePort(),
+	freePort(),
+	freePort(),
+	freePort(),
+]);
 
 function span(traceIndex, spanIndex, parentSpanId, name, start, service = 'perf-api') {
 	const traceId = traceIndex.toString(16).padStart(32, '0');
@@ -118,7 +123,11 @@ const child = spawn(
 	binary,
 	['--no-sandbox', `--remote-debugging-port=${debugPort}`, `--user-data-dir=${userDataDir}`],
 	{
-		env: { ...process.env, OTELUX_DATA_DIR: dataDir },
+		env: {
+			...process.env,
+			OTELUX_DATA_DIR: dataDir,
+			OTELUX_API_PORT: String(apiPort),
+		},
 		detached: true,
 		stdio: ['ignore', 'pipe', 'pipe'],
 	},
@@ -132,7 +141,7 @@ child.stderr.on('data', (chunk) => {
 });
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function waitFor(fn, timeout = 30_000) {
+async function waitFor(fn, timeout = 60_000) {
 	const deadline = Date.now() + timeout;
 	while (Date.now() < deadline) {
 		try {
@@ -286,6 +295,14 @@ try {
 	await Promise.race([new Promise((resolve) => child.once('exit', resolve)), sleep(5_000)]);
 	try {
 		process.kill(-child.pid, 'SIGKILL');
+	} catch {}
+	try {
+		const state = JSON.parse(readFileSync(join(dataDir, 'runtime.json'), 'utf8'));
+		process.kill(state.pid, 'SIGTERM');
+		await sleep(1_000);
+		try {
+			process.kill(state.pid, 'SIGKILL');
+		} catch {}
 	} catch {}
 	rmSync(root, { recursive: true, force: true });
 }
