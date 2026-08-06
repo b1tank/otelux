@@ -32,7 +32,7 @@ A random token is generated on first run and stored as `mcp-token` in the canoni
 
 ### Runtime API
 
-The embedded runtime binds a separate control/query API on `127.0.0.1:4321` by default. It uses an independent random `runtime-token` stored owner-only in the canonical data directory; `runtime.json` publishes only the token path and API status. JSON-RPC and SSE require `Authorization: Bearer <token>`, reject browser `Origin`, validate `Host`, bound bodies/encoded responses/aggregate batch work/client counts, disconnect slow SSE clients, and expose generic internal errors. The HTTP adapter refuses non-loopback or decorated origins and disables redirects before sending credentials. Health is the only unauthenticated route. Loopback plus a token does not defend against a compromised process running as the same OS user.
+The on-demand daemon binds a separate control/query API on `127.0.0.1:4321` by default. It uses an independent random `runtime-token` stored owner-only in the canonical data directory; `runtime.json` publishes only the token path and API status. JSON-RPC and SSE require `Authorization: Bearer <token>`, reject browser `Origin`, validate `Host`, bound bodies/encoded responses/aggregate batch work/client counts, disconnect slow SSE clients, and expose generic internal errors. The HTTP adapter refuses non-loopback or decorated origins and disables redirects before sending credentials. Health is the only unauthenticated route. Loopback plus a token does not defend against a compromised process running as the same OS user.
 
 ### Electron renderer
 
@@ -76,7 +76,7 @@ MCP, LM, browser, clipboard, download, and future export clients operate outside
 
 The current source build is not a supported security release. Known release blockers include:
 
-- The foreground daemon is not packaged or registered, Desktop remains the runtime owner, and daemon upgrade/rollback plus token-rotation lifecycle is not implemented.
+- The daemon is packaged and started on demand but is not OS-service registered; explicit user-facing stop/restart, crash recovery, upgrade/rollback, and token-rotation lifecycle is not implemented.
 - Browser session bootstrap, scoped read/control capabilities, CSRF protection, and session revocation are not shipped; browser origins therefore remain rejected by Runtime API.
 - CodeQL is configured but intentionally skipped while this repository remains private on a plan without code-scanning support.
 - Branch protection, required checks, secret scanning, push protection, and private vulnerability reporting cannot be fully enabled until repository visibility or account capabilities change.

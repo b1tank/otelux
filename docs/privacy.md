@@ -72,7 +72,7 @@ Use a minimal synthetic reproduction. Follow [SUPPORT.md](../SUPPORT.md) for ord
 
 Use **Clear** in the workbench to delete telemetry while preserving settings and the MCP token. The operation runs as one SQLite transaction over trace spans/summaries, logs, metric instruments/points, resources, and instrumentation scopes, then requests incremental page reclamation. **Pause** does not pause collection or database writes; it freezes live UI refresh until resumed.
 
-Closing the desktop window leaves OTelux running in the system tray and receiving telemetry. Choose **Quit OTelux** from the tray before deleting database files; full quit stops OTLP and MCP, closes SQLite, and removes runtime ownership state.
+Closing the desktop window leaves the shell in the system tray. **Quit Desktop** exits Electron but intentionally leaves the on-demand runtime receiving telemetry. Until CLI lifecycle controls land, stop the runtime before deleting database files by sending SIGTERM to the owner PID recorded in owner-only `runtime.json`; wait for `runtime.json` and `runtime.lock` to disappear. This manual step is a pre-release limitation.
 
 For a complete source-launcher reset, fully quit OTelux from the tray and remove its canonical data directory:
 

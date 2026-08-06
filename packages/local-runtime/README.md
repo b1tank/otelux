@@ -2,7 +2,7 @@
 
 The single-process local OTelux backend. It owns the active SQLite database, retention, OTLP/HTTP receiver, authenticated MCP listener, settings, sample data, and runtime events.
 
-Desktop currently embeds this package in its main process. The CLI and agent MCP launcher will use the same API when the runtime moves into a separately managed daemon. Clients query it through the shared `DataSource` contract and must never open the active database directly.
+Desktop packages this runtime as an on-demand daemon and Electron main connects through the shared Runtime HTTP/SSE client. The future CLI and agent MCP launcher will use the same owner. Clients query it through the shared `DataSource` contract and must never open the active database directly.
 
 Node hosts can use `connectRuntimeClient()` to discover and authenticate the owner published in `runtime.json`, or `ensureRuntimeClient()` to invoke one host-supplied start action and wait through bounded publication races. Discovery validates the canonical owner-only `runtime-token`, Runtime RPC negotiation, live instance identity, and an optional expected host-release version before returning the shared HTTP/SSE client; it never opens SQLite, trusts a token path redirected by state, or replaces an incompatible owner. Packaged launchers inject their release through `OTELUX_RUNTIME_VERSION`.
 

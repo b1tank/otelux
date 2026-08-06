@@ -84,6 +84,7 @@ const apiPort = await availablePort();
 const baseUrl = `http://127.0.0.1:${otlpPort}`;
 const mcpUrl = `http://127.0.0.1:${mcpPort}/`;
 let runtimeApiUrl;
+let runtimePid;
 const userDataDir = mkdtempSync(join(tmpdir(), 'otelux-smoke-'));
 writeFileSync(
 	join(userDataDir, 'settings.json'),
@@ -116,6 +117,14 @@ async function waitForHealth(timeoutMs) {
 		await new Promise((r) => setTimeout(r, 500));
 	}
 	return false;
+}
+
+async function waitForHealthStop(timeoutMs) {
+	const deadline = Date.now() + timeoutMs;
+	while (Date.now() < deadline) {
+		if (!(await endpointResponds(`${baseUrl}/healthz`))) return;
+		await new Promise((resolve) => setTimeout(resolve, 100));
+	}
 }
 
 async function endpointResponds(url) {
@@ -373,6 +382,7 @@ try {
 			fail('runtime state or ownership lock was not published');
 		} else {
 			const state = JSON.parse(readFileSync(statePath, 'utf8'));
+			runtimePid = state.pid;
 			if (state.receiver?.kind !== 'running' || state.receiver.port !== otlpPort) {
 				fail(`runtime.json did not report the live OTLP port ${otlpPort}`);
 			}
@@ -457,20 +467,33 @@ try {
 	fail(err instanceof Error ? err.message : String(err));
 } finally {
 	await shutdown();
-	if (await endpointResponds(`${baseUrl}/healthz`)) {
-		fail('OTLP receiver remained reachable after full shutdown');
+	if (!(await endpointResponds(`${baseUrl}/healthz`))) {
+		fail('daemon stopped when Desktop quit');
 	} else {
-		console.log('OK: full quit stopped the OTLP receiver');
+		console.log('OK: Desktop quit left the daemon receiving');
+	}
+	if (typeof runtimePid === 'number') {
+		try {
+			process.kill(runtimePid, 'SIGTERM');
+		} catch {
+			// A failed startup may leave no daemon to stop.
+		}
+		await waitForHealthStop(10_000);
+	}
+	if (await endpointResponds(`${baseUrl}/healthz`)) {
+		fail('OTLP receiver remained reachable after explicit daemon stop');
+	} else {
+		console.log('OK: explicit daemon stop closed the OTLP receiver');
 	}
 	if (await endpointResponds(mcpUrl)) {
 		fail('MCP server remained reachable after full shutdown');
 	} else {
-		console.log('OK: full quit stopped the MCP server');
+		console.log('OK: explicit daemon stop closed the MCP server');
 	}
 	if (runtimeApiUrl && (await endpointResponds(`${runtimeApiUrl}/healthz`))) {
 		fail('Runtime API remained reachable after full shutdown');
 	} else if (runtimeApiUrl) {
-		console.log('OK: full quit stopped the Runtime API');
+		console.log('OK: explicit daemon stop closed the Runtime API');
 	}
 	if (
 		existsSync(join(userDataDir, 'runtime.json')) ||

@@ -10,7 +10,7 @@ The design takes the useful idea from Absurd's `absurdctl install-skill`—a sma
 
 Persistence is already production behavior, not a future item:
 
-- Desktop embeds `@otelux/local-runtime`.
+- Desktop starts or reconnects to the packaged on-demand `@otelux/local-runtime` daemon through Runtime HTTP/SSE.
 - `@otelux/engine-node` stores traces, logs, metrics, interned resources/scopes, rollups, and facets in Node's SQLite implementation.
 - The canonical Linux database is `${XDG_DATA_HOME:-$HOME/.local/share}/otelux/otelux.db` unless the user configures another absolute path.
 - SQLite uses WAL, forward-only migrations through schema v4, corruption/newer-version quarantine, bounded retention, and a dedicated bounded worker. The in-memory backend remains for tests and small embedded uses only.
@@ -222,7 +222,7 @@ A failed or skipped agent setup never blocks use of Desktop or sample data.
 - [x] Runtime validation/schema snapshots and compatibility fixtures.
 - [x] Authenticated Runtime RPC/SSE host, browser-safe HTTP adapter, direct/HTTP parity, and foreground `oteluxd` ownership/process lifecycle.
 - [x] Add compatibility-aware Node discovery/ensure over owner state, the canonical control token, Runtime RPC negotiation, and live instance identity.
-- Package/register the per-user daemon and convert Desktop from embedded owner to the shared HTTP/SSE client.
+- Add user-facing daemon stop/restart, reconnect/crash/upgrade qualification, and optional later OS-service registration; Desktop ownership transfer and on-demand package launch are delivered.
 - Existing SQLite database migration remains copy-only/resumable and never creates a second active store.
 
 ### M1 — CLI foundation

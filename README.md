@@ -81,7 +81,7 @@ The browser workbench is not a separate product. The plugin and CLI open the sha
 | Agent plugin | Install in Claude or Codex to get OTelux skills, MCP tools, telemetry setup workflows, and a dashboard command. | Desktop-companion `0.1.5` exists; self-contained runtime is planned. |
 | Direct MCP | Register OTelux as an MCP server without plugin skills or Electron. | Planned standalone packaging; current bridge connects to Desktop. |
 | CLI | Run OTelux headlessly, inspect health and endpoints, manage settings, and open the browser workbench. | Planned. |
-| Desktop app | Use the native traces, logs, and metrics workbench with receiver and retention settings. | Pre-release app embeds the shared runtime package; daemon-client conversion is planned. |
+| Desktop app | Use the native traces, logs, and metrics workbench with receiver and retention settings. | Pre-release app starts or reconnects to one on-demand packaged daemon; exiting Desktop leaves ingest running. |
 
 ```mermaid
 flowchart LR
@@ -195,7 +195,7 @@ npm run -w @otelux/desktop package
 
 ## Current Status
 
-Pre-release and temporarily private during pre-public hardening. Linux x64 and arm64 Desktop packages are published as `v0.1.11` for repository collaborators, including the authenticated Runtime JSON-RPC/SSE host, browser-safe HTTP adapter, bounded log/metric list-detail contracts, direct/HTTP parity suite, and foreground `oteluxd` foundation. `@otelux/local-runtime` owns storage, engine, OTLP, MCP, Runtime API, settings, lifecycle, canonical data-home migration, and nonce-protected runtime state. Desktop still embeds it in Electron and the `0.1.5` plugin remains a Desktop companion. Daemon service packaging/Desktop client conversion, CLI, direct MCP package, and runtime-served workbench remain planned. Start with [docs/getting-started.md](docs/getting-started.md). See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities, [docs/arch.md](docs/arch.md#current-implementation) for the architecture transition, [docs/plan.md](docs/plan.md) for future work, and [docs/release-sprint.md](docs/release-sprint.md) for temporary `v0.1.0` launch execution.
+Pre-release and temporarily private during pre-public hardening. Linux x64 and arm64 Desktop packages are published as `v0.1.11` for repository collaborators, including the authenticated Runtime JSON-RPC/SSE host, browser-safe HTTP adapter, bounded log/metric list-detail contracts, direct/HTTP parity suite, and foreground `oteluxd` foundation. `@otelux/local-runtime` owns storage, engine, OTLP, MCP, Runtime API, settings, lifecycle, canonical data-home migration, and nonce-protected runtime state. Desktop now starts or reconnects to it as an HTTP/SSE client, while the `0.1.5` plugin remains a Desktop launcher companion. Explicit daemon lifecycle controls, CLI, direct MCP package, and runtime-served workbench remain planned. Start with [docs/getting-started.md](docs/getting-started.md). See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities, [docs/arch.md](docs/arch.md#current-implementation) for the architecture transition, [docs/plan.md](docs/plan.md) for future work, and [docs/release-sprint.md](docs/release-sprint.md) for temporary `v0.1.0` launch execution.
 
 ## License
 

@@ -14,6 +14,9 @@ const appVersion = (
 export default defineConfig({
 	main: {
 		plugins: [externalizeDepsPlugin()],
+		define: {
+			__OTELUX_APP_VERSION__: JSON.stringify(appVersion),
+		},
 		build: {
 			// Emit sourcemaps so VS Code's Node debugger can map breakpoints in
 			// `out/main/index.js` back to `src/main/index.ts`.

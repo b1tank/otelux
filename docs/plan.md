@@ -174,8 +174,9 @@ Before Electron relinquishes ownership:
 
 - package one version-matched daemon entry that works from supported Linux `.deb` and AppImage layouts; Electron Node mode now passes from unpacked, extracted `.deb`, and extracted AppImage layouts with `node:sqlite`, release-version publication, authenticated RPC, and clean shutdown;
 - define start/stop/restart and stale-version behavior without automatically killing an unknown or incompatible owner; daemon hosts can now inject their release version and discovery fails closed on a mismatched expected version, but replacement/rollback is not implemented;
-- make Desktop use the shared HTTP/SSE client and prove it never opens the active SQLite database; Runtime RPC now includes storage path/usage controls required by the existing Settings UI, with shared result decoders and direct/HTTP parity;
-- prove the daemon survives Desktop window/tray exit, a second Desktop reconnects to the same instance/data, and an explicit runtime stop cleans listeners/state;
+- [x] make Desktop use the shared HTTP/SSE client and prove it never opens the active SQLite database; Runtime RPC includes storage path/usage controls required by the existing Settings UI, with shared result decoders and direct/HTTP parity;
+- the packaged smoke proves the daemon survives Desktop exit and an explicit test-only SIGTERM cleans listeners/state; add second-Desktop reconnect plus user-facing stop/restart control;
+- refetch settings/listener status when SSE reports external control changes; Desktop currently broadcasts its own successful updates but another client can leave an open Settings view stale until reopen;
 - qualify install, upgrade/rollback, concurrent startup, port conflict, crash recovery, and uninstall-with-data-preserved behavior.
 
 Decision (2026-08-06): use an on-demand packaged daemon started by the shared launcher rather than installer-created systemd state, so `.deb` and AppImage follow one lifecycle. Desktop main uses the already hardened owner-token loopback HTTP/SSE transport and never passes the token into renderer/browser contexts. Native user services and owner-only OS IPC remain later hardening choices, not parallel runtime implementations.

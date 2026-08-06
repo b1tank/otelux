@@ -592,7 +592,7 @@ curl -s -D /tmp/otelux-origin-headers.txt -X POST \
 - Run the Node discovery/ensure suite → absent state returns no client; a host-supplied start action is invoked once and bounded; live state authenticates and verifies instance identity; malformed state, redirected/non-owner token files, wrong credentials, and replaced identity fail closed without starting a competitor.
 - Run `npm run -w @otelux/desktop smoke:daemon` after `package:dir` → Electron Node mode loads the daemon from `app.asar`, `node:sqlite` starts, the injected Desktop release version is published, authenticated Runtime RPC answers with the same instance, SIGTERM exits zero, and ownership state is removed.
 - After `package:linux`, run `npm run -w @otelux/desktop smoke:daemon-artifacts` → extract the architecture-matching `.deb` and AppImage without installing them and repeat the daemon smoke against each real artifact layout.
-- **Qualification limit**: unpacked, extracted `.deb`, and extracted AppImage daemon launch now pass, but Desktop is still the packaged runtime owner. The ownership-transfer gate must add reconnect to one surviving instance after Desktop exit, explicit runtime stop, concurrent-start/crash/port-conflict recovery, and upgrade/rollback coverage.
+- **Qualification limit**: Desktop now uses the packaged daemon and smoke proves it survives Electron exit before explicit test-only SIGTERM. A second Desktop reconnect, user-facing stop/restart control, concurrent-start/crash/port-conflict recovery, and upgrade/rollback coverage remain.
 
 ---
 

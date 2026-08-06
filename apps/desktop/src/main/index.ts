@@ -1,6 +1,12 @@
-import { join } from 'node:path';
+import { spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { createLocalRuntime, resolveOteluxDataDirectory } from '@otelux/local-runtime';
+import {
+	ensureRuntimeClient,
+	prepareDataDirectory,
+	resolveOteluxDataDirectory,
+} from '@otelux/local-runtime';
 import {
 	MAX_PORT,
 	MIN_PORT,
@@ -18,7 +24,10 @@ import {
 import { isAllowedExternalUrl, isAllowedNavigation } from './security.js';
 import { createDesktopWindowLifecycle, isPackagedQuitRequest } from './windowLifecycle.js';
 
+declare const __OTELUX_APP_VERSION__: string;
+
 const isDev = !app.isPackaged;
+const desktopVersion = __OTELUX_APP_VERSION__;
 
 // Renderers that have finished loading and haven't started navigating away.
 // `webContents.send` does NOT throw when the underlying render frame is
@@ -118,24 +127,21 @@ function resolveMaxBodyBytes(envName: string): number | undefined {
 	return parsed;
 }
 
-async function startBackend(): Promise<{
-	stop: () => Promise<void>;
-}> {
-	const otlpPortOverride = resolveStartupPortOverride();
-	const apiPortOverride = resolveApiPortOverride();
-	const otlpMaxBodyBytes = resolveMaxBodyBytes('OTELUX_OTLP_MAX_BODY_BYTES');
-	const mcpMaxBodyBytes = resolveMaxBodyBytes('OTELUX_MCP_MAX_BODY_BYTES');
-	const apiMaxBodyBytes = resolveMaxBodyBytes('OTELUX_API_MAX_BODY_BYTES');
-	const legacyDataDirectory = app.getPath('userData');
-	const runtime = await createLocalRuntime({
-		dataDirectory: resolveOteluxDataDirectory(),
-		legacyDataDirectories: [legacyDataDirectory],
-		...(otlpPortOverride !== undefined ? { otlpPortOverride } : {}),
-		...(otlpMaxBodyBytes !== undefined ? { otlpMaxBodyBytes } : {}),
-		...(mcpMaxBodyBytes !== undefined ? { mcpMaxBodyBytes } : {}),
-		...(apiPortOverride !== undefined ? { apiPortOverride } : {}),
-		...(apiMaxBodyBytes !== undefined ? { apiMaxBodyBytes } : {}),
+async function startBackend(): Promise<{ stop: () => Promise<void> }> {
+	const dataDirectory = resolveOteluxDataDirectory();
+	await prepareDataDirectory({
+		dataDirectory,
+		legacyDataDirectories: [app.getPath('userData')],
+		logger: console,
 	});
+	const discovered = await ensureRuntimeClient({
+		dataDirectory,
+		clientName: 'otelux-desktop',
+		clientVersion: desktopVersion,
+		expectedRuntimeVersion: desktopVersion,
+		start: () => startPackagedDaemon(dataDirectory),
+	});
+	const runtime = discovered.client;
 
 	const broadcast = (event: OteluxEvent): void => {
 		let validated: OteluxEvent;
@@ -156,11 +162,8 @@ async function startBackend(): Promise<{
 			wc.send(OTELUX_EVENT_CHANNEL, validated);
 		}
 	};
+	const events = runtime.subscribe(broadcast);
 
-	const events = runtime.onEvent(broadcast);
-
-	// Single-channel dispatch. The discriminated union forces the switch
-	// to stay exhaustive when the protocol grows.
 	ipcMain.handle(OTELUX_INVOKE_CHANNEL, async (_event, input: unknown) => {
 		const message: InvokeMessage = parseInvokeMessage(input);
 		let result: unknown;
@@ -193,16 +196,16 @@ async function startBackend(): Promise<{
 				result = await runtime.listResourceFacets(message.query);
 				break;
 			case 'getSettings':
-				result = runtime.getSettings();
+				result = await runtime.getSettings();
 				break;
 			case 'getReceiverStatus':
-				result = runtime.getReceiverStatus();
+				result = (await runtime.getStatus()).receiver;
 				break;
 			case 'getMcpStatus':
-				result = runtime.getMcpStatus();
+				result = (await runtime.getStatus()).mcp;
 				break;
 			case 'getStoragePath':
-				result = runtime.getStoragePath();
+				result = await runtime.getStoragePath();
 				break;
 			case 'getStorageUsage':
 				result = await runtime.getStorageUsage();
@@ -210,11 +213,35 @@ async function startBackend(): Promise<{
 			case 'loadSampleData':
 				result = await runtime.loadSampleData();
 				break;
-			case 'updateSettings':
-				result = await runtime.updateSettings(message.patch, message.expectedRevision);
+			case 'updateSettings': {
+				try {
+					result = await runtime.updateSettings(message.patch, message.expectedRevision);
+				} catch (error) {
+					const failure = error as { code?: number; data?: { settings?: unknown } };
+					if (failure.code !== -32004 || failure.data?.settings === undefined) throw error;
+					result = {
+						ok: false,
+						conflict: true,
+						error: 'Settings changed. Reload settings and try again.',
+						settings: failure.data.settings,
+					};
+				}
+				if (
+					typeof result === 'object' &&
+					result !== null &&
+					'ok' in result &&
+					(result as { ok: boolean }).ok
+				) {
+					const update = result as unknown as { settings: never; status: never; mcpStatus: never };
+					broadcast({ kind: 'settings-changed', settings: update.settings });
+					broadcast({ kind: 'receiver-status-changed', status: update.status });
+					broadcast({ kind: 'mcp-status-changed', status: update.mcpStatus });
+				}
 				break;
+			}
 			case 'clearData':
-				result = await runtime.clearData();
+				await runtime.clearData();
+				result = undefined;
 				break;
 		}
 		return parseInvokeResult(message.kind, result);
@@ -223,10 +250,57 @@ async function startBackend(): Promise<{
 	return {
 		stop: async () => {
 			events.dispose();
-			await runtime.close();
+			runtime.close();
 			ipcMain.removeHandler(OTELUX_INVOKE_CHANNEL);
 		},
 	};
+}
+
+function startPackagedDaemon(dataDirectory: string): void {
+	const require = createRequire(import.meta.url);
+	const runtimeEntry = require.resolve('@otelux/local-runtime');
+	const daemon = app.isPackaged
+		? join(
+				process.resourcesPath,
+				'app.asar',
+				'node_modules',
+				'@otelux',
+				'local-runtime',
+				'dist',
+				'daemon.js',
+			)
+		: join(dirname(runtimeEntry), 'daemon.js');
+	const child = spawn(process.execPath, [daemon], {
+		detached: true,
+		stdio: 'ignore',
+		env: {
+			...process.env,
+			ELECTRON_RUN_AS_NODE: '1',
+			OTELUX_DATA_DIR: dataDirectory,
+			OTELUX_RUNTIME_VERSION: desktopVersion,
+			...(resolveStartupPortOverride() !== undefined
+				? { OTELUX_OTLP_PORT: String(resolveStartupPortOverride()) }
+				: {}),
+			...(resolveApiPortOverride() !== undefined
+				? { OTELUX_API_PORT: String(resolveApiPortOverride()) }
+				: {}),
+			...daemonLimitEnvironment(),
+		},
+	});
+	child.unref();
+}
+
+function daemonLimitEnvironment(): Record<string, string> {
+	const result: Record<string, string> = {};
+	for (const name of [
+		'OTELUX_OTLP_MAX_BODY_BYTES',
+		'OTELUX_MCP_MAX_BODY_BYTES',
+		'OTELUX_API_MAX_BODY_BYTES',
+	]) {
+		const value = resolveMaxBodyBytes(name);
+		if (value !== undefined) result[name] = String(value);
+	}
+	return result;
 }
 
 function resolveIconPath(kind: 'app' | 'tray'): string {
@@ -350,7 +424,7 @@ let tray: Tray | undefined;
 
 function createTray(): void {
 	tray = new Tray(resolveIconPath('tray'));
-	tray.setToolTip('OTelux is running and receiving telemetry');
+	tray.setToolTip('OTelux Desktop — local runtime continues independently');
 	tray.setContextMenu(
 		Menu.buildFromTemplate([
 			{
@@ -359,7 +433,7 @@ function createTray(): void {
 			},
 			{ type: 'separator' },
 			{
-				label: 'Quit OTelux',
+				label: 'Quit Desktop',
 				click: () => windowLifecycle.requestQuit(),
 			},
 		]),
