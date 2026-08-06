@@ -119,8 +119,12 @@ jobs:
         run: |
           PACKAGE_VERSION="$(node -p "require('./apps/desktop/package.json').version")"
           LOCK_VERSION="$(node -p "require('./package-lock.json').packages['apps/desktop'].version")"
+          CLI_VERSION="$(node -p "require('./apps/cli/package.json').version")"
+          CLI_LOCK_VERSION="$(node -p "require('./package-lock.json').packages['apps/cli'].version")"
           test "$PACKAGE_VERSION" = "$EXPECTED_VERSION"
           test "$LOCK_VERSION" = "$EXPECTED_VERSION"
+          test "$CLI_VERSION" = "$EXPECTED_VERSION"
+          test "$CLI_LOCK_VERSION" = "$EXPECTED_VERSION"
 
       - name: Build icons
         run: bash scripts/build-icons.sh

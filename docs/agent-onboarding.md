@@ -228,12 +228,13 @@ A failed or skipped agent setup never blocks use of Desktop or sample data.
 
 - [x] Source-build lifecycle (`start`/`stop`/`restart`), status, endpoints, basic listener-only doctor, stable JSON, and distinct exit codes over the shared runtime client.
 - [x] Desktop artifacts bundle a private CLI/daemon launcher; read-only `status`, `endpoints`, and `doctor` pass in unpacked, extracted `.deb`, and extracted AppImage layouts.
-- [ ] Enforce Desktop/CLI release-version parity, then prove the packaged CLI owns start/restart/stop in every qualified Linux layout.
+- [x] Release resolution and packaging metadata require Desktop/CLI/lockfile version parity.
+- [ ] Prove the packaged CLI owns start/restart/stop in every qualified Linux layout.
 - [ ] Add schema-validated config get/preview/apply, complete-candidate validation, revision CAS, `--dry-run`, and explicit `--yes` mutation policy.
 - [ ] Expand doctor to the documented permission/version/storage/listener checks. A database quick-check waits for a bounded Runtime RPC method.
 - `open` waits for scoped browser-session bootstrap; `desktop`, public PATH installation, clean install/upgrade/uninstall, and standalone release packaging follow the control gate.
 
-**M1 acceptance gate:** no M2 implementation starts until release-version drift is prevented, config mutation passes conflict/dry-run/no-write tests, and packaged CLI-owned lifecycle passes on Linux artifacts. The owner-locked legacy migration regression and high-severity dev-tool `js-yaml` update are complete. GitHub-hosted CI/release publication is temporarily unavailable under the account's included-usage/$0 budget; local gates continue, with no paid-usage change assumed.
+**M1 acceptance gate:** no M2 implementation starts until config mutation passes conflict/dry-run/no-write tests and packaged CLI-owned lifecycle passes on Linux artifacts. Owner-locked legacy migration, release-version parity enforcement, and the high-severity dev-tool `js-yaml` update are complete. GitHub-hosted CI/release publication is temporarily unavailable under the account's included-usage/$0 budget; local gates continue, with no paid-usage change assumed.
 
 ### M2 — integration engine
 

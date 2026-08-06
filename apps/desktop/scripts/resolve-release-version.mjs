@@ -59,12 +59,18 @@ function run() {
 	const packageVersion = JSON.parse(
 		gitOutput(['show', `${target}:apps/desktop/package.json`]),
 	).version;
-	const lockVersion = JSON.parse(gitOutput(['show', `${target}:package-lock.json`])).packages[
-		'apps/desktop'
-	].version;
+	const cliVersion = JSON.parse(gitOutput(['show', `${target}:apps/cli/package.json`])).version;
+	const lockPackages = JSON.parse(gitOutput(['show', `${target}:package-lock.json`])).packages;
+	const lockVersion = lockPackages['apps/desktop'].version;
+	const cliLockVersion = lockPackages['apps/cli'].version;
 	if (lockVersion !== packageVersion) {
 		throw new Error(
 			`Desktop package version ${packageVersion} does not match lockfile version ${lockVersion}.`,
+		);
+	}
+	if (cliVersion !== packageVersion || cliLockVersion !== packageVersion) {
+		throw new Error(
+			`Desktop package version ${packageVersion} must match CLI package ${cliVersion} and CLI lockfile ${cliLockVersion}.`,
 		);
 	}
 	const branchPush =

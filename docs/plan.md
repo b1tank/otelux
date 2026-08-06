@@ -174,7 +174,7 @@ Verified foundation: packaged on-demand `oteluxd`, authenticated Runtime RPC/SSE
 
 Before starting M2 agent integration:
 
-- enforce one Desktop/CLI release version in release-resolution tests so the next version bump cannot package a CLI that rejects or starts the matching daemon under a stale version;
+- [x] enforce one Desktop/CLI release version in release-resolution tests so the next version bump cannot package a CLI that rejects or starts the matching daemon under a stale version;
 - add schema-defined `config get/set` over Runtime RPC with complete-candidate validation, revision CAS, `--dry-run`, and explicit `--yes` for non-interactive mutation;
 - expand `doctor` beyond listener errors to check discovered-state/token permissions, client/runtime version compatibility, storage path/usage, and actionable listener health without exposing tokens; database quick-check requires a separately bounded Runtime RPC method and is not implied by the first slice;
 - extend artifact smoke so the bundled CLI, rather than the test harness, owns start/restart/stop and exact-instance cleanup in unpacked, `.deb`, and AppImage layouts;
@@ -194,7 +194,6 @@ Tradeoff: owner-token loopback HTTP is weaker than owner-credentialed OS IPC aga
 
 Blocker classification before further feature investment:
 
-- **Resolve autonomously before continuing:** CLI and Desktop release versions are manually duplicated. Add release-time parity enforcement before another version bump can produce an incompatible packaged pair.
 - **Resolve autonomously before continuing:** the high-severity `js-yaml` advisory is confined to Electron packaging tooling (`npm audit --omit=dev` is clean), but the focused dev dependency update should land before feature work.
 - **Operational limitation, safe default no spend:** GitHub Actions storage is empty and future uploads are bounded, but hosted jobs remain unavailable under the account's included-usage/$0 budget and `v0.1.12` is not published. Continue local validation and do not rerun release/package workflows until usage resets or the user explicitly changes the budget.
 - **Documented later limitations:** OS service registration, login autostart, native OS IPC, browser sessions/scopes, automatic incompatible-version replacement/upgrade rollback, public CLI PATH installation, and signed Windows/macOS support.

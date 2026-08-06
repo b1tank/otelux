@@ -96,6 +96,7 @@ describe('resolveReleaseVersion', () => {
 		directories.push(directory);
 		const script = join(dirname(fileURLToPath(import.meta.url)), 'resolve-release-version.mjs');
 		mkdirSync(join(directory, 'apps', 'desktop'), { recursive: true });
+		mkdirSync(join(directory, 'apps', 'cli'), { recursive: true });
 		execFileSync('git', ['init'], { cwd: directory });
 		execFileSync('git', ['config', 'user.name', 'OTelux Test'], { cwd: directory });
 		execFileSync('git', ['config', 'user.email', 'test@otelux.invalid'], { cwd: directory });
@@ -132,15 +133,52 @@ describe('resolveReleaseVersion', () => {
 		assert.match(result.stdout, new RegExp(`target=${historicalSha}`));
 		assert.match(result.stdout, /version=0\.1\.1/);
 	});
+
+	it('rejects a release whose bundled CLI version drifts', () => {
+		const directory = mkdtempSync(join(tmpdir(), 'otelux-release-cli-version-'));
+		directories.push(directory);
+		const script = join(dirname(fileURLToPath(import.meta.url)), 'resolve-release-version.mjs');
+		mkdirSync(join(directory, 'apps', 'desktop'), { recursive: true });
+		mkdirSync(join(directory, 'apps', 'cli'), { recursive: true });
+		execFileSync('git', ['init'], { cwd: directory });
+		execFileSync('git', ['config', 'user.name', 'OTelux Test'], { cwd: directory });
+		execFileSync('git', ['config', 'user.email', 'test@otelux.invalid'], { cwd: directory });
+		writeVersionFiles(directory, '0.1.2', '0.1.1');
+		execFileSync('git', ['add', '.'], { cwd: directory });
+		execFileSync('git', ['commit', '-m', 'mismatched versions'], { cwd: directory });
+		const result = spawnSync(process.execPath, [script], {
+			cwd: directory,
+			encoding: 'utf8',
+			env: {
+				...process.env,
+				EVENT_NAME: 'workflow_dispatch',
+				HEAD_SHA: 'HEAD',
+				INPUT_TAG: 'v0.1.2',
+				REF_NAME: 'main',
+				REF_TYPE: 'branch',
+			},
+		});
+		assert.notEqual(result.status, 0);
+		assert.match(result.stderr, /must match CLI package 0\.1\.1/);
+	});
 });
 
-function writeVersionFiles(directory, version) {
+function writeVersionFiles(directory, version, cliVersion = version) {
 	writeFileSync(
 		join(directory, 'apps', 'desktop', 'package.json'),
 		JSON.stringify({ name: '@otelux/desktop', version }),
 	);
 	writeFileSync(
+		join(directory, 'apps', 'cli', 'package.json'),
+		JSON.stringify({ name: '@otelux/cli', version: cliVersion }),
+	);
+	writeFileSync(
 		join(directory, 'package-lock.json'),
-		JSON.stringify({ packages: { 'apps/desktop': { version } } }),
+		JSON.stringify({
+			packages: {
+				'apps/desktop': { version },
+				'apps/cli': { version: cliVersion },
+			},
+		}),
 	);
 }
