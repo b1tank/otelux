@@ -5,7 +5,12 @@ import { join } from 'node:path';
 import { DEFAULT_SETTINGS, type RuntimeEvent } from '@otelux/protocol';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { type LocalRuntime, RuntimeAlreadyRunningError, createLocalRuntime } from './runtime.js';
-import { RUNTIME_LOCK_FILE, RUNTIME_STATE_FILE, readRuntimeState } from './runtimeState.js';
+import {
+	RUNTIME_LOCK_FILE,
+	RUNTIME_STATE_FILE,
+	claimRuntimeOwnership,
+	readRuntimeState,
+} from './runtimeState.js';
 
 const silentLogger = {
 	info: (): void => {},
@@ -230,6 +235,30 @@ describe('createLocalRuntime', () => {
 		expect(usage.activePath).toBe(join(directory, 'otelux.db'));
 		expect(usage.retentionBytes).toBeGreaterThan(0);
 		expect(usage.totalBytes).toBe(usage.databaseFileBytes + usage.walBytes + usage.sharedMemoryBytes);
+	});
+
+	it('does not migrate legacy files when another process owns startup', async () => {
+		const target = join(directory, 'contended');
+		const legacy = join(directory, 'legacy-contended');
+		await fs.mkdir(legacy);
+		await fs.writeFile(join(legacy, 'otelux.db'), 'legacy-data');
+		const ownership = await claimRuntimeOwnership({ dataDirectory: target });
+		expect(ownership.role).toBe('owner');
+		if (ownership.role !== 'owner') return;
+		try {
+			await expect(
+				createLocalRuntime({
+					dataDirectory: target,
+					legacyDataDirectories: [legacy],
+					otlpPortOverride: 0,
+					logger: silentLogger,
+				}),
+			).rejects.toBeInstanceOf(RuntimeAlreadyRunningError);
+			await expect(fs.access(join(target, 'otelux.db'))).rejects.toThrow();
+			await expect(fs.access(join(target, '.legacy-migration.json'))).rejects.toThrow();
+		} finally {
+			await ownership.release();
+		}
 	});
 
 	it('copies a legacy runtime database into the canonical data directory', async () => {

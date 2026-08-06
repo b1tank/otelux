@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { isAbsolute } from 'node:path';
 import { RuntimeAlreadyRunningError, createLocalRuntime } from './runtime.js';
 
 export interface DaemonEnvironment {
@@ -9,6 +10,7 @@ export interface DaemonEnvironment {
 	readonly OTELUX_MCP_MAX_BODY_BYTES?: string;
 	readonly OTELUX_API_MAX_BODY_BYTES?: string;
 	readonly OTELUX_RUNTIME_VERSION?: string;
+	readonly OTELUX_LEGACY_DATA_DIR?: string;
 }
 
 export async function runDaemon(
@@ -22,6 +24,7 @@ export async function runDaemon(
 	try {
 		const runtime = await createLocalRuntime({
 			...(environment.OTELUX_DATA_DIR ? { dataDirectory: environment.OTELUX_DATA_DIR } : {}),
+			...optionalLegacyDataDirectory(environment.OTELUX_LEGACY_DATA_DIR),
 			...optionalRuntimeVersion(environment.OTELUX_RUNTIME_VERSION),
 			onShutdownRequest: requestShutdown,
 			...optionalPort(environment.OTELUX_OTLP_PORT, 'OTELUX_OTLP_PORT', 'otlpPortOverride'),
@@ -104,6 +107,16 @@ export async function runDaemon(
 		);
 		return 1;
 	}
+}
+
+function optionalLegacyDataDirectory(value: string | undefined): {
+	legacyDataDirectories?: string[];
+} {
+	if (value === undefined || value === '') return {};
+	if (value.length > 4096 || !isAbsolute(value)) {
+		throw new Error('OTELUX_LEGACY_DATA_DIR must be an absolute path');
+	}
+	return { legacyDataDirectories: [value] };
 }
 
 function optionalRuntimeVersion(value: string | undefined): { runtimeVersion?: string } {

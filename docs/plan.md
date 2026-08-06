@@ -146,7 +146,7 @@ Tasks:
 - [x] Add a thin Pi package adapter that registers the existing MCP bridge tools natively without forking their implementation.
 - [x] Extract backend composition into `@otelux/local-runtime`; Desktop now delegates SQLite, migrations, retention, OTLP, MCP, settings, and sample data to it.
 - [x] Build and process-test a foreground `oteluxd` owner with normal runtime state/RPC, duplicate-owner rejection, and complete signal shutdown.
-- Close the remaining M0 safety gap: Desktop currently performs legacy migration in its daemon-start callback before the daemon claims ownership; move the legacy-source handoff into the daemon so migration runs only after the exclusive owner claim. Installed upgrade/rollback and uninstall-with-data-preserved remain release qualification; OS service registration is deferred.
+- [x] Move Desktop's legacy-source handoff into the daemon so copy/resume runs only after the exclusive owner claim; a competing starter performs no migration writes. Installed upgrade/rollback and uninstall-with-data-preserved remain release qualification; OS service registration is deferred.
 - [x] Add canonical per-user data-home resolution, nonce-protected state/locking, protocol/runtime version metadata, and resumable copy-only legacy Desktop migration.
 - [x] Add bounded tagged-bigint wire codecs, path-aware Electron IPC/event and runtime-state validation, checked transition schemas, and backward/compatible-future fixtures in `@otelux/protocol`.
 - [x] Define and validate the initial Runtime JSON-RPC method registry, protocol-major negotiation, revisioned SSE envelopes, checked transport schemas, direct dispatcher tests, and authenticated loopback HTTP/SSE host.
@@ -174,7 +174,6 @@ Verified foundation: packaged on-demand `oteluxd`, authenticated Runtime RPC/SSE
 
 Before starting M2 agent integration:
 
-- move Desktop's legacy migration behind the daemon's exclusive owner claim and add a competing-start regression;
 - enforce one Desktop/CLI release version in release-resolution tests so the next version bump cannot package a CLI that rejects or starts the matching daemon under a stale version;
 - add schema-defined `config get/set` over Runtime RPC with complete-candidate validation, revision CAS, `--dry-run`, and explicit `--yes` for non-interactive mutation;
 - expand `doctor` beyond listener errors to check discovered-state/token permissions, client/runtime version compatibility, storage path/usage, and actionable listener health without exposing tokens; database quick-check requires a separately bounded Runtime RPC method and is not implied by the first slice;
@@ -195,7 +194,6 @@ Tradeoff: owner-token loopback HTTP is weaker than owner-credentialed OS IPC aga
 
 Blocker classification before further feature investment:
 
-- **Resolve autonomously before continuing:** Desktop's pre-spawn legacy migration is outside the daemon owner lock; this leaves a narrow concurrent-start race despite the daemon's own correctly ordered claim-then-migrate path. Pass the legacy source to the daemon and regress the race.
 - **Resolve autonomously before continuing:** CLI and Desktop release versions are manually duplicated. Add release-time parity enforcement before another version bump can produce an incompatible packaged pair.
 - **Resolve autonomously before continuing:** the high-severity `js-yaml` advisory is confined to Electron packaging tooling (`npm audit --omit=dev` is clean), but the focused dev dependency update should land before feature work.
 - **Operational limitation, safe default no spend:** GitHub Actions storage is empty and future uploads are bounded, but hosted jobs remain unavailable under the account's included-usage/$0 budget and `v0.1.12` is not published. Continue local validation and do not rerun release/package workflows until usage resets or the user explicitly changes the budget.

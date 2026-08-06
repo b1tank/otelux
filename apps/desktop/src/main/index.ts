@@ -4,7 +4,6 @@ import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
 	ensureRuntimeClient,
-	prepareDataDirectory,
 	readRuntimeState,
 	resolveOteluxDataDirectory,
 } from '@otelux/local-runtime';
@@ -142,14 +141,7 @@ async function startBackend(): Promise<{ stop: () => Promise<void> }> {
 		expectedRuntimeVersion: desktopVersion,
 		onConnectionError: (error) => connectionHandlers.onError?.(error),
 		onConnectionRestored: () => connectionHandlers.onRestored?.(),
-		start: async () => {
-			await prepareDataDirectory({
-				dataDirectory,
-				legacyDataDirectories: [app.getPath('userData')],
-				logger: console,
-			});
-			startPackagedDaemon(dataDirectory);
-		},
+		start: () => startPackagedDaemon(dataDirectory, app.getPath('userData')),
 	});
 	const runtime = discovered.client;
 	shutdownRuntime = async () => {
@@ -332,7 +324,7 @@ async function waitForRuntimeStop(dataDirectory: string, instanceId: string): Pr
 	throw new Error('Timed out waiting for the runtime to stop');
 }
 
-function startPackagedDaemon(dataDirectory: string): void {
+function startPackagedDaemon(dataDirectory: string, legacyDataDirectory: string): void {
 	const require = createRequire(import.meta.url);
 	const runtimeEntry = require.resolve('@otelux/local-runtime');
 	const daemon = app.isPackaged
@@ -353,6 +345,7 @@ function startPackagedDaemon(dataDirectory: string): void {
 			...process.env,
 			ELECTRON_RUN_AS_NODE: '1',
 			OTELUX_DATA_DIR: dataDirectory,
+			OTELUX_LEGACY_DATA_DIR: legacyDataDirectory,
 			OTELUX_RUNTIME_VERSION: desktopVersion,
 			...(resolveStartupPortOverride() !== undefined
 				? { OTELUX_OTLP_PORT: String(resolveStartupPortOverride()) }

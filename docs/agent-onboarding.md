@@ -221,7 +221,7 @@ A failed or skipped agent setup never blocks use of Desktop or sample data.
 - [x] Runtime validation/schema snapshots and compatibility fixtures.
 - [x] Authenticated Runtime RPC/SSE host, browser-safe HTTP adapter, direct/HTTP parity, and foreground `oteluxd` ownership/process lifecycle.
 - [x] Compatibility-aware Node discovery/ensure, Desktop daemon-client conversion, explicit stop/restart, reconnect, stale-crash recovery, and port-conflict qualification.
-- [ ] Move Desktop's legacy-source migration handoff behind the daemon's exclusive owner claim; the daemon path itself already claims before migrating, but Desktop currently pre-migrates in its start callback.
+- [x] Desktop passes its legacy source to the daemon, which claims exclusive ownership before migration; a competing starter performs no migration writes.
 - Installed upgrade/rollback and uninstall-with-data-preserved are release qualification; optional OS-service registration remains later.
 
 ### M1 — CLI foundation (current)
@@ -233,7 +233,7 @@ A failed or skipped agent setup never blocks use of Desktop or sample data.
 - [ ] Expand doctor to the documented permission/version/storage/listener checks. A database quick-check waits for a bounded Runtime RPC method.
 - `open` waits for scoped browser-session bootstrap; `desktop`, public PATH installation, clean install/upgrade/uninstall, and standalone release packaging follow the control gate.
 
-**M1 acceptance gate:** no M2 implementation starts until the migration race and release-version drift are fixed, the high-severity dev-tool `js-yaml` advisory is updated, config mutation passes conflict/dry-run/no-write tests, and packaged CLI-owned lifecycle passes on Linux artifacts. GitHub-hosted CI/release publication is temporarily unavailable under the account's included-usage/$0 budget; local gates continue, with no paid-usage change assumed.
+**M1 acceptance gate:** no M2 implementation starts until release-version drift is prevented, config mutation passes conflict/dry-run/no-write tests, and packaged CLI-owned lifecycle passes on Linux artifacts. The owner-locked legacy migration regression and high-severity dev-tool `js-yaml` update are complete. GitHub-hosted CI/release publication is temporarily unavailable under the account's included-usage/$0 budget; local gates continue, with no paid-usage change assumed.
 
 ### M2 — integration engine
 
