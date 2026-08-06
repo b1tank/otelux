@@ -14,6 +14,7 @@ import {
 	type LoadSampleDataResult,
 	type PartialSettings,
 	RUNTIME_RPC_PROTOCOL_VERSION,
+	type RuntimeEventSignal,
 	type RuntimeInitializeResult,
 	type RuntimeRpcMethod,
 	type RuntimeRpcResponse,
@@ -51,6 +52,7 @@ export interface RuntimeHttpClient extends DataSource {
 	updateSettings(patch: PartialSettings, expectedRevision: number): Promise<UpdateSettingsResult>;
 	loadSampleData(): Promise<LoadSampleDataResult>;
 	clearData(): Promise<void>;
+	subscribeSignals(handler: (signals: readonly RuntimeEventSignal[]) => void): Disposable;
 	close(): void;
 }
 
@@ -87,6 +89,7 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 	const rpcTimeoutMs = options.rpcTimeoutMs ?? 10_000;
 	const maxResponseBytes = options.maxResponseBytes ?? 2 * 1024 * 1024;
 	const handlers = new Set<(event: ChangeEvent) => void>();
+	const signalHandlers = new Set<(signals: readonly RuntimeEventSignal[]) => void>();
 	let requestId = 0;
 	let initialized: Promise<RuntimeInitializeResult> | undefined;
 	let eventController: AbortController | undefined;
@@ -167,7 +170,7 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 	const runEvents = async (controller: AbortController): Promise<void> => {
 		let delay = options.reconnectDelayMs ?? 250;
 		const maximumDelay = options.maximumReconnectDelayMs ?? 5_000;
-		while (!closed && handlers.size > 0 && eventController === controller) {
+		while (!closed && hasEventSubscribers() && eventController === controller) {
 			try {
 				const response = await fetchImpl(`${baseUrl}/api/v1/events`, {
 					redirect: 'error',
@@ -193,6 +196,13 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 						throw new Error('Runtime SSE metadata does not match its envelope');
 					}
 					lastEventId = envelope.revision;
+					for (const handler of signalHandlers) {
+						try {
+							handler(envelope.signals);
+						} catch {
+							// One subscriber cannot tear down the shared event stream.
+						}
+					}
 					for (const change of changeEvents(
 						envelope.kind,
 						envelope.signals,
@@ -209,7 +219,7 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 				});
 				if (!controller.signal.aborted) await sleep(delay, controller.signal);
 			} catch (error) {
-				if (controller.signal.aborted || closed || handlers.size === 0) return;
+				if (controller.signal.aborted || closed || !hasEventSubscribers()) return;
 				options.onConnectionError?.(
 					error instanceof Error ? error : new Error('Runtime SSE connection failed'),
 				);
@@ -219,8 +229,10 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 		}
 	};
 
+	const hasEventSubscribers = (): boolean => handlers.size > 0 || signalHandlers.size > 0;
+
 	const startEvents = (): void => {
-		if (eventController || closed || handlers.size === 0) return;
+		if (eventController || closed || !hasEventSubscribers()) return;
 		eventController = new AbortController();
 		const controller = eventController;
 		void initialize()
@@ -265,7 +277,21 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 			return {
 				dispose(): void {
 					handlers.delete(handler);
-					if (handlers.size === 0) {
+					if (!hasEventSubscribers()) {
+						eventController?.abort();
+						eventController = undefined;
+					}
+				},
+			};
+		},
+		subscribeSignals(handler): Disposable {
+			if (closed) throw new Error('Runtime HTTP client is closed');
+			signalHandlers.add(handler);
+			startEvents();
+			return {
+				dispose(): void {
+					signalHandlers.delete(handler);
+					if (!hasEventSubscribers()) {
 						eventController?.abort();
 						eventController = undefined;
 					}
@@ -275,6 +301,7 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 		close(): void {
 			closed = true;
 			handlers.clear();
+			signalHandlers.clear();
 			eventController?.abort();
 			eventController = undefined;
 		},

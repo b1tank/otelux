@@ -150,6 +150,15 @@ describe('direct and HTTP DataSource parity', () => {
 		const http = await authenticatedClient();
 		const current = await http.getSettings();
 		expect(current.revision).toBe(0);
+		const controlSignal = new Promise<readonly string[]>((resolve) => {
+			const subscription = http.subscribeSignals((signals) => {
+				if (signals.includes('settings')) {
+					subscription.dispose();
+					resolve(signals);
+				}
+			});
+		});
+		await new Promise((resolve) => setTimeout(resolve, 25));
 		const receiver = runtime.getReceiverStatus();
 		if (receiver.kind !== 'running') throw new Error('receiver missing');
 		const updated = await http.updateSettings(
@@ -160,6 +169,7 @@ describe('direct and HTTP DataSource parity', () => {
 			current.revision,
 		);
 		expect(updated).toMatchObject({ ok: true, settings: { revision: 1 } });
+		expect(await controlSignal).toContain('settings');
 		await expect(
 			http.updateSettings({ retention: { maxAgeHours: 12 } }, current.revision),
 		).rejects.toMatchObject({

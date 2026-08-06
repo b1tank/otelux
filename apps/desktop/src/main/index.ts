@@ -165,6 +165,31 @@ async function startBackend(): Promise<{ stop: () => Promise<void> }> {
 		}
 	};
 	const events = runtime.subscribe(broadcast);
+	let controlRefresh: Promise<void> | undefined;
+	let controlRefreshTrailing = false;
+	const refreshControls = (): void => {
+		if (controlRefresh) {
+			controlRefreshTrailing = true;
+			return;
+		}
+		controlRefresh = Promise.all([runtime.getSettings(), runtime.getStatus()])
+			.then(([settings, status]) => {
+				broadcast({ kind: 'settings-changed', settings });
+				broadcast({ kind: 'receiver-status-changed', status: status.receiver });
+				broadcast({ kind: 'mcp-status-changed', status: status.mcp });
+			})
+			.catch((error) => console.error('[otelux] failed to refresh runtime controls', error))
+			.finally(() => {
+				controlRefresh = undefined;
+				if (controlRefreshTrailing) {
+					controlRefreshTrailing = false;
+					refreshControls();
+				}
+			});
+	};
+	const controlSignals = runtime.subscribeSignals((signals) => {
+		if (signals.includes('settings') || signals.includes('status')) refreshControls();
+	});
 
 	ipcMain.handle(OTELUX_INVOKE_CHANNEL, async (_event, input: unknown) => {
 		const message: InvokeMessage = parseInvokeMessage(input);
@@ -252,6 +277,8 @@ async function startBackend(): Promise<{ stop: () => Promise<void> }> {
 	return {
 		stop: async () => {
 			events.dispose();
+			controlSignals.dispose();
+			await controlRefresh;
 			runtime.close();
 			ipcMain.removeHandler(OTELUX_INVOKE_CHANNEL);
 		},
