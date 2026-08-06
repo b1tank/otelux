@@ -1,6 +1,6 @@
 # @otelux/desktop
 
-The OTelux desktop app. Its Electron main process embeds `@otelux/local-runtime`, while the renderer hosts `@otelux/ui`. Desktop owns only Electron IPC, windows, and native shell integration; backend composition lives in the runtime package.
+The OTelux desktop app. Its Electron main process discovers or starts the packaged on-demand `@otelux/local-runtime` daemon and proxies the renderer's validated IPC over Runtime HTTP/SSE; the renderer hosts `@otelux/ui`. Desktop owns Electron IPC, windows, and native shell integration, while the daemon owns backend composition and SQLite.
 
 ## Develop
 
@@ -32,7 +32,7 @@ Produces `out/main/*.js`, `out/preload/*.js`, and `out/renderer/*` ready to be p
 
 ## Package for Linux
 
-Linux packaging is under release hardening and is not an official installation path yet. The command currently exercises the `.deb` target. AppImage is disabled until its launcher can preserve Chromium's sandbox or fail closed. Generated files under `release/` are unsupported until the [release sprint](../../docs/release-sprint.md#milestone-3---official-linux-beta) passes.
+Linux `.deb` and rootless AppImage packaging is live for x64/arm64 prereleases. The latest published release is `v0.1.11`; `main` contains an unpublished `0.1.12` candidate. Local package, install, daemon, CLI, and artifact smokes are release evidence only for the exact artifact tested; generated files under `release/` are not official downloads.
 
 ```sh
 npm run -w apps/desktop package

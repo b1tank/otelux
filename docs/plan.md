@@ -136,6 +136,8 @@ Goal: make every local OTelux form reuse one per-user runtime, receiver, active 
 
 The command contract, packaging names, adapter safety model, Settings → Agents UX, onboarding flow, milestones, and acceptance matrix are defined in [agent-onboarding.md](agent-onboarding.md).
 
+Status: **M0 runtime ownership is implemented and M1 CLI control is in progress.** Focused runtime/Desktop/CLI typechecks and tests pass, and unpacked, extracted `.deb`, and extracted AppImage daemon/CLI artifact smokes pass. M2 agent-integration work has not started.
+
 Tasks:
 
 - [x] Ship one dual Claude/Codex plugin package with shared skills and a secure bridge to the desktop MCP listener.
@@ -144,7 +146,7 @@ Tasks:
 - [x] Add a thin Pi package adapter that registers the existing MCP bridge tools natively without forking their implementation.
 - [x] Extract backend composition into `@otelux/local-runtime`; Desktop now delegates SQLite, migrations, retention, OTLP, MCP, settings, and sample data to it.
 - [x] Build and process-test a foreground `oteluxd` owner with normal runtime state/RPC, duplicate-owner rejection, and complete signal shutdown.
-- Finish the packaged on-demand `oteluxd` lifecycle: Desktop ownership transfer and Linux artifact launch are delivered; explicit authenticated stop/restart, crash recovery, external-control refresh, reconnect qualification, and upgrade rollback remain. OS service registration is deferred.
+- Close the remaining M0 safety gap: Desktop currently performs legacy migration in its daemon-start callback before the daemon claims ownership; move the legacy-source handoff into the daemon so migration runs only after the exclusive owner claim. Installed upgrade/rollback and uninstall-with-data-preserved remain release qualification; OS service registration is deferred.
 - [x] Add canonical per-user data-home resolution, nonce-protected state/locking, protocol/runtime version metadata, and resumable copy-only legacy Desktop migration.
 - [x] Add bounded tagged-bigint wire codecs, path-aware Electron IPC/event and runtime-state validation, checked transition schemas, and backward/compatible-future fixtures in `@otelux/protocol`.
 - [x] Define and validate the initial Runtime JSON-RPC method registry, protocol-major negotiation, revisioned SSE envelopes, checked transport schemas, direct dispatcher tests, and authenticated loopback HTTP/SSE host.
@@ -153,7 +155,7 @@ Tasks:
 - [x] Split metric metadata from selected bounded point history across direct, Runtime HTTP, and Electron IPC adapters, then convert the workbench UI to the split methods.
 - Add scoped browser session bootstrap and serve the existing `@otelux/ui` as a same-origin loopback workbench. Desktop daemon-client conversion is delivered.
 - Add dedicated runtime/API and MCP tokens/scopes plus one-time browser session bootstrap; tokens must never appear in dashboard URLs or `runtime.json`.
-- Complete the OTelux CLI: source-build `start`, `stop`, `restart`, `status`, `endpoints`, `doctor`, stable JSON, and exit codes are delivered over the shared runtime client; settings mutation plus dashboard/Desktop launch and release packaging remain.
+- Complete M1 CLI control: source-build `start`, `stop`, `restart`, `status`, `endpoints`, basic listener-only `doctor`, stable JSON, and exit codes are delivered over the shared runtime client. Add schema-defined config preview/apply with settings CAS, broaden `doctor` to its documented checks, and prove packaged CLI-owned start/restart/stop. Dashboard `open` waits for the separate browser-session gate; native Desktop launch and public PATH installation are later distribution work.
 - [x] Bundle a version-matched private `oteluxctl` CLI/daemon launcher with Desktop while keeping it independently packageable later; unpacked, `.deb`, and AppImage artifact smokes pass, and the Desktop product/executable remains `otelux` by explicit decision.
 - Add `@otelux/agent-integrations` as the shared typed detector/planner/applier/verifier used by CLI and Desktop; configuration writes must be previewed, atomic, idempotent, reversible, permission-safe, and secret-redacted.
 - Add Settings → Agents with capability/status cards, inspected paths, exact proposed operations, Install/Verify/Repair/Remove, restart continuation, and accessible vendor-neutral fallback icons.
@@ -166,20 +168,18 @@ Tasks:
 - Publish prebuilt CLI, direct-MCP, and self-contained Claude/Codex plugin artifacts that require no install-time compilation or separate Desktop installation.
 - Complete marketplace metadata, support/privacy material, clean-install evidence, and Claude/Codex publishing workflows.
 
-### Next acceptance gate — daemon ownership transfer
+### Next acceptance gate — M1 CLI control
 
-Verified foundation: packaged on-demand `oteluxd`, authenticated Runtime RPC/SSE, method/result validation, parity fixtures, settings CAS, SQL budgets, compatibility-aware discovery/ensure, Linux artifact launch, and Desktop HTTP/SSE ownership transfer pass focused, packaged, and full-suite tests. The connector can start and reconnect to an owner; it does not stop, restart, replace, or roll back a daemon.
+Verified foundation: packaged on-demand `oteluxd`, authenticated Runtime RPC/SSE, method/result validation, parity fixtures, settings CAS, SQL budgets, compatibility-aware discovery/ensure, Linux artifact launch, Desktop HTTP/SSE ownership transfer, explicit lifecycle controls, crash/port-conflict recovery, and source CLI lifecycle tests pass. The private `oteluxctl` launcher is present in unpacked, `.deb`, and AppImage artifacts and read-only commands pass against their daemon.
 
-Before declaring the ownership-transfer milestone complete:
+Before starting M2 agent integration:
 
-- package one version-matched daemon entry that works from supported Linux `.deb` and AppImage layouts; Electron Node mode now passes from unpacked, extracted `.deb`, and extracted AppImage layouts with `node:sqlite`, release-version publication, authenticated RPC, and clean shutdown;
-- define start/stop/restart and stale-version behavior without automatically killing an unknown or incompatible owner; daemon hosts can now inject their release version and discovery fails closed on a mismatched expected version, but replacement/rollback is not implemented;
-- [x] make Desktop use the shared HTTP/SSE client and prove it never opens the active SQLite database; Runtime RPC includes storage path/usage controls required by the existing Settings UI, with shared result decoders and direct/HTTP parity;
-- the packaged smoke proves the daemon survives Desktop exit; authenticated `runtime/shutdown`, tray **Restart Runtime**, and confirmed **Stop Runtime and Quit** actions provide explicit lifecycle control; packaged smoke also proves second-Desktop reconnect;
-- refetch settings/listener status when SSE reports external control changes; Desktop currently broadcasts its own successful updates but another client can leave an open Settings view stale until reopen;
-- stale crash ownership is reclaimed when the recorded PID is dead, concurrent owners fail closed, and receiver port conflicts publish a nonfatal error while Runtime control remains available; extend these focused checks through installed-package upgrade/rollback and uninstall-with-data-preserved qualification;
-- move legacy migration behind the absent-owner decision so Desktop never resumes/copies migration files while a daemon is already active;
-- show deterministic startup/incompatibility failures instead of leaving Electron with an unhandled startup rejection.
+- move Desktop's legacy migration behind the daemon's exclusive owner claim and add a competing-start regression;
+- enforce one Desktop/CLI release version in release-resolution tests so the next version bump cannot package a CLI that rejects or starts the matching daemon under a stale version;
+- add schema-defined `config get/set` over Runtime RPC with complete-candidate validation, revision CAS, `--dry-run`, and explicit `--yes` for non-interactive mutation;
+- expand `doctor` beyond listener errors to check discovered-state/token permissions, client/runtime version compatibility, storage path/usage, and actionable listener health without exposing tokens; database quick-check requires a separately bounded Runtime RPC method and is not implied by the first slice;
+- extend artifact smoke so the bundled CLI, rather than the test harness, owns start/restart/stop and exact-instance cleanup in unpacked, `.deb`, and AppImage layouts;
+- keep `otelux` as the Desktop executable and `oteluxctl` as the CLI; defer public PATH installation until this command contract passes the gate.
 
 Decision (2026-08-06): use an on-demand packaged daemon started by the shared launcher rather than installer-created systemd state, so `.deb` and AppImage follow one lifecycle. Desktop main uses the already hardened owner-token loopback HTTP/SSE transport and never passes the token into renderer/browser contexts. Native user services and owner-only OS IPC remain later hardening choices, not parallel runtime implementations.
 
@@ -195,10 +195,13 @@ Tradeoff: owner-token loopback HTTP is weaker than owner-credentialed OS IPC aga
 
 Blocker classification before further feature investment:
 
-- **Resolved:** live-owner discovery precedes legacy migration; SSE `settings`/`status` invalidations trigger coalesced control refetch; startup/incompatibility failures show redacted recovery guidance; and confirmed authenticated **Stop Runtime and Quit** is distinct from ordinary **Quit Desktop**.
-- **Resolved:** packaged smoke exits Desktop, verifies daemon health, launches a second Desktop on the same data directory, and confirms the same runtime instance before explicit shutdown.
-- **Resolved:** Runtime HTTP reports SSE loss/restoration; Desktop marks receiver status unknown on loss and coalesces a full settings/listener refresh after reconnect.
-- **Documented later limitations:** OS service registration, login autostart, native OS IPC, browser sessions/scopes, and automatic incompatible-version replacement/upgrade rollback.
+- **Resolve autonomously before continuing:** Desktop's pre-spawn legacy migration is outside the daemon owner lock; this leaves a narrow concurrent-start race despite the daemon's own correctly ordered claim-then-migrate path. Pass the legacy source to the daemon and regress the race.
+- **Resolve autonomously before continuing:** CLI and Desktop release versions are manually duplicated. Add release-time parity enforcement before another version bump can produce an incompatible packaged pair.
+- **Resolve autonomously before continuing:** the high-severity `js-yaml` advisory is confined to Electron packaging tooling (`npm audit --omit=dev` is clean), but the focused dev dependency update should land before feature work.
+- **Operational limitation, safe default no spend:** GitHub Actions storage is empty and future uploads are bounded, but hosted jobs remain unavailable under the account's included-usage/$0 budget and `v0.1.12` is not published. Continue local validation and do not rerun release/package workflows until usage resets or the user explicitly changes the budget.
+- **Documented later limitations:** OS service registration, login autostart, native OS IPC, browser sessions/scopes, automatic incompatible-version replacement/upgrade rollback, public CLI PATH installation, and signed Windows/macOS support.
+
+No product-direction decision is required for the M1 control gate. The safe defaults are existing schema keys only, preview by default for mutation, explicit `--yes` for non-interactive apply, exact revision CAS, preservation of incompatible owners, and no browser/session work in this slice.
 
 Done when:
 

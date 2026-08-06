@@ -1,8 +1,8 @@
 # OTelux - Public Release Sprint
 
-Updated: 2026-07-14
+Updated: 2026-08-06
 
-Status: Active; repository temporarily private during pre-public product hardening
+Status: Active only for public-visibility and stable cross-platform release gates; repository temporarily private during product hardening. The numbered `v0.1.0` execution milestones below are retained as historical launch planning, not the current product sequence; [plan.md](plan.md) and [agent-onboarding.md](agent-onboarding.md) own current work.
 
 This document is the finite execution plan for returning OTelux to public visibility as an installable cross-platform product that is ready for a coordinated stable launch. The repository was made private again on 2026-08-05 so the sole maintainer can iterate directly on `main`; public release links and external security-reporting flows are unavailable until the public-readiness gate is rerun.
 
@@ -33,13 +33,13 @@ The sprint is complete when:
 - The Electron desktop app is the first released product. Shared-runtime plugin, direct-MCP, and CLI packaging follow separately and are not `v0.1.0` launch gates.
 - Reusable `@otelux/*` packages remain private during this sprint. Publishing npm packages is a separate decision.
 - Linux x64 `.deb` was the first beta target. v0.1.10 adds natively tested Linux x64/arm64 `.deb` and rootless AppImage artifacts. Windows x64 and macOS arm64/x64 remain unsigned preview builds until publisher credentials exist.
-- The first public binary is `v0.1.0-beta.1`. The cross-platform launch is `v0.1.0` unless beta evidence requires another prerelease.
+- Historical `v0.1.0-beta.1`/`v0.1.0` launch naming is superseded: Linux prereleases have advanced through published `v0.1.11`, while the supported shared-runtime/agent milestone targets `v0.2.0` only after its acceptance gates pass.
 - GitHub Releases is the canonical artifact source. A product website may provide friendly download links but must resolve to immutable versioned artifacts.
-- Every desktop version bump, including patch releases, must produce a matching `v<version>` tag and GitHub Release from the same commit. The version-bump release workflow is the enforcement path.
+- Every desktop version bump, including patch releases, must produce a matching `v<version>` tag and GitHub Release from the same commit. The `0.1.12` source candidate is currently an explicit unresolved exception: its hosted run never received a runner, so no tag/release exists. Do not advance the version again until publication is restored or the candidate is deliberately superseded through the same release gate.
 - Release channels follow the [distribution requirements](spec.md#distribution-requirements): `.deb` installation uses the package manager after verification; the AppImage preserves Electron's sandbox behavior on normal hosts and is also exercised through its FUSE-independent extraction path in CI.
 - Manual updates are acceptable for `v0.1.0`. Auto-update is reconsidered after the release process is stable.
 - Release notes must be generated from the matching source version and describe current capabilities; superseded limitations must never be copied forward.
-- OTLP/gRPC, npm publication, Marketplace publication, an apt repository, Flatpak, Snap, and crash reporting are not `v0.1.0` gates.
+- OTLP/gRPC, npm publication, Marketplace publication, an apt repository, Flatpak, Snap, and crash reporting are not current Linux prerelease gates.
 - `v0.1.0` makes no exception to the specification's no-unsolicited-egress principle and documents the explicit MCP/LM client boundary.
 
 ## Canonical Gates

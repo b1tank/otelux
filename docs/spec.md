@@ -45,7 +45,7 @@ The repository currently contains:
 - MCP tool plumbing over the same query layer.
 - A shared OTelux plugin under `plugins/otelux` installs into Claude Code, Codex, and Pi with four observability skills plus a secure stdio bridge to the desktop MCP listener. Pi's thin extension registers the same bridge tools natively; it does not fork the MCP implementation. This is the current companion implementation; see [arch.md](arch.md#current-implementation) for the target shared-runtime architecture.
 - A foreground `oteluxd` build now owns the same runtime without Electron, handles signals, rejects duplicate owners, and passes process-level RPC/cleanup tests. Node hosts share a bounded compatibility-aware discovery/ensure client that validates state, the canonical owner-only token, protocol negotiation, and live instance identity. Desktop packages contain and start the daemon on demand through Electron Node mode; it is not registered as an OS background service; Desktop provides restart and separately confirmed stop controls, while automatic upgrade/rollback remains planned.
-- The desktop app is the current release product. v0.1.12 publishes natively built, packaged, installed, smoke-tested, and checksummed Linux x64/arm64 `.deb` and rootless AppImage artifacts with per-architecture SBOMs and provenance. macOS and Windows remain unsigned preview builds. The agent plugin is currently a Desktop-launcher companion; direct MCP and CLI become independent forms after their lifecycle/packaging clients land on the shared daemon.
+- The desktop app is the current release product. The latest published prerelease is `v0.1.11`. `main` carries an unpublished `0.1.12` candidate that is locally built, installed, and smoke-tested for Linux x64; its GitHub release/tag/assets do not exist because hosted Actions is blocked under the account's included-usage/$0 budget. Source and extracted-artifact tests also qualify the shared daemon/private CLI shape, but that is not publication evidence. macOS and Windows remain unsigned preview targets. The agent plugin is currently a Desktop-launcher companion; the private CLI lifecycle client has landed, while direct MCP and independent CLI distribution remain planned.
 
 Important current limits:
 
@@ -98,18 +98,18 @@ The daemon transport and storage implementations must conform to [protocol.md](p
 | `@otelux/protocol` | `DataSource` interface and query/result contracts. | Live for traces/logs/metrics, grouped source/service facets, lightweight list/detail splits, and cursor paging; Runtime protocol 2 carries the split metric methods. |
 | `@otelux/engine` | Pure TypeScript ingest, query, layout, subscriptions, memory storage. | Live. |
 | `@otelux/engine-node` | Durable Node storage adapter (`node:sqlite`) with retention (age/size). | Live. |
-| `@otelux/local-runtime` | Backend composition and control API for storage, engine, OTLP, MCP, settings, and lifecycle. | Live; currently embedded by Desktop. |
+| `@otelux/local-runtime` | Backend composition and control API for storage, engine, OTLP, MCP, settings, and lifecycle. | Live in the packaged on-demand daemon; Desktop is an authenticated HTTP/SSE client. |
 | `@otelux/receiver` | OTLP/HTTP receiver and single-instance helper. | JSON and protobuf routes live for traces/logs/metrics with bounded concurrency and visible overload counters. |
 | `@otelux/ui` | React workbench and primitives. | Traces/logs/metrics live; polish ongoing around details, grouping controls, and footer controls. |
 | `@otelux/adapter-direct` | In-process `DataSource` wrapper. | Live. |
-| `@otelux/adapter-http` | Browser-safe authenticated Runtime JSON-RPC/SSE `DataSource` and control client. | Live with direct/HTTP SQLite-backed parity; Desktop conversion pending. |
+| `@otelux/adapter-http` | Browser-safe authenticated Runtime JSON-RPC/SSE `DataSource` and control client. | Live with direct/HTTP SQLite-backed parity and Desktop main-process use. |
 | `@otelux/mcp-server` | Read-only MCP JSON-RPC dispatcher. | Seven bounded read-only tools live, including service health and exact-ID agent-run correlation. |
 
 Apps are not published packages:
 
 | App | Purpose | Current state |
 |---|---|---|
-| `apps/desktop` | Main Electron workbench. | v0.1.12 Linux x64/arm64 `.deb` and AppImage prerelease; unsigned macOS/Windows previews. |
+| `apps/desktop` | Main Electron workbench. | `v0.1.11` is the latest published Linux x64/arm64 `.deb` and AppImage prerelease; `main` is an unpublished `0.1.12` candidate; unsigned macOS/Windows remain preview targets. |
 | `apps/cli` | Thin runtime lifecycle/status/diagnostics client (`oteluxctl`). | Source commands live and a version-matched private launcher is bundled in Desktop artifacts; no PATH installation yet. |
 
 Plugin distributions are thin hosts over the same packages:
@@ -120,7 +120,7 @@ Plugin distributions are thin hosts over the same packages:
 | Codex | Shared skills + local desktop MCP bridge. | Built, locally installed; marketplace entry live in-repo. |
 | Pi | Shared skills + native adapter over the local desktop MCP bridge. | Built and locally installable as a Pi package. |
 
-The next agent-onboarding milestone adds capability-detected Copilot CLI and OpenCode targets, a shared safe configuration engine, `otelux agents ...`, Settings → Agents, and resumable first-run setup. A host receives only integrations its pinned official version supports; MCP, skills, native plugin/extension, telemetry export, and sensitive-content capture are separate capabilities and choices. See [agent-onboarding.md](agent-onboarding.md). Future packages or apps should be added to the package table only when they enter active implementation.
+The current agent-onboarding milestone is M1 CLI control: close the daemon migration race and release-version parity gap, add schema-defined config preview/apply with revision CAS, broaden doctor, and qualify packaged CLI-owned lifecycle. M2 then adds the shared safe configuration engine and Claude/Codex/Pi adapters; Copilot CLI and OpenCode remain M4 targets. A host receives only integrations its pinned official version supports; MCP, skills, native plugin/extension, telemetry export, and sensitive-content capture are separate capabilities and choices. See [agent-onboarding.md](agent-onboarding.md). Future packages or apps should be added to the package table only when they enter active implementation.
 
 ## Technology
 

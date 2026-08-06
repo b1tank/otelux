@@ -35,12 +35,12 @@ flowchart LR
 | OTel SDK or Collector -> runtime | Ingest traces, logs, metrics | Loopback HTTP | OTLP/HTTP protobuf or OTLP JSON | OpenTelemetry OTLP schemas | Live |
 | Runtime -> engine/storage | Ingest and query | Direct TypeScript calls | In-memory domain objects | `@otelux/types`, `@otelux/protocol` | Live |
 | Engine -> SQLite | Persistence and indexed query | `node:sqlite` API | Prepared SQL statements and transactions | `@otelux/engine-node` schema version | Live |
-| Electron renderer -> Electron main | Temporary Desktop query/control bridge | Electron `ipcRenderer.invoke` plus push channel | Structured-clone `InvokeMessage`, typed result, `RuntimeEvent` | Desktop IPC module re-exporting `@otelux/protocol` | Live until daemon client conversion |
+| Electron renderer -> Electron main | Narrow Desktop query/control bridge | Electron `ipcRenderer.invoke` plus push channel | Structured-clone `InvokeMessage`, typed result, `RuntimeEvent` | Desktop IPC module re-exporting `@otelux/protocol` | Live; Electron main proxies validated calls to the daemon client |
 | Claude/Codex -> plugin bridge | Agent tool protocol | stdio | One MCP JSON-RPC 2.0 message per line | MCP specification plus OTelux tool schemas | Live |
 | Plugin bridge -> runtime MCP | Agent tool forwarding | Loopback HTTP | MCP Streamable HTTP JSON-RPC 2.0, bearer token | MCP specification plus `@otelux/mcp-server` | Live |
 | Client -> runtime discovery | Find active owner/endpoints | Owner-only files | Versioned `runtime.json` and `runtime.lock` JSON | `@otelux/local-runtime` | Live |
-| Desktop main, CLI, browser -> runtime | OTelux query and control | Loopback HTTP | JSON-RPC 2.0 at `/api/v1/rpc`, tagged-bigint JSON | `@otelux/protocol` Runtime RPC registry | Runtime host and browser-safe `@otelux/adapter-http` live; Desktop conversion pending |
-| Runtime -> Desktop/browser | Live invalidations | Server-Sent Events | SSE at `/api/v1/events` with revisioned v1 envelopes | `@otelux/protocol` event contract | Live on the embedded runtime; client adapters pending |
+| Desktop main, CLI, browser -> runtime | OTelux query and control | Loopback HTTP | JSON-RPC 2.0 at `/api/v1/rpc`, tagged-bigint JSON | `@otelux/protocol` Runtime RPC registry | Runtime host, adapter, Desktop main, and initial CLI lifecycle/status client live; browser session pending |
+| Runtime -> Desktop/browser | Live invalidations | Server-Sent Events | SSE at `/api/v1/events` with revisioned v1 envelopes | `@otelux/protocol` event contract | Live in the daemon and Desktop adapter; browser session pending |
 | Browser -> runtime | Workbench assets | Same-origin HTTP GET | HTML, CSS, JavaScript | Built `@otelux/ui` assets | Target |
 
 ## Transport Decisions
@@ -212,15 +212,15 @@ Delivered transition safeguards:
 
 Delivered transport foundation:
 
-- The embedded runtime now binds a separate loopback Runtime API (default `4321`), publishes its status/token path in owner-only runtime state, and treats API bind failure as visible/nonfatal to OTLP/MCP/SQLite.
+- The on-demand daemon binds a separate loopback Runtime API (default `4321`), publishes its status/token path in owner-only runtime state, and treats API bind failure as visible/nonfatal to OTLP/MCP/SQLite.
 - `POST /api/v1/rpc` supports bounded single/maximum-10 batch JSON-RPC, sequential batch dispatch, tagged bigint, deterministic errors, method/param validation, protocol-major negotiation, explicit clear confirmation, 64-request overload rejection, a 2 MiB encoded-response budget, and generic internal errors.
 - `GET /api/v1/events` supports bearer-authenticated SSE, one-turn coalescing, decimal revisions, bounded trace hints/history/client count, replay, resync, and keepalive.
 - Health, method, content type, Host, Origin, bearer token, body size, concurrency, client count, notification, shutdown, and secret-exclusion paths have end-to-end tests.
 
-Remaining before daemon conversion:
+Current adapter state and remaining browser/MCP work:
 
 - `@otelux/adapter-http` implements current `DataSource` queries plus status/settings/sample/clear controls over initialized tagged-bigint JSON-RPC, with strict loopback-origin pinning, redirects disabled, 10-second RPC deadlines, 2 MiB streamed-response bounds, recoverable initialization, and one shared authenticated fetch-SSE connection with bounded frames/reconnect/resync/abort/disposal and no URL tokens.
-- Real SQLite-backed direct/HTTP parity covers traces, waterfalls, spans, lightweight log lists plus selected full-log details, metrics, facets, bigint fidelity, auth failure, RPC errors, SSE invalidation, and clear. One shared tagged-bigint fixture enumerates every advertised Runtime RPC result and Electron invoke result, asserts registry completeness, and verifies identical telemetry/control decoding through HTTP and IPC registries. Desktop daemon-client conversion remains.
+- Real SQLite-backed direct/HTTP parity covers traces, waterfalls, spans, lightweight log lists plus selected full-log details, metrics, facets, bigint fidelity, auth failure, RPC errors, SSE invalidation, and clear. One shared tagged-bigint fixture enumerates every advertised Runtime RPC result and Electron invoke result, asserts registry completeness, and verifies identical telemetry/control decoding through HTTP and IPC registries. Desktop daemon-client conversion is live.
 - HTTP no longer trusts generic JSON-RPC `result` casts: every successful response is decoded by method after envelope, ID, body-size, wire, and initialization checks. Electron main validates before structured clone, and the renderer adapter validates again before exposing results to UI code.
 - Metric discovery uses lightweight metadata/latest-value summaries, while `getMetricPoints` pages at most 1,000 event-time-ordered points plus full resource/scope metadata for one opaque instrument ID. Chart-safe attribute projection is explicit through per-point truncation metadata, and stale IDs have a targeted recovery error.
 - MCP tool input schemas are advertised but handlers still cast inputs rather than validating them; tool results have no output schemas.

@@ -20,8 +20,8 @@ The detailed communication contract is [protocol.md](protocol.md). SQLite schema
 |---|---|---|---|
 | Agent plugin | Install OTelux in Claude, Codex, or Pi, use analysis skills and MCP tools, configure telemetry, and open the visual workbench. | Shared skills, host manifests, a small stdio MCP launcher, and a thin native Pi adapter over that launcher. | Desktop-companion version shipped; self-contained runtime target. |
 | Direct MCP | Register OTelux as an MCP server without installing agent skills or a desktop UI. | The same stdio MCP launcher used by the plugins. It ensures and connects to the local runtime. | Target packaging; the current bridge requires Desktop. |
-| CLI | Run, inspect, configure, stop, and open OTelux from a terminal or headless environment. | The local runtime plus commands such as `oteluxctl serve`, `oteluxctl status`, and `oteluxctl open`. | Planned. |
-| Desktop app | Install a native workbench with receiver and storage settings. | Electron UI plus the shared local runtime. Desktop is a client of that runtime, not a second backend owner. | Runtime package embedded; standalone-daemon connection planned. |
+| CLI | Run, inspect, configure, stop, and open OTelux from a terminal or headless environment. | A thin shared-runtime client; lifecycle/status/endpoints/basic doctor are live in private bundled `oteluxctl`, while config/open/public distribution remain. | M1 in progress. |
+| Desktop app | Install a native workbench with receiver and storage settings. | Electron UI plus an on-demand packaged daemon. Desktop is an authenticated client, not a second backend owner. | Live on Linux source/unpacked/`.deb`/AppImage paths. |
 
 These forms are distribution and entry-point choices. They do not create separate telemetry stores. Browser delivery is an implementation detail of the plugin and CLI experiences, not a separately installed or published artifact.
 
@@ -75,9 +75,9 @@ OTelux uses one protocol per boundary:
 - OTLP/HTTP protobuf or JSON for external telemetry ingest;
 - direct typed calls between runtime, engine, and storage in one process;
 - MCP JSON-RPC over stdio/Streamable HTTP for agent tools only;
-- JSON-RPC 2.0 over loopback HTTP for the planned Desktop/CLI/browser Runtime API;
+- JSON-RPC 2.0 over loopback HTTP for the live Desktop/CLI Runtime API and future browser client;
 - Server-Sent Events for one-way live invalidations;
-- Electron IPC only as a temporary Desktop bridge while the runtime remains embedded.
+- narrow validated Electron IPC between the renderer and daemon-client main process.
 
 MCP is not reused as the workbench API, and WebSocket/internal gRPC are not introduced without a demonstrated bidirectional-streaming requirement. See [protocol.md](protocol.md) for method families, wire encodings, authentication, errors, and version negotiation.
 
@@ -131,8 +131,8 @@ All listeners bind to loopback by default. LAN exposure requires a future explic
 | Agent analysis tools | `@otelux/mcp-server` | Plugin, direct MCP, CLI diagnostics, and Desktop. |
 | Browser-safe workbench | `@otelux/ui` | Runtime-served browser mode and Desktop renderer. |
 | In-process adapter | `@otelux/adapter-direct` | Tests and deliberately embedded hosts. |
-| HTTP/event adapter | `@otelux/adapter-http` | Browser-safe initialized JSON-RPC/SSE `DataSource`; Desktop conversion pending. |
-| Runtime composition | `@otelux/local-runtime` | Embedded by Desktop now; also builds foreground `oteluxd` for lifecycle qualification. |
+| HTTP/event adapter | `@otelux/adapter-http` | Browser-safe initialized JSON-RPC/SSE `DataSource`; live in Desktop main and the CLI/runtime clients. |
+| Runtime composition | `@otelux/local-runtime` | Packaged on-demand `oteluxd` owner used by Desktop and the private CLI. |
 | Analysis workflows | `plugins/otelux/skills` | Claude and Codex plugin manifests plus the Pi package adapter. |
 
 The `DataSource` interface remains the load-bearing UI boundary. The workbench asks for traces, logs, metrics, details, and change events through that contract; host adapters decide whether those calls are direct, Electron IPC, or local HTTP/event traffic.
@@ -222,15 +222,15 @@ The local product has no required account or cloud service. Telemetry stays on t
 
 ## Current Implementation
 
-The shipped `0.1.5` agent plugin is still a Desktop companion:
+The shipped `0.1.5` agent plugin is still a Desktop companion, while Desktop itself is now a daemon client:
 
 ```mermaid
 flowchart LR
     Claude[Claude plugin] --> Bridge[stdio MCP bridge]
     Codex[Codex plugin] --> Bridge
     Pi[Pi native adapter] --> Bridge
-    Bridge -->|authenticated loopback HTTP| Runtime[Local runtime embedded in Electron]
-    Desktop[Desktop IPC and workbench] --> Runtime
+    Bridge -->|authenticated loopback HTTP| Runtime[On-demand local daemon]
+    Desktop[Desktop IPC shell and HTTP/SSE client] --> Runtime
     Runtime --> DB[(Canonical data-home otelux.db)]
 ```
 
@@ -240,14 +240,14 @@ This client shape keeps SQLite ingest, queries, retention, clear, and vacuum beh
 
 The daemon hosts the client transport on loopback: authenticated Runtime JSON-RPC (`/api/v1/rpc`) and revisioned SSE (`/api/v1/events`) use a separate owner-only control token, bounded queues/bodies/clients, protocol-major negotiation, replay/resync, and checked schemas. The browser-safe HTTP/SSE adapter now passes real SQLite-backed parity against direct runtime calls.
 
-`@otelux/local-runtime` also builds a foreground `oteluxd` executable. It claims the same owner lock, publishes normal runtime state/endpoints, handles SIGINT/SIGTERM once, rejects a second owner deterministically, and cleans every listener/state file on exit. Node hosts now share compatibility-aware `connectRuntimeClient` / `ensureRuntimeClient` discovery: the client derives the canonical owner-only control-token path, negotiates Runtime RPC, verifies the live instance identity, and bounds one host-supplied startup race. It is not installed as an OS background service. Desktop packages launch it on demand through Electron Node mode and remain an IPC shell/client rather than a database owner. Starting another owner against the same data directory fails closed. The next step is reconnect/crash/upgrade lifecycle qualification and an explicit runtime stop/restart control, not another backend model. This milestone deliberately excludes OS service registration, login autostart, automatic incompatible-owner replacement, browser sessions, and OS-specific IPC. That packaging feasibility gate now passes for unpacked, extracted `.deb`, and extracted AppImage layouts, and packaged smoke proves the daemon survives Desktop exit. Remaining lifecycle gates are explicit authenticated stop/restart, external-control invalidation refresh, second-client reconnect, crash/port-conflict recovery, and upgrade rollback.
+`@otelux/local-runtime` also builds a foreground `oteluxd` executable. It claims the same owner lock, publishes normal runtime state/endpoints, handles SIGINT/SIGTERM once, rejects a second owner deterministically, and cleans every listener/state file on exit. Node hosts now share compatibility-aware `connectRuntimeClient` / `ensureRuntimeClient` discovery: the client derives the canonical owner-only control-token path, negotiates Runtime RPC, verifies the live instance identity, and bounds one host-supplied startup race. It is not installed as an OS background service. Desktop packages launch it on demand through Electron Node mode and remain an IPC shell/client rather than a database owner. Starting another owner against the same data directory fails closed. Explicit runtime stop/restart, external-control invalidation refresh, second-client reconnect, stale-crash recovery, and nonfatal port-conflict behavior are implemented and focused-tested. Packaging feasibility passes for unpacked, extracted `.deb`, and extracted AppImage layouts, and packaged smoke proves the daemon survives Desktop exit. One M0 race remains: Desktop currently prepares legacy migration before spawning the daemon, outside the daemon's exclusive owner claim; the handoff must move behind that claim. Installed upgrade/rollback remains release qualification. OS service registration, login autostart, automatic incompatible-owner replacement, browser sessions, and OS-specific IPC remain excluded.
 
 The next implementation sequence is:
 
-1. Run the runtime as a separately managed per-user daemon.
-2. Add the HTTP/event `DataSource` adapter and serve the shared workbench in browser mode.
+1. [x] Run the runtime as an on-demand per-user daemon.
+2. [x] Add the HTTP/event `DataSource` adapter; runtime-served browser mode remains separate.
 3. [x] Convert Desktop from an embedded runtime host into a daemon client while retaining native shell integration.
-4. Add the CLI and package the same launcher for direct MCP use.
+4. Finish the M1 CLI control gate and then package the same launcher for direct MCP use.
 5. Add the shared typed agent-integration engine and ship Claude/Codex/Pi CLI adapters first.
 6. Add Settings → Agents and resumable first-run onboarding over that same engine.
 7. Make the Claude/Codex/Pi integrations self-contained and change dashboard launch to the browser URL; add capability-pinned Copilot CLI and OpenCode adapters.
