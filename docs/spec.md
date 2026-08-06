@@ -98,6 +98,7 @@ The daemon transport and storage implementations must conform to [protocol.md](p
 | `@otelux/protocol` | `DataSource` interface and query/result contracts. | Live for traces/logs/metrics, grouped source/service facets, lightweight list/detail splits, and cursor paging; Runtime protocol 2 carries the split metric methods. |
 | `@otelux/engine` | Pure TypeScript ingest, query, layout, subscriptions, memory storage. | Live. |
 | `@otelux/engine-node` | Durable Node storage adapter (`node:sqlite`) with retention (age/size). | Live. |
+| `@otelux/agent-integrations` | Node-only typed detection, inspection, planning, mutation, and verification for coding-agent integrations. | M2 foundation: bounded runtime-validated inspection contracts live; host adapters and mutation pending. |
 | `@otelux/local-runtime` | Backend composition and control API for storage, engine, OTLP, MCP, settings, and lifecycle. | Live in the packaged on-demand daemon; Desktop is an authenticated HTTP/SSE client. |
 | `@otelux/receiver` | OTLP/HTTP receiver and single-instance helper. | JSON and protobuf routes live for traces/logs/metrics with bounded concurrency and visible overload counters. |
 | `@otelux/ui` | React workbench and primitives. | Traces/logs/metrics live; polish ongoing around details, grouping controls, and footer controls. |

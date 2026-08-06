@@ -236,9 +236,10 @@ A failed or skipped agent setup never blocks use of Desktop or sample data.
 
 **M1 acceptance gate:** passed locally. Packaged CLI-owned lifecycle, config conflict/dry-run/no-write behavior, owner-locked legacy migration, release-version parity enforcement, expanded doctor, and the high-severity dev-tool `js-yaml` update are complete. GitHub-hosted CI/release publication is temporarily unavailable under the account's included-usage/$0 budget; local gates continue, with no paid-usage change assumed.
 
-### M2 — integration engine
+### M2 — integration engine (in progress on feature branch)
 
-- Typed plans, atomic mutation, backups/ownership manifests, redaction, verification.
+- [x] Add bounded runtime-validated agent/installation/capability/path inspection contracts in `@otelux/agent-integrations`.
+- Add typed plans, atomic mutation, backups/ownership manifests, redaction, and verification.
 - Claude/Codex/Pi adapters and CLI commands.
 - Adversarial path/concurrent-edit/partial-failure tests.
 
