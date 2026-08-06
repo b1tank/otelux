@@ -71,6 +71,26 @@
       }
     },
     {
+      "runtimeMethod": "runtime/getStoragePath",
+      "invokeKind": "getStoragePath",
+      "result": {
+        "activePath": "/tmp/otelux/otelux.db",
+        "defaultPath": "/tmp/otelux/otelux.db"
+      }
+    },
+    {
+      "runtimeMethod": "runtime/getStorageUsage",
+      "invokeKind": "getStorageUsage",
+      "result": {
+        "activePath": "/tmp/otelux/otelux.db",
+        "retentionBytes": 4096,
+        "databaseFileBytes": 4096,
+        "walBytes": 0,
+        "sharedMemoryBytes": 0,
+        "totalBytes": 4096
+      }
+    },
+    {
       "runtimeMethod": "runtime/updateSettings",
       "invokeKind": "updateSettings",
       "result": {
@@ -460,24 +480,6 @@
       "invokeKind": "getMcpStatus",
       "result": {
         "kind": "disabled"
-      }
-    },
-    {
-      "invokeKind": "getStoragePath",
-      "result": {
-        "activePath": "/tmp/otelux/otelux.db",
-        "defaultPath": "/tmp/otelux/otelux.db"
-      }
-    },
-    {
-      "invokeKind": "getStorageUsage",
-      "result": {
-        "activePath": "/tmp/otelux/otelux.db",
-        "retentionBytes": 4096,
-        "databaseFileBytes": 4096,
-        "walBytes": 0,
-        "sharedMemoryBytes": 0,
-        "totalBytes": 4096
       }
     }
   ]

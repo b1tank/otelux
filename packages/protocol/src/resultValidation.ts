@@ -54,6 +54,8 @@ export interface RuntimeRpcResultMap {
 	'runtime/initialize': RuntimeInitializeResult;
 	'runtime/getStatus': RuntimeStatusResult;
 	'runtime/getSettings': Settings;
+	'runtime/getStoragePath': StoragePathInfo;
+	'runtime/getStorageUsage': StorageUsageInfo;
 	'runtime/updateSettings': UpdateSettingsResult;
 	'runtime/loadSampleData': LoadSampleDataResult;
 	'runtime/clearData': null;
@@ -735,6 +737,8 @@ export const runtimeRpcResultDecoders = {
 	'runtime/initialize': parseInitialize,
 	'runtime/getStatus': parseStatus,
 	'runtime/getSettings': parseResultSettings,
+	'runtime/getStoragePath': parseStoragePath,
+	'runtime/getStorageUsage': parseStorageUsage,
 	'runtime/updateSettings': parseUpdateSettings,
 	'runtime/loadSampleData': parseCounts,
 	'runtime/clearData': (value: unknown, path = '$.result') => literal(value, null, path),

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otelux.dev/schema/v1/result-storage-path.schema.json",
+  "title": "runtime/getStoragePath result",
+  "type": "object",
+  "properties": {
+    "activePath": {
+      "type": "string",
+      "maxLength": 4096
+    },
+    "defaultPath": {
+      "type": "string",
+      "maxLength": 4096
+    }
+  },
+  "required": [
+    "activePath",
+    "defaultPath"
+  ],
+  "additionalProperties": false
+}

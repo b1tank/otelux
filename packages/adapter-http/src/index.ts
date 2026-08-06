@@ -20,6 +20,8 @@ import {
 	type RuntimeRpcResultFor,
 	type RuntimeStatusResult,
 	type Settings,
+	type StoragePathInfo,
+	type StorageUsageInfo,
 	type UpdateSettingsResult,
 	parseRuntimeRpcResult,
 	parseRuntimeSseEnvelope,
@@ -44,6 +46,8 @@ export interface RuntimeHttpClient extends DataSource {
 	initialize(): Promise<RuntimeInitializeResult>;
 	getStatus(): Promise<RuntimeStatusResult>;
 	getSettings(): Promise<Settings>;
+	getStoragePath(): Promise<StoragePathInfo>;
+	getStorageUsage(): Promise<StorageUsageInfo>;
 	updateSettings(patch: PartialSettings, expectedRevision: number): Promise<UpdateSettingsResult>;
 	loadSampleData(): Promise<LoadSampleDataResult>;
 	clearData(): Promise<void>;
@@ -236,6 +240,8 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 		initialize,
 		getStatus: () => call('runtime/getStatus'),
 		getSettings: () => call('runtime/getSettings'),
+		getStoragePath: () => call('runtime/getStoragePath'),
+		getStorageUsage: () => call('runtime/getStorageUsage'),
 		updateSettings: (patch, expectedRevision) =>
 			call('runtime/updateSettings', { patch, expectedRevision }),
 		loadSampleData: () => call('runtime/loadSampleData'),

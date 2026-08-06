@@ -327,6 +327,23 @@ const resultSchemas = {
 		),
 	),
 	'result-settings': resultSchema('result-settings', 'runtime/getSettings result', settings),
+	'result-storage-path': resultSchema(
+		'result-storage-path',
+		'runtime/getStoragePath result',
+		object({ activePath: text(4096), defaultPath: text(4096) }),
+	),
+	'result-storage-usage': resultSchema(
+		'result-storage-usage',
+		'runtime/getStorageUsage result',
+		object({
+			activePath: text(4096),
+			retentionBytes: integer(0, Number.MAX_SAFE_INTEGER),
+			databaseFileBytes: integer(0, Number.MAX_SAFE_INTEGER),
+			walBytes: integer(0, Number.MAX_SAFE_INTEGER),
+			sharedMemoryBytes: integer(0, Number.MAX_SAFE_INTEGER),
+			totalBytes: integer(0, Number.MAX_SAFE_INTEGER),
+		}),
+	),
 	'result-update-settings': resultSchema('result-update-settings', 'runtime/updateSettings result', {
 		oneOf: [
 			object({ ok: { const: true }, settings, status: receiverStatus, mcpStatus }),
@@ -656,6 +673,8 @@ schemas['runtime-rpc-request'] = {
 					'runtime/initialize',
 					'runtime/getStatus',
 					'runtime/getSettings',
+					'runtime/getStoragePath',
+					'runtime/getStorageUsage',
 					'runtime/updateSettings',
 					'runtime/loadSampleData',
 					'runtime/clearData',

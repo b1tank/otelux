@@ -60,6 +60,8 @@ describe('direct and HTTP DataSource parity', () => {
 				databasePath: runtime.getStoragePath().activePath,
 			});
 			expect(await http.getSettings()).toEqual(runtime.getSettings());
+			expect(await http.getStoragePath()).toEqual(runtime.getStoragePath());
+			expect(await http.getStorageUsage()).toEqual(await runtime.getStorageUsage());
 
 			const directTraces = await runtime.listTraces({ limit: 10 });
 			const httpTraces = await http.listTraces({ limit: 10 });

@@ -112,6 +112,8 @@ export type RuntimeRpcMethod =
 	| 'runtime/initialize'
 	| 'runtime/getStatus'
 	| 'runtime/getSettings'
+	| 'runtime/getStoragePath'
+	| 'runtime/getStorageUsage'
 	| 'runtime/updateSettings'
 	| 'runtime/loadSampleData'
 	| 'runtime/clearData'
@@ -129,6 +131,8 @@ export type DecodedRuntimeRpcCall =
 	| { readonly method: 'runtime/initialize'; readonly params: RuntimeInitializeParams }
 	| { readonly method: 'runtime/getStatus' }
 	| { readonly method: 'runtime/getSettings' }
+	| { readonly method: 'runtime/getStoragePath' }
+	| { readonly method: 'runtime/getStorageUsage' }
 	| { readonly method: 'runtime/updateSettings'; readonly params: UpdateSettingsParams }
 	| { readonly method: 'runtime/loadSampleData' }
 	| { readonly method: 'runtime/clearData'; readonly params: { readonly confirmation: 'clear' } }
@@ -260,6 +264,8 @@ export function decodeRuntimeRpcCall(request: RuntimeRpcRequest): DecodedRuntime
 		}
 		case 'runtime/getStatus':
 		case 'runtime/getSettings':
+		case 'runtime/getStoragePath':
+		case 'runtime/getStorageUsage':
 		case 'runtime/loadSampleData':
 			emptyParams(request.params);
 			return { method };

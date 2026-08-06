@@ -74,6 +74,12 @@ export function createRuntimeRpcDispatcher(runtime: LocalRuntime): RuntimeRpcDis
 					case 'runtime/getSettings':
 						result = runtime.getSettings();
 						break;
+					case 'runtime/getStoragePath':
+						result = runtime.getStoragePath();
+						break;
+					case 'runtime/getStorageUsage':
+						result = await runtime.getStorageUsage();
+						break;
 					case 'runtime/updateSettings': {
 						const update = await runtime.updateSettings(call.params.patch, call.params.expectedRevision);
 						if (!update.ok && 'conflict' in update) {

@@ -107,6 +107,8 @@ Required method families:
 |---|---|---|---|
 | `runtime/getStatus` | empty | endpoints, versions, storage path, listener states | one object |
 | `runtime/getSettings` | empty | `Settings` | one object |
+| `runtime/getStoragePath` | empty | active/default database paths | fixed |
+| `runtime/getStorageUsage` | empty | bounded SQLite/WAL/SHM footprint | fixed |
 | `runtime/updateSettings` | `{ patch: PartialSettings, expectedRevision }` | `UpdateSettingsResult` or conflict `-32004` | one object |
 | `runtime/loadSampleData` | empty | signal counts | fixed |
 | `runtime/clearData` | confirmation token | empty | fixed |

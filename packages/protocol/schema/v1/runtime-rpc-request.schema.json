@@ -19,6 +19,8 @@
         "runtime/initialize",
         "runtime/getStatus",
         "runtime/getSettings",
+        "runtime/getStoragePath",
+        "runtime/getStorageUsage",
         "runtime/updateSettings",
         "runtime/loadSampleData",
         "runtime/clearData",
