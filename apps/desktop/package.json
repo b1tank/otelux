@@ -28,6 +28,7 @@
 		"package:dir": "npm run generate:notices && npm run build && electron-builder --linux dir",
 		"smoke": "node scripts/smoke.mjs",
 		"smoke:daemon": "node scripts/daemon-smoke.mjs",
+		"smoke:daemon-artifacts": "node scripts/daemon-artifact-smoke.mjs",
 		"perf:package": "node scripts/perf-smoke.mjs"
 	},
 	"engines": {
