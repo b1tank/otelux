@@ -2,24 +2,24 @@
 
 Updated: 2026-08-04
 
-OTelux publishes Linux x64 and arm64 `.deb` and AppImage prereleases through GitHub Releases. The repository is temporarily private during pre-public hardening, so downloads currently require repository access. Download `SHA256SUMS` plus one immutable package from [v0.1.11](https://github.com/b1tank/otelux/releases/tag/v0.1.11).
+OTelux publishes Linux x64 and arm64 `.deb` and AppImage prereleases through GitHub Releases. The repository is temporarily private during pre-public hardening, so downloads currently require repository access. Download `SHA256SUMS` plus one immutable package from [v0.1.12](https://github.com/b1tank/otelux/releases/tag/v0.1.12).
 
 Install the x64 Debian/Ubuntu package:
 
 ```bash
 grep '  OTelux-.*-amd64.deb$' SHA256SUMS | sha256sum -c -
-sudo apt install ./OTelux-0.1.11-amd64.deb
+sudo apt install ./OTelux-0.1.12-amd64.deb
 ```
 
 Or run the rootless x64 AppImage:
 
 ```bash
 grep '  OTelux-.*-x86_64.AppImage$' SHA256SUMS | sha256sum -c -
-chmod +x OTelux-0.1.11-x86_64.AppImage
-./OTelux-0.1.11-x86_64.AppImage
+chmod +x OTelux-0.1.12-x86_64.AppImage
+./OTelux-0.1.12-x86_64.AppImage
 ```
 
-On arm64, use the corresponding `OTelux-0.1.11-arm64.deb` or `.AppImage` and matching checksum line. Do not install OTelux through an unofficial `curl | sudo sh` command or third-party package. Source setup remains available below for contributors.
+On arm64, use the corresponding `OTelux-0.1.12-arm64.deb` or `.AppImage` and matching checksum line. Do not install OTelux through an unofficial `curl | sudo sh` command or third-party package. Source setup remains available below for contributors.
 
 The [Current Baseline](spec.md#current-baseline) is the source of truth for implemented capabilities and limitations. This guide describes the current pre-release desktop behavior.
 

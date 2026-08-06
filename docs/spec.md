@@ -44,8 +44,8 @@ The repository currently contains:
 - Direct in-process and Electron IPC `DataSource` adapters.
 - MCP tool plumbing over the same query layer.
 - A shared OTelux plugin under `plugins/otelux` installs into Claude Code, Codex, and Pi with four observability skills plus a secure stdio bridge to the desktop MCP listener. Pi's thin extension registers the same bridge tools natively; it does not fork the MCP implementation. This is the current companion implementation; see [arch.md](arch.md#current-implementation) for the target shared-runtime architecture.
-- A foreground `oteluxd` build now owns the same runtime without Electron, handles signals, rejects duplicate owners, and passes process-level RPC/cleanup tests. Node hosts share a bounded compatibility-aware discovery/ensure client that validates state, the canonical owner-only token, protocol negotiation, and live instance identity. Desktop packages contain and start the daemon on demand through Electron Node mode; it is not registered as an OS background service and lacks end-user stop/restart/upgrade controls.
-- The desktop app is the current release product. v0.1.11 publishes natively built, packaged, installed, smoke-tested, and checksummed Linux x64/arm64 `.deb` and rootless AppImage artifacts with per-architecture SBOMs and provenance. macOS and Windows remain unsigned preview builds. The agent plugin is currently Desktop's companion; direct MCP and CLI become independent forms after the runtime moves into a separately managed daemon.
+- A foreground `oteluxd` build now owns the same runtime without Electron, handles signals, rejects duplicate owners, and passes process-level RPC/cleanup tests. Node hosts share a bounded compatibility-aware discovery/ensure client that validates state, the canonical owner-only token, protocol negotiation, and live instance identity. Desktop packages contain and start the daemon on demand through Electron Node mode; it is not registered as an OS background service; Desktop provides confirmed stop, while restart/upgrade controls remain planned.
+- The desktop app is the current release product. v0.1.12 publishes natively built, packaged, installed, smoke-tested, and checksummed Linux x64/arm64 `.deb` and rootless AppImage artifacts with per-architecture SBOMs and provenance. macOS and Windows remain unsigned preview builds. The agent plugin is currently a Desktop-launcher companion; direct MCP and CLI become independent forms after their lifecycle/packaging clients land on the shared daemon.
 
 Important current limits:
 
@@ -109,7 +109,7 @@ Apps are not published packages:
 
 | App | Purpose | Current state |
 |---|---|---|
-| `apps/desktop` | Main Electron workbench. | v0.1.11 Linux x64/arm64 `.deb` and AppImage prerelease; unsigned macOS/Windows previews. |
+| `apps/desktop` | Main Electron workbench. | v0.1.12 Linux x64/arm64 `.deb` and AppImage prerelease; unsigned macOS/Windows previews. |
 
 Plugin distributions are thin hosts over the same packages:
 
