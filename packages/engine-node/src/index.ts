@@ -38,9 +38,11 @@ import { listResourceFacets } from './facets.js';
 import { Interner } from './intern.js';
 import { LogStore } from './logs.js';
 import { MetricStore } from './metrics.js';
+import { type SqlExecutionObserver, observeDatabase } from './queryObserver.js';
 import { type RetentionConfig, databasePageBytes, pruneRetention } from './retention.js';
 import { SpanStore } from './spans.js';
 
+export type { SqlExecution, SqlExecutionKind, SqlExecutionObserver } from './queryObserver.js';
 export type { RetentionConfig } from './retention.js';
 export { SchemaVersionError } from './db.js';
 
@@ -60,6 +62,8 @@ export interface NodeSqliteStorageOptions {
 	pruneIntervalMs?: number;
 	/** Injectable wall clock in Unix nanoseconds. Defaults to `Date.now()`. */
 	now?: () => bigint;
+	/** Optional statement-execution observer for query-budget tests and diagnostics. */
+	onSqlExecute?: SqlExecutionObserver;
 }
 
 /**
@@ -127,7 +131,10 @@ export function createNodeSqliteStorage(options: NodeSqliteStorageOptions): Node
 	const now = options.now ?? defaultNow;
 	let retention = options.retention ?? DEFAULT_RETENTION;
 
-	const db: DatabaseSync = openDatabaseWithRecovery(options.path);
+	const openedDatabase = openDatabaseWithRecovery(options.path);
+	const db: DatabaseSync = options.onSqlExecute
+		? observeDatabase(openedDatabase, options.onSqlExecute)
+		: openedDatabase;
 	hardenDatabaseFiles(options.path);
 	const interner = new Interner(db);
 	const spans = new SpanStore(db, interner);

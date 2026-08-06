@@ -6,7 +6,7 @@ Enforce the durable-store statement and index invariants that remain before Desk
 
 ## Tasks
 
-- [ ] Add opt-in SQLite statement execution observation for tests.
+- [x] Add opt-in SQLite statement execution observation for tests.
 - [ ] Enforce read and mutation statement budgets from `storage.md`.
 - [ ] Enforce representative indexed query plans without pretending substring search is indexed.
 - [ ] Reconcile storage, spec, plan, and test documentation with measured guarantees.
@@ -16,3 +16,4 @@ Enforce the durable-store statement and index invariants that remain before Desk
 
 - Statement counts measure executed prepared statements, not constructor-time preparation. Multi-statement `exec` calls are recorded separately so transaction boundaries remain visible.
 - Query-plan assertions will target stable access invariants and required index names, not SQLite's incidental plan formatting or machine-dependent latency.
+- The observer wraps native database/statement objects only when requested, records execution rather than preparation, and preserves native statement configuration methods such as bigint reads.
