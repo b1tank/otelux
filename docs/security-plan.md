@@ -273,9 +273,9 @@ Document that OTelux cannot protect telemetry from:
 
 - [x] Lightweight log list and selected details.
 - [x] Metric metadata/history split and hardening.
-- [ ] Method-specific response validation and direct/HTTP/IPC parity.
-- [ ] Settings revision/CAS.
-- [ ] Production-shaped final gates.
+- [x] Method-specific response validation and direct/HTTP/IPC parity.
+- [x] Settings revision/CAS.
+- [x] Production-shaped final gates.
 
 ### Before browser workbench
 
