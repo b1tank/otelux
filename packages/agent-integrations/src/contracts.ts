@@ -58,10 +58,23 @@ export interface CommandRunner {
 	run(executable: string, args: readonly string[]): Promise<CommandResult>;
 }
 
+export interface InspectPathRequest {
+	readonly path: string;
+	readonly allowedRoot: string;
+	readonly scope: AgentScope;
+	readonly kind: 'file' | 'directory';
+	readonly hashContents?: boolean;
+}
+
+export interface PathInspector {
+	inspect(request: InspectPathRequest): Promise<InspectedPath>;
+}
+
 export interface AgentAdapterContext {
 	readonly homeDirectory: string;
 	readonly workingDirectory: string;
 	readonly commandRunner: CommandRunner;
+	readonly pathInspector: PathInspector;
 }
 
 export interface AgentAdapter {
