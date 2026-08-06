@@ -196,7 +196,8 @@ Tradeoff: owner-token loopback HTTP is weaker than owner-credentialed OS IPC aga
 Blocker classification before further feature investment:
 
 - **Resolved:** live-owner discovery precedes legacy migration; SSE `settings`/`status` invalidations trigger coalesced control refetch; startup/incompatibility failures show redacted recovery guidance; and confirmed authenticated **Stop Runtime and Quit** is distinct from ordinary **Quit Desktop**.
-- **Resolve autonomously:** automate second-Desktop reconnect against retained data and surface a daemon disconnect that occurs after startup.
+- **Resolved:** packaged smoke exits Desktop, verifies daemon health, launches a second Desktop on the same data directory, and confirms the same runtime instance before explicit shutdown.
+- **Resolve autonomously:** surface a daemon disconnect that occurs after startup.
 - **Documented later limitations:** OS service registration, login autostart, native OS IPC, browser sessions/scopes, and automatic incompatible-version replacement/upgrade rollback.
 
 Done when:

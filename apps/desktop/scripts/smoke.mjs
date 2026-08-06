@@ -80,11 +80,13 @@ async function availablePort() {
 const otlpPort = await availablePort();
 const mcpPort = await availablePort();
 const debuggingPort = await availablePort();
+let activeDebuggingPort = debuggingPort;
 const apiPort = await availablePort();
 const baseUrl = `http://127.0.0.1:${otlpPort}`;
 const mcpUrl = `http://127.0.0.1:${mcpPort}/`;
 let runtimeApiUrl;
 let runtimePid;
+let runtimeInstanceId;
 const userDataDir = mkdtempSync(join(tmpdir(), 'otelux-smoke-'));
 writeFileSync(
 	join(userDataDir, 'settings.json'),
@@ -117,6 +119,18 @@ async function waitForHealth(timeoutMs) {
 		await new Promise((r) => setTimeout(r, 500));
 	}
 	return false;
+}
+
+async function waitForOwnershipStop(timeoutMs) {
+	const deadline = Date.now() + timeoutMs;
+	while (Date.now() < deadline) {
+		if (
+			!existsSync(join(userDataDir, 'runtime.json')) &&
+			!existsSync(join(userDataDir, 'runtime.lock'))
+		)
+			return;
+		await new Promise((resolve) => setTimeout(resolve, 100));
+	}
 }
 
 async function waitForHealthStop(timeoutMs) {
@@ -233,7 +247,7 @@ async function waitForRenderer(timeoutMs) {
 	const deadline = Date.now() + timeoutMs;
 	while (Date.now() < deadline) {
 		try {
-			const targets = await (await fetch(`http://127.0.0.1:${debuggingPort}/json/list`)).json();
+			const targets = await (await fetch(`http://127.0.0.1:${activeDebuggingPort}/json/list`)).json();
 			const page = targets.find((target) => target.type === 'page' && target.url.startsWith('file:'));
 			if (page) {
 				const state = await evaluateRenderer(
@@ -383,6 +397,7 @@ try {
 		} else {
 			const state = JSON.parse(readFileSync(statePath, 'utf8'));
 			runtimePid = state.pid;
+			runtimeInstanceId = state.instanceId;
 			if (state.receiver?.kind !== 'running' || state.receiver.port !== otlpPort) {
 				fail(`runtime.json did not report the live OTLP port ${otlpPort}`);
 			}
@@ -472,6 +487,45 @@ try {
 	} else {
 		console.log('OK: Desktop quit left the daemon receiving');
 	}
+	const reconnectDebuggingPort = await availablePort();
+	activeDebuggingPort = reconnectDebuggingPort;
+	const reconnect = spawn(
+		binary,
+		[
+			...platformArguments,
+			`--remote-debugging-port=${reconnectDebuggingPort}`,
+			`--user-data-dir=${userDataDir}`,
+		],
+		{
+			env: {
+				...process.env,
+				OTELUX_DATA_DIR: userDataDir,
+				OTELUX_OTLP_PORT: String(otlpPort),
+				OTELUX_API_PORT: String(apiPort),
+			},
+			stdio: ['ignore', 'pipe', 'pipe'],
+		},
+	);
+	reconnect.stdout?.on('data', record);
+	reconnect.stderr?.on('data', record);
+	const reconnectedRenderer = await waitForRenderer(30_000);
+	if (!reconnectedRenderer) {
+		fail('second Desktop did not reconnect to the surviving daemon');
+	} else {
+		const currentState = JSON.parse(readFileSync(join(userDataDir, 'runtime.json'), 'utf8'));
+		if (currentState.instanceId !== runtimeInstanceId) {
+			fail('second Desktop connected to a different runtime instance');
+		} else {
+			console.log('OK: second Desktop reconnected to the same daemon instance');
+		}
+	}
+	try {
+		await requestCleanQuit();
+		await waitForProcessExit(reconnect, 10_000);
+	} catch (error) {
+		record(`${error instanceof Error ? error.message : String(error)}\n`);
+		reconnect.kill();
+	}
 	if (typeof runtimePid === 'number') {
 		try {
 			process.kill(runtimePid, 'SIGTERM');
@@ -479,6 +533,7 @@ try {
 			// A failed startup may leave no daemon to stop.
 		}
 		await waitForHealthStop(10_000);
+		await waitForOwnershipStop(10_000);
 	}
 	if (await endpointResponds(`${baseUrl}/healthz`)) {
 		fail('OTLP receiver remained reachable after explicit daemon stop');
