@@ -1,0 +1,24 @@
+{
+	"name": "@otelux/cli",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Thin lifecycle and diagnostics client for the local OTelux runtime.",
+	"license": "MIT",
+	"type": "module",
+	"bin": {
+		"otelux": "./dist/index.js"
+	},
+	"scripts": {
+		"build": "tsup",
+		"typecheck": "tsc --noEmit",
+		"test": "npm run build && node --test scripts/*.node-test.mjs",
+		"clean": "rm -rf dist .turbo"
+	},
+	"dependencies": {
+		"@otelux/local-runtime": "*"
+	},
+	"devDependencies": {
+		"tsup": "8.5.1",
+		"typescript": "5.7.2"
+	}
+}

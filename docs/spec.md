@@ -110,6 +110,7 @@ Apps are not published packages:
 | App | Purpose | Current state |
 |---|---|---|
 | `apps/desktop` | Main Electron workbench. | v0.1.12 Linux x64/arm64 `.deb` and AppImage prerelease; unsigned macOS/Windows previews. |
+| `apps/cli` | Thin runtime lifecycle/status/diagnostics client. | Source-build commands live; not bundled in release artifacts yet. |
 
 Plugin distributions are thin hosts over the same packages:
 

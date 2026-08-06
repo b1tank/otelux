@@ -227,7 +227,8 @@ A failed or skipped agent setup never blocks use of Desktop or sample data.
 
 ### M1 — CLI foundation
 
-- Lifecycle, status, endpoints, open, desktop, config, and doctor.
+- [x] Source-build lifecycle (`start`/`stop`/`restart`), status, endpoints, doctor, stable JSON, and distinct exit codes over the shared runtime client.
+- Add `open`, `desktop`, schema-validated config commands, confirmation policy, and release packaging.
 - Desktop installers bundle version-matched CLI/daemon with the platform naming/PATH behavior above.
 - Clean install, concurrent startup, restart, upgrade, and uninstall on qualified platforms.
 
