@@ -15,10 +15,15 @@ export async function runDaemon(
 	environment: DaemonEnvironment = process.env,
 	output: Pick<Console, 'log' | 'error'> = console,
 ): Promise<number> {
+	let requestShutdown = (): void => {};
+	const shutdownRequested = new Promise<void>((resolve) => {
+		requestShutdown = resolve;
+	});
 	try {
 		const runtime = await createLocalRuntime({
 			...(environment.OTELUX_DATA_DIR ? { dataDirectory: environment.OTELUX_DATA_DIR } : {}),
 			...optionalRuntimeVersion(environment.OTELUX_RUNTIME_VERSION),
+			onShutdownRequest: requestShutdown,
 			...optionalPort(environment.OTELUX_OTLP_PORT, 'OTELUX_OTLP_PORT', 'otlpPortOverride'),
 			...optionalPort(environment.OTELUX_API_PORT, 'OTELUX_API_PORT', 'apiPortOverride'),
 			...optionalPositive(
@@ -59,7 +64,7 @@ export async function runDaemon(
 				api: state.api,
 			}),
 		);
-		await waitForShutdownSignal();
+		await Promise.race([waitForShutdownSignal(), shutdownRequested]);
 		try {
 			await runtime.close();
 			output.log(JSON.stringify({ event: 'stopped' }));

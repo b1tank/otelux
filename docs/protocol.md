@@ -112,6 +112,7 @@ Required method families:
 | `runtime/updateSettings` | `{ patch: PartialSettings, expectedRevision }` | `UpdateSettingsResult` or conflict `-32004` | one object |
 | `runtime/loadSampleData` | empty | signal counts | fixed |
 | `runtime/clearData` | confirmation token | empty | fixed |
+| `runtime/shutdown` | empty | acknowledgement before deferred shutdown | fixed, authenticated control |
 | `telemetry/listTraces` | cursor query | trace summary page | max 200 rows |
 | `telemetry/getTrace` | `traceId`, expansion flags | one trace and spans; optional bounded logs | one trace, explicit log limit |
 | `telemetry/getSpan` | `traceId`, `spanId` | one span | one span |

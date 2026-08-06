@@ -24,6 +24,7 @@
         "runtime/updateSettings",
         "runtime/loadSampleData",
         "runtime/clearData",
+        "runtime/shutdown",
         "telemetry/listTraces",
         "telemetry/getTrace",
         "telemetry/getTraceWaterfall",

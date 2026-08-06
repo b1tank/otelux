@@ -251,10 +251,10 @@ The Runtime API uses a different token from MCP. Never put either value in a URL
 
 ## 5. Settings persistence
 
-For restart tests in this section, **Quit Desktop**, read the verified owner PID from `/tmp/otelux-userdata/runtime.json`, send that PID SIGTERM, and wait for `runtime.json` / `runtime.lock` to disappear. User-facing runtime stop/restart is not shipped yet; never signal a PID that was not freshly read and identity-checked from the isolated test directory.
+For full runtime restart tests in this section, choose **Stop Runtime and Quit**, confirm the warning, and wait for `runtime.json` / `runtime.lock` to disappear. Use **Quit Desktop** alone only when the step intends to leave ingest running.
 
 ### 5.1 Survives restart
-1. Quit Desktop and stop the isolated runtime as described above.
+1. Choose and confirm **Stop Runtime and Quit**.
 2. Confirm all listeners are released: `ss -ltnp | grep -e ':14320 ' -e ':4320 ' -e ':4321 '` → empty.
 3. Relaunch without a port override: `cd apps/desktop && OTELUX_DATA_DIR=/tmp/otelux-userdata npx electron out/main/index.js --user-data-dir=/tmp/otelux-electron-userdata`
 - **Expected**: log shows OTLP listening on `http://127.0.0.1:14320/v1/{traces,logs,metrics}` and MCP listening on `http://127.0.0.1:4320/`; both EndpointBar pills reflect those persisted settings.
@@ -316,13 +316,13 @@ For restart tests in this section, **Quit Desktop**, read the verified owner PID
 1. While OTelux is running, inspect `cat /tmp/otelux-userdata/runtime.json`.
 - **Expected**: valid JSON reports the current PID, runtime/protocol versions, `/tmp/otelux-userdata/otelux.db`, MCP/runtime token paths, and actual OTLP/MCP/API statuses. It contains no bearer token value.
 2. Confirm `/tmp/otelux-userdata/runtime.lock` exists and carries the same PID plus an ownership nonce.
-3. Quit Desktop, then stop the isolated runtime as described above.
+3. Choose and confirm **Stop Runtime and Quit**.
 - **Expected**: both `runtime.json` and `runtime.lock` are removed; `otelux.db`, `settings.json`, `mcp-token`, and owner-only `runtime-token` remain.
 
 ### 5.11 Legacy Desktop migration
 Run this as an isolated migration check, not against valuable telemetry:
 
-1. Quit Desktop, stop its isolated runtime, and create `/tmp/otelux-legacy` containing a synthetic or disposable `otelux.db`, `settings.json`, and `mcp-token` from a previous test run.
+1. Choose and confirm **Stop Runtime and Quit**, then create `/tmp/otelux-legacy` containing a synthetic or disposable `otelux.db`, `settings.json`, and `mcp-token` from a previous test run.
 2. Ensure `/tmp/otelux-canonical` does not exist.
 3. Launch with `OTELUX_DATA_DIR=/tmp/otelux-canonical npx electron out/main/index.js --user-data-dir=/tmp/otelux-legacy`.
 - **Expected**: the runtime copies legacy files into `/tmp/otelux-canonical`, opens the canonical database, and leaves every source file in `/tmp/otelux-legacy` intact. An interrupted `.legacy-migration.json` operation resumes before SQLite opens. If both directories already contain `otelux.db`, neither is overwritten or merged and the conflict is logged.
@@ -558,7 +558,7 @@ curl -s -D /tmp/otelux-origin-headers.txt -X POST \
 - Choose **Open OTelux** from the tray menu.
 - **Expected**: the workbench returns with telemetry received while hidden.
 - Choose **Quit Desktop** from the tray menu.
-- **Expected**: the window, tray item, and Electron process disappear, while OTLP/MCP/Runtime API and the daemon PID in `runtime.json` remain healthy. Send another telemetry item and confirm it persists. Until user-facing lifecycle control lands, end the isolated test by sending SIGTERM to that verified daemon PID; listeners and ownership state then disappear cleanly.
+- **Expected**: the window, tray item, and Electron process disappear, while OTLP/MCP/Runtime API and the daemon PID in `runtime.json` remain healthy. Send another telemetry item and confirm it persists. Relaunch Desktop, choose **Stop Runtime and Quit**, cancel once to prove nothing stops, then confirm; listeners and ownership state disappear cleanly.
 
 ### 12.3 DevTools open
 - F12 or Ctrl+Shift+I on Linux/Windows; F12 or Command+Shift+I on macOS.

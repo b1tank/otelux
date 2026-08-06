@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://otelux.dev/schema/v1/result-shutdown.schema.json",
+  "title": "runtime/shutdown result",
+  "type": "null"
+}

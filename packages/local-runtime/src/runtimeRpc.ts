@@ -100,6 +100,10 @@ export function createRuntimeRpcDispatcher(runtime: LocalRuntime): RuntimeRpcDis
 						await runtime.clearData();
 						result = null;
 						break;
+					case 'runtime/shutdown':
+						result = null;
+						queueMicrotask(() => runtime.requestShutdown());
+						break;
 					case 'telemetry/listTraces':
 						result = await runtime.listTraces(call.params);
 						break;

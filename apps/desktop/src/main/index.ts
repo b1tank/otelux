@@ -145,6 +145,11 @@ async function startBackend(): Promise<{ stop: () => Promise<void> }> {
 		},
 	});
 	const runtime = discovered.client;
+	shutdownRuntime = async () => {
+		await runtime.shutdown();
+		runtime.close();
+		windowLifecycle.requestQuit();
+	};
 
 	const broadcast = (event: OteluxEvent): void => {
 		let validated: OteluxEvent;
@@ -277,6 +282,7 @@ async function startBackend(): Promise<{ stop: () => Promise<void> }> {
 
 	return {
 		stop: async () => {
+			shutdownRuntime = undefined;
 			events.dispose();
 			controlSignals.dispose();
 			await controlRefresh;
@@ -451,6 +457,23 @@ function createWindow(): BrowserWindow {
 const windowLifecycle = createDesktopWindowLifecycle(createWindow, () => app.quit());
 
 let tray: Tray | undefined;
+let shutdownRuntime: (() => Promise<void>) | undefined;
+
+async function confirmRuntimeShutdown(): Promise<void> {
+	if (!shutdownRuntime) return;
+	const result = await dialog.showMessageBox({
+		type: 'warning',
+		title: 'Stop OTelux runtime?',
+		message: 'Stop the local runtime and quit Desktop?',
+		detail:
+			'OTLP ingest and MCP access will stop until Desktop or a future CLI starts the runtime again.',
+		buttons: ['Cancel', 'Stop Runtime and Quit'],
+		defaultId: 0,
+		cancelId: 0,
+		noLink: true,
+	});
+	if (result.response === 1) await shutdownRuntime();
+}
 
 function createTray(): void {
 	tray = new Tray(resolveIconPath('tray'));
@@ -465,6 +488,12 @@ function createTray(): void {
 			{
 				label: 'Quit Desktop',
 				click: () => windowLifecycle.requestQuit(),
+			},
+			{
+				label: 'Stop Runtime and Quit',
+				click: () => {
+					void confirmRuntimeShutdown();
+				},
 			},
 		]),
 	);

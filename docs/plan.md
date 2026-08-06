@@ -175,7 +175,7 @@ Before declaring the ownership-transfer milestone complete:
 - package one version-matched daemon entry that works from supported Linux `.deb` and AppImage layouts; Electron Node mode now passes from unpacked, extracted `.deb`, and extracted AppImage layouts with `node:sqlite`, release-version publication, authenticated RPC, and clean shutdown;
 - define start/stop/restart and stale-version behavior without automatically killing an unknown or incompatible owner; daemon hosts can now inject their release version and discovery fails closed on a mismatched expected version, but replacement/rollback is not implemented;
 - [x] make Desktop use the shared HTTP/SSE client and prove it never opens the active SQLite database; Runtime RPC includes storage path/usage controls required by the existing Settings UI, with shared result decoders and direct/HTTP parity;
-- the packaged smoke proves the daemon survives Desktop exit and an explicit test-only SIGTERM cleans listeners/state; add second-Desktop reconnect plus user-facing stop/restart control;
+- the packaged smoke proves the daemon survives Desktop exit; authenticated `runtime/shutdown` and the confirmed tray **Stop Runtime and Quit** action clean listeners/state. Add second-Desktop reconnect and restart control;
 - refetch settings/listener status when SSE reports external control changes; Desktop currently broadcasts its own successful updates but another client can leave an open Settings view stale until reopen;
 - qualify install, upgrade/rollback, concurrent startup, port conflict, crash recovery, and uninstall-with-data-preserved behavior;
 - move legacy migration behind the absent-owner decision so Desktop never resumes/copies migration files while a daemon is already active;
@@ -195,8 +195,8 @@ Tradeoff: owner-token loopback HTTP is weaker than owner-credentialed OS IPC aga
 
 Blocker classification before further feature investment:
 
-- **Resolve autonomously:** discover a live owner before running legacy migration; propagate SSE `settings`/`status` invalidations into refreshed Desktop events; show startup/incompatibility/disconnect failures; and automate second-Desktop reconnect against retained data.
-- **Decision required:** expose a tray-only **Stop Runtime and Quit** control in addition to **Quit Desktop**, or leave runtime stop manual until the CLI. Recommended safe default is the explicit tray control backed by authenticated Runtime RPC, so users can safely delete data and recover from an incompatible prerelease daemon without re-coupling ordinary Desktop exit to runtime lifetime.
+- **Resolved:** live-owner discovery precedes legacy migration; SSE `settings`/`status` invalidations trigger coalesced control refetch; startup/incompatibility failures show redacted recovery guidance; and confirmed authenticated **Stop Runtime and Quit** is distinct from ordinary **Quit Desktop**.
+- **Resolve autonomously:** automate second-Desktop reconnect against retained data and surface a daemon disconnect that occurs after startup.
 - **Documented later limitations:** OS service registration, login autostart, native OS IPC, browser sessions/scopes, and automatic incompatible-version replacement/upgrade rollback.
 
 Done when:

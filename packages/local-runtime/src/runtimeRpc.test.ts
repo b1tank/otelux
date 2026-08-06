@@ -48,6 +48,7 @@ function runtime(): LocalRuntime {
 		updateSettings: vi.fn(),
 		loadSampleData: vi.fn(async () => ({ traces: 1, logs: 1, metrics: 1 })),
 		clearData: vi.fn(async () => {}),
+		requestShutdown: vi.fn(),
 	} as unknown as LocalRuntime;
 }
 
@@ -149,6 +150,14 @@ describe('Runtime RPC dispatcher', () => {
 				data: { expectedRevision: 3, currentRevision: 4 },
 			},
 		});
+	});
+
+	it('acknowledges shutdown before requesting daemon termination', async () => {
+		const local = runtime();
+		const response = await createRuntimeRpcDispatcher(local).handle(request('runtime/shutdown'));
+		expect(response).toMatchObject({ result: null });
+		await new Promise<void>((resolve) => queueMicrotask(() => resolve()));
+		expect(local.requestShutdown).toHaveBeenCalledOnce();
 	});
 
 	it('executes valid clear only with confirmation and suppresses notification replies', async () => {

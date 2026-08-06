@@ -137,6 +137,10 @@
       "result": null
     },
     {
+      "runtimeMethod": "runtime/shutdown",
+      "result": null
+    },
+    {
       "runtimeMethod": "telemetry/listTraces",
       "invokeKind": "listTraces",
       "result": {

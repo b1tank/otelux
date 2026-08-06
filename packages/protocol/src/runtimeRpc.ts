@@ -117,6 +117,7 @@ export type RuntimeRpcMethod =
 	| 'runtime/updateSettings'
 	| 'runtime/loadSampleData'
 	| 'runtime/clearData'
+	| 'runtime/shutdown'
 	| 'telemetry/listTraces'
 	| 'telemetry/getTrace'
 	| 'telemetry/getTraceWaterfall'
@@ -136,6 +137,7 @@ export type DecodedRuntimeRpcCall =
 	| { readonly method: 'runtime/updateSettings'; readonly params: UpdateSettingsParams }
 	| { readonly method: 'runtime/loadSampleData' }
 	| { readonly method: 'runtime/clearData'; readonly params: { readonly confirmation: 'clear' } }
+	| { readonly method: 'runtime/shutdown' }
 	| { readonly method: 'telemetry/listTraces'; readonly params: ListTracesQuery }
 	| { readonly method: 'telemetry/getTrace'; readonly params: { readonly traceId: string } }
 	| { readonly method: 'telemetry/getTraceWaterfall'; readonly params: { readonly traceId: string } }
@@ -267,6 +269,7 @@ export function decodeRuntimeRpcCall(request: RuntimeRpcRequest): DecodedRuntime
 		case 'runtime/getStoragePath':
 		case 'runtime/getStorageUsage':
 		case 'runtime/loadSampleData':
+		case 'runtime/shutdown':
 			emptyParams(request.params);
 			return { method };
 		case 'runtime/updateSettings': {

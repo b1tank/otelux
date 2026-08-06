@@ -96,7 +96,13 @@ describe('oteluxd process', () => {
 			assert.match(secondary.stderr(), /"event":"already-running"/);
 			assert.ok(!secondary.stderr().includes('runtime-token'));
 
-			primary.child.kill('SIGTERM');
+			const shutdown = await fetch(`http://${running.api.host}:${running.api.port}/api/v1/rpc`, {
+				method: 'POST',
+				headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+				body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'runtime/shutdown' }),
+			});
+			assert.equal(shutdown.status, 200);
+			assert.equal((await shutdown.json()).result, null);
 			assert.equal(await exit(primary.child), 0);
 			await assert.rejects(readFile(join(directory, 'runtime.json')));
 			await assert.rejects(readFile(join(directory, 'runtime.lock')));

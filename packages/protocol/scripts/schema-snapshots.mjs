@@ -368,6 +368,9 @@ const resultSchemas = {
 	'result-clear-data': resultSchema('result-clear-data', 'runtime/clearData result', {
 		type: 'null',
 	}),
+	'result-shutdown': resultSchema('result-shutdown', 'runtime/shutdown result', {
+		type: 'null',
+	}),
 	'result-list-traces': resultSchema(
 		'result-list-traces',
 		'telemetry/listTraces result',
@@ -678,6 +681,7 @@ schemas['runtime-rpc-request'] = {
 					'runtime/updateSettings',
 					'runtime/loadSampleData',
 					'runtime/clearData',
+					'runtime/shutdown',
 					'telemetry/listTraces',
 					'telemetry/getTrace',
 					'telemetry/getTraceWaterfall',

@@ -56,6 +56,7 @@ export interface CreateLocalRuntimeOptions {
 	readonly apiMaxBodyBytes?: number;
 	/** Host release version published for compatibility-aware clients. */
 	readonly runtimeVersion?: string;
+	readonly onShutdownRequest?: () => void;
 	readonly logger?: RuntimeLogger;
 }
 
@@ -74,6 +75,7 @@ export interface LocalRuntime extends DataSource {
 	updateSettings(patch: PartialSettings, expectedRevision: number): Promise<UpdateSettingsResult>;
 	loadSampleData(): Promise<LoadSampleDataResult>;
 	clearData(): Promise<void>;
+	requestShutdown(): void;
 	onEvent(listener: (event: RuntimeEvent) => void): Disposable;
 	close(): Promise<void>;
 }
@@ -283,6 +285,7 @@ async function createOwnedRuntime(input: CreateOwnedRuntimeOptions): Promise<Loc
 			),
 		loadSampleData,
 		clearData: () => serializeMutation(() => engine.clear()),
+		requestShutdown: () => options.onShutdownRequest?.(),
 		onEvent(listener): Disposable {
 			eventListeners.add(listener);
 			return { dispose: () => eventListeners.delete(listener) };

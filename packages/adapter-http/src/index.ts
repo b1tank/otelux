@@ -52,6 +52,7 @@ export interface RuntimeHttpClient extends DataSource {
 	updateSettings(patch: PartialSettings, expectedRevision: number): Promise<UpdateSettingsResult>;
 	loadSampleData(): Promise<LoadSampleDataResult>;
 	clearData(): Promise<void>;
+	shutdown(): Promise<void>;
 	subscribeSignals(handler: (signals: readonly RuntimeEventSignal[]) => void): Disposable;
 	close(): void;
 }
@@ -259,6 +260,9 @@ export function createHttpDataSource(options: CreateHttpDataSourceOptions): Runt
 		loadSampleData: () => call('runtime/loadSampleData'),
 		async clearData(): Promise<void> {
 			await call('runtime/clearData', { confirmation: 'clear' });
+		},
+		async shutdown(): Promise<void> {
+			await call('runtime/shutdown');
 		},
 		listTraces: (query: ListTracesQuery) => call('telemetry/listTraces', query),
 		getTrace: (query: GetTraceQuery) => call('telemetry/getTrace', query),

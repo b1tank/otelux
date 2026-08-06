@@ -59,6 +59,7 @@ export interface RuntimeRpcResultMap {
 	'runtime/updateSettings': UpdateSettingsResult;
 	'runtime/loadSampleData': LoadSampleDataResult;
 	'runtime/clearData': null;
+	'runtime/shutdown': null;
 	'telemetry/listTraces': ListTracesResult;
 	'telemetry/getTrace': Trace;
 	'telemetry/getTraceWaterfall': Trace;
@@ -742,6 +743,7 @@ export const runtimeRpcResultDecoders = {
 	'runtime/updateSettings': parseUpdateSettings,
 	'runtime/loadSampleData': parseCounts,
 	'runtime/clearData': (value: unknown, path = '$.result') => literal(value, null, path),
+	'runtime/shutdown': (value: unknown, path = '$.result') => literal(value, null, path),
 	'telemetry/listTraces': parseListTracesResult,
 	'telemetry/getTrace': parseTrace,
 	'telemetry/getTraceWaterfall': parseTrace,
