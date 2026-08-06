@@ -9,7 +9,7 @@ Give Desktop and the future CLI one Node-side path to discover, authenticate, va
 - [x] Add a Node runtime discovery client over the existing HTTP/SSE adapter.
 - [x] Add bounded ensure/start polling with deterministic compatibility failures.
 - [x] Cover live, absent, malformed, authentication, identity, and startup races.
-- [ ] Update runtime architecture and package documentation.
+- [x] Update runtime architecture and package documentation.
 - [ ] Run full build and regression qualification.
 
 ## Hiccups & Notes

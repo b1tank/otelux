@@ -221,7 +221,8 @@ A failed or skipped agent setup never blocks use of Desktop or sample data.
 
 - [x] Runtime validation/schema snapshots and compatibility fixtures.
 - [x] Authenticated Runtime RPC/SSE host, browser-safe HTTP adapter, direct/HTTP parity, and foreground `oteluxd` ownership/process lifecycle.
-- Package/register the per-user daemon and convert Desktop from embedded owner to compatibility-aware HTTP/SSE client.
+- [x] Add compatibility-aware Node discovery/ensure over owner state, the canonical control token, Runtime RPC negotiation, and live instance identity.
+- Package/register the per-user daemon and convert Desktop from embedded owner to the shared HTTP/SSE client.
 - Existing SQLite database migration remains copy-only/resumable and never creates a second active store.
 
 ### M1 — CLI foundation

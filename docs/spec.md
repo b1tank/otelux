@@ -44,7 +44,7 @@ The repository currently contains:
 - Direct in-process and Electron IPC `DataSource` adapters.
 - MCP tool plumbing over the same query layer.
 - A shared OTelux plugin under `plugins/otelux` installs into Claude Code, Codex, and Pi with four observability skills plus a secure stdio bridge to the desktop MCP listener. Pi's thin extension registers the same bridge tools natively; it does not fork the MCP implementation. This is the current companion implementation; see [arch.md](arch.md#current-implementation) for the target shared-runtime architecture.
-- A foreground `oteluxd` build now owns the same runtime without Electron, handles signals, rejects duplicate owners, and passes process-level RPC/cleanup tests. It is a development foundation, not yet installer-bundled or registered as a background service.
+- A foreground `oteluxd` build now owns the same runtime without Electron, handles signals, rejects duplicate owners, and passes process-level RPC/cleanup tests. Node hosts share a bounded compatibility-aware discovery/ensure client that validates state, the canonical owner-only token, protocol negotiation, and live instance identity. The daemon remains a development foundation, not yet installer-bundled or registered as a background service.
 - The desktop app is the current release product. v0.1.11 publishes natively built, packaged, installed, smoke-tested, and checksummed Linux x64/arm64 `.deb` and rootless AppImage artifacts with per-architecture SBOMs and provenance. macOS and Windows remain unsigned preview builds. The agent plugin is currently Desktop's companion; direct MCP and CLI become independent forms after the runtime moves into a separately managed daemon.
 
 Important current limits:
