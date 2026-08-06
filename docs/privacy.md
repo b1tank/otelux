@@ -1,6 +1,6 @@
 # Privacy And Local Data
 
-Updated: 2026-07-15
+Updated: 2026-08-06
 
 OTelux is local-first. The application does not require an account or cloud service and does not independently upload captured telemetry.
 
@@ -48,7 +48,7 @@ The current MCP HTTP listener is enabled by default but requires a per-install b
 
 ## Agent Plugins
 
-Runtime control uses a separate owner-only `runtime-token`. Its value is not written to `runtime.json`, URLs, model context, or logs. The API exposes bounded local query/control methods and revision-only SSE invalidations; browser session bootstrap is not shipped yet, so requests carrying `Origin` are rejected.
+Runtime control uses a separate owner-only `runtime-token`. Its value is not written to `runtime.json`, URLs, model context, or logs. Node clients derive the canonical token path from the selected data directory rather than following an arbitrary state-file path, then verify the live runtime instance after protocol negotiation. The API exposes bounded local query/control methods and revision-only SSE invalidations; browser session bootstrap is not shipped yet, so requests carrying `Origin` are rejected.
 
 The OTelux Claude Code and Codex plugins connect to the authenticated loopback MCP listener through a bundled local bridge. The bridge reads `runtime.json` and the token file from the canonical data directory; it does not copy the token into plugin manifests, model prompts, or marketplace metadata.
 

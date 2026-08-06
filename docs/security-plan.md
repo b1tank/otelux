@@ -182,9 +182,9 @@ Keep the Runtime API on an independent control token. It can query telemetry, ch
 
 Before daemon-client conversion:
 
-- Complete method-specific response validation.
-- Complete shared direct/HTTP/IPC parity.
-- Add settings revision/CAS conflicts so stale clients cannot overwrite newer state.
+- [x] Complete method-specific response validation.
+- [x] Complete shared direct/HTTP/IPC parity.
+- [x] Add settings revision/CAS conflicts so stale clients cannot overwrite newer state.
 - Separate read and control scopes before browser or third-party clients use the API.
 - Add token rotation tied to runtime upgrade/repair without exposing values in runtime state.
 
@@ -266,7 +266,7 @@ Document that OTelux cannot protect telemetry from:
 - [x] Enforce owner-only database, WAL/SHM sidecar, and settings permissions on POSIX default/custom paths.
 - [x] Add exact Host validation to OTLP and MCP runtime listeners.
 - [x] Add focused POSIX permission and hostile-Host/DNS-rebinding tests.
-- [ ] Reconcile `security-model.md`, `privacy.md`, `spec.md`, and `test.md` with the verified behavior.
+- [x] Reconcile `security-model.md`, `privacy.md`, `spec.md`, and `test.md` with the verified behavior.
 - [x] Add visible local-write trust wording in Settings without adding default OTLP credential configuration.
 
 ### Existing bounded-RPC sprint

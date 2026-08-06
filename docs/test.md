@@ -589,7 +589,8 @@ curl -s -D /tmp/otelux-origin-headers.txt -X POST \
 - Send SIGTERM/SIGINT to the owner → exit `0`, stopped record, all listeners closed, `runtime.json`/`runtime.lock` removed.
 - Run the direct/HTTP parity suite and protocol result-fixture suite → identical bounded traces/waterfalls/spans/logs/metrics/facets and bigint values; every advertised Runtime RPC/Electron invoke method has a decoder; malformed or over-limit HTTP/IPC results fail closed; stale settings revisions produce typed IPC conflicts and Runtime RPC `-32004` before mutation; plus SSE invalidation, auth failure, RPC error, disposal, and clear coverage.
 - Run the HTTP payload-budget fixture (30 × 100 KB ordinary logs) → the log summary page remains below 150 KiB and one selected full detail loads separately. Run the metric fixture with more than 1,000 out-of-order points and oversized attributes → each point page remains below 2 MiB, returns a continuation cursor, preserves values/timestamps, and reports every truncated attribute projection. Batches above 10 fail; accepted batches execute sequentially.
-- **Qualification limit**: foreground `oteluxd` is not yet installed or registered as a background service; Desktop remains the packaged runtime owner.
+- Run the Node discovery/ensure suite → absent state returns no client; a host-supplied start action is invoked once and bounded; live state authenticates and verifies instance identity; malformed state, redirected/non-owner token files, wrong credentials, and replaced identity fail closed without starting a competitor.
+- **Qualification limit**: foreground `oteluxd` is not yet installed or registered as a background service; Desktop remains the packaged runtime owner. The ownership-transfer gate must add packaged `.deb`/AppImage daemon launch, reconnect to one surviving instance after Desktop exit, explicit runtime stop, concurrent-start/crash/port-conflict recovery, and upgrade/rollback coverage.
 
 ---
 

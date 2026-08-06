@@ -1,6 +1,6 @@
 # Security Model
 
-Updated: 2026-07-14
+Updated: 2026-08-06
 
 OTelux receives and renders untrusted telemetry on a developer workstation. Its current network trust boundary is the local host, not an individual operating-system user: loopback listeners can be reachable by other local users or processes.
 
@@ -61,7 +61,8 @@ MCP, LM, browser, clipboard, download, and future export clients operate outside
 - OTLP and MCP request bodies are bounded before parsing; oversized requests return `413`.
 - `POST` listeners require an `application/json` content type (`415` otherwise) and reject requests from non-allowlisted browser origins (`403`).
 - MCP and Runtime API HTTP use separate per-install bearer tokens; requests without the corresponding valid header return `401` before tool/query dispatch.
-- Failed listener changes roll back to the previous healthy listener, including when the subsequent settings-file write fails.
+- Failed listener changes roll back to the previous healthy listener, including when the subsequent settings-file write fails; stale settings revisions fail before listener mutation.
+- Runtime RPC and Electron IPC requests/results use method-specific bounded decoders, checked schemas, compatibility fixtures, and direct/HTTP/IPC parity coverage.
 - Settings writes use an owner-only temporary file and rename to avoid partial JSON; POSIX SQLite database/WAL/SHM files are tightened to owner-only permissions for default and custom paths.
 - The app uses a single-instance lock to avoid duplicate desktop listeners.
 - The Electron renderer is sandboxed and isolated from Node.js.
@@ -75,7 +76,8 @@ MCP, LM, browser, clipboard, download, and future export clients operate outside
 
 The current source build is not a supported security release. Known release blockers include:
 
-- Runtime RPC method-specific result schemas and a shared direct/IPC/HTTP parity suite are incomplete; current request, state, event, negotiation, auth, and transport bounds are runtime-tested.
+- The foreground daemon is not packaged or registered, Desktop remains the runtime owner, and daemon upgrade/rollback plus token-rotation lifecycle is not implemented.
+- Browser session bootstrap, scoped read/control capabilities, CSRF protection, and session revocation are not shipped; browser origins therefore remain rejected by Runtime API.
 - CodeQL is configured but intentionally skipped while this repository remains private on a plan without code-scanning support.
 - Branch protection, required checks, secret scanning, push protection, and private vulnerability reporting cannot be fully enabled until repository visibility or account capabilities change.
 

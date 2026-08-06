@@ -205,7 +205,7 @@ A signed apt repository or store distribution can follow when release cadence ju
 
 ## Going Public Checklist
 
-One-time repository settings to apply when making the repository public. This checklist is the detailed execution companion to the concise OSS gate in [sprint.plan.md](sprint.plan.md). Public visibility does **not** require completing the daemon, CLI, browser workbench, gRPC, cross-platform packages, or future product views; those remain accurately labeled roadmap work. Stable-product launch still requires the later quality and beta milestones below.
+One-time repository settings to apply when making the repository public. This checklist is the detailed execution companion to Phase 0 in [plan.md](plan.md). Public visibility does **not** require completing the daemon, CLI, browser workbench, gRPC, cross-platform packages, or future product views; those remain accurately labeled roadmap work. Stable-product launch still requires the later quality and beta milestones below.
 
 The code and workflows are already prepared: the release workflow attests provenance only when public, CodeQL is public-only, and SECURITY.md already points at the private-reporting flow. This list captures the manual settings that cannot be expressed in code.
 

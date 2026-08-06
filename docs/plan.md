@@ -1,10 +1,10 @@
 # OTelux — Plan Ahead
 
-Updated: 2026-08-03
+Updated: 2026-08-06
 
 This plan only covers work ahead of us. Completed implementation detail lives in git history and the package READMEs; this file is for deciding what to build next.
 
-> **Active presentation/distribution overlay:** [sprint.plan.md](sprint.plan.md) contains the evidence-based OSS branding, demo, cross-platform artifact, and package-manager rollout. This plan remains the owner of product sequencing.
+> This file owns product sequencing. One-time publication/release evidence remains in [release-sprint.md](release-sprint.md); completed implementation sprints remain available in Git history rather than as competing active plans.
 
 See the specification's [Current Baseline](spec.md#current-baseline) for implemented capabilities and limits. The phases below contain only work that remains ahead; remove completed work as it ships.
 
@@ -31,7 +31,7 @@ Not OSS visibility blockers:
 
 - The daemon, browser workbench, CLI, independent plugin packaging, gRPC, Windows/macOS signing, service UI, correlation fallback, FTS, profiles, and service maps remain public roadmap work.
 
-Done when the concise gate in [sprint.plan.md](sprint.plan.md) passes. The detailed one-time GitHub settings checklist remains in [release-sprint.md](release-sprint.md#going-public-checklist).
+Done when the visibility gate and detailed one-time GitHub settings checklist in [release-sprint.md](release-sprint.md#going-public-checklist) pass.
 
 ## Phase 1 — Workbench Polish
 
@@ -110,7 +110,7 @@ Done when:
 
 Goal: make OTelux immediately understandable, demonstrable, trustworthy, and easy to install through native platform conventions.
 
-The decomposed audit and rollout are in [sprint.plan.md](sprint.plan.md).
+The decomposed publication audit and rollout are preserved in [release-sprint.md](release-sprint.md).
 
 Tasks:
 
@@ -144,7 +144,7 @@ Tasks:
 - [x] Add a thin Pi package adapter that registers the existing MCP bridge tools natively without forking their implementation.
 - [x] Extract backend composition into `@otelux/local-runtime`; Desktop now delegates SQLite, migrations, retention, OTLP, MCP, settings, and sample data to it.
 - [x] Build and process-test a foreground `oteluxd` owner with normal runtime state/RPC, duplicate-owner rejection, and complete signal shutdown.
-- Package/register `oteluxd` with per-user background lifecycle, compatibility-aware discovery/start/stop, and upgrade rollback; then stop embedding runtime ownership in Electron.
+- Package/register `oteluxd` with per-user background lifecycle and upgrade rollback, then stop embedding runtime ownership in Electron. Compatibility-aware Node discovery/ensure is delivered; no packaged launcher or service registration exists yet.
 - [x] Add canonical per-user data-home resolution, nonce-protected state/locking, protocol/runtime version metadata, and resumable copy-only legacy Desktop migration.
 - [x] Add bounded tagged-bigint wire codecs, path-aware Electron IPC/event and runtime-state validation, checked transition schemas, and backward/compatible-future fixtures in `@otelux/protocol`.
 - [x] Define and validate the initial Runtime JSON-RPC method registry, protocol-major negotiation, revisioned SSE envelopes, checked transport schemas, direct dispatcher tests, and authenticated loopback HTTP/SSE host.
@@ -165,6 +165,20 @@ Tasks:
 - Add validated MCP input and output schemas; keep agent summaries separate from paginated UI query DTOs.
 - Publish prebuilt CLI, direct-MCP, and self-contained Claude/Codex plugin artifacts that require no install-time compilation or separate Desktop installation.
 - Complete marketplace metadata, support/privacy material, clean-install evidence, and Claude/Codex publishing workflows.
+
+### Next acceptance gate — daemon ownership transfer
+
+Verified foundation: foreground `oteluxd`, authenticated Runtime RPC/SSE, method/result validation, parity fixtures, settings CAS, SQL budgets, and compatibility-aware Node discovery/ensure all pass focused and full-suite tests. The connector accepts a host-supplied start action; it does not package, register, stop, replace, or roll back a daemon.
+
+Before Electron relinquishes ownership:
+
+- package one version-matched daemon entry that works from supported Linux `.deb` and AppImage layouts;
+- define start/stop/restart and stale-version behavior without automatically killing an unknown or incompatible owner;
+- make Desktop use the shared HTTP/SSE client and prove it never opens the active SQLite database;
+- prove the daemon survives Desktop window/tray exit, a second Desktop reconnects to the same instance/data, and an explicit runtime stop cleans listeners/state;
+- qualify install, upgrade/rollback, concurrent startup, port conflict, crash recovery, and uninstall-with-data-preserved behavior.
+
+Decision (2026-08-06): use an on-demand packaged daemon started by the shared launcher rather than installer-created systemd state, so `.deb` and AppImage follow one lifecycle. Desktop main uses the already hardened owner-token loopback HTTP/SSE transport and never passes the token into renderer/browser contexts. Native user services and owner-only OS IPC remain later hardening choices, not parallel runtime implementations.
 
 Done when:
 
