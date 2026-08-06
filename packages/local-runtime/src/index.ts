@@ -25,6 +25,16 @@ export {
 } from './runtimeState.js';
 
 export {
+	connectRuntimeClient,
+	ensureRuntimeClient,
+	type ConnectRuntimeClientOptions,
+	type DiscoveredRuntimeClient,
+	type EnsureRuntimeClientOptions,
+	RuntimeClientDiscoveryError,
+	type RuntimeClientDiscoveryErrorCode,
+} from './runtimeClient.js';
+
+export {
 	createRuntimeEventProjector,
 	type RuntimeEventProjector,
 	type RuntimeEventProjectorOptions,

@@ -31,6 +31,7 @@
 	},
 	"dependencies": {
 		"@hono/node-server": "2.0.12",
+		"@otelux/adapter-http": "*",
 		"@otelux/engine": "*",
 		"@otelux/engine-node": "*",
 		"@otelux/mcp-server": "*",
@@ -39,7 +40,6 @@
 		"@otelux/types": "*"
 	},
 	"devDependencies": {
-		"@otelux/adapter-http": "*",
 		"@types/node": "22.20.1",
 		"tsup": "8.5.1",
 		"typescript": "5.7.2",
