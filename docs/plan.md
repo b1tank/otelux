@@ -180,6 +180,16 @@ Before Electron relinquishes ownership:
 
 Decision (2026-08-06): use an on-demand packaged daemon started by the shared launcher rather than installer-created systemd state, so `.deb` and AppImage follow one lifecycle. Desktop main uses the already hardened owner-token loopback HTTP/SSE transport and never passes the token into renderer/browser contexts. Native user services and owner-only OS IPC remain later hardening choices, not parallel runtime implementations.
 
+Scope guardrails for this milestone:
+
+- Linux source, unpacked, `.deb`, and AppImage launch/reconnect are in scope; unsigned Windows/macOS lifecycle remains deferred.
+- The daemon survives Desktop exit and stops only through an explicit diagnostic/control path; login autostart and OS service registration are out of scope.
+- An incompatible owner is reported and preserved, never killed or replaced automatically. Automated upgrade rollback waits for a real CLI/installer lifecycle.
+- Browser bootstrap, cookie sessions, CSRF, read/control scopes, Unix sockets, and named pipes are separate milestones.
+- A development comparison flag may retain embedded ownership briefly, but the shipped path must not permanently support two backend ownership models.
+
+Tradeoff: owner-token loopback HTTP is weaker than owner-credentialed OS IPC against another process running as the same user, but that account is already outside the current protection boundary and can read local telemetry/token files. Reusing the validated transport avoids a second protocol implementation and keeps the ownership transfer reviewable. The first implementation risk is packaging—not RPC semantics—so the next experiment must prove that Electron's Node mode can launch the bundled daemon with `node:sqlite` from unpacked and AppImage layouts before Desktop is converted.
+
 Done when:
 
 - Plugin, direct-MCP, CLI, and Desktop users all reach the same local runtime and database, regardless of installation order.
