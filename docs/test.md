@@ -602,7 +602,7 @@ curl -s -D /tmp/otelux-origin-headers.txt -X POST \
 - Run the Node discovery/ensure suite → absent state returns no client; a host-supplied start action is invoked once and bounded; live state authenticates and verifies instance identity; malformed state, redirected/non-owner token files, wrong credentials, and replaced identity fail closed without starting a competitor.
 - Run `npm run -w @otelux/desktop smoke:daemon` after `package:dir` → Electron Node mode loads the daemon from `app.asar`, `node:sqlite` starts, the injected Desktop release version is published, authenticated Runtime RPC answers with the same instance, SIGTERM exits zero, and ownership state is removed.
 - After `package:linux`, run `npm run -w @otelux/desktop smoke:daemon-artifacts` → extract the architecture-matching `.deb` and AppImage without installing them and repeat the daemon smoke against each real artifact layout.
-- **Qualification limit**: Desktop uses the packaged daemon; smoke proves survival after Electron exit, a second Desktop reconnect to the same instance, and explicit authenticated shutdown. Restart UI, post-start disconnect handling, concurrent-start/crash/port-conflict recovery, and upgrade/rollback coverage remain.
+- **Qualification limit**: Desktop uses the packaged daemon; smoke proves survival after Electron exit, a second Desktop reconnect to the same instance, explicit authenticated shutdown, and restart UI. Focused tests cover post-start disconnect/recovery, stale crash-owner reclamation, competing-owner rejection, and nonfatal receiver port conflicts. Installed-package upgrade/rollback and uninstall-with-data-preserved coverage remain.
 
 ---
 

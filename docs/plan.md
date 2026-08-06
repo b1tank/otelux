@@ -177,7 +177,7 @@ Before declaring the ownership-transfer milestone complete:
 - [x] make Desktop use the shared HTTP/SSE client and prove it never opens the active SQLite database; Runtime RPC includes storage path/usage controls required by the existing Settings UI, with shared result decoders and direct/HTTP parity;
 - the packaged smoke proves the daemon survives Desktop exit; authenticated `runtime/shutdown`, tray **Restart Runtime**, and confirmed **Stop Runtime and Quit** actions provide explicit lifecycle control; packaged smoke also proves second-Desktop reconnect;
 - refetch settings/listener status when SSE reports external control changes; Desktop currently broadcasts its own successful updates but another client can leave an open Settings view stale until reopen;
-- qualify install, upgrade/rollback, concurrent startup, port conflict, crash recovery, and uninstall-with-data-preserved behavior;
+- stale crash ownership is reclaimed when the recorded PID is dead, concurrent owners fail closed, and receiver port conflicts publish a nonfatal error while Runtime control remains available; extend these focused checks through installed-package upgrade/rollback and uninstall-with-data-preserved qualification;
 - move legacy migration behind the absent-owner decision so Desktop never resumes/copies migration files while a daemon is already active;
 - show deterministic startup/incompatibility failures instead of leaving Electron with an unhandled startup rejection.
 

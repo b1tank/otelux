@@ -50,7 +50,7 @@ export async function connectRuntimeClient(
 ): Promise<DiscoveredRuntimeClient | undefined> {
 	const dataDirectory = resolve(options.dataDirectory ?? resolveOteluxDataDirectory());
 	const state = await readDiscoveryState(dataDirectory);
-	if (!state) return undefined;
+	if (!state || !processIsAlive(state.pid)) return undefined;
 	if (state.api?.kind !== 'running') {
 		throw new RuntimeClientDiscoveryError('unavailable', 'OTelux runtime API is not running');
 	}
@@ -169,6 +169,15 @@ function positiveInteger(value: number | undefined, fallback: number, name: stri
 		throw new RangeError(`${name} must be a positive integer`);
 	}
 	return result;
+}
+
+function processIsAlive(pid: number): boolean {
+	try {
+		process.kill(pid, 0);
+		return true;
+	} catch (error) {
+		return isNodeError(error) && error.code === 'EPERM';
+	}
 }
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {

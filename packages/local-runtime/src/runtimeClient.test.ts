@@ -9,7 +9,7 @@ import {
 	connectRuntimeClient,
 	ensureRuntimeClient,
 } from './runtimeClient.js';
-import { RUNTIME_STATE_FILE } from './runtimeState.js';
+import { RUNTIME_LOCK_FILE, RUNTIME_STATE_FILE } from './runtimeState.js';
 
 const silentLogger = { info: (): void => {}, error: (): void => {} };
 
@@ -56,6 +56,37 @@ describe('Node runtime client discovery', () => {
 		expect(discovered?.state.instanceId).toBe(owner.getRuntimeState().instanceId);
 		await expect(discovered?.client.getSettings()).resolves.toEqual(owner.getSettings());
 		discovered?.client.close();
+	});
+
+	it('reclaims stale crash ownership before starting a replacement', async () => {
+		const owner = await start();
+		const staleState = owner.getRuntimeState();
+		await owner.close();
+		runtime = undefined;
+		const stalePid = 2_147_483_647;
+		await fs.writeFile(
+			join(directory, RUNTIME_STATE_FILE),
+			JSON.stringify({ ...staleState, pid: stalePid }),
+		);
+		await fs.writeFile(
+			join(directory, RUNTIME_LOCK_FILE),
+			JSON.stringify({
+				version: 1,
+				instanceId: staleState.instanceId,
+				pid: stalePid,
+				acquiredAt: staleState.startedAt,
+			}),
+		);
+		const discovered = await ensureRuntimeClient({
+			dataDirectory: directory,
+			timeoutMs: 5_000,
+			pollIntervalMs: 10,
+			start: async () => {
+				await start();
+			},
+		});
+		expect(discovered.state.instanceId).not.toBe(staleState.instanceId);
+		discovered.client.close();
 	});
 
 	it('does not invoke startup work when an owner is already live', async () => {

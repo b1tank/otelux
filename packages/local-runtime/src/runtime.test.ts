@@ -1,4 +1,5 @@
 import { promises as fs } from 'node:fs';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DEFAULT_SETTINGS, type RuntimeEvent } from '@otelux/protocol';
@@ -83,6 +84,37 @@ describe('createLocalRuntime', () => {
 		expect((await runtime.listLogs({})).totalCount).toBe(0);
 		expect((await runtime.listMetricInstruments({})).totalCount).toBe(0);
 		subscription.dispose();
+	});
+
+	it('publishes a nonfatal receiver port conflict while control stays available', async () => {
+		const blocker = createServer();
+		await new Promise<void>((resolve, reject) => {
+			blocker.once('error', reject);
+			blocker.listen(0, '127.0.0.1', resolve);
+		});
+		const address = blocker.address();
+		if (!address || typeof address === 'string') throw new Error('port missing');
+		try {
+			runtime = await createLocalRuntime({
+				dataDirectory: directory,
+				otlpPortOverride: address.port,
+				apiPortOverride: 0,
+				logger: silentLogger,
+			});
+			expect(runtime.getReceiverStatus()).toMatchObject({
+				kind: 'error',
+				port: address.port,
+			});
+			expect(runtime.getApiStatus().kind).toBe('running');
+			expect(await readRuntimeState(directory)).toMatchObject({
+				receiver: { kind: 'error', port: address.port },
+				api: { kind: 'running' },
+			});
+		} finally {
+			await new Promise<void>((resolve, reject) =>
+				blocker.close((error) => (error ? reject(error) : resolve())),
+			);
+		}
 	});
 
 	it('rejects a second owner and removes its state and lock when closed', async () => {
