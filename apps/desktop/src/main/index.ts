@@ -14,7 +14,7 @@ import {
 	parseInvokeResult,
 	parseRuntimeEvent,
 } from '@otelux/protocol';
-import { BrowserWindow, Menu, Tray, app, ipcMain, shell } from 'electron';
+import { BrowserWindow, Menu, Tray, app, dialog, ipcMain, shell } from 'electron';
 import {
 	type InvokeMessage,
 	OTELUX_EVENT_CHANNEL,
@@ -22,6 +22,7 @@ import {
 	type OteluxEvent,
 } from '../shared/ipc.js';
 import { isAllowedExternalUrl, isAllowedNavigation } from './security.js';
+import { desktopStartupErrorMessage } from './startupError.js';
 import { createDesktopWindowLifecycle, isPackagedQuitRequest } from './windowLifecycle.js';
 
 declare const __OTELUX_APP_VERSION__: string;
@@ -499,21 +500,27 @@ if (!gotLock) {
 	let shutdownStarted = false;
 	let shutdownComplete = false;
 
-	void app.whenReady().then(async () => {
-		backendStartup = startBackend().then((backend) => backend.stop);
-		backendStop = await backendStartup;
-		if (windowLifecycle.isQuitting()) {
-			app.quit();
-			return;
-		}
+	void app
+		.whenReady()
+		.then(async () => {
+			backendStartup = startBackend().then((backend) => backend.stop);
+			backendStop = await backendStartup;
+			if (windowLifecycle.isQuitting()) {
+				app.quit();
+				return;
+			}
 
-		createTray();
-		windowLifecycle.markReady();
-		windowLifecycle.showWindow();
-		app.on('activate', () => {
+			createTray();
+			windowLifecycle.markReady();
 			windowLifecycle.showWindow();
+			app.on('activate', () => {
+				windowLifecycle.showWindow();
+			});
+		})
+		.catch((error) => {
+			dialog.showErrorBox('OTelux could not start', desktopStartupErrorMessage(error));
+			windowLifecycle.requestQuit();
 		});
-	});
 
 	app.on('before-quit', () => {
 		windowLifecycle.beginQuit();
