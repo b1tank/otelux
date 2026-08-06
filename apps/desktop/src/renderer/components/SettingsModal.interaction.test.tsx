@@ -129,6 +129,10 @@ describe('SettingsModal interactions', () => {
 	});
 
 	it('announces successful database-path copying', async () => {
+		Object.defineProperty(navigator, 'clipboard', {
+			configurable: true,
+			value: { writeText: vi.fn().mockResolvedValue(undefined) },
+		});
 		renderSettings(vi.fn(), true);
 		fireEvent.click(screen.getByRole('tab', { name: 'Storage' }));
 		const copy = screen.getByRole('button', { name: 'Copy active database path' });

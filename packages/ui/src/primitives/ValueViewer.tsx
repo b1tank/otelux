@@ -127,13 +127,17 @@ export function ValueViewer(props: ValueViewerProps): JSX.Element | null {
 
 	const headerTitle = title ?? 'Value';
 	const onCopy = (): void => {
-		void writeClipboardText(text).then(() => {
-			setCopied(true);
-			if (copyTimerRef.current !== null) {
-				window.clearTimeout(copyTimerRef.current);
-			}
-			copyTimerRef.current = window.setTimeout(() => setCopied(false), 1200);
-		});
+		void writeClipboardText(text)
+			.then(() => {
+				setCopied(true);
+				if (copyTimerRef.current !== null) {
+					window.clearTimeout(copyTimerRef.current);
+				}
+				copyTimerRef.current = window.setTimeout(() => setCopied(false), 1200);
+			})
+			.catch(() => {
+				// Keep the idle state when every clipboard route is rejected.
+			});
 	};
 	const onDownload = (): void => {
 		const ext = kind === 'json' ? '.json' : kind === 'markdown' ? '.md' : '.txt';

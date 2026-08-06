@@ -54,13 +54,17 @@ export function CopyButton(props: CopyButtonProps): JSX.Element {
 		// itself a role="button"), we don't want a copy click to also
 		// trigger the surrounding row's select handler.
 		e.stopPropagation();
-		void writeClipboardText(value).then(() => {
-			setCopied(true);
-			if (timerRef.current !== null) {
-				window.clearTimeout(timerRef.current);
-			}
-			timerRef.current = window.setTimeout(() => setCopied(false), 1200);
-		});
+		void writeClipboardText(value)
+			.then(() => {
+				setCopied(true);
+				if (timerRef.current !== null) {
+					window.clearTimeout(timerRef.current);
+				}
+				timerRef.current = window.setTimeout(() => setCopied(false), 1200);
+			})
+			.catch(() => {
+				// Keep the idle state when every clipboard route is rejected.
+			});
 	};
 	const liveTitle = copied ? 'Copied' : title;
 	const liveAria = ariaLabel ?? liveTitle;
