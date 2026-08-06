@@ -144,14 +144,14 @@ Tasks:
 - [x] Add a thin Pi package adapter that registers the existing MCP bridge tools natively without forking their implementation.
 - [x] Extract backend composition into `@otelux/local-runtime`; Desktop now delegates SQLite, migrations, retention, OTLP, MCP, settings, and sample data to it.
 - [x] Build and process-test a foreground `oteluxd` owner with normal runtime state/RPC, duplicate-owner rejection, and complete signal shutdown.
-- Package/register `oteluxd` with per-user background lifecycle and upgrade rollback, then stop embedding runtime ownership in Electron. Compatibility-aware Node discovery/ensure is delivered; no packaged launcher or service registration exists yet.
+- Finish the packaged on-demand `oteluxd` lifecycle: Desktop ownership transfer and Linux artifact launch are delivered; explicit authenticated stop/restart, crash recovery, external-control refresh, reconnect qualification, and upgrade rollback remain. OS service registration is deferred.
 - [x] Add canonical per-user data-home resolution, nonce-protected state/locking, protocol/runtime version metadata, and resumable copy-only legacy Desktop migration.
 - [x] Add bounded tagged-bigint wire codecs, path-aware Electron IPC/event and runtime-state validation, checked transition schemas, and backward/compatible-future fixtures in `@otelux/protocol`.
 - [x] Define and validate the initial Runtime JSON-RPC method registry, protocol-major negotiation, revisioned SSE envelopes, checked transport schemas, direct dispatcher tests, and authenticated loopback HTTP/SSE host.
 - [x] Add browser-safe authenticated HTTP/SSE `DataSource` and control client plus real SQLite-backed direct/HTTP parity for current query methods.
 - [x] Harden Runtime HTTP with loopback endpoint pinning, redirects disabled, RPC deadlines, bounded streamed responses/SSE frames, aggregate batch/output budgets, slow-client disconnect, recoverable initialization, and serialized settings/clear mutations.
 - [x] Split metric metadata from selected bounded point history across direct, Runtime HTTP, and Electron IPC adapters, then convert the workbench UI to the split methods.
-- Add scoped browser session bootstrap, serve the existing `@otelux/ui` as a same-origin loopback workbench, and convert Desktop into a daemon client.
+- Add scoped browser session bootstrap and serve the existing `@otelux/ui` as a same-origin loopback workbench. Desktop daemon-client conversion is delivered.
 - Add dedicated runtime/API and MCP tokens/scopes plus one-time browser session bootstrap; tokens must never appear in dashboard URLs or `runtime.json`.
 - Add the OTelux CLI for runtime lifecycle, status, endpoints, settings, dashboard/Desktop launch, diagnostics, and machine-readable output.
 - Bundle a version-matched CLI and daemon with Desktop while keeping them independently packageable; reserve `otelux` for CLI and rename GUI executables before stable cross-platform release.
@@ -168,16 +168,18 @@ Tasks:
 
 ### Next acceptance gate — daemon ownership transfer
 
-Verified foundation: foreground `oteluxd`, authenticated Runtime RPC/SSE, method/result validation, parity fixtures, settings CAS, SQL budgets, and compatibility-aware Node discovery/ensure all pass focused and full-suite tests. The connector accepts a host-supplied start action; it does not package, register, stop, replace, or roll back a daemon.
+Verified foundation: packaged on-demand `oteluxd`, authenticated Runtime RPC/SSE, method/result validation, parity fixtures, settings CAS, SQL budgets, compatibility-aware discovery/ensure, Linux artifact launch, and Desktop HTTP/SSE ownership transfer pass focused, packaged, and full-suite tests. The connector can start and reconnect to an owner; it does not stop, restart, replace, or roll back a daemon.
 
-Before Electron relinquishes ownership:
+Before declaring the ownership-transfer milestone complete:
 
 - package one version-matched daemon entry that works from supported Linux `.deb` and AppImage layouts; Electron Node mode now passes from unpacked, extracted `.deb`, and extracted AppImage layouts with `node:sqlite`, release-version publication, authenticated RPC, and clean shutdown;
 - define start/stop/restart and stale-version behavior without automatically killing an unknown or incompatible owner; daemon hosts can now inject their release version and discovery fails closed on a mismatched expected version, but replacement/rollback is not implemented;
 - [x] make Desktop use the shared HTTP/SSE client and prove it never opens the active SQLite database; Runtime RPC includes storage path/usage controls required by the existing Settings UI, with shared result decoders and direct/HTTP parity;
 - the packaged smoke proves the daemon survives Desktop exit and an explicit test-only SIGTERM cleans listeners/state; add second-Desktop reconnect plus user-facing stop/restart control;
 - refetch settings/listener status when SSE reports external control changes; Desktop currently broadcasts its own successful updates but another client can leave an open Settings view stale until reopen;
-- qualify install, upgrade/rollback, concurrent startup, port conflict, crash recovery, and uninstall-with-data-preserved behavior.
+- qualify install, upgrade/rollback, concurrent startup, port conflict, crash recovery, and uninstall-with-data-preserved behavior;
+- move legacy migration behind the absent-owner decision so Desktop never resumes/copies migration files while a daemon is already active;
+- show deterministic startup/incompatibility failures instead of leaving Electron with an unhandled startup rejection.
 
 Decision (2026-08-06): use an on-demand packaged daemon started by the shared launcher rather than installer-created systemd state, so `.deb` and AppImage follow one lifecycle. Desktop main uses the already hardened owner-token loopback HTTP/SSE transport and never passes the token into renderer/browser contexts. Native user services and owner-only OS IPC remain later hardening choices, not parallel runtime implementations.
 
@@ -189,7 +191,13 @@ Scope guardrails for this milestone:
 - Browser bootstrap, cookie sessions, CSRF, read/control scopes, Unix sockets, and named pipes are separate milestones.
 - A development comparison flag may retain embedded ownership briefly, but the shipped path must not permanently support two backend ownership models.
 
-Tradeoff: owner-token loopback HTTP is weaker than owner-credentialed OS IPC against another process running as the same user, but that account is already outside the current protection boundary and can read local telemetry/token files. Reusing the validated transport avoids a second protocol implementation and keeps the ownership transfer reviewable. The first implementation risk is packaging—not RPC semantics—so the next experiment must prove that Electron's Node mode can launch the bundled daemon with `node:sqlite` from unpacked and AppImage layouts before Desktop is converted.
+Tradeoff: owner-token loopback HTTP is weaker than owner-credentialed OS IPC against another process running as the same user, but that account is already outside the current protection boundary and can read local telemetry/token files. Reusing the validated transport avoids a second protocol implementation and keeps the ownership transfer reviewable. Electron Node-mode packaging is now proven for unpacked, `.deb`, and AppImage layouts.
+
+Blocker classification before further feature investment:
+
+- **Resolve autonomously:** discover a live owner before running legacy migration; propagate SSE `settings`/`status` invalidations into refreshed Desktop events; show startup/incompatibility/disconnect failures; and automate second-Desktop reconnect against retained data.
+- **Decision required:** expose a tray-only **Stop Runtime and Quit** control in addition to **Quit Desktop**, or leave runtime stop manual until the CLI. Recommended safe default is the explicit tray control backed by authenticated Runtime RPC, so users can safely delete data and recover from an incompatible prerelease daemon without re-coupling ordinary Desktop exit to runtime lifetime.
+- **Documented later limitations:** OS service registration, login autostart, native OS IPC, browser sessions/scopes, and automatic incompatible-version replacement/upgrade rollback.
 
 Done when:
 

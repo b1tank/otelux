@@ -180,13 +180,14 @@ Remaining work:
 
 Keep the Runtime API on an independent control token. It can query telemetry, change settings, load sample data, and clear stored data.
 
-Before daemon-client conversion:
+Daemon-client boundary status:
 
 - [x] Complete method-specific response validation.
 - [x] Complete shared direct/HTTP/IPC parity.
 - [x] Add settings revision/CAS conflicts so stale clients cannot overwrite newer state.
+- [x] Keep the owner control token in Desktop main and out of renderer/browser contexts.
 - Separate read and control scopes before browser or third-party clients use the API.
-- Add token rotation tied to runtime upgrade/repair without exposing values in runtime state.
+- Add token rotation tied to a supported runtime upgrade/repair lifecycle without exposing values in runtime state; automatic upgrade/repair is not part of the current prerelease on-demand launcher.
 
 ## Browser Workbench
 
@@ -301,7 +302,8 @@ Document that OTelux cannot protect telemetry from:
 - Browser receiving the long-lived Runtime token: **NO-GO**.
 - Custom database path without owner-only privacy enforcement or an explicit warning: **NO-GO for stable release**.
 - Any non-loopback listener without reviewed authentication and TLS: **NO-GO**.
-- Daemon-client conversion without method-result validation, settings CAS, compatibility handling, and rollback: **NO-GO**.
+- Prerelease daemon-client conversion with validated results, settings CAS, and fail-closed compatibility that preserves an incompatible owner: **GO**, with manual recovery documented.
+- Automatic daemon replacement or a supported daemon upgrade path without atomic rollback and token-rotation behavior: **NO-GO**.
 
 ## Verification Checklist
 
