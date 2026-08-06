@@ -36,7 +36,7 @@ OTelux uses SQLite as a local telemetry engine, not as a JSON file cabinet. The 
 | Resolved P1 | `listMetrics` selected points once per returned instrument. | $N+2$ SQL statements and multi-second responses. | Fixed: internal bounded composition uses one compound indexed tail statement; the transport/workbench list now returns metadata plus scalar latest-value summaries without point/resource/scope bags, and one selected opaque instrument ID loads a separately bounded history (120 by default, 2,000 maximum). |
 | Resolved P1 | Metric list results could carry up to 10,000 points per instrument. | An 81.5 MB IPC payload retained hundreds of MB in the renderer. | Fixed: transport lists carry no point/resource/scope bags, only bounded latest-value summaries and counts; `getMetricPoints` pages one selected event-time-ordered series (120 default / 1,000 maximum) and explicitly reports chart-attribute truncation. Internal MCP/service composition no longer loads histories for service availability. |
 | Resolved P2 | UI discovered service facets by fetching 500 traces, 500 logs, and 500 full metric instruments. | Redundant startup queries and payloads in hidden views. | Fixed in protocol 0.4 and generalized in 0.5: `listResourceFacets` executes grouped source/service SQL; inactive views do not fetch or subscribe. |
-| P2 | Durable SQLite queries and structured-clone serialization still execute through Electron's main process. | A future accidentally unbounded query can stall ingest and renderer IPC together. | Keep every current query bounded and budget-tested; move storage/query execution behind the planned local runtime daemon/worker boundary before adding heavier analysis queries. |
+| P2 | Durable SQLite queries now run in a bounded worker, while structured-clone serialization and transition IPC dispatch still pass through Electron's main process. | A future accidentally unbounded query or result could still stall renderer IPC. | Current query counts, indexes, result decoders, and payload limits are budget-tested; complete Desktop daemon-client conversion before adding heavier analysis queries. |
 | P2 | Offset pagination is used while new telemetry arrives. | Duplicate or skipped rows between pages. | Use opaque keyset cursors with stable ID tie-breakers. |
 | P2 | Trace rollup is fully recomputed from all spans after every affected write. | Repeated $O(n)$ work for large traces arriving in many batches. | Keep correctness first; measure and introduce bounded dirty-trace coalescing or incremental aggregates only if budgets fail. |
 | P2 | `search_text LIKE '%term%'` cannot use a normal B-tree index. | Full log scan for substring search. | Add FTS5 with explicit tokenizer/versioning, retaining deterministic fallback semantics. |
@@ -161,7 +161,7 @@ Its experiment is useful as a warning, not a target:
 - Trace detail still reads the old in-memory repository, so persistence is not a complete source of truth after restart.
 - The branch's shipping in-memory waterfall calls a full-span child scan for each span, producing $O(n^2)$ work, and trace logs are fetched without an explicit limit.
 
-OTelux already has a stronger normalized baseline, materialized trace summaries, retention, migrations, signal-scoped/coalesced UI invalidation, grouped resource facets, and bounded metric histories. The remaining main-process isolation, cursor pagination, FTS, and query-budget harness work must land before claiming a hardened daemon API.
+OTelux already has a stronger normalized baseline, materialized trace summaries, retention, migrations, signal-scoped/coalesced UI invalidation, grouped resource facets, bounded cursor-paged metric histories, and enforced statement/index budgets. The remaining Desktop daemon-client conversion and FTS work must land before claiming a hardened daemon API.
 
 ## Measured renderer incident (2026-07-31)
 
@@ -196,7 +196,7 @@ The fix is not a framework migration. React/Electron remain appropriate. The int
 
 ## Verification
 
-Add a query-budget test harness around `DatabaseSync` that records prepared/executed SQL and captures `EXPLAIN QUERY PLAN` output for supported query shapes.
+The query-budget harness wraps `DatabaseSync` only when an observer is supplied, records executed prepared statements plus explicit `exec` calls, and runs representative captured SQL through `EXPLAIN QUERY PLAN`. Constructor-time preparation is not counted; every event represents execution work.
 
 Required fixtures:
 
@@ -209,8 +209,8 @@ Required fixtures:
 
 Required assertions:
 
-- statement budgets above are not exceeded;
-- required indexes appear in query plans and accidental full scans fail tests;
+- statement budgets above are not exceeded — **enforced for exact/cheap/cursor list pages, selected details, facets, metric composition/history, ingest, and clear**;
+- required indexes appear in query plans and accidental full scans fail tests — **enforced for trace source/service/time, log time/severity/trace/source, metric source, and selected point history; substring log search remains an explicit scan until FTS5**;
 - service-filtered count/page results are exact;
 - cursor pages have no duplicates or omissions under deterministic concurrent inserts;
 - trace tree construction is iterative and linear for a 5,000-deep trace;

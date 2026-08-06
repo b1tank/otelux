@@ -70,7 +70,6 @@ Tasks:
 - [x] Normalize trace services in schema v3 and apply the same indexed service predicate before count and offset pagination; reuse it when cursor pagination lands.
 - [x] Split metric list metadata from selected-series history; schema v5 adds event-time ordering/indexing, selected history uses bounded cursor pages with explicit attribute projection metadata, and service overview no longer builds per-instrument point-tail unions.
 - [x] Add grouped resource facet queries so inactive workbench views do not fetch raw records to discover filters; protocol 0.5 and schema v4 use standard `service.namespace` as the primary Source dimension with exact `service.name` fallback and a contextual component-Service facet.
-- Add statement-count and `EXPLAIN QUERY PLAN` tests enforcing the budgets in [storage.md](storage.md#query-contracts-and-statement-budgets).
 - Add FTS5 log search only after tokenizer/fallback parity tests define exact semantics.
 
 Done when:
@@ -79,7 +78,6 @@ Done when:
 - [x] Existing engine tests pass against both memory and SQLite storage (shared contract suite).
 - [x] Retention can bound disk growth (age and size) without blocking ingest.
 - Span identity, filtered count/page results, and memory/SQLite behavior are correct under the adversarial fixtures in [storage.md](storage.md#verification).
-- Trace, log, metric, facet, and detail operations satisfy their SQL statement and payload budgets.
 
 ## Phase 3 — Agent And Service Intelligence
 
