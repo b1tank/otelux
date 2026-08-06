@@ -136,7 +136,7 @@ Goal: make every local OTelux form reuse one per-user runtime, receiver, active 
 
 The command contract, packaging names, adapter safety model, Settings → Agents UX, onboarding flow, milestones, and acceptance matrix are defined in [agent-onboarding.md](agent-onboarding.md).
 
-Status: **M0 runtime ownership is implemented and M1 CLI control is in progress.** Focused runtime/Desktop/CLI typechecks and tests pass, and unpacked, extracted `.deb`, and extracted AppImage daemon/CLI artifact smokes pass. M2 agent-integration work has not started.
+Status: **M0 runtime ownership and the M1 CLI control gate pass locally.** Focused runtime/Desktop/CLI typechecks and tests pass, and the bundled CLI owns start/restart/stop with exact-instance cleanup in unpacked, extracted `.deb`, and extracted AppImage layouts. M2 agent-integration work has not started.
 
 Tasks:
 
@@ -155,7 +155,7 @@ Tasks:
 - [x] Split metric metadata from selected bounded point history across direct, Runtime HTTP, and Electron IPC adapters, then convert the workbench UI to the split methods.
 - Add scoped browser session bootstrap and serve the existing `@otelux/ui` as a same-origin loopback workbench. Desktop daemon-client conversion is delivered.
 - Add dedicated runtime/API and MCP tokens/scopes plus one-time browser session bootstrap; tokens must never appear in dashboard URLs or `runtime.json`.
-- Complete M1 CLI control: source-build lifecycle/status/endpoints, schema-defined config get/preview/apply with settings CAS, permission/version/storage/listener doctor checks, stable JSON, and exit codes are delivered over the shared runtime client. Prove packaged CLI-owned start/restart/stop. Database quick-check waits for a bounded Runtime RPC method. Dashboard `open` waits for the separate browser-session gate; native Desktop launch and public PATH installation are later distribution work.
+- [x] Complete the local M1 CLI control gate: source and packaged lifecycle/status/endpoints, schema-defined config get/preview/apply with settings CAS, permission/version/storage/listener doctor checks, stable JSON, exit codes, and exact-instance cleanup pass. Database quick-check waits for a bounded Runtime RPC method. Dashboard `open` waits for the separate browser-session gate; native Desktop launch and public PATH installation are later distribution work.
 - [x] Bundle a version-matched private `oteluxctl` CLI/daemon launcher with Desktop while keeping it independently packageable later; unpacked, `.deb`, and AppImage artifact smokes pass, and the Desktop product/executable remains `otelux` by explicit decision.
 - Add `@otelux/agent-integrations` as the shared typed detector/planner/applier/verifier used by CLI and Desktop; configuration writes must be previewed, atomic, idempotent, reversible, permission-safe, and secret-redacted.
 - Add Settings → Agents with capability/status cards, inspected paths, exact proposed operations, Install/Verify/Repair/Remove, restart continuation, and accessible vendor-neutral fallback icons.
@@ -168,17 +168,17 @@ Tasks:
 - Publish prebuilt CLI, direct-MCP, and self-contained Claude/Codex plugin artifacts that require no install-time compilation or separate Desktop installation.
 - Complete marketplace metadata, support/privacy material, clean-install evidence, and Claude/Codex publishing workflows.
 
-### Next acceptance gate — M1 CLI control
+### M1 CLI control acceptance — passed locally
 
-Verified foundation: packaged on-demand `oteluxd`, authenticated Runtime RPC/SSE, method/result validation, parity fixtures, settings CAS, SQL budgets, compatibility-aware discovery/ensure, Linux artifact launch, Desktop HTTP/SSE ownership transfer, explicit lifecycle controls, crash/port-conflict recovery, and source CLI lifecycle tests pass. The private `oteluxctl` launcher is present in unpacked, `.deb`, and AppImage artifacts and read-only commands pass against their daemon.
+Verified foundation: packaged on-demand `oteluxd`, authenticated Runtime RPC/SSE, method/result validation, parity fixtures, settings CAS, SQL budgets, compatibility-aware discovery/ensure, Linux artifact launch, Desktop HTTP/SSE ownership transfer, explicit lifecycle controls, crash/port-conflict recovery, source CLI tests, and packaged CLI-owned lifecycle smokes pass.
 
 Before starting M2 agent integration:
 
 - [x] enforce one Desktop/CLI release version in release-resolution tests so the next version bump cannot package a CLI that rejects or starts the matching daemon under a stale version;
 - [x] add schema-defined `config get/set` over Runtime RPC with complete-candidate validation, revision CAS, `--dry-run`, and explicit `--yes` for non-interactive mutation;
 - [x] expand `doctor` beyond listener errors to check discovered-state/token permissions, client/runtime version compatibility, storage path/usage, and actionable listener health without exposing tokens; database quick-check requires a separately bounded Runtime RPC method and is not implied by this gate;
-- extend artifact smoke so the bundled CLI, rather than the test harness, owns start/restart/stop and exact-instance cleanup in unpacked, `.deb`, and AppImage layouts;
-- keep `otelux` as the Desktop executable and `oteluxctl` as the CLI; defer public PATH installation until this command contract passes the gate.
+- [x] extend artifact smoke so the bundled CLI, rather than the test harness, owns start/restart/stop and exact-instance cleanup in unpacked, `.deb`, and AppImage layouts;
+- [x] keep `otelux` as the Desktop executable and `oteluxctl` as the CLI; public PATH installation remains a later distribution gate.
 
 Decision (2026-08-06): use an on-demand packaged daemon started by the shared launcher rather than installer-created systemd state, so `.deb` and AppImage follow one lifecycle. Desktop main uses the already hardened owner-token loopback HTTP/SSE transport and never passes the token into renderer/browser contexts. Native user services and owner-only OS IPC remain later hardening choices, not parallel runtime implementations.
 
@@ -194,7 +194,6 @@ Tradeoff: owner-token loopback HTTP is weaker than owner-credentialed OS IPC aga
 
 Blocker classification before further feature investment:
 
-- **Resolve autonomously before continuing:** the high-severity `js-yaml` advisory is confined to Electron packaging tooling (`npm audit --omit=dev` is clean), but the focused dev dependency update should land before feature work.
 - **Operational limitation, safe default no spend:** GitHub Actions storage is empty and future uploads are bounded, but hosted jobs remain unavailable under the account's included-usage/$0 budget and `v0.1.12` is not published. Continue local validation and do not rerun release/package workflows until usage resets or the user explicitly changes the budget.
 - **Documented later limitations:** OS service registration, login autostart, native OS IPC, browser sessions/scopes, automatic incompatible-version replacement/upgrade rollback, public CLI PATH installation, and signed Windows/macOS support.
 

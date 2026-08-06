@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -10,18 +10,6 @@ const desktop = new URL('..', import.meta.url).pathname;
 const architecture = process.arch === 'arm64' ? 'linux-arm64-unpacked' : 'linux-unpacked';
 const root = process.env.OTELUX_DAEMON_SMOKE_ROOT ?? join(desktop, 'release', architecture);
 const binary = process.env.OTELUX_DAEMON_SMOKE_BINARY ?? join(root, 'otelux');
-const daemon =
-	process.env.OTELUX_DAEMON_SMOKE_SCRIPT ??
-	join(
-		root,
-		'resources',
-		'app.asar',
-		'node_modules',
-		'@otelux',
-		'local-runtime',
-		'dist',
-		'daemon.js',
-	);
 const cli = process.env.OTELUX_DAEMON_SMOKE_CLI ?? join(root, 'resources', 'bin', 'oteluxctl');
 const version = JSON.parse(readFileSync(join(desktop, 'package.json'), 'utf8')).version;
 assert.ok(existsSync(binary), `packaged Electron binary missing: ${binary}`);
@@ -39,24 +27,21 @@ writeFileSync(
 		storage: { dbPath: '' },
 	}),
 );
-const child = spawn(binary, [daemon], {
-	env: {
-		...process.env,
-		ELECTRON_RUN_AS_NODE: '1',
-		OTELUX_DATA_DIR: data,
-		OTELUX_OTLP_PORT: '0',
-		OTELUX_API_PORT: '0',
-		OTELUX_RUNTIME_VERSION: version,
-	},
-	stdio: ['ignore', 'pipe', 'pipe'],
-});
-let output = '';
-child.stdout.on('data', (chunk) => {
-	output += chunk;
-});
-child.stderr.on('data', (chunk) => {
-	output += chunk;
-});
+const environment = {
+	...process.env,
+	OTELUX_DATA_DIR: data,
+	OTELUX_OTLP_PORT: '0',
+	OTELUX_API_PORT: '0',
+};
+
+function invoke(command, ...args) {
+	return JSON.parse(
+		execFileSync(cli, [command, ...args, '--json'], {
+			encoding: 'utf8',
+			env: environment,
+		}),
+	);
+}
 
 const waitFor = async (check, timeout = 15_000) => {
 	const deadline = Date.now() + timeout;
@@ -65,44 +50,62 @@ const waitFor = async (check, timeout = 15_000) => {
 		if (value) return value;
 		await new Promise((resolve) => setTimeout(resolve, 50));
 	}
-	throw new Error(`packaged daemon timed out\n${output}`);
+	throw new Error('packaged CLI lifecycle timed out');
 };
 
 try {
-	const state = await waitFor(() => {
+	const started = invoke('start');
+	assert.equal(started.started, true);
+	const initialState = await waitFor(() => {
 		try {
 			return JSON.parse(readFileSync(join(data, 'runtime.json'), 'utf8'));
 		} catch {
 			return undefined;
 		}
 	});
-	assert.equal(state.runtimeVersion, version);
-	assert.equal(state.receiver.kind, 'running');
-	assert.equal(state.api.kind, 'running');
-	assert.equal(state.mcp.kind, 'disabled');
+	assert.equal(initialState.instanceId, started.instanceId);
+	assert.equal(initialState.runtimeVersion, version);
+	assert.equal(initialState.receiver.kind, 'running');
+	assert.equal(initialState.api.kind, 'running');
+	assert.equal(initialState.mcp.kind, 'disabled');
+
 	const token = readFileSync(join(data, 'runtime-token'), 'utf8').trim();
-	const response = await fetch(`http://${state.api.host}:${state.api.port}/api/v1/rpc`, {
-		method: 'POST',
-		headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-		body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'runtime/getStatus' }),
-	});
+	const response = await fetch(
+		`http://${initialState.api.host}:${initialState.api.port}/api/v1/rpc`,
+		{
+			method: 'POST',
+			headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+			body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'runtime/getStatus' }),
+		},
+	);
 	assert.equal(response.status, 200);
-	assert.equal((await response.json()).result.instanceId, state.instanceId);
-	for (const command of ['status', 'endpoints', 'doctor']) {
-		const result = JSON.parse(
-			execFileSync(cli, [command, '--json'], {
-				encoding: 'utf8',
-				env: { ...process.env, OTELUX_DATA_DIR: data },
-			}),
-		);
-		assert.notEqual(result.healthy, false, `${command} reported unhealthy`);
-	}
-	child.kill('SIGTERM');
-	assert.equal(await new Promise((resolve) => child.once('exit', resolve)), 0);
-	assert.equal(existsSync(join(data, 'runtime.json')), false);
-	assert.equal(existsSync(join(data, 'runtime.lock')), false);
-	console.log('PACKAGED DAEMON SMOKE PASS');
+	assert.equal((await response.json()).result.instanceId, initialState.instanceId);
+	assert.equal(invoke('status').healthy, true);
+	assert.ok(invoke('endpoints').api);
+	assert.equal(invoke('doctor').healthy, true);
+	assert.equal(invoke('config', 'set', 'retention.maxAgeHours', '24', '--dry-run').dryRun, true);
+
+	const restarted = invoke('restart');
+	assert.equal(restarted.restarted, true);
+	assert.notEqual(restarted.instanceId, initialState.instanceId);
+	const restartedState = await waitFor(() => {
+		try {
+			const value = JSON.parse(readFileSync(join(data, 'runtime.json'), 'utf8'));
+			return value.instanceId === restarted.instanceId ? value : undefined;
+		} catch {
+			return undefined;
+		}
+	});
+	assert.equal(restartedState.runtimeVersion, version);
+	assert.equal(invoke('stop').stopped, true);
+	await waitFor(
+		() => !existsSync(join(data, 'runtime.json')) && !existsSync(join(data, 'runtime.lock')),
+	);
+	console.log('PACKAGED CLI LIFECYCLE SMOKE PASS');
 } finally {
-	if (child.exitCode === null) child.kill('SIGKILL');
+	try {
+		const state = JSON.parse(readFileSync(join(data, 'runtime.json'), 'utf8'));
+		process.kill(state.pid, 'SIGTERM');
+	} catch {}
 	rmSync(data, { recursive: true, force: true });
 }

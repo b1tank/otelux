@@ -14,7 +14,7 @@ oteluxctl config set <key> <value> --dry-run [--json]
 oteluxctl config set <key> <value> --yes [--json]
 ```
 
-The CLI discovers the same owner-only runtime state/token as Desktop and calls authenticated Runtime RPC. It never opens SQLite or implements another receiver. `start` launches the workspace daemon with the current Node executable. Desktop artifacts bundle a private `resources/bin/oteluxctl`; source lifecycle and artifact read-only smokes pass, while packaged CLI-owned lifecycle and public PATH installation remain pending.
+The CLI discovers the same owner-only runtime state/token as Desktop and calls authenticated Runtime RPC. It never opens SQLite or implements another receiver. `start` launches the workspace daemon with the current Node executable. Desktop artifacts bundle a private `resources/bin/oteluxctl`; source and packaged CLI-owned lifecycle smokes pass in unpacked, extracted `.deb`, and extracted AppImage layouts. Public PATH installation remains pending.
 
 `config` accepts only `otlp.port`, `mcp.enabled`, `mcp.port`, `retention.maxAgeHours`, `retention.maxSizeMb`, and `storage.dbPath`. Dry-run validates and prints the complete candidate without writing; apply requires `--yes` and uses the fetched revision as a compare-and-swap guard.
 

@@ -224,17 +224,17 @@ A failed or skipped agent setup never blocks use of Desktop or sample data.
 - [x] Desktop passes its legacy source to the daemon, which claims exclusive ownership before migration; a competing starter performs no migration writes.
 - Installed upgrade/rollback and uninstall-with-data-preserved are release qualification; optional OS-service registration remains later.
 
-### M1 — CLI foundation (current)
+### M1 — CLI foundation (local control gate complete)
 
 - [x] Source-build lifecycle (`start`/`stop`/`restart`), status, endpoints, permission/version/storage/listener doctor, stable JSON, and distinct exit codes over the shared runtime client.
-- [x] Desktop artifacts bundle a private CLI/daemon launcher; read-only `status`, `endpoints`, and `doctor` pass in unpacked, extracted `.deb`, and extracted AppImage layouts.
+- [x] Desktop artifacts bundle a private CLI/daemon launcher; the bundled CLI owns start/status/restart/stop, config dry-run, doctor, and exact-instance cleanup in unpacked, extracted `.deb`, and extracted AppImage layouts.
 - [x] Release resolution and packaging metadata require Desktop/CLI/lockfile version parity.
-- [ ] Prove the packaged CLI owns start/restart/stop in every qualified Linux layout.
+- [x] Prove the packaged CLI owns start/restart/stop in every qualified Linux layout.
 - [x] Add schema-validated config get/preview/apply, complete-candidate validation, revision CAS, `--dry-run`, and explicit `--yes` mutation policy.
 - [x] Expand doctor to owner-file permission, version compatibility, storage path/usage, and listener checks without exposing tokens. Database quick-check waits for a bounded Runtime RPC method.
 - `open` waits for scoped browser-session bootstrap; `desktop`, public PATH installation, clean install/upgrade/uninstall, and standalone release packaging follow the control gate.
 
-**M1 acceptance gate:** no M2 implementation starts until packaged CLI-owned lifecycle passes on Linux artifacts. Config conflict/dry-run/no-write behavior, owner-locked legacy migration, release-version parity enforcement, and the high-severity dev-tool `js-yaml` update are complete. GitHub-hosted CI/release publication is temporarily unavailable under the account's included-usage/$0 budget; local gates continue, with no paid-usage change assumed.
+**M1 acceptance gate:** passed locally. Packaged CLI-owned lifecycle, config conflict/dry-run/no-write behavior, owner-locked legacy migration, release-version parity enforcement, expanded doctor, and the high-severity dev-tool `js-yaml` update are complete. GitHub-hosted CI/release publication is temporarily unavailable under the account's included-usage/$0 budget; local gates continue, with no paid-usage change assumed.
 
 ### M2 — integration engine
 

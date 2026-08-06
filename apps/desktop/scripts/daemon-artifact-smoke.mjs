@@ -12,13 +12,12 @@ const release = join(desktop, 'release');
 const smoke = join(desktop, 'scripts', 'daemon-smoke.mjs');
 const temporary = mkdtempSync(join(tmpdir(), 'otelux-daemon-artifacts-'));
 
-function runSmoke(binary, daemon, cli) {
+function runSmoke(binary, cli) {
 	execFileSync(process.execPath, [smoke], {
 		stdio: 'inherit',
 		env: {
 			...process.env,
 			OTELUX_DAEMON_SMOKE_BINARY: binary,
-			OTELUX_DAEMON_SMOKE_SCRIPT: daemon,
 			OTELUX_DAEMON_SMOKE_CLI: cli,
 		},
 	});
@@ -32,20 +31,7 @@ try {
 		debRoot,
 	]);
 	const debApp = join(debRoot, 'opt', 'OTelux');
-	runSmoke(
-		join(debApp, 'otelux'),
-		join(
-			debApp,
-			'resources',
-			'app.asar',
-			'node_modules',
-			'@otelux',
-			'local-runtime',
-			'dist',
-			'daemon.js',
-		),
-		join(debApp, 'resources', 'bin', 'oteluxctl'),
-	);
+	runSmoke(join(debApp, 'otelux'), join(debApp, 'resources', 'bin', 'oteluxctl'));
 
 	execFileSync(
 		join(release, `OTelux-${version}-${appImageArchitecture}.AppImage`),
@@ -53,20 +39,7 @@ try {
 		{ cwd: temporary, stdio: 'ignore' },
 	);
 	const extracted = join(temporary, 'squashfs-root');
-	runSmoke(
-		join(extracted, 'otelux'),
-		join(
-			extracted,
-			'resources',
-			'app.asar',
-			'node_modules',
-			'@otelux',
-			'local-runtime',
-			'dist',
-			'daemon.js',
-		),
-		join(extracted, 'resources', 'bin', 'oteluxctl'),
-	);
+	runSmoke(join(extracted, 'otelux'), join(extracted, 'resources', 'bin', 'oteluxctl'));
 	console.log('DAEMON ARTIFACT SMOKE PASS');
 } finally {
 	rmSync(temporary, { recursive: true, force: true });
