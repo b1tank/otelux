@@ -57,6 +57,28 @@ function harness(found = true) {
 		start: mock.fn(),
 		waitStopped: mock.fn(async () => {}),
 		inspectRuntimeFiles: mock.fn(async () => []),
+		inspectAgents: mock.fn(async () => [
+			{
+				agent: {
+					id: 'claude-code',
+					displayName: 'Claude Code',
+					documentationUrl: 'https://docs.anthropic.com/en/docs/claude-code/mcp',
+				},
+				detected: true,
+				installations: [{ executable: 'claude', version: '2.1.220', supported: true }],
+				capabilities: [
+					{
+						id: 'mcp',
+						support: 'supported',
+						configuration: 'configured',
+						verification: 'verified',
+					},
+				],
+				paths: [],
+				restartRequired: false,
+				issues: [],
+			},
+		]),
 	};
 	return {
 		client,
@@ -205,6 +227,33 @@ describe('otelux CLI', () => {
 			),
 			5,
 		);
+	});
+
+	it('lists and inspects agents without connecting to the runtime', async () => {
+		const test = harness(false);
+		assert.equal(await runCli(['agents', 'list', '--json'], test.output, test.dependencies), 0);
+		assert.equal(JSON.parse(test.logs[0])[0].id, 'claude-code');
+		assert.equal(test.dependencies.connect.mock.callCount(), 0);
+		const inspected = harness(false);
+		assert.equal(
+			await runCli(
+				['agents', 'inspect', 'claude-code', '--json'],
+				inspected.output,
+				inspected.dependencies,
+			),
+			0,
+		);
+		assert.equal(JSON.parse(inspected.logs[0]).installations[0].version, '2.1.220');
+	});
+
+	it('rejects unsupported agents and mutation flags', async () => {
+		const unknown = harness();
+		assert.equal(
+			await runCli(['agents', 'inspect', 'opencode'], unknown.output, unknown.dependencies),
+			1,
+		);
+		const mutate = harness();
+		assert.equal(await runCli(['agents', 'list', '--yes'], mutate.output, mutate.dependencies), 1);
 	});
 
 	it('rejects unknown commands without guessing', async () => {

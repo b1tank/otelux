@@ -240,6 +240,7 @@ A failed or skipped agent setup never blocks use of Desktop or sample data.
 
 - [x] Add bounded runtime-validated agent/installation/capability/path inspection contracts and owner/symlink/scope/world-writable inspection primitives in `@otelux/agent-integrations`.
 - [x] Add a read-only Claude Code adapter qualified against official CLI 2.1.220; unknown major versions fail closed and raw command/config content is not returned.
+- [x] Expose the adapter through read-only `oteluxctl agents list|inspect|show-config`; live inspection detects the installed 2.1.220 CLI and verifies the existing OTelux MCP connection without requiring the runtime control client.
 - Add typed plans, atomic mutation, backups/ownership manifests, redaction, and verification.
 - Claude/Codex/Pi adapters and CLI commands.
 - Adversarial path/concurrent-edit/partial-failure tests.

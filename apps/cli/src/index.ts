@@ -1,7 +1,14 @@
 import { spawn } from 'node:child_process';
 import { lstat } from 'node:fs/promises';
 import { createRequire } from 'node:module';
+import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import {
+	type AgentInspection,
+	createClaudeCodeAdapter,
+	createNodeCommandRunner,
+	createNodePathInspector,
+} from '@otelux/agent-integrations';
 import {
 	type ConnectRuntimeClientOptions,
 	type DiscoveredRuntimeClient,
@@ -29,6 +36,7 @@ export interface CliDependencies {
 	start(dataDirectory: string): void;
 	waitStopped(dataDirectory: string, instanceId: string): Promise<void>;
 	inspectRuntimeFiles(state: RuntimeState): Promise<string[]>;
+	inspectAgents(): Promise<AgentInspection[]>;
 }
 
 declare const __OTELUX_CLI_VERSION__: string;
@@ -39,6 +47,7 @@ const defaultDependencies: CliDependencies = {
 	start: startDaemon,
 	waitStopped: waitForStopped,
 	inspectRuntimeFiles,
+	inspectAgents,
 };
 
 export async function runCli(
@@ -62,7 +71,7 @@ export async function runCli(
 		output.log(help());
 		return command ? 0 : 1;
 	}
-	if (command !== 'config' && (positional.length !== 1 || dryRun || yes)) {
+	if (!['config', 'agents'].includes(command) && (positional.length !== 1 || dryRun || yes)) {
 		output.error(`Unexpected arguments: ${args.slice(1).join(' ')}`);
 		return 1;
 	}
@@ -201,6 +210,8 @@ export async function runCli(
 					found.client.close();
 				}
 			}
+			case 'agents':
+				return await runAgents(positional.slice(1), { json, dryRun, yes }, output, dependencies);
 			case 'config':
 				return await runConfig(
 					positional.slice(1),
@@ -218,6 +229,76 @@ export async function runCli(
 		output.error(json ? stringify({ error: String(value.code ?? 'internal') }) : safeError(value));
 		return value.code === 'incompatible-version' ? 3 : 1;
 	}
+}
+
+async function runAgents(
+	args: readonly string[],
+	flags: ConfigFlags,
+	output: CliOutput,
+	dependencies: CliDependencies,
+): Promise<number> {
+	if (flags.dryRun || flags.yes) {
+		output.error('Read-only agents commands do not accept mutation flags');
+		return 1;
+	}
+	const operation = args[0];
+	if (!['list', 'inspect', 'show-config'].includes(operation ?? '')) {
+		output.error(
+			'Usage: oteluxctl agents list | agents inspect <agent> | agents show-config <agent>',
+		);
+		return 1;
+	}
+	if ((operation === 'list' && args.length !== 1) || (operation !== 'list' && args.length !== 2)) {
+		output.error(
+			'Usage: oteluxctl agents list | agents inspect <agent> | agents show-config <agent>',
+		);
+		return 1;
+	}
+	const inspections = await dependencies.inspectAgents();
+	if (operation === 'list') {
+		print(
+			output,
+			flags.json,
+			inspections.map((inspection) => ({
+				id: inspection.agent.id,
+				displayName: inspection.agent.displayName,
+				detected: inspection.detected,
+				installations: inspection.installations,
+				capabilities: inspection.capabilities,
+				issues: inspection.issues,
+			})),
+		);
+		return 0;
+	}
+	const agent = args[1];
+	const inspection = inspections.find(({ agent: descriptor }) => descriptor.id === agent);
+	if (!inspection) {
+		output.error(`Unknown or unsupported agent: ${agent ?? ''}`);
+		return 1;
+	}
+	print(
+		output,
+		flags.json,
+		operation === 'show-config'
+			? {
+					agent: inspection.agent,
+					paths: inspection.paths,
+					capabilities: inspection.capabilities,
+					restartRequired: inspection.restartRequired,
+				}
+			: inspection,
+	);
+	return inspection.detected ? 0 : 6;
+}
+
+async function inspectAgents(): Promise<AgentInspection[]> {
+	const context = {
+		homeDirectory: homedir(),
+		workingDirectory: process.cwd(),
+		commandRunner: createNodeCommandRunner(),
+		pathInspector: createNodePathInspector(),
+	};
+	return [await createClaudeCodeAdapter().inspect(context)];
 }
 
 interface ConfigFlags {
@@ -513,7 +594,7 @@ function safeError(value: { code?: unknown; message?: unknown }): string {
 }
 
 function help(): string {
-	return 'Usage: oteluxctl <command> [--json]\n\nCommands:\n  start      Start or reuse the local runtime\n  stop       Stop the local runtime\n  restart    Restart the local runtime\n  status     Show runtime, settings, and storage status\n  endpoints  Show local OTLP, MCP, and Runtime API endpoints\n  doctor     Check runtime health\n  config get [key]\n  config set <key> <value> (--dry-run | --yes)';
+	return 'Usage: oteluxctl <command> [--json]\n\nCommands:\n  start      Start or reuse the local runtime\n  stop       Stop the local runtime\n  restart    Restart the local runtime\n  status     Show runtime, settings, and storage status\n  endpoints  Show local OTLP, MCP, and Runtime API endpoints\n  doctor     Check runtime health\n  config get [key]\n  config set <key> <value> (--dry-run | --yes)\n  agents list\n  agents inspect <agent>\n  agents show-config <agent>';
 }
 
 if (process.argv[1]?.endsWith('/otelux') || process.argv[1]?.endsWith('/index.js')) {

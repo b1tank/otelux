@@ -111,7 +111,7 @@ Apps are not published packages:
 | App | Purpose | Current state |
 |---|---|---|
 | `apps/desktop` | Main Electron workbench. | `v0.1.11` is the latest published Linux x64/arm64 `.deb` and AppImage prerelease; `main` is an unpublished `0.1.12` candidate; unsigned macOS/Windows remain preview targets. |
-| `apps/cli` | Thin runtime lifecycle/status/config client (`oteluxctl`). | Source lifecycle, status, endpoints, schema-defined config preview/apply, and basic doctor commands live; a version-matched private launcher is bundled in Desktop artifacts, with no PATH installation yet. |
+| `apps/cli` | Thin runtime lifecycle/status/config/agent-inspection client (`oteluxctl`). | Source lifecycle, status, endpoints, schema-defined config preview/apply, doctor, and read-only Claude agent list/inspect/show-config commands live; a version-matched private launcher is bundled in Desktop artifacts, with no PATH installation yet. |
 
 Plugin distributions are thin hosts over the same packages:
 
