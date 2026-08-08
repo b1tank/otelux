@@ -136,7 +136,7 @@ Goal: make every local OTelux form reuse one per-user runtime, receiver, active 
 
 The command contract, packaging names, adapter safety model, Settings → Agents UX, onboarding flow, milestones, and acceptance matrix are defined in [agent-onboarding.md](agent-onboarding.md).
 
-Status: **M0 runtime ownership and the M1 CLI control gate pass locally; M2 has started on a separate feature branch so `main` remains the `v0.1.13` release boundary.** The initial `@otelux/agent-integrations` package defines bounded, runtime-validated inspection contracts; real host adapters and all mutation remain pending.
+Status: **M0 runtime ownership and the M1 CLI control gate pass locally; the read-only M2 foundation is now carried on `main` for cross-machine continuity.** `@otelux/agent-integrations` provides bounded contracts, safe host inspection, a Claude Code adapter, and read-only CLI exposure. Deterministic planning, mutation, Codex/Pi adapters, and release publication remain pending; a future version bump must release the exact then-current `main` revision.
 
 Tasks:
 

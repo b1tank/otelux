@@ -236,7 +236,7 @@ A failed or skipped agent setup never blocks use of Desktop or sample data.
 
 **M1 acceptance gate:** passed locally. Packaged CLI-owned lifecycle, config conflict/dry-run/no-write behavior, owner-locked legacy migration, release-version parity enforcement, expanded doctor, and the high-severity dev-tool `js-yaml` update are complete. GitHub-hosted CI/release publication is temporarily unavailable under the account's included-usage/$0 budget; local gates continue, with no paid-usage change assumed.
 
-### M2 — integration engine (in progress on feature branch)
+### M2 — integration engine (read-only foundation on `main`)
 
 - [x] Add bounded runtime-validated agent/installation/capability/path inspection contracts and owner/symlink/scope/world-writable inspection primitives in `@otelux/agent-integrations`.
 - [x] Add a read-only Claude Code adapter qualified against official CLI 2.1.220; unknown major versions fail closed and raw command/config content is not returned.
