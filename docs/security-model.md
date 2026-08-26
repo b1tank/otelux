@@ -78,8 +78,8 @@ The current source build is not a supported security release. Known release bloc
 
 - The daemon is packaged and started on demand but is not OS-service registered; explicit user-facing stop/restart, crash recovery, upgrade/rollback, and token-rotation lifecycle is not implemented.
 - Browser session bootstrap, scoped read/control capabilities, CSRF protection, and session revocation are not shipped; browser origins therefore remain rejected by Runtime API.
-- CodeQL is configured but intentionally skipped while this repository remains private on a plan without code-scanning support.
-- Branch protection, required checks, secret scanning, push protection, and private vulnerability reporting cannot be fully enabled until repository visibility or account capabilities change.
+- CodeQL is configured for public-repository execution; the first public run must complete before the result is treated as a release gate.
+- Branch protection, required checks, secret scanning, push protection, and private vulnerability reporting must be verified in repository settings after visibility changes.
 
 The [release sprint](release-sprint.md#milestone-2---runtime-and-supply-chain-security) blocks supported artifacts on these issues.
 
@@ -106,4 +106,4 @@ Loopback binding is defense in depth, not authentication against other local use
 
 ## Reporting
 
-Do not report vulnerabilities in public issues. Follow [SECURITY.md](../SECURITY.md). Public launch remains blocked until GitHub private vulnerability reporting is enabled and exercised and the policy links to the working confidential form.
+Do not report vulnerabilities in public issues. Follow [SECURITY.md](../SECURITY.md). Private vulnerability reporting and the confidential form must be enabled and verified in repository settings before a supported release.

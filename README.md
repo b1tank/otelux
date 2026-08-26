@@ -40,7 +40,7 @@
 
 ## Install the Linux prerelease
 
-> The repository is temporarily private during pre-public hardening, so GitHub release downloads currently require repository access.
+> OTelux is an open-source prerelease. Linux packages are available for early testing; interfaces and packaging may still change.
 
 Download `SHA256SUMS` and one package from the [v0.1.11 GitHub Release](https://github.com/b1tank/otelux/releases/tag/v0.1.11).
 
@@ -195,7 +195,7 @@ npm run -w @otelux/desktop package
 
 ## Current Status
 
-Pre-release and temporarily private during pre-public hardening. The latest published Linux x64/arm64 `.deb` and AppImage prerelease is `v0.1.11`; `main` contains an unpublished, locally validated `0.1.12` candidate because hosted Actions is unavailable under the account's included-usage/$0 budget. `@otelux/local-runtime` owns storage, engine, OTLP, MCP, Runtime API, settings, lifecycle, canonical data-home migration, and nonce-protected runtime state. Desktop starts or reconnects to it as an HTTP/SSE client, and a private bundled `oteluxctl` provides lifecycle/status commands, while the `0.1.5` plugin remains a Desktop launcher companion. Desktop exposes separate quit-shell and confirmed stop-runtime actions; direct MCP packaging, CLI browser open/public distribution, automatic upgrade rollback, and the runtime-served browser workbench remain planned. Start with [docs/getting-started.md](docs/getting-started.md). See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities, [docs/arch.md](docs/arch.md#current-implementation) for the architecture transition, [docs/plan.md](docs/plan.md) for future work, and [docs/release-sprint.md](docs/release-sprint.md) for finite release/publication gates.
+Open-source prerelease under active hardening. The latest published Linux x64/arm64 `.deb` and AppImage prerelease is `v0.1.11`; `main` contains an unpublished, locally validated `0.1.12` candidate because hosted Actions is unavailable under the account's included-usage/$0 budget. `@otelux/local-runtime` owns storage, engine, OTLP, MCP, Runtime API, settings, lifecycle, canonical data-home migration, and nonce-protected runtime state. Desktop starts or reconnects to it as an HTTP/SSE client, and a bundled `oteluxctl` provides lifecycle/status commands, while the `0.1.5` plugin remains a Desktop launcher companion. Desktop exposes separate quit-shell and confirmed stop-runtime actions; direct MCP packaging, CLI browser open/public distribution, automatic upgrade rollback, and the runtime-served browser workbench remain planned. Start with [docs/getting-started.md](docs/getting-started.md). See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities, [docs/arch.md](docs/arch.md#current-implementation) for the architecture transition, [docs/plan.md](docs/plan.md) for future work, and [docs/release-sprint.md](docs/release-sprint.md) for finite release/publication gates.
 
 ## License
 

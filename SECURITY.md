@@ -16,9 +16,7 @@ This policy will be revisited for the first stable release.
 
 Do not open a public issue for a suspected vulnerability.
 
-The repository is temporarily private during pre-public product hardening, and GitHub private vulnerability reporting is unavailable on the current account plan. Contact the maintainer through the private channel listed on their GitHub profile. Never disclose vulnerability details in an issue, discussion, pull request, or other shared channel.
-
-When the repository returns to public visibility, GitHub private vulnerability reporting must be re-enabled and verified before inviting external security reports.
+Use GitHub private vulnerability reporting through the repository's Security tab. Never disclose vulnerability details in an issue, discussion, pull request, or other public channel. If the private reporting form is unavailable, contact the maintainer through the private channel listed on their GitHub profile.
 
 Please include:
 

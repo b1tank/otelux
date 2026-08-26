@@ -2,9 +2,9 @@
 
 Updated: 2026-08-06
 
-Status: Active only for public-visibility and stable cross-platform release gates; repository temporarily private during product hardening. The numbered `v0.1.0` execution milestones below are retained as historical launch planning, not the current product sequence; [plan.md](plan.md) and [agent-onboarding.md](agent-onboarding.md) own current work.
+Status: Public open-source prerelease. Stable cross-platform release gates remain active. The numbered `v0.1.0` execution milestones below are retained as historical launch planning, not the current product sequence; [plan.md](plan.md) and [agent-onboarding.md](agent-onboarding.md) own current work.
 
-This document is the finite execution plan for returning OTelux to public visibility as an installable cross-platform product that is ready for a coordinated stable launch. The repository was made private again on 2026-08-05 so the sole maintainer can iterate directly on `main`; public release links and external security-reporting flows are unavailable until the public-readiness gate is rerun.
+This document now tracks the remaining work from public source visibility to a coordinated stable cross-platform launch. The repository returned to public visibility after a current-tree audit, clean-checkout verification, and public-facing documentation review.
 
 The canonical documents keep separate responsibilities:
 
