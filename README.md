@@ -42,24 +42,24 @@
 
 > OTelux is an open-source prerelease. Linux packages are available for early testing; interfaces and packaging may still change.
 
-Download `SHA256SUMS` and one package from the [v0.1.11 GitHub Release](https://github.com/b1tank/otelux/releases/tag/v0.1.11).
+Download `SHA256SUMS` and one package from the [v0.1.12 GitHub Release](https://github.com/b1tank/otelux/releases/tag/v0.1.12).
 
 Install the x64 Debian/Ubuntu package:
 
 ```bash
 grep '  OTelux-.*-amd64.deb$' SHA256SUMS | sha256sum -c -
-sudo apt install ./OTelux-0.1.11-amd64.deb
+sudo apt install ./OTelux-0.1.12-amd64.deb
 ```
 
 Or run the rootless x64 AppImage:
 
 ```bash
 grep '  OTelux-.*-x86_64.AppImage$' SHA256SUMS | sha256sum -c -
-chmod +x OTelux-0.1.11-x86_64.AppImage
-./OTelux-0.1.11-x86_64.AppImage
+chmod +x OTelux-0.1.12-x86_64.AppImage
+./OTelux-0.1.12-x86_64.AppImage
 ```
 
-For Linux arm64, use `OTelux-0.1.11-arm64.deb` or `OTelux-0.1.11-arm64.AppImage` and the matching checksum line. `0.1.12` exists only as an unpublished local candidate while hosted Actions is unavailable.
+For Linux arm64, use `OTelux-0.1.12-arm64.deb` or `OTelux-0.1.12-arm64.AppImage` and the matching checksum line.
 
 | Platform | Package | Status |
 | --- | --- | --- |
@@ -195,7 +195,7 @@ npm run -w @otelux/desktop package
 
 ## Current Status
 
-Open-source prerelease under active hardening. The latest published Linux x64/arm64 `.deb` and AppImage prerelease is `v0.1.11`; `main` contains an unpublished, locally validated `0.1.12` candidate because hosted Actions is unavailable under the account's included-usage/$0 budget. `@otelux/local-runtime` owns storage, engine, OTLP, MCP, Runtime API, settings, lifecycle, canonical data-home migration, and nonce-protected runtime state. Desktop starts or reconnects to it as an HTTP/SSE client, and a bundled `oteluxctl` provides lifecycle/status commands, while the `0.1.5` plugin remains a Desktop launcher companion. Desktop exposes separate quit-shell and confirmed stop-runtime actions; direct MCP packaging, CLI browser open/public distribution, automatic upgrade rollback, and the runtime-served browser workbench remain planned. Start with [docs/getting-started.md](docs/getting-started.md). See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities, [docs/arch.md](docs/arch.md#current-implementation) for the architecture transition, [docs/plan.md](docs/plan.md) for future work, and [docs/release-sprint.md](docs/release-sprint.md) for finite release/publication gates.
+Open-source prerelease under active hardening. The latest published Linux x64/arm64 `.deb` and AppImage prerelease is `v0.1.12`, built from the current shared-runtime and bundled-CLI baseline. `@otelux/local-runtime` owns storage, engine, OTLP, MCP, Runtime API, settings, lifecycle, canonical data-home migration, and nonce-protected runtime state. Desktop starts or reconnects to it as an HTTP/SSE client, and a bundled `oteluxctl` provides lifecycle/status commands, while the `0.1.5` plugin remains a Desktop launcher companion. Desktop exposes separate quit-shell and confirmed stop-runtime actions; direct MCP packaging, CLI browser open/public distribution, automatic upgrade rollback, and the runtime-served browser workbench remain planned. Start with [docs/getting-started.md](docs/getting-started.md). See the specification's [Current Baseline](docs/spec.md#current-baseline) for implemented capabilities, [docs/arch.md](docs/arch.md#current-implementation) for the architecture transition, [docs/plan.md](docs/plan.md) for future work, and [docs/release-sprint.md](docs/release-sprint.md) for finite release/publication gates.
 
 ## License
 

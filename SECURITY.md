@@ -6,7 +6,7 @@ OTelux publishes Linux prereleases for early testing. During this stage, only th
 
 | Version | Supported |
 |---|---|
-| Latest prerelease (`v0.1.11`) | Yes |
+| Latest prerelease (`v0.1.12`) | Yes |
 | Current `main` branch | Yes |
 | Older prereleases, snapshots, and local builds | No |
 

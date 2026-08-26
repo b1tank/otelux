@@ -45,7 +45,7 @@ The repository currently contains:
 - MCP tool plumbing over the same query layer.
 - A shared OTelux plugin under `plugins/otelux` installs into Claude Code, Codex, and Pi with four observability skills plus a secure stdio bridge to the desktop MCP listener. Pi's thin extension registers the same bridge tools natively; it does not fork the MCP implementation. This is the current companion implementation; see [arch.md](arch.md#current-implementation) for the target shared-runtime architecture.
 - A foreground `oteluxd` build now owns the same runtime without Electron, handles signals, rejects duplicate owners, and passes process-level RPC/cleanup tests. Node hosts share a bounded compatibility-aware discovery/ensure client that validates state, the canonical owner-only token, protocol negotiation, and live instance identity. Desktop packages contain and start the daemon on demand through Electron Node mode; it is not registered as an OS background service; Desktop provides restart and separately confirmed stop controls, while automatic upgrade/rollback remains planned.
-- The desktop app is the current release product. The latest published prerelease is `v0.1.11`. `main` carries an unpublished `0.1.12` candidate that is locally built, installed, and smoke-tested for Linux x64; its GitHub release/tag/assets do not exist because hosted Actions is blocked under the account's included-usage/$0 budget. Source and extracted-artifact tests also qualify the shared daemon/private CLI shape, but that is not publication evidence. macOS and Windows remain unsigned preview targets. The agent plugin is currently a Desktop-launcher companion; the private CLI lifecycle client has landed, while direct MCP and independent CLI distribution remain planned.
+- The desktop app is the current release product. The latest published prerelease is `v0.1.12`, with Linux x64 and arm64 `.deb` and AppImage artifacts, checksums, and SBOMs. Source and extracted-artifact tests also qualify the shared daemon and bundled CLI shape. macOS and Windows remain unsigned preview targets. The agent plugin is currently a Desktop-launcher companion; the bundled CLI lifecycle client has landed, while direct MCP and independent CLI distribution remain planned.
 
 Important current limits:
 
@@ -110,7 +110,7 @@ Apps are not published packages:
 
 | App | Purpose | Current state |
 |---|---|---|
-| `apps/desktop` | Main Electron workbench. | `v0.1.11` is the latest published Linux x64/arm64 `.deb` and AppImage prerelease; `main` is an unpublished `0.1.12` candidate; unsigned macOS/Windows remain preview targets. |
+| `apps/desktop` | Main Electron workbench. | `v0.1.12` is the latest published Linux x64/arm64 `.deb` and AppImage prerelease; unsigned macOS/Windows remain preview targets. |
 | `apps/cli` | Thin runtime lifecycle/status/config/agent-inspection client (`oteluxctl`). | Source lifecycle, status, endpoints, schema-defined config preview/apply, doctor, and read-only Claude agent list/inspect/show-config commands live; a version-matched private launcher is bundled in Desktop artifacts, with no PATH installation yet. |
 
 Plugin distributions are thin hosts over the same packages:
