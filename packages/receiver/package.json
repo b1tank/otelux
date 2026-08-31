@@ -27,10 +27,10 @@
 		"node": ">=22.0.0"
 	},
 	"dependencies": {
-		"@hono/node-server": "2.0.12",
+		"@hono/node-server": "2.1.1",
 		"@otelux/engine": "*",
 		"@otelux/types": "*",
-		"hono": "4.12.34"
+		"hono": "4.13.5"
 	},
 	"devDependencies": {
 		"@types/node": "22.20.1",
