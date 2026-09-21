@@ -206,6 +206,8 @@ jobs:
           cache: "npm"
       - name: Install
         run: npm ci
+      - name: Install macOS packaging dependencies
+        run: brew install librsvg
       - name: Build workspace packages
         run: npm run build
       - name: Build unsigned macOS artifacts
