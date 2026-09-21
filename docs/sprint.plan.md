@@ -16,4 +16,4 @@
 
 ## Final notes
 
-Native arm64 DMG install smoke passed, including bundle extraction, packaged lifecycle, persistence/reconnect, runtime shutdown, and cleanup. The full Turborepo build passed (13/13 tasks). This sprint stops before any support claim changes. macOS remains an unsigned preview until the native signing, clean-machine, upgrade, uninstall, and architecture gates pass.
+Native arm64 DMG and ZIP install smoke passed, including bundle extraction, packaged lifecycle, persistence/reconnect, runtime shutdown, and cleanup. The full Turborepo build passed (13/13 tasks). This sprint stops before any support claim changes. macOS remains an unsigned preview until the native signing, clean-machine, upgrade, uninstall, and architecture gates pass.

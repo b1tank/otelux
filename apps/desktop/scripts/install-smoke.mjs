@@ -88,42 +88,57 @@ function smokeLinuxPackage() {
 	runPackagedSmoke(appImage, { APPIMAGE_EXTRACT_AND_RUN: '1' });
 }
 
-function smokeMacPackage() {
-	const architecture = process.arch === 'arm64' ? 'arm64' : 'x64';
-	const diskImage = releaseArtifact(
-		(name) => name.endsWith(`-mac-${architecture}.dmg`),
-		`macOS ${architecture} disk image`,
-	);
-	const mountPoint = join(temporaryRoot, 'dmg');
-	const installedApp = join(temporaryRoot, 'Applications', 'otelux.app');
-	mkdirSync(mountPoint, { recursive: true });
+function smokeMacBundle(artifact, label, extract) {
+	const worktree = join(temporaryRoot, label);
+	const installedApp = join(worktree, 'Applications', 'otelux.app');
+	mkdirSync(worktree, { recursive: true });
 	mkdirSync(dirname(installedApp), { recursive: true });
-	let attached = false;
+	let mountPoint;
 	try {
-		run('hdiutil', ['attach', diskImage, '-nobrowse', '-readonly', '-mountpoint', mountPoint]);
-		attached = true;
+		if (extract === 'dmg') {
+			mountPoint = join(worktree, 'dmg');
+			mkdirSync(mountPoint, { recursive: true });
+			run('hdiutil', ['attach', artifact, '-nobrowse', '-readonly', '-mountpoint', mountPoint]);
+		} else {
+			mountPoint = join(worktree, 'zip');
+			run('ditto', ['-x', '-k', artifact, mountPoint]);
+		}
 		const sourceApp = findEntry(
 			mountPoint,
 			(path, entry) => entry.isDirectory() && path.toLowerCase().endsWith('.app'),
 		);
-		if (!sourceApp) {
-			throw new Error('macOS disk image did not contain an application bundle');
-		}
+		if (!sourceApp) throw new Error(`macOS ${label} did not contain an application bundle`);
 		run('ditto', [sourceApp, installedApp]);
-		if (attached) {
-			run('hdiutil', ['detach', mountPoint]);
-			attached = false;
-		}
+		if (extract === 'dmg') run('hdiutil', ['detach', mountPoint]);
 		runPackagedSmoke(join(installedApp, 'Contents', 'MacOS', 'otelux'));
 	} finally {
-		if (attached) {
-			run('hdiutil', ['detach', mountPoint, '-force']);
+		if (extract === 'dmg' && mountPoint && existsSync(mountPoint)) {
+			try {
+				run('hdiutil', ['detach', mountPoint, '-force']);
+			} catch {
+				// Best-effort cleanup after a failed smoke.
+			}
 		}
-		rmSync(installedApp, { recursive: true, force: true });
+		rmSync(worktree, { recursive: true, force: true });
 	}
-	if (existsSync(installedApp)) {
-		throw new Error('macOS uninstall cleanup left the application bundle behind');
-	}
+	if (existsSync(installedApp)) throw new Error(`macOS ${label} cleanup left the app behind`);
+}
+
+function smokeMacPackage() {
+	const architecture = process.arch === 'arm64' ? 'arm64' : 'x64';
+	smokeMacBundle(
+		releaseArtifact(
+			(name) => name.endsWith(`-mac-${architecture}.dmg`),
+			`macOS ${architecture} disk image`,
+		),
+		'dmg-install',
+		'dmg',
+	);
+	smokeMacBundle(
+		releaseArtifact((name) => name.endsWith(`-mac-${architecture}.zip`), `macOS ${architecture} zip`),
+		'zip-install',
+		'zip',
+	);
 }
 
 function smokeWindowsPackage() {
