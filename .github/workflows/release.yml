@@ -183,9 +183,62 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  macos:
+    name: Build unsigned macOS preview
+    needs: resolve
+    if: needs.resolve.outputs.should-release == 'true'
+    runs-on: macos-14
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v4
+        with:
+          ref: ${{ needs.resolve.outputs.target }}
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Install
+        run: npm ci
+      - name: Build workspace packages
+        run: npm run build
+      - name: Build unsigned macOS artifacts
+        run: npm run package:mac -w @otelux/desktop
+      - name: Smoke-test installed DMG and ZIP artifacts
+        env:
+          OTELUX_SMOKE_DESKTOP_DIR: ${{ github.workspace }}/apps/desktop
+          OTELUX_SMOKE_REPO_ROOT: ${{ github.workspace }}
+        run: npm run smoke:install -w @otelux/desktop
+      - name: Generate macOS SBOM and checksums
+        run: node apps/desktop/scripts/prepare-platform-assets.mjs macos
+      - name: Attest macOS artifacts
+        if: ${{ !github.event.repository.private && needs.resolve.outputs.target == github.sha }}
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: |
+            apps/desktop/release/OTelux-*.dmg
+            apps/desktop/release/OTelux-*.zip
+      - name: Upload macOS release candidate
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: otelux-release-macos
+          path: |
+            apps/desktop/release/OTelux-*.dmg
+            apps/desktop/release/OTelux-*.zip
+            apps/desktop/release/otelux-*-macos-sbom.cdx.json
+            apps/desktop/release/SHA256SUMS-macos
+          if-no-files-found: error
+          retention-days: 1
+
   publish:
-    name: Publish Linux prerelease
-    needs: [resolve, linux]
+    name: Publish unsigned cross-platform prerelease
+    needs: [resolve, linux, macos]
     if: needs.resolve.outputs.should-release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -206,15 +259,15 @@ jobs:
       - name: Download native release candidates
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          pattern: otelux-release-linux-*
+          pattern: otelux-release-*
           path: release-assets
           merge-multiple: true
 
       - name: Assemble and verify unified checksums
         run: |
-          cat release-assets/SHA256SUMS-linux-* | sort > release-assets/SHA256SUMS
+          cat release-assets/SHA256SUMS-* | sort -u > release-assets/SHA256SUMS
           (cd release-assets && sha256sum -c SHA256SUMS)
-          rm release-assets/SHA256SUMS-linux-*
+          rm release-assets/SHA256SUMS-*
 
       - name: Write release notes
         env:
@@ -227,7 +280,7 @@ jobs:
             -f target_commitish="$RELEASE_TARGET" \
             --jq .body > "${RUNNER_TEMP}/generated-notes.md"
           cat > "${RUNNER_TEMP}/release-notes.md" <<'EOF'
-          OTelux ${{ needs.resolve.outputs.tag }} — Linux prerelease.
+          OTelux ${{ needs.resolve.outputs.tag }} — unsigned cross-platform prerelease.
 
           ## Install
 
@@ -250,9 +303,14 @@ jobs:
 
           For Linux arm64, replace `x86_64` with `arm64`.
 
+          ### macOS preview
+
+          macOS arm64 and x64 DMG/ZIP artifacts are unsigned previews. Verify `SHA256SUMS`, extract the matching artifact, and use macOS Privacy & Security → Open Anyway if Gatekeeper blocks the first launch. Developer ID signing and notarization are not included yet.
+
           ## Supported packages
 
           - Linux x64 and arm64 `.deb` and rootless AppImage; updates are installed manually.
+          - macOS arm64 and x64 unsigned DMG/ZIP previews; no supported Gatekeeper trust path yet.
           - OTLP/HTTP JSON and protobuf are supported for traces, logs, and metrics.
           - OTLP/gRPC is not supported yet.
           - Telemetry is stored locally in SQLite under the configured retention limits.
@@ -272,7 +330,7 @@ jobs:
           while IFS= read -r -d '' asset; do
             ASSET_ARGS+=(--asset "$asset")
           done < <(find release-assets -maxdepth 1 -type f \
-            \( -name 'OTelux-*.deb' -o -name 'OTelux-*.AppImage' -o -name 'otelux-*-sbom.cdx.json' -o -name 'SHA256SUMS' \) \
+            \( -name 'OTelux-*.deb' -o -name 'OTelux-*.AppImage' -o -name 'OTelux-*.dmg' -o -name 'OTelux-*.zip' -o -name 'otelux-*-sbom.cdx.json' -o -name 'SHA256SUMS' \) \
             -print0 | sort -z)
           node apps/desktop/scripts/publish-github-release.mjs \
             --repository "${{ github.repository }}" \
