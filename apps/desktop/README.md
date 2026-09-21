@@ -32,8 +32,11 @@ Produces `out/main/*.js`, `out/preload/*.js`, and `out/renderer/*` ready to be p
 
 ## Package for Linux
 
-Linux `.deb` and rootless AppImage packaging is live for x64/arm64 prereleases. The latest published release is `v0.1.11`; `main` contains an unpublished `0.1.12` candidate. Local package, install, daemon, CLI, and artifact smokes are release evidence only for the exact artifact tested; generated files under `release/` are not official downloads.
+Linux `.deb` and rootless AppImage packaging is live for x64/arm64 prereleases. macOS arm64/x64 packaging is an unsigned preview and is not yet a supported release target. The latest published release is `v0.1.12`. Local package, install, daemon, CLI, and artifact smokes are release evidence only for the exact artifact tested; generated files under `release/` are not official downloads.
 
 ```sh
 npm run -w apps/desktop package
+npm run -w apps/desktop package:mac  # unsigned macOS preview, on macOS
 ```
+
+Packaging generates and verifies the icon, notices, and bundled CLI inputs before invoking electron-builder. macOS support remains an unsigned preview until native signing, notarization, upgrade, uninstall, and clean-machine qualification pass.

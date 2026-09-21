@@ -1,7 +1,17 @@
 #!/bin/sh
 set -eu
-APP_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+BIN_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+RESOURCES_DIR=$(CDPATH= cd -- "$BIN_DIR/.." && pwd)
+# macOS keeps the executable in Contents/MacOS while Linux keeps it at the
+# application root. Resolve from the bundle's resource directory rather than
+# assuming either layout in the CLI itself.
+if [ -x "$RESOURCES_DIR/../MacOS/otelux" ]; then
+  ELECTRON_BINARY="$RESOURCES_DIR/../MacOS/otelux"
+else
+  APP_ROOT=$(CDPATH= cd -- "$RESOURCES_DIR/.." && pwd)
+  ELECTRON_BINARY="$APP_ROOT/otelux"
+fi
 exec env ELECTRON_RUN_AS_NODE=1 \
-  "$APP_ROOT/otelux" \
-  "$APP_ROOT/resources/app.asar/node_modules/@otelux/cli/dist/index.js" \
+  "$ELECTRON_BINARY" \
+  "$RESOURCES_DIR/app.asar/node_modules/@otelux/cli/dist/index.js" \
   "$@"

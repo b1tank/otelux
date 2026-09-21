@@ -110,10 +110,11 @@ Done when:
 
 Goal: make OTelux immediately understandable, demonstrable, trustworthy, and easy to install through native platform conventions.
 
-The decomposed publication audit and rollout are preserved in [release-sprint.md](release-sprint.md).
+The decomposed publication audit and rollout are preserved in [release-sprint.md](release-sprint.md). The macOS-specific implementation and qualification sequence is in [macos-support-plan.md](macos-support-plan.md).
 
 Tasks:
 
+- [x] Make native package prerequisites deterministic: generate and verify icons/notices, enforce executable/LF packaging inputs, and test bundled CLI resolution for macOS and Linux layouts.
 - Keep the repository hero, synthetic demo, social preview, status badges, current version, and support matrix synchronized with releases.
 - Keep prerelease status explicit; publish a non-prerelease “Latest” release only after the advertised stable support matrix passes its release gate.
 - Extend the native Linux package gates to signed macOS and Windows releases with OS trust UI, cross-version upgrade, and public-artifact download verification.
