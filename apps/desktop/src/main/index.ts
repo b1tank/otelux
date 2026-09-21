@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -22,7 +23,7 @@ import {
 	type OteluxEvent,
 } from '../shared/ipc.js';
 import { isAllowedExternalUrl, isAllowedNavigation } from './security.js';
-import { desktopStartupErrorMessage } from './startupError.js';
+import { classifyDesktopStartupError, desktopStartupErrorMessage } from './startupError.js';
 import { createDesktopWindowLifecycle, isPackagedQuitRequest } from './windowLifecycle.js';
 
 declare const __OTELUX_APP_VERSION__: string;
@@ -373,16 +374,16 @@ function daemonLimitEnvironment(): Record<string, string> {
 }
 
 function resolveIconPath(kind: 'app' | 'tray'): string {
-	if (app.isPackaged) {
-		return join(process.resourcesPath, kind === 'app' ? 'app-icon.png' : 'tray-icon.png');
+	const path = app.isPackaged
+		? join(process.resourcesPath, kind === 'app' ? 'app-icon.png' : 'tray-icon.png')
+		: join(__dirname, '..', '..', 'build', kind === 'app' ? 'icon.png' : join('icons', '32x32.png'));
+	if (!existsSync(path)) {
+		throw Object.assign(new Error(`missing ${kind} icon resource`), {
+			code: 'missing-resource',
+			resourceKind: kind,
+		});
 	}
-	return join(
-		__dirname,
-		'..',
-		'..',
-		'build',
-		kind === 'app' ? 'icon.png' : join('icons', '32x32.png'),
-	);
+	return path;
 }
 
 function createWindow(): BrowserWindow {
@@ -463,6 +464,16 @@ function createWindow(): BrowserWindow {
 		if (!isAllowedNavigation(url, appUrl)) {
 			event.preventDefault();
 		}
+	});
+	win.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+		console.error(
+			`[otelux] startup diagnostic ${JSON.stringify({ category: 'renderer', errorCode, errorDescription })}`,
+		);
+	});
+	win.webContents.on('render-process-gone', (_event, details) => {
+		console.error(
+			`[otelux] startup diagnostic ${JSON.stringify({ category: 'renderer', reason: details.reason })}`,
+		);
 	});
 
 	// The renderer needs no device or ambient-capability permissions
@@ -592,6 +603,8 @@ if (!gotLock) {
 			});
 		})
 		.catch((error) => {
+			const category = classifyDesktopStartupError(error);
+			console.error(`[otelux] startup diagnostic ${JSON.stringify({ category })}`);
 			dialog.showErrorBox('OTelux could not start', desktopStartupErrorMessage(error));
 			windowLifecycle.requestQuit();
 		});
