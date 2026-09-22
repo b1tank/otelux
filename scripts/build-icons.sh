@@ -48,7 +48,7 @@ rsvg-convert -w 512 -h 512 "${SRC}" -o "${OUT_DIR}/icon.png"
 rsvg-convert -w 1024 -h 1024 "${SRC}" -o "${OUT_DIR}/icon@1024.png"
 
 # macOS status-bar icons must be monochrome Template Images with transparency.
-rsvg-convert -w 32 -h 32 "${TRAY_SRC}" -o "${OUT_DIR}/tray-template.png"
+rsvg-convert -w 18 -h 18 "${TRAY_SRC}" -o "${OUT_DIR}/tray-template.png"
 
 # Size set for Linux desktop integration (`build/icons/<size>x<size>.png`).
 for size in 16 32 48 64 128 256 512; do
@@ -58,5 +58,5 @@ done
 
 echo "wrote: ${OUT_DIR}/icon.png (512x512)"
 echo "wrote: ${OUT_DIR}/icon@1024.png (1024x1024)"
-echo "wrote: ${OUT_DIR}/tray-template.png (32x32 macOS template)"
+echo "wrote: ${OUT_DIR}/tray-template.png (18x18 macOS template)"
 echo "wrote: ${ICONS_DIR}/{16,32,48,64,128,256,512}x{...}.png"

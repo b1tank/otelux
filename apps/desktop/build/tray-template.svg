@@ -1,7 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
-  <!-- Keep the mark to roughly 16px on a 32px raster so it aligns with native
-       macOS status items instead of visually overpowering them. -->
-  <g transform="translate(40 40) scale(0.6875)" fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-width="20">
+  <!-- Keep the template's intrinsic canvas close to the native macOS status
+       item size. The transparent canvas, rather than extra CSS spacing, owns
+       the alignment with neighboring menu-bar icons. -->
+  <g fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-width="20">
     <path d="M 40 72 L 220 72 M 196 58 L 220 72 L 196 86"/>
     <path d="M 80 128 L 212 128 M 188 114 L 212 128 L 188 142"/>
     <path d="M 120 184 L 204 184 M 180 170 L 204 184 L 180 198"/>
