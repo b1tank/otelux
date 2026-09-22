@@ -39,6 +39,15 @@ import {
 
 declare const __OTELUX_APP_VERSION__: string;
 
+// Electron defaults the development app name to "Electron". That makes its
+// single-instance lock and user-data directory collide with other Electron
+// apps such as VS Code, so a second dev launch exits before showing a window.
+// Set the real identity before requesting the lock below.
+app.setName('OTelux');
+if (process.platform === 'win32') {
+	app.setAppUserModelId('com.otelux.desktop');
+}
+
 const isDev = !app.isPackaged;
 const desktopVersion = __OTELUX_APP_VERSION__;
 
