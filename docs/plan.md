@@ -195,7 +195,7 @@ Tradeoff: owner-token loopback HTTP is weaker than owner-credentialed OS IPC aga
 
 Blocker classification before further feature investment:
 
-- **Operational limitation, safe default no spend:** The `v0.1.13` unsigned cross-platform prerelease published successfully after adding a native macOS runner and release artifacts. Developer ID signing/notarization, Intel qualification, and Windows support remain deferred platform gates.
+- **Operational limitation, safe default no spend:** The `v0.1.14` unsigned cross-platform prerelease published successfully after adding a native macOS runner and release artifacts. Developer ID signing/notarization, Intel qualification, and Windows support remain deferred platform gates.
 - **Documented later limitations:** OS service registration, login autostart, native OS IPC, browser sessions/scopes, automatic incompatible-version replacement/upgrade rollback, public CLI PATH installation, and signed Windows/macOS support.
 
 No product-direction decision is required for the M1 control gate. The safe defaults are existing schema keys only, preview by default for mutation, explicit `--yes` for non-interactive apply, exact revision CAS, preservation of incompatible owners, and no browser/session work in this slice.
