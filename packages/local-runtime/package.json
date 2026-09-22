@@ -30,7 +30,7 @@
 		"node": ">=22.12.0"
 	},
 	"dependencies": {
-		"@hono/node-server": "2.0.12",
+		"@hono/node-server": "2.1.1",
 		"@otelux/adapter-http": "*",
 		"@otelux/engine": "*",
 		"@otelux/engine-node": "*",
