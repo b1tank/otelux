@@ -4,6 +4,10 @@ export function isPackagedQuitRequest(arguments_: readonly string[]): boolean {
 	return arguments_.includes(PACKAGED_QUIT_FLAG);
 }
 
+export function desktopExitAction(keepRunningInBackground: boolean): 'hide' | 'stop' {
+	return keepRunningInBackground ? 'hide' : 'stop';
+}
+
 export interface LifecycleWindow {
 	isDestroyed(): boolean;
 	isMinimized(): boolean;

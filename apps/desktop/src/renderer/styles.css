@@ -612,6 +612,25 @@ body,
 	cursor: not-allowed;
 }
 
+.settings-modal__behavior {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	margin-top: 12px;
+	padding: 12px;
+	background: var(--otelux-bg);
+	border: 1px solid var(--otelux-border);
+	border-radius: 4px;
+	color: var(--otelux-fg-muted);
+	font-size: 11px;
+	line-height: 1.5;
+}
+
+.settings-modal__behavior strong {
+	color: var(--otelux-fg);
+	font-size: 12px;
+}
+
 .settings-modal__path {
 	display: block;
 	margin-top: 4px;

@@ -598,8 +598,16 @@ function selected(
 
 function parseResultSettings(value: unknown, path = '$.result'): Settings {
 	const input = object(value, path);
-	const result = selected(input, ['version', 'revision', 'otlp', 'mcp', 'retention', 'storage']);
-	for (const section of ['otlp', 'mcp', 'retention', 'storage'] as const) {
+	const result = selected(input, [
+		'version',
+		'revision',
+		'otlp',
+		'mcp',
+		'retention',
+		'storage',
+		'desktop',
+	]);
+	for (const section of ['otlp', 'mcp', 'retention', 'storage', 'desktop'] as const) {
 		if (section in result) {
 			const sectionInput = object(result[section], `${path}.${section}`);
 			const keys =
@@ -609,7 +617,9 @@ function parseResultSettings(value: unknown, path = '$.result'): Settings {
 						? ['enabled', 'port']
 						: section === 'retention'
 							? ['maxAgeHours', 'maxSizeMb']
-							: ['dbPath'];
+							: section === 'storage'
+								? ['dbPath']
+								: ['keepRunningInBackground'];
 			result[section] = selected(sectionInput, keys);
 		}
 	}

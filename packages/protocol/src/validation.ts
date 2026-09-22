@@ -382,7 +382,7 @@ function parseSpanQuery(value: unknown, path: string): { traceId: string; spanId
 
 export function parsePartialSettings(value: unknown, path = '$.patch'): PartialSettings {
 	const input = object(value, path);
-	knownKeys(input, ['otlp', 'mcp', 'retention', 'storage'], path);
+	knownKeys(input, ['otlp', 'mcp', 'retention', 'storage', 'desktop'], path);
 	const result: Record<string, unknown> = {};
 	if ('otlp' in input) {
 		const section = object(input.otlp, `${path}.otlp`);
@@ -434,23 +434,38 @@ export function parsePartialSettings(value: unknown, path = '$.patch'): PartialS
 		);
 		result.storage = output;
 	}
+	if ('desktop' in input) {
+		const section = object(input.desktop, `${path}.desktop`);
+		knownKeys(section, ['keepRunningInBackground'], `${path}.desktop`);
+		const output: Record<string, unknown> = {};
+		assign(
+			output,
+			'keepRunningInBackground',
+			optional(section, 'keepRunningInBackground', boolean, `${path}.desktop`),
+		);
+		result.desktop = output;
+	}
 	return result as PartialSettings;
 }
 
 export function parseSettings(value: unknown, path = '$.settings'): Settings {
 	const input = object(value, path);
-	knownKeys(input, ['version', 'revision', 'otlp', 'mcp', 'retention', 'storage'], path);
+	knownKeys(input, ['version', 'revision', 'otlp', 'mcp', 'retention', 'storage', 'desktop'], path);
 	if (input.version !== 1) fail(`${path}.version`, 'literal', 'expected 1');
 	const revision = integer(input.revision, `${path}.revision`, 0, Number.MAX_SAFE_INTEGER);
 	const patchInput: Record<string, unknown> = {};
-	for (const section of ['otlp', 'mcp', 'retention', 'storage']) {
+	for (const section of ['otlp', 'mcp', 'retention', 'storage', 'desktop']) {
 		if (section in input) patchInput[section] = input[section];
 	}
 	const patch = parsePartialSettings(patchInput, path) as Record<string, unknown>;
 	for (const section of ['otlp', 'mcp', 'retention', 'storage']) {
 		if (!(section in input)) fail(`${path}.${section}`, 'required', 'field is required');
 	}
-	const result = { version: 1, revision, ...patch } as Settings;
+	const parsed = { version: 1, revision, ...patch } as Partial<Settings>;
+	const result = {
+		...parsed,
+		desktop: parsed.desktop ?? { keepRunningInBackground: true },
+	} as Settings;
 	if (result.otlp.port === undefined) fail(`${path}.otlp.port`, 'required', 'field is required');
 	if (result.mcp.enabled === undefined) fail(`${path}.mcp.enabled`, 'required', 'field is required');
 	if (result.mcp.port === undefined) fail(`${path}.mcp.port`, 'required', 'field is required');
@@ -460,6 +475,8 @@ export function parseSettings(value: unknown, path = '$.settings'): Settings {
 		fail(`${path}.retention.maxSizeMb`, 'required', 'field is required');
 	if (result.storage.dbPath === undefined)
 		fail(`${path}.storage.dbPath`, 'required', 'field is required');
+	if (result.desktop.keepRunningInBackground === undefined)
+		fail(`${path}.desktop.keepRunningInBackground`, 'required', 'field is required');
 	return result;
 }
 

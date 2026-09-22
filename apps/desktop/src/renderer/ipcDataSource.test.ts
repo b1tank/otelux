@@ -12,6 +12,7 @@ function bridge(result: unknown): OteluxWindowBridge {
 		},
 		invoke: async () => result,
 		onEvent: () => () => {},
+		onOpenSettings: () => () => {},
 	};
 }
 

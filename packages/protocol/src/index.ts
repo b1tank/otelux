@@ -337,6 +337,10 @@ export interface Settings {
 		/** Absolute database path, or an empty string for the runtime default. */
 		readonly dbPath: string;
 	};
+	readonly desktop: {
+		/** Keep ingest and the menu-bar control alive after the desktop UI closes. */
+		readonly keepRunningInBackground: boolean;
+	};
 }
 
 /** Patch accepted by the runtime settings update operation. */
@@ -355,6 +359,9 @@ export interface PartialSettings {
 	readonly storage?: {
 		readonly dbPath?: string;
 	};
+	readonly desktop?: {
+		readonly keepRunningInBackground?: boolean;
+	};
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -364,6 +371,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	mcp: { enabled: true, port: 4320 },
 	retention: { maxAgeHours: 72, maxSizeMb: 512 },
 	storage: { dbPath: '' },
+	desktop: { keepRunningInBackground: true },
 };
 
 export const MIN_PORT = 1;

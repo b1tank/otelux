@@ -4,7 +4,7 @@ import {
 	MAX_RETENTION_SIZE_MB,
 	MIN_PORT,
 } from '@otelux/protocol';
-import { ActivityIcon, CopyButton, DatabaseIcon, XIcon } from '@otelux/ui';
+import { ActivityIcon, CopyButton, DatabaseIcon, SettingsIcon, XIcon } from '@otelux/ui';
 import { type JSX, useEffect, useRef, useState } from 'react';
 import type {
 	McpStatus,
@@ -43,10 +43,11 @@ interface SettingsModalProps {
 	readonly onClose: () => void;
 }
 
-type SettingsCategory = 'connections' | 'storage';
+type SettingsCategory = 'general' | 'connections' | 'storage';
 type SettingsField = 'otlpPort' | 'mcpPort' | 'retentionAge' | 'retentionSize' | 'databasePath';
 
 interface SettingsInput {
+	readonly keepRunningInBackground: boolean;
 	readonly otlpPort: string;
 	readonly mcpEnabled: boolean;
 	readonly mcpPort: string;
@@ -72,8 +73,11 @@ type SettingsValidationResult =
  */
 export function SettingsModal(props: SettingsModalProps): JSX.Element {
 	const { settings, currentPort, mcpStatus, storagePath, storageUsage, onSave, onClose } = props;
-	const [activeCategory, setActiveCategory] = useState<SettingsCategory>('connections');
+	const [activeCategory, setActiveCategory] = useState<SettingsCategory>('general');
 	const [baseRevision] = useState(settings.revision);
+	const [keepRunningInBackground, setKeepRunningInBackground] = useState(
+		settings.desktop.keepRunningInBackground,
+	);
 	const [portInput, setPortInput] = useState(String(currentPort ?? settings.otlp.port));
 	const [mcpEnabled, setMcpEnabled] = useState(settings.mcp.enabled);
 	const [mcpPortInput, setMcpPortInput] = useState(String(settings.mcp.port));
@@ -87,6 +91,7 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 	const ageInputRef = useRef<HTMLInputElement>(null);
 	const sizeInputRef = useRef<HTMLInputElement>(null);
 	const dbPathInputRef = useRef<HTMLInputElement>(null);
+	const generalTabRef = useRef<HTMLButtonElement>(null);
 	const connectionsTabRef = useRef<HTMLButtonElement>(null);
 	const storageTabRef = useRef<HTMLButtonElement>(null);
 	const dialogRef = useRef<HTMLDialogElement>(null);
@@ -94,7 +99,7 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 	useEffect(() => {
 		const previouslyFocused =
 			document.activeElement instanceof HTMLElement ? document.activeElement : null;
-		connectionsTabRef.current?.focus();
+		generalTabRef.current?.focus();
 		return () => previouslyFocused?.focus();
 	}, []);
 
@@ -140,25 +145,29 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 	};
 
 	const focusCategoryTab = (category: SettingsCategory): void => {
-		if (category === 'connections') {
-			connectionsTabRef.current?.focus();
-		} else {
-			storageTabRef.current?.focus();
-		}
+		({
+			general: generalTabRef,
+			connections: connectionsTabRef,
+			storage: storageTabRef,
+		})[category].current?.focus();
 	};
 
 	const onCategoryKeyDown = (
 		e: React.KeyboardEvent<HTMLButtonElement>,
 		category: SettingsCategory,
 	): void => {
+		const categories: readonly SettingsCategory[] = ['general', 'connections', 'storage'];
+		const index = categories.indexOf(category);
 		let nextCategory: SettingsCategory | undefined;
 		switch (e.key) {
 			case 'ArrowDown':
+				nextCategory = categories[(index + 1) % categories.length];
+				break;
 			case 'ArrowUp':
-				nextCategory = category === 'connections' ? 'storage' : 'connections';
+				nextCategory = categories[(index - 1 + categories.length) % categories.length];
 				break;
 			case 'Home':
-				nextCategory = 'connections';
+				nextCategory = 'general';
 				break;
 			case 'End':
 				nextCategory = 'storage';
@@ -197,6 +206,7 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 	const onSubmit = async (e: React.FormEvent): Promise<void> => {
 		e.preventDefault();
 		const validation = validateSettingsInput({
+			keepRunningInBackground,
 			otlpPort: portInput,
 			mcpEnabled,
 			mcpPort: mcpPortInput,
@@ -252,13 +262,28 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 					<div className="settings-modal__brand" id="settings-title">
 						Settings
 					</div>
-					<span className="settings-modal__nav-label">Runtime</span>
+					<span className="settings-modal__nav-label">OTelux</span>
 					<div
 						className="settings-modal__nav"
 						role="tablist"
 						aria-label="Settings categories"
 						aria-orientation="vertical"
 					>
+						<button
+							ref={generalTabRef}
+							type="button"
+							role="tab"
+							id="settings-tab-general"
+							aria-controls="settings-panel-general"
+							aria-selected={activeCategory === 'general'}
+							tabIndex={activeCategory === 'general' ? 0 : -1}
+							onClick={() => setActiveCategory('general')}
+							onKeyDown={(e) => onCategoryKeyDown(e, 'general')}
+							disabled={saving}
+						>
+							<SettingsIcon size={16} />
+							General
+						</button>
 						<button
 							ref={connectionsTabRef}
 							type="button"
@@ -294,7 +319,9 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 
 				<form className="settings-modal__shell" onSubmit={onSubmit} noValidate>
 					<header className="settings-modal__header">
-						<h2>{activeCategory === 'connections' ? 'Connections' : 'Storage'}</h2>
+						<h2>
+							{{ general: 'General', connections: 'Connections', storage: 'Storage' }[activeCategory]}
+						</h2>
 						<button
 							type="button"
 							className="settings-modal__close"
@@ -308,6 +335,63 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element {
 					</header>
 
 					<div className="settings-modal__body">
+						<section
+							className="settings-modal__panel"
+							role="tabpanel"
+							id="settings-panel-general"
+							aria-labelledby="settings-tab-general"
+							hidden={activeCategory !== 'general'}
+						>
+							<p className="settings-modal__intro">Choose what happens when the desktop window closes.</p>
+							<section className="settings-modal__section">
+								<h3>Background ingestion</h3>
+								<p className="settings-modal__section-description">
+									Keep collecting telemetry even when the workbench is not open.
+								</p>
+								<div className="settings-modal__row">
+									<div className="settings-modal__row-copy">
+										<label className="settings-modal__row-title" htmlFor="settings-background-runtime">
+											Keep receiver running in the background
+										</label>
+										<div id="settings-background-runtime-hint" className="settings-modal__row-hint">
+											Show OTelux in the menu bar while the receiver is running.
+										</div>
+									</div>
+									<div className="settings-modal__control">
+										<label className="settings-modal__switch" title="Keep receiver running in background">
+											<input
+												id="settings-background-runtime"
+												type="checkbox"
+												role="switch"
+												aria-label="Keep receiver running in the background"
+												aria-describedby="settings-background-runtime-hint"
+												aria-checked={keepRunningInBackground}
+												checked={keepRunningInBackground}
+												onChange={(e) => setKeepRunningInBackground(e.target.checked)}
+												disabled={saving}
+											/>
+											<span aria-hidden="true" />
+										</label>
+									</div>
+								</div>
+								<div className="settings-modal__behavior" aria-live="polite">
+									<strong>Background ingestion is {keepRunningInBackground ? 'on' : 'off'}</strong>
+									{keepRunningInBackground ? (
+										<span>
+											Closing the window or choosing Quit from the Dock hides the desktop UI. The receiver and
+											menu-bar icon remain available. Choose “Quit OTelux and Stop Receiver” from the menu bar
+											to stop everything.
+										</span>
+									) : (
+										<span>
+											Closing or quitting the desktop app also stops the receiver and removes the menu-bar
+											icon. Open OTelux again to resume ingestion.
+										</span>
+									)}
+								</div>
+							</section>
+						</section>
+
 						<section
 							className="settings-modal__panel"
 							role="tabpanel"
@@ -673,6 +757,7 @@ export function validateSettingsInput(input: SettingsInput): SettingsValidationR
 	return {
 		ok: true,
 		patch: {
+			desktop: { keepRunningInBackground: input.keepRunningInBackground },
 			otlp: { port: parsedOtlp },
 			mcp: { enabled: input.mcpEnabled, port: parsedMcp },
 			retention: { maxAgeHours: parsedAge, maxSizeMb: parsedSize },

@@ -111,6 +111,10 @@ function merge(base: Settings, patch: PartialSettings): Settings {
 			maxSizeMb: patch.retention?.maxSizeMb ?? base.retention.maxSizeMb,
 		},
 		storage: { dbPath: patch.storage?.dbPath ?? base.storage.dbPath },
+		desktop: {
+			keepRunningInBackground:
+				patch.desktop?.keepRunningInBackground ?? base.desktop.keepRunningInBackground,
+		},
 	};
 }
 
@@ -125,6 +129,7 @@ function coerce(value: unknown): Settings {
 		mcp?: { enabled?: unknown; port?: unknown };
 		retention?: { maxAgeHours?: unknown; maxSizeMb?: unknown };
 		storage?: { dbPath?: unknown };
+		desktop?: { keepRunningInBackground?: unknown };
 	};
 	if (candidate.version !== 1) {
 		return DEFAULT_SETTINGS;
@@ -164,6 +169,12 @@ function coerce(value: unknown): Settings {
 					? candidate.storage.dbPath
 					: DEFAULT_SETTINGS.storage.dbPath,
 		},
+		desktop: {
+			keepRunningInBackground:
+				typeof candidate.desktop?.keepRunningInBackground === 'boolean'
+					? candidate.desktop.keepRunningInBackground
+					: DEFAULT_SETTINGS.desktop.keepRunningInBackground,
+		},
 	};
 	try {
 		validate(settings);
@@ -200,6 +211,9 @@ function validate(settings: Settings): void {
 		throw new Error(
 			`Retention size must be an integer in [0, ${MAX_RETENTION_SIZE_MB}] MB (0 = unlimited); got ${maxSizeMb}`,
 		);
+	}
+	if (typeof settings.desktop.keepRunningInBackground !== 'boolean') {
+		throw new Error('Desktop background-ingestion preference must be a boolean.');
 	}
 	const { dbPath } = settings.storage;
 	if (dbPath !== '' && !isAbsolute(dbPath)) {

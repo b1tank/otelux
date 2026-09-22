@@ -186,7 +186,7 @@ Decision (2026-08-06): use an on-demand packaged daemon started by the shared la
 Scope guardrails for this milestone:
 
 - Linux source, unpacked, `.deb`, and AppImage launch/reconnect are in scope; unsigned Windows/macOS lifecycle remains deferred.
-- The daemon survives Desktop exit and stops only through an explicit diagnostic/control path; login autostart and OS service registration are out of scope.
+- With background ingestion enabled, the daemon survives a hidden Desktop workbench and stops through the explicit menu-bar/tray full-quit action; users may opt into stopping it on window close or Dock Quit. Login autostart and OS service registration are out of scope.
 - An incompatible owner is reported and preserved, never killed or replaced automatically. Automated upgrade rollback waits for a real CLI/installer lifecycle.
 - Browser bootstrap, cookie sessions, CSRF, read/control scopes, Unix sockets, and named pipes are separate milestones.
 - A development comparison flag may retain embedded ownership briefly, but the shipped path must not permanently support two backend ownership models.
@@ -195,7 +195,7 @@ Tradeoff: owner-token loopback HTTP is weaker than owner-credentialed OS IPC aga
 
 Blocker classification before further feature investment:
 
-- **Operational limitation, safe default no spend:** The `v0.1.14` unsigned cross-platform prerelease published successfully after adding a native macOS runner and release artifacts. Developer ID signing/notarization, Intel qualification, and Windows support remain deferred platform gates.
+- **Operational limitation, safe default no spend:** The `v0.1.15` unsigned cross-platform prerelease published successfully after adding a native macOS runner and release artifacts. Developer ID signing/notarization, Intel qualification, and Windows support remain deferred platform gates.
 - **Documented later limitations:** OS service registration, login autostart, native OS IPC, browser sessions/scopes, automatic incompatible-version replacement/upgrade rollback, public CLI PATH installation, and signed Windows/macOS support.
 
 No product-direction decision is required for the M1 control gate. The safe defaults are existing schema keys only, preview by default for mutation, explicit `--yes` for non-interactive apply, exact revision CAS, preservation of incompatible owners, and no browser/session work in this slice.
@@ -204,7 +204,7 @@ Done when:
 
 - Plugin, direct-MCP, CLI, and Desktop users all reach the same local runtime and database, regardless of installation order.
 - Claude/Codex users can install the plugin without Desktop, invoke analysis skills, configure telemetry with approval, and open the browser workbench.
-- Installing Desktop later shows telemetry already collected by the plugin, and closing Desktop does not interrupt ingest or MCP access.
+- Installing Desktop later shows telemetry already collected by the plugin, and hiding Desktop with background ingestion enabled does not interrupt ingest or MCP access.
 
 See [arch.md](arch.md).
 

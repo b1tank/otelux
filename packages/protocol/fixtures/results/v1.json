@@ -67,6 +67,9 @@
         "storage": {
           "dbPath": ""
         },
+        "desktop": {
+          "keepRunningInBackground": true
+        },
         "revision": 0
       }
     },
@@ -110,6 +113,9 @@
           },
           "storage": {
             "dbPath": ""
+          },
+          "desktop": {
+            "keepRunningInBackground": true
           },
           "revision": 0
         },

@@ -88,6 +88,10 @@ class FakeStore implements SettingsWriter {
 				maxSizeMb: patch.retention?.maxSizeMb ?? this.base.retention.maxSizeMb,
 			},
 			storage: { dbPath: patch.storage?.dbPath ?? this.base.storage.dbPath },
+			desktop: {
+				keepRunningInBackground:
+					patch.desktop?.keepRunningInBackground ?? this.base.desktop.keepRunningInBackground,
+			},
 		};
 	}
 
@@ -109,6 +113,7 @@ function baseSettings(): Settings {
 		mcp: { enabled: true, port: 4320 },
 		retention: { maxAgeHours: 72, maxSizeMb: 512 },
 		storage: { dbPath: '' },
+		desktop: { keepRunningInBackground: true },
 	};
 }
 

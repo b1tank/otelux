@@ -84,6 +84,18 @@
                 "dbPath"
               ],
               "additionalProperties": false
+            },
+            "desktop": {
+              "type": "object",
+              "properties": {
+                "keepRunningInBackground": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "keepRunningInBackground"
+              ],
+              "additionalProperties": false
             }
           },
           "required": [
@@ -380,6 +392,18 @@
               },
               "required": [
                 "dbPath"
+              ],
+              "additionalProperties": false
+            },
+            "desktop": {
+              "type": "object",
+              "properties": {
+                "keepRunningInBackground": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "keepRunningInBackground"
               ],
               "additionalProperties": false
             }

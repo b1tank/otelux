@@ -1,6 +1,6 @@
 {
 	"name": "@otelux/cli",
-	"version": "0.1.14",
+	"version": "0.1.15",
 	"private": true,
 	"description": "Thin lifecycle and diagnostics client for the local OTelux runtime.",
 	"license": "MIT",

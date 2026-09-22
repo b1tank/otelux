@@ -40,12 +40,12 @@ The repository currently contains:
 - Live Traces, Logs, and Metrics rail surfaces in `@otelux/ui`.
 - A one-click "Load sample data" seed in the empty Traces view populates every surface with clearly-labelled synthetic telemetry, so a first-run user can evaluate the UI before wiring an exporter.
 - A shared live/paused (live-tail) control and result footers across all three views, plus a confirmed "Clear data" action that deletes all stored telemetry. Live invalidations are signal-scoped and query bursts are coalesced to one active plus one trailing refresh so exporters cannot fan out concurrent renderer queries. New arrivals never steal inspection focus: the waterfall labels the explicitly selected trace until the user chooses another.
-- Desktop close-to-tray lifecycle: closing the window keeps the shell available from the tray; **Quit Desktop** exits only Electron, while the on-demand daemon continues OTLP/MCP/SQLite independently.
+- Desktop background-ingestion lifecycle: **Keep receiver running in the background** defaults on, so closing the window or choosing Quit from the Dock hides the workbench while the menu-bar/tray control and on-demand daemon continue OTLP/MCP/SQLite. Turning it off makes either action stop the daemon and exit. The menu-bar/tray action **Quit OTelux and Stop Receiver** always performs a complete shutdown.
 - Direct in-process and Electron IPC `DataSource` adapters.
 - MCP tool plumbing over the same query layer.
 - A shared OTelux plugin under `plugins/otelux` installs into Claude Code, Codex, and Pi with four observability skills plus a secure stdio bridge to the desktop MCP listener. Pi's thin extension registers the same bridge tools natively; it does not fork the MCP implementation. This is the current companion implementation; see [arch.md](arch.md#current-implementation) for the target shared-runtime architecture.
 - A foreground `oteluxd` build now owns the same runtime without Electron, handles signals, rejects duplicate owners, and passes process-level RPC/cleanup tests. Node hosts share a bounded compatibility-aware discovery/ensure client that validates state, the canonical owner-only token, protocol negotiation, and live instance identity. Desktop packages contain and start the daemon on demand through Electron Node mode; it is not registered as an OS background service; Desktop provides restart and separately confirmed stop controls, while automatic upgrade/rollback remains planned.
-- The desktop app is the current release product. The latest published prerelease is `v0.1.14`, with Linux x64 and arm64 `.deb` and AppImage artifacts plus unsigned macOS arm64/x64 DMG and ZIP previews, all with checksums and SBOMs. Source and extracted-artifact tests also qualify the shared daemon and bundled CLI shape. macOS remains an unsigned preview target; Windows remains deferred. The agent plugin is currently a Desktop-launcher companion; the bundled CLI lifecycle client has landed, while direct MCP and independent CLI distribution remain planned.
+- The desktop app is the current release product. The latest published prerelease is `v0.1.15`, with Linux x64 and arm64 `.deb` and AppImage artifacts plus unsigned macOS arm64/x64 DMG and ZIP previews, all with checksums and SBOMs. Source and extracted-artifact tests also qualify the shared daemon and bundled CLI shape. macOS remains an unsigned preview target; Windows remains deferred. The agent plugin is currently a Desktop-launcher companion; the bundled CLI lifecycle client has landed, while direct MCP and independent CLI distribution remain planned.
 
 Important current limits:
 
@@ -110,7 +110,7 @@ Apps are not published packages:
 
 | App | Purpose | Current state |
 |---|---|---|
-| `apps/desktop` | Main Electron workbench. | `v0.1.14` is the latest published Linux x64/arm64 `.deb` and AppImage prerelease; unsigned macOS DMG/ZIP artifacts are preview targets and Windows remains deferred. |
+| `apps/desktop` | Main Electron workbench. | `v0.1.15` is the latest published Linux x64/arm64 `.deb` and AppImage prerelease; unsigned macOS DMG/ZIP artifacts are preview targets and Windows remains deferred. |
 | `apps/cli` | Thin runtime lifecycle/status/config/agent-inspection client (`oteluxctl`). | Source lifecycle, status, endpoints, schema-defined config preview/apply, doctor, and read-only Claude agent list/inspect/show-config commands live; a version-matched private launcher is bundled in Desktop artifacts, with no PATH installation yet. |
 
 Plugin distributions are thin hosts over the same packages:
@@ -256,7 +256,7 @@ A supported stable desktop release must let a user:
 - Receive traces, logs, and metrics through the documented OTLP encodings without restarting the app.
 - Complete the trace, log, metric, and cross-signal workflows defined above without dead controls, misleading status, or unexplained console errors.
 - Preserve telemetry and settings across restart, bound disk growth through retention, and recover safely from missing, old, or corrupt local state.
-- Keep receiving while the desktop window is hidden in the system tray, and stop every listener/database handle after explicit full quit.
+- Keep receiving while the desktop window is hidden when background ingestion is enabled; when it is disabled, close and OS-level Quit must stop every listener/database handle. **Quit OTelux and Stop Receiver** from the menu bar/tray always performs the full shutdown.
 - Use only agent tools that are implemented, bounded, read-only, and accurately described. Incomplete tools are excluded from the supported surface or explicitly marked experimental.
 - Complete core workflows with keyboard input, visible focus, readable contrast, and no pointer-only interaction.
 - Use a bundled `otelux` CLI to start/discover the single runtime, inspect status/endpoints/storage health, open Desktop or the workbench, run diagnostics, and safely preview/apply/verify supported agent integrations.

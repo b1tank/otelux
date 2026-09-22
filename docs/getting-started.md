@@ -2,24 +2,24 @@
 
 Updated: 2026-08-04
 
-OTelux publishes Linux x64 and arm64 `.deb` and AppImage prereleases plus unsigned macOS arm64/x64 DMG and ZIP previews through GitHub Releases. Download `SHA256SUMS` plus one immutable package from the latest published release, [v0.1.14](https://github.com/b1tank/otelux/releases/tag/v0.1.14).
+OTelux publishes Linux x64 and arm64 `.deb` and AppImage prereleases plus unsigned macOS arm64/x64 DMG and ZIP previews through GitHub Releases. Download `SHA256SUMS` plus one immutable package from the latest published release, [v0.1.15](https://github.com/b1tank/otelux/releases/tag/v0.1.15).
 
 Install the x64 Debian/Ubuntu package:
 
 ```bash
 grep '  OTelux-.*-amd64.deb$' SHA256SUMS | sha256sum -c -
-sudo apt install ./OTelux-0.1.14-amd64.deb
+sudo apt install ./OTelux-0.1.15-amd64.deb
 ```
 
 Or run the rootless x64 AppImage:
 
 ```bash
 grep '  OTelux-.*-x86_64.AppImage$' SHA256SUMS | sha256sum -c -
-chmod +x OTelux-0.1.14-x86_64.AppImage
-./OTelux-0.1.14-x86_64.AppImage
+chmod +x OTelux-0.1.15-x86_64.AppImage
+./OTelux-0.1.15-x86_64.AppImage
 ```
 
-On arm64, use the corresponding `OTelux-0.1.14-arm64.deb` or `.AppImage` and matching checksum line. macOS users should verify the matching DMG or ZIP checksum; these artifacts are unsigned previews and may require Privacy & Security → Open Anyway. Do not install OTelux through an unofficial `curl | sudo sh` command or third-party package. Source setup remains available below for contributors.
+On arm64, use the corresponding `OTelux-0.1.15-arm64.deb` or `.AppImage` and matching checksum line. macOS users should verify the matching DMG or ZIP checksum; these artifacts are unsigned previews and may require Privacy & Security → Open Anyway. Do not install OTelux through an unofficial `curl | sudo sh` command or third-party package. Source setup remains available below for contributors.
 
 The [Current Baseline](spec.md#current-baseline) is the source of truth for implemented capabilities and limitations. This guide describes the current pre-release desktop behavior.
 
@@ -120,7 +120,7 @@ Open the Traces, Logs, and Metrics rail tabs to inspect the records. **Source** 
 
 To explore the UI before wiring any exporter, launch the desktop app and click **Load sample data** in the empty Traces view. It seeds the store with a small, clearly-labelled synthetic dataset (a distributed trace with an error, correlated logs, and a counter/histogram/gauge) across all three signals. The sample data persists like real telemetry and is removed by retention or by deleting the database.
 
-Closing the OTelux window hides it to the system tray; OTLP ingest, MCP, and the Runtime API remain active. Use the tray icon to reopen the workbench. **Quit Desktop** exits the native shell but leaves the on-demand runtime receiving independently. Use **Restart Runtime** to perform a clean daemon stop/relaunch while preserving Desktop context, or the separately confirmed **Stop Runtime and Quit** action when you also want to stop OTLP/MCP and close SQLite. The **Pause** control freezes live list refreshes only: telemetry continues to enter SQLite, and resuming catches the UI up. While live, new rows never replace the trace you are inspecting; the waterfall's **Selected trace** badge remains until you explicitly choose another row. **Clear data** permanently deletes stored traces, logs, metrics, resources, and instrumentation scopes while preserving settings and the MCP token.
+By default, closing the OTelux window or choosing Quit from the Dock hides the workbench while OTLP ingest, MCP, and the Runtime API remain active. On macOS, the control remains in the menu bar as the OTelux template icon with an `OT` text fallback. Its menu shows receiver health and provides **Open OTelux**, **Copy OTLP Endpoint**, **Settings…**, and **Quit OTelux and Stop Receiver**. The last action is the single complete-shutdown path. To make window close and Dock Quit stop the receiver too, turn off **Settings → General → Keep receiver running in the background**. The **Pause** control freezes live list refreshes only: telemetry continues to enter SQLite, and resuming catches the UI up. While live, new rows never replace the trace you are inspecting; the waterfall's **Selected trace** badge remains until you explicitly choose another row. **Clear data** permanently deletes stored traces, logs, metrics, resources, and instrumentation scopes while preserving settings and the MCP token.
 
 For Codex CLI and other real exporters, see the recipes below.
 

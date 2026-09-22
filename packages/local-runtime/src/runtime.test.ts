@@ -204,7 +204,10 @@ describe('createLocalRuntime', () => {
 			apiPortOverride: 0,
 			logger: silentLogger,
 		});
-		expect(runtime.getSettings().revision).toBe(0);
+		expect(runtime.getSettings()).toMatchObject({
+			revision: 0,
+			desktop: { keepRunningInBackground: true },
+		});
 		const receiver = runtime.getReceiverStatus();
 		if (receiver.kind !== 'running') throw new Error('receiver missing');
 		const result = await runtime.updateSettings({ otlp: { port: receiver.port } }, 0);

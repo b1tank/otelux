@@ -3,6 +3,7 @@ import {
 	type InvokeMessage,
 	OTELUX_EVENT_CHANNEL,
 	OTELUX_INVOKE_CHANNEL,
+	OTELUX_OPEN_SETTINGS_CHANNEL,
 	type OteluxEvent,
 } from '../shared/ipc.js';
 
@@ -39,6 +40,13 @@ const bridge = {
 		ipcRenderer.on(OTELUX_EVENT_CHANNEL, handler);
 		return () => {
 			ipcRenderer.removeListener(OTELUX_EVENT_CHANNEL, handler);
+		};
+	},
+	onOpenSettings: (listener: () => void): (() => void) => {
+		const handler = (): void => listener();
+		ipcRenderer.on(OTELUX_OPEN_SETTINGS_CHANNEL, handler);
+		return () => {
+			ipcRenderer.removeListener(OTELUX_OPEN_SETTINGS_CHANNEL, handler);
 		};
 	},
 };

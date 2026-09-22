@@ -36,6 +36,7 @@ export interface OteluxWindowBridge {
 	};
 	invoke(message: InvokeMessage): Promise<unknown>;
 	onEvent(listener: (event: OteluxEvent) => void): () => void;
+	onOpenSettings(listener: () => void): () => void;
 }
 
 declare global {

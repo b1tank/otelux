@@ -143,7 +143,7 @@ cat /tmp/otelux-userdata/settings.json 2>/dev/null
 
 ### 2.6 Settings cog opens settings
 - Click the **Settings** cog at the bottom of the **rail** (not the topbar — the cog moved there in the redesign).
-- **Expected**: backdrop dims, the wide settings dialog appears centered, **Connections** is selected in the left category rail, only the Connections panel is visible, and focus is on the **Connections** tab. Compact trust cards identify OTLP as `Local write-only · no authentication` on `127.0.0.1` with browser origins blocked, and MCP as authenticated read-only tooling using an owner-only per-install token.
+- **Expected**: backdrop dims, the wide settings dialog appears centered, **General** is selected in the left category rail, only the General panel is visible, and focus is on the **General** tab. **Keep receiver running in the background** is on by default and its consequence summary explains that close/Dock Quit hide the UI while the receiver and menu-bar/tray control remain. Connections contains compact trust cards identifying OTLP as `Local write-only · no authentication` on `127.0.0.1` with browser origins blocked, and MCP as authenticated read-only tooling using an owner-only per-install token.
 
 ### 2.7 Source and component-service filtering
 - Ingest two records whose resources use `service.namespace=codex` and different `service.name` values such as `codex_exec` and `codex-app-server`.
@@ -169,9 +169,9 @@ For each of the close paths, reopen the modal via the rail's Settings cog before
 | 3.3 | Press **Escape** | modal closes; receiver unchanged |
 | 3.4 | Click anywhere on dimmed area outside the modal | modal closes; receiver unchanged |
 | 3.5 | Click on the modal body (e.g. on the heading) | modal stays open (no propagation to backdrop) |
-| 3.6 | Press ArrowDown/ArrowUp on the selected category | selection and focus move between **Connections** and **Storage**; exactly one matching panel is visible |
-| 3.7 | Press End/Home on a category | selection and focus move to **Storage**/**Connections** respectively |
-| 3.8 | Tab from the Connections category | focus moves through Close, visible panel controls, Cancel, and Save, then returns to the selected category; Shift+Tab reverses the cycle |
+| 3.6 | Press ArrowDown/ArrowUp on the selected category | selection and focus move cyclically through **General**, **Connections**, and **Storage**; exactly one matching panel is visible |
+| 3.7 | Press End/Home on a category | selection and focus move to **Storage**/**General** respectively |
+| 3.8 | Tab from the General category | focus moves through Close, the background-ingestion switch, Cancel, and Save, then returns to the selected category; Shift+Tab reverses the cycle |
 | 3.9 | Close with Escape, Cancel, or Close | focus returns to the Settings cog that opened the dialog |
 
 ---
@@ -179,6 +179,11 @@ For each of the close paths, reopen the modal via the rail's Settings cog before
 ## 4. SettingsModal — validation matrix
 
 Open settings (rail → Settings cog) before each row. After each row hit Cancel unless the row saves successfully.
+
+### 4.0 Background ingestion
+1. On General, confirm **Keep receiver running in the background** is on and the summary says closing or Dock-quitting hides the UI while the receiver and menu-bar/tray control remain.
+2. Turn it off. **Expected**: the live summary says closing or quitting stops the receiver and removes the menu-bar/tray icon.
+3. Save, reopen Settings, and confirm the switch remains off in `settings.json` under `desktop.keepRunningInBackground`; restore it to on before continuing.
 
 | Step | Input | Click | Expected |
 |------|-------|-------|----------|
@@ -189,7 +194,7 @@ Open settings (rail → Settings cog) before each row. After each row hit Cancel
 | 4.5 | `abc` | Save | `<input type=number>` may reject; if value reaches submit, same inline error |
 | 4.6 | `99999` | Save | same inline error |
 | 4.7 | `12.5` | Save | native number validation or the app rejects the non-integer; accepting or silently truncating it is a FAIL |
-| 4.8 | `14320` | Save | modal closes; receiver dot transitions starting→running; URL updates to `http://127.0.0.1:14320`; `cat /tmp/otelux-userdata/settings.json` has `{"version":1,"otlp":{"port":14320},"mcp":{"enabled":true,"port":4320}}` |
+| 4.8 | `14320` | Save | modal closes; receiver dot transitions starting→running; URL updates to `http://127.0.0.1:14320`; `cat /tmp/otelux-userdata/settings.json` has OTLP port `14320`, MCP enabled on `4320`, and `desktop.keepRunningInBackground: true` |
 | 4.9 | `14320` again | Save | no-op rebind (still running on 14320), modal closes |
 
 To verify category-aware validation, enter an invalid **Maximum size** under **Storage**, switch back to **Connections**, and click Save. **Storage** must become selected, its panel must become visible, and focus must move to **Maximum size** before the inline error is announced.
@@ -252,10 +257,10 @@ The Runtime API uses a different token from MCP. Never put either value in a URL
 
 ## 5. Settings persistence
 
-For full runtime restart tests in this section, choose **Stop Runtime and Quit**, confirm the warning, and wait for `runtime.json` / `runtime.lock` to disappear. Use **Quit Desktop** alone only when the step intends to leave ingest running.
+For full runtime restart tests in this section, choose **Quit OTelux and Stop Receiver** from the menu bar/tray and wait for `runtime.json` / `runtime.lock` to disappear.
 
 ### 5.1 Survives restart
-1. Choose and confirm **Stop Runtime and Quit**.
+1. Choose **Quit OTelux and Stop Receiver**.
 2. Confirm all listeners are released: `ss -ltnp | grep -e ':14320 ' -e ':4320 ' -e ':4321 '` → empty.
 3. Relaunch without a port override: `cd apps/desktop && OTELUX_DATA_DIR=/tmp/otelux-userdata npx electron out/main/index.js --user-data-dir=/tmp/otelux-electron-userdata`
 - **Expected**: log shows OTLP listening on `http://127.0.0.1:14320/v1/{traces,logs,metrics}` and MCP listening on `http://127.0.0.1:4320/`; both EndpointBar pills reflect those persisted settings.
@@ -317,13 +322,13 @@ For full runtime restart tests in this section, choose **Stop Runtime and Quit**
 1. While OTelux is running, inspect `cat /tmp/otelux-userdata/runtime.json`.
 - **Expected**: valid JSON reports the current PID, runtime/protocol versions, `/tmp/otelux-userdata/otelux.db`, MCP/runtime token paths, and actual OTLP/MCP/API statuses. It contains no bearer token value.
 2. Confirm `/tmp/otelux-userdata/runtime.lock` exists and carries the same PID plus an ownership nonce.
-3. Choose and confirm **Stop Runtime and Quit**.
+3. Choose **Quit OTelux and Stop Receiver**.
 - **Expected**: both `runtime.json` and `runtime.lock` are removed; `otelux.db`, `settings.json`, `mcp-token`, and owner-only `runtime-token` remain.
 
 ### 5.11 Legacy Desktop migration
 Run this as an isolated migration check, not against valuable telemetry:
 
-1. Choose and confirm **Stop Runtime and Quit**, then create `/tmp/otelux-legacy` containing a synthetic or disposable `otelux.db`, `settings.json`, and `mcp-token` from a previous test run.
+1. Choose **Quit OTelux and Stop Receiver**, then create `/tmp/otelux-legacy` containing a synthetic or disposable `otelux.db`, `settings.json`, and `mcp-token` from a previous test run.
 2. Ensure `/tmp/otelux-canonical` does not exist.
 3. Launch with `OTELUX_DATA_DIR=/tmp/otelux-canonical npx electron out/main/index.js --user-data-dir=/tmp/otelux-legacy`.
 - **Expected**: the runtime copies legacy files into `/tmp/otelux-canonical`, opens the canonical database, and leaves every source file in `/tmp/otelux-legacy` intact. An interrupted `.legacy-migration.json` operation resumes before SQLite opens. If both directories already contain `otelux.db`, neither is overwritten or merged and the conflict is logged.
@@ -561,13 +566,17 @@ curl -s -D /tmp/otelux-origin-headers.txt -X POST \
 ### 12.1 Minimize / restore
 - **Expected**: receiver keeps running (verify with curl from another terminal).
 
-### 12.2 Close window
-- Close the window with its close button or Alt+F4.
-- **Expected**: the workbench hides to the system tray; the process, SQLite connection, OTLP listener, and enabled MCP listener remain active. Sending telemetry while hidden succeeds and persists.
-- Choose **Open OTelux** from the tray menu.
-- **Expected**: the workbench returns with telemetry received while hidden.
-- Choose **Quit Desktop** from the tray menu.
-- **Expected**: the window, tray item, and Electron process disappear, while OTLP/MCP/Runtime API and the daemon PID in `runtime.json` remain healthy. Send another telemetry item and confirm it persists. Relaunch Desktop and choose **Restart Runtime** → the old instance shuts down, a new instance appears, retained telemetry remains, and the shell reopens. Then choose **Stop Runtime and Quit**, cancel once to prove nothing stops, then confirm; listeners and ownership state disappear cleanly.
+### 12.2 Close window and background-ingestion preference
+- With **Settings → General → Keep receiver running in the background** on, close the window with its close button or Alt+F4.
+- **Expected**: the workbench and Dock icon hide; the menu-bar/tray control, Electron process, SQLite connection, OTLP listener, and enabled MCP listener remain active. Sending telemetry while hidden succeeds and persists.
+- Choose **Open OTelux** from the menu-bar/tray menu.
+- **Expected**: the Dock icon and workbench return with telemetry received while hidden.
+- Choose OS/Dock **Quit**.
+- **Expected**: background mode applies the same hide behavior; the menu-bar/tray control and receiver remain active.
+- Open OTelux from the menu, turn **Keep receiver running in the background** off, and Save. Close the window.
+- **Expected**: OTelux stops the daemon and exits; the menu-bar/tray item, Electron process, all three listeners, `runtime.json`, and `runtime.lock` disappear.
+- Relaunch, turn background ingestion on, and choose **Quit OTelux and Stop Receiver** from the menu-bar/tray menu.
+- **Expected**: the explicit action always stops the daemon and exits completely, regardless of the preference.
 
 ### 12.3 DevTools open
 - F12 or Ctrl+Shift+I on Linux/Windows; F12 or Command+Shift+I on macOS.
@@ -579,7 +588,7 @@ curl -s -D /tmp/otelux-origin-headers.txt -X POST \
 
 ### 12.5 Native packaged smoke
 - On each native release runner, build the unpacked application and run `node apps/desktop/scripts/smoke.mjs` (`xvfb-run -a` on Linux).
-- **Expected**: the platform-native executable launches; OTLP, MCP, and authenticated Runtime RPC report healthy ownership; the sandboxed preload/workbench render; trace ingest and content-type rejection pass; closing the window leaves the tray runtime healthy; and a second invocation with the internal `--otelux-request-quit` smoke flag exercises the same explicit-quit path as the tray menu. The primary process exits cleanly, all three listeners stop, and `runtime.json` / `runtime.lock` disappear.
+- **Expected**: the platform-native executable launches; OTLP, MCP, and authenticated Runtime RPC report healthy ownership; the sandboxed preload/workbench render; trace ingest and content-type rejection pass; closing the window with background ingestion enabled leaves the tray runtime healthy; and the harness's explicit shutdown path exits cleanly, stops all three listeners, and removes `runtime.json` / `runtime.lock`.
 - **Qualification limit**: this smoke proves unpacked application/runtime compatibility. It does not replace signed installer clean-install, OS trust UI, upgrade, or uninstall tests.
 
 ### 12.6 Native package install/uninstall smoke

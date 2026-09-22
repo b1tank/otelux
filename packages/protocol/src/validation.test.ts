@@ -8,6 +8,7 @@ import {
 	parsePartialSettings,
 	parseRuntimeEvent,
 	parseRuntimeState,
+	parseSettings,
 } from './index.js';
 
 const runtimeFixtureDirectory = join(
@@ -105,12 +106,27 @@ describe('settings validation', () => {
 				mcp: { enabled: false, port: 4320 },
 				retention: { maxAgeHours: 0, maxSizeMb: 1_048_576 },
 				storage: { dbPath: '' },
+				desktop: { keepRunningInBackground: false },
 			}),
 		).toEqual({
 			mcp: { enabled: false, port: 4320 },
 			retention: { maxAgeHours: 0, maxSizeMb: 1_048_576 },
 			storage: { dbPath: '' },
+			desktop: { keepRunningInBackground: false },
 		});
+	});
+
+	it('defaults the additive desktop preference for older settings payloads', () => {
+		expect(
+			parseSettings({
+				version: 1,
+				revision: 0,
+				otlp: { port: 4319 },
+				mcp: { enabled: true, port: 4320 },
+				retention: { maxAgeHours: 72, maxSizeMb: 512 },
+				storage: { dbPath: '' },
+			}),
+		).toMatchObject({ desktop: { keepRunningInBackground: true } });
 	});
 
 	it('rejects invalid ports, retention, and nested fields', () => {

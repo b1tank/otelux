@@ -498,6 +498,16 @@
               },
               "required": [],
               "additionalProperties": false
+            },
+            "desktop": {
+              "type": "object",
+              "properties": {
+                "keepRunningInBackground": {
+                  "type": "boolean"
+                }
+              },
+              "required": [],
+              "additionalProperties": false
             }
           },
           "required": [],

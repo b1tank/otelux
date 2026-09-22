@@ -62,6 +62,7 @@ describe('SettingsModal interactions', () => {
 
 	it('switches categories by keyboard and preserves edited values', () => {
 		const { container } = renderSettings();
+		const general = screen.getByRole('tab', { name: 'General' });
 		const connections = screen.getByRole('tab', { name: 'Connections' });
 		const storage = screen.getByRole('tab', { name: 'Storage' });
 
@@ -70,7 +71,9 @@ describe('SettingsModal interactions', () => {
 		expect(backdrop?.getAttribute('aria-hidden')).toBe('true');
 		expect(backdrop?.tagName).toBe('DIV');
 		expect(backdrop?.getAttribute('tabindex')).toBeNull();
-		expect(document.activeElement).toBe(connections);
+		expect(document.activeElement).toBe(general);
+		fireEvent.keyDown(general, { key: 'ArrowDown' });
+		expect(connections.getAttribute('aria-selected')).toBe('true');
 		fireEvent.keyDown(connections, { key: 'ArrowDown' });
 		expect(storage.getAttribute('aria-selected')).toBe('true');
 		expect(document.activeElement).toBe(storage);
@@ -83,6 +86,21 @@ describe('SettingsModal interactions', () => {
 		fireEvent.click(connections);
 		fireEvent.click(storage);
 		expect(maximumSize.value).toBe('256');
+	});
+
+	it('explains both background-ingestion lifecycle states', () => {
+		renderSettings();
+		const toggle = screen.getByRole('switch', {
+			name: 'Keep receiver running in the background',
+		});
+		expect(toggle.getAttribute('aria-checked')).toBe('true');
+		expect(screen.getByText('Background ingestion is on')).toBeTruthy();
+
+		fireEvent.click(toggle);
+
+		expect(toggle.getAttribute('aria-checked')).toBe('false');
+		expect(screen.getByText('Background ingestion is off')).toBeTruthy();
+		expect(screen.getByText(/Closing or quitting the desktop app also stops/)).toBeTruthy();
 	});
 
 	it('states the local trust posture without adding configuration friction', () => {
@@ -119,6 +137,7 @@ describe('SettingsModal interactions', () => {
 
 	it('keeps the MCP port editable when the server is off', () => {
 		renderSettings();
+		fireEvent.click(screen.getByRole('tab', { name: 'Connections' }));
 		const enabled = screen.getByRole('switch', { name: 'MCP server enabled' });
 		const port = screen.getByRole('spinbutton', { name: 'MCP server port' }) as HTMLInputElement;
 
@@ -155,9 +174,11 @@ describe('SettingsModal interactions', () => {
 
 	it('wraps focus around controls in the selected category', () => {
 		renderSettings();
+		const general = screen.getByRole('tab', { name: 'General' });
 		const connections = screen.getByRole('tab', { name: 'Connections' });
 		const storage = screen.getByRole('tab', { name: 'Storage' });
 		const save = screen.getByRole('button', { name: 'Save' });
+		fireEvent.keyDown(general, { key: 'ArrowDown' });
 		fireEvent.keyDown(connections, { key: 'ArrowDown' });
 
 		fireEvent.keyDown(storage, { key: 'Tab', shiftKey: true });

@@ -3,11 +3,7 @@ import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import {
-	ensureRuntimeClient,
-	readRuntimeState,
-	resolveOteluxDataDirectory,
-} from '@otelux/local-runtime';
+import { ensureRuntimeClient, resolveOteluxDataDirectory } from '@otelux/local-runtime';
 import {
 	MAX_PORT,
 	MIN_PORT,
@@ -15,16 +11,31 @@ import {
 	parseInvokeResult,
 	parseRuntimeEvent,
 } from '@otelux/protocol';
-import { BrowserWindow, Menu, Tray, app, dialog, ipcMain, nativeImage, shell } from 'electron';
+import {
+	BrowserWindow,
+	Menu,
+	Tray,
+	app,
+	clipboard,
+	dialog,
+	ipcMain,
+	nativeImage,
+	shell,
+} from 'electron';
 import {
 	type InvokeMessage,
 	OTELUX_EVENT_CHANNEL,
 	OTELUX_INVOKE_CHANNEL,
+	OTELUX_OPEN_SETTINGS_CHANNEL,
 	type OteluxEvent,
 } from '../shared/ipc.js';
 import { isAllowedExternalUrl, isAllowedNavigation } from './security.js';
 import { classifyDesktopStartupError, desktopStartupErrorMessage } from './startupError.js';
-import { createDesktopWindowLifecycle, isPackagedQuitRequest } from './windowLifecycle.js';
+import {
+	createDesktopWindowLifecycle,
+	desktopExitAction,
+	isPackagedQuitRequest,
+} from './windowLifecycle.js';
 
 declare const __OTELUX_APP_VERSION__: string;
 
@@ -39,6 +50,8 @@ const desktopVersion = __OTELUX_APP_VERSION__;
 // frame that isn't ready, which we track via lifecycle events and verify by
 // checking the current main frame before each broadcast.
 const readyReceivers = new Set<Electron.WebContents>();
+let keepRunningInBackground = true;
+let receiverEndpoint: string | undefined;
 
 function registerReceiver(wc: Electron.WebContents): void {
 	const add = (): void => {
@@ -145,16 +158,15 @@ async function startBackend(): Promise<{ stop: () => Promise<void> }> {
 		start: () => startPackagedDaemon(dataDirectory, app.getPath('userData')),
 	});
 	const runtime = discovered.client;
+	const initialSettings = await runtime.getSettings();
+	keepRunningInBackground = initialSettings.desktop.keepRunningInBackground;
+	const initialStatus = await runtime.getStatus();
+	if (initialStatus.receiver.kind === 'running') {
+		receiverEndpoint = `http://${initialStatus.receiver.host}:${initialStatus.receiver.port}`;
+	}
 	shutdownRuntime = async () => {
 		await runtime.shutdown();
 		runtime.close();
-		windowLifecycle.requestQuit();
-	};
-	restartRuntime = async () => {
-		await runtime.shutdown();
-		runtime.close();
-		await waitForRuntimeStop(dataDirectory, discovered.state.instanceId);
-		app.relaunch();
 		windowLifecycle.requestQuit();
 	};
 
@@ -169,6 +181,16 @@ async function startBackend(): Promise<{ stop: () => Promise<void> }> {
 			);
 			return;
 		}
+		if (validated.kind === 'settings-changed') {
+			keepRunningInBackground = validated.settings.desktop.keepRunningInBackground;
+		}
+		if (validated.kind === 'receiver-status-changed') {
+			receiverEndpoint =
+				validated.status.kind === 'running'
+					? `http://${validated.status.host}:${validated.status.port}`
+					: undefined;
+		}
+		refreshTrayMenu();
 		for (const wc of readyReceivers) {
 			if (!isReceiverReady(wc)) {
 				readyReceivers.delete(wc);
@@ -305,7 +327,6 @@ async function startBackend(): Promise<{ stop: () => Promise<void> }> {
 	return {
 		stop: async () => {
 			shutdownRuntime = undefined;
-			restartRuntime = undefined;
 			events.dispose();
 			controlSignals.dispose();
 			await controlRefresh;
@@ -313,16 +334,6 @@ async function startBackend(): Promise<{ stop: () => Promise<void> }> {
 			ipcMain.removeHandler(OTELUX_INVOKE_CHANNEL);
 		},
 	};
-}
-
-async function waitForRuntimeStop(dataDirectory: string, instanceId: string): Promise<void> {
-	const deadline = Date.now() + 10_000;
-	while (Date.now() < deadline) {
-		const state = await readRuntimeState(dataDirectory);
-		if (!state || state.instanceId !== instanceId) return;
-		await new Promise((resolve) => setTimeout(resolve, 50));
-	}
-	throw new Error('Timed out waiting for the runtime to stop');
 }
 
 function startPackagedDaemon(dataDirectory: string, legacyDataDirectory: string): void {
@@ -428,7 +439,13 @@ function createWindow(): BrowserWindow {
 		win.show();
 	});
 	win.on('close', (event) => {
+		if (!windowLifecycle.isQuitting() && desktopExitAction(keepRunningInBackground) === 'stop') {
+			event.preventDefault();
+			void requestFullQuit();
+			return;
+		}
 		windowLifecycle.handleWindowClose(event, win);
+		hideDesktopFromDock();
 	});
 	win.on('closed', () => {
 		windowLifecycle.forgetWindow(win);
@@ -513,64 +530,88 @@ function createWindow(): BrowserWindow {
 	return win;
 }
 
-const windowLifecycle = createDesktopWindowLifecycle(createWindow, () => app.quit());
+let applicationQuitAllowed = false;
+const windowLifecycle = createDesktopWindowLifecycle(createWindow, () => {
+	applicationQuitAllowed = true;
+	app.quit();
+});
 
 let tray: Tray | undefined;
 let shutdownRuntime: (() => Promise<void>) | undefined;
-let restartRuntime: (() => Promise<void>) | undefined;
+let fullQuitStarted = false;
 
-async function confirmRuntimeShutdown(): Promise<void> {
-	if (!shutdownRuntime) return;
-	const result = await dialog.showMessageBox({
-		type: 'warning',
-		title: 'Stop OTelux runtime?',
-		message: 'Stop the local runtime and quit Desktop?',
-		detail:
-			'OTLP ingest and MCP access will stop until Desktop or a future CLI starts the runtime again.',
-		buttons: ['Cancel', 'Stop Runtime and Quit'],
-		defaultId: 0,
-		cancelId: 0,
-		noLink: true,
-	});
-	if (result.response === 1) await shutdownRuntime();
+function hideDesktopFromDock(): void {
+	for (const window of BrowserWindow.getAllWindows()) window.hide();
+	if (process.platform === 'darwin') app.dock?.hide();
+}
+
+function showDesktop(): void {
+	if (process.platform === 'darwin') void app.dock?.show();
+	windowLifecycle.showWindow();
+}
+
+function openSettingsFromTray(): void {
+	showDesktop();
+	for (const wc of readyReceivers) wc.send(OTELUX_OPEN_SETTINGS_CHANNEL);
+}
+
+async function requestFullQuit(): Promise<void> {
+	if (fullQuitStarted) return;
+	fullQuitStarted = true;
+	try {
+		if (shutdownRuntime) {
+			await shutdownRuntime();
+		} else {
+			windowLifecycle.requestQuit();
+		}
+	} catch (error) {
+		fullQuitStarted = false;
+		dialog.showErrorBox(
+			'Could not stop OTelux',
+			error instanceof Error ? error.message : 'The receiver could not be stopped cleanly.',
+		);
+	}
+}
+
+function refreshTrayMenu(): void {
+	if (!tray) return;
+	const statusLabel = receiverEndpoint
+		? `Receiving telemetry · ${receiverEndpoint.replace('http://', '')}`
+		: 'Receiver unavailable';
+	tray.setContextMenu(
+		Menu.buildFromTemplate([
+			{ label: statusLabel, enabled: false },
+			{ type: 'separator' },
+			{ label: 'Open OTelux', click: showDesktop },
+			{
+				label: 'Copy OTLP Endpoint',
+				enabled: receiverEndpoint !== undefined,
+				click: () => {
+					if (receiverEndpoint) clipboard.writeText(receiverEndpoint);
+				},
+			},
+			{ label: 'Settings…', click: openSettingsFromTray },
+			{ type: 'separator' },
+			{
+				label: 'Quit OTelux and Stop Receiver',
+				click: () => void requestFullQuit(),
+			},
+		]),
+	);
 }
 
 function createTray(): void {
 	const icon = nativeImage.createFromPath(resolveIconPath('tray'));
 	if (process.platform === 'darwin') icon.setTemplateImage(true);
 	tray = new Tray(icon);
-	tray.setToolTip('OTelux Desktop — local runtime continues independently');
-	tray.setContextMenu(
-		Menu.buildFromTemplate([
-			{
-				label: 'Open OTelux',
-				click: () => windowLifecycle.showWindow(),
-			},
-			{ type: 'separator' },
-			{
-				label: 'Restart Runtime',
-				click: () => {
-					void restartRuntime?.().catch(() => {
-						dialog.showErrorBox(
-							'Runtime restart failed',
-							'The runtime could not be restarted cleanly. Quit Desktop and try again.',
-						);
-					});
-				},
-			},
-			{
-				label: 'Quit Desktop',
-				click: () => windowLifecycle.requestQuit(),
-			},
-			{
-				label: 'Stop Runtime and Quit',
-				click: () => {
-					void confirmRuntimeShutdown();
-				},
-			},
-		]),
-	);
-	tray.on('click', () => windowLifecycle.showWindow());
+	if (process.platform === 'darwin') {
+		// Keep a text fallback beside the template image. Some macOS menu-bar
+		// configurations render tiny template PNGs effectively invisible.
+		tray.setTitle('OT');
+	}
+	tray.setToolTip('OTelux — local telemetry receiver');
+	refreshTrayMenu();
+	tray.on('click', showDesktop);
 }
 
 // Process managers and packaged smoke tests stop Electron with signals rather
@@ -594,7 +635,7 @@ if (!gotLock) {
 			windowLifecycle.requestQuit();
 			return;
 		}
-		windowLifecycle.showWindow();
+		showDesktop();
 	});
 
 	let backendStop: (() => Promise<void>) | undefined;
@@ -614,10 +655,8 @@ if (!gotLock) {
 
 			createTray();
 			windowLifecycle.markReady();
-			windowLifecycle.showWindow();
-			app.on('activate', () => {
-				windowLifecycle.showWindow();
-			});
+			showDesktop();
+			app.on('activate', showDesktop);
 		})
 		.catch((error) => {
 			const category = classifyDesktopStartupError(error);
@@ -626,7 +665,16 @@ if (!gotLock) {
 			windowLifecycle.requestQuit();
 		});
 
-	app.on('before-quit', () => {
+	app.on('before-quit', (event) => {
+		if (!applicationQuitAllowed) {
+			event.preventDefault();
+			if (desktopExitAction(keepRunningInBackground) === 'hide') {
+				hideDesktopFromDock();
+			} else {
+				void requestFullQuit();
+			}
+			return;
+		}
 		windowLifecycle.beginQuit();
 		tray?.destroy();
 		tray = undefined;

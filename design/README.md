@@ -79,7 +79,9 @@ Min widths: list ≥ 280 px, waterfall ≥ 480 px. Splitter is 6 px wide with a 
 | **CSS variables for theme tokens** | Promote to `packages/ui/src/tokens.css` on port. One source of truth for colors, spacing, radii, type. |
 | **Retention meter tracks SQLite pages, not WAL overhead** | The battery fill matches the exact page budget used by pruning. Real DB/WAL/SHM disk footprint stays visible beneath it without falsely implying temporary WAL growth should trigger retention. |
 | **Receiver pressure is explicit** | A compact `Dropped N` pill appears only after bounded OTLP queues reject exports; its tooltip breaks counts down by signal so overload is never silent or confused with invalid payload rejection. |
-| **Settings uses a left category rail** | Connections and Storage are separate tasks. A fixed rail keeps the modal calm, preserves one Save path, and scales to future categories without stacking every control into one noisy column. |
+| **Settings uses a left category rail** | General, Connections, and Storage are separate tasks. A fixed rail keeps the modal calm, preserves one Save path, and scales to future categories without stacking every control into one noisy column. |
+| **Background ingestion is one explicit preference** | “Keep receiver running in the background” defaults on to preserve collection. Its inline consequence summary explains both states: on leaves the receiver and menu-bar control running after the UI closes; off makes close and Dock Quit stop everything. |
+| **The menu bar has one unambiguous full-quit action** | The menu shows receiver health, Open, Copy endpoint, Settings, and “Quit OTelux and Stop Receiver.” It deliberately avoids competing “Quit Desktop” and “Stop Runtime” actions that make users quit repeatedly. |
 | **Connection trust is visible, not configurable by jargon** | Compact Access/Boundary cards state that OTLP is local write-only without auth while MCP is token-authenticated. Users can assess the local trust model without adding a default OTLP-token setup burden. |
 
 ---
@@ -102,7 +104,8 @@ These should be enforced in code, not in CSS.
 12. **Settings category state is explicit.** Exactly one sidebar tab and panel is active; validation reveals the category containing the error.
 13. **Build identity is inspectable.** The rail's About action opens a compact diagnostic dialog with the packaged app version and Electron, Chromium, Node.js, and platform versions; it never competes with signal navigation or endpoint status.
 14. **Source and service are not conflated.** Source is the primary application filter (`service.namespace`, falling back to exact `service.name`). A selected source reveals its component-Service filter; the UI never groups names by vendor-specific prefixes.
-13. **Live arrivals never steal selection.** The waterfall labels the selected trace; only an explicit row/keyboard selection replaces it.
+15. **Live arrivals never steal selection.** The waterfall labels the selected trace; only an explicit row/keyboard selection replaces it.
+16. **Exit behavior follows one preference.** When background ingestion is on, closing the window or Dock-quitting leaves the receiver and menu-bar control running; when off, either action stops the receiver and exits. The menu-bar “Quit OTelux and Stop Receiver” action always stops everything.
 
 ---
 
@@ -143,6 +146,7 @@ If you edit the geometry, edit `icon.svg`, mirror the change in `OTeluxLogo.tsx`
 | `.empty` | `<EmptyState>` | none |
 | `.storage-meter` + `.storage-battery` | `<StorageBudgetMeter>` | native meter semantics with custom presentation |
 | `.settings__side` + `.settings__panel` | `<SettingsModal>` category tabs | ARIA vertical tabs; one persistent form/footer |
+| `.tray-menu` + `.tray-menu__item` | native Electron `Tray` menu | OS menu in production; HTML popover exists only to review content hierarchy and states |
 | `.about` + `.about__row` | `<AboutModal>` diagnostics | modal dialog; package-defined version plus preload runtime versions |
 | All icons | `lucide-react` (`PanelLeft`, `PanelRight`, `List`, `Search`, `X`, `Copy`, `Download`, `Eye`, `ChevronRight`, `ChevronDown`, `AlertCircle`) | [`lucide-react`](https://lucide.dev) |
 

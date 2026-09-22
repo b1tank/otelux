@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { SettingsModal, parseRetentionLimit, validateSettingsInput } from './SettingsModal.js';
 
 const validInput = {
+	keepRunningInBackground: true,
 	otlpPort: '4319',
 	mcpEnabled: true,
 	mcpPort: '4320',
@@ -53,6 +54,7 @@ describe('validateSettingsInput', () => {
 		expect(validateSettingsInput({ ...validInput, databasePath: '  /tmp/otelux.db  ' })).toEqual({
 			ok: true,
 			patch: {
+				desktop: { keepRunningInBackground: true },
 				otlp: { port: 4319 },
 				mcp: { enabled: true, port: 4320 },
 				retention: { maxAgeHours: 72, maxSizeMb: 512 },
@@ -75,15 +77,16 @@ describe('SettingsModal', () => {
 		expect(html).toContain('role="tablist"');
 		expect(html).toContain('aria-orientation="vertical"');
 		expect(html).toContain('novalidate=""');
-		expect(html).toContain('id="settings-tab-connections"');
+		expect(html).toContain('id="settings-tab-general"');
 		expect(html).toContain('aria-selected="true" tabindex="0"');
+		expect(html).toContain('id="settings-tab-connections"');
 		expect(html).toContain('id="settings-tab-storage"');
 		expect(html).toContain('aria-selected="false" tabindex="-1"');
 		expect(html).toContain('aria-label="OTLP receiver port"');
 		expect(html).toContain('aria-describedby="settings-otlp-port-hint"');
 		expect(html).toContain('aria-label="MCP server port"');
 		expect(html).toContain('aria-describedby="settings-mcp-port-hint"');
-		expect(html.match(/role="tabpanel"/g)).toHaveLength(2);
-		expect(html.match(/ hidden=""/g)).toHaveLength(1);
+		expect(html.match(/role="tabpanel"/g)).toHaveLength(3);
+		expect(html.match(/ hidden=""/g)).toHaveLength(2);
 	});
 });

@@ -32,7 +32,7 @@ Produces `out/main/*.js`, `out/preload/*.js`, and `out/renderer/*` ready to be p
 
 ## Package for Linux
 
-Linux `.deb` and rootless AppImage packaging is live for x64/arm64 prereleases. macOS arm64/x64 packaging is an unsigned preview and is not yet a supported release target. The latest published release is `v0.1.14`. Local package, install, daemon, CLI, and artifact smokes are release evidence only for the exact artifact tested; generated files under `release/` are not official downloads.
+Linux `.deb` and rootless AppImage packaging is live for x64/arm64 prereleases. macOS arm64/x64 packaging is an unsigned preview and is not yet a supported release target. The latest published release is `v0.1.15`. Local package, install, daemon, CLI, and artifact smokes are release evidence only for the exact artifact tested; generated files under `release/` are not official downloads.
 
 ```sh
 npm run -w apps/desktop package

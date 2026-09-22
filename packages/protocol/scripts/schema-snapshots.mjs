@@ -78,21 +78,26 @@ const partialSettings = object(
 			false,
 		),
 		storage: object({ dbPath: text(4096) }, [], false),
+		desktop: object({ keepRunningInBackground: { type: 'boolean' } }, [], false),
 	},
 	[],
 	false,
 );
-const settings = object({
-	version: { const: 1 },
-	revision: integer(0, Number.MAX_SAFE_INTEGER),
-	otlp: object({ port: integer(1, 65535) }),
-	mcp: object({ enabled: { type: 'boolean' }, port: integer(1, 65535) }),
-	retention: object({
-		maxAgeHours: integer(0, 43800),
-		maxSizeMb: integer(0, 1048576),
-	}),
-	storage: object({ dbPath: text(4096) }),
-});
+const settings = object(
+	{
+		version: { const: 1 },
+		revision: integer(0, Number.MAX_SAFE_INTEGER),
+		otlp: object({ port: integer(1, 65535) }),
+		mcp: object({ enabled: { type: 'boolean' }, port: integer(1, 65535) }),
+		retention: object({
+			maxAgeHours: integer(0, 43800),
+			maxSizeMb: integer(0, 1048576),
+		}),
+		storage: object({ dbPath: text(4096) }),
+		desktop: object({ keepRunningInBackground: { type: 'boolean' } }),
+	},
+	['version', 'revision', 'otlp', 'mcp', 'retention', 'storage'],
+);
 const taggedBigint = { $ref: id('tagged-bigint') };
 const finiteNumber = { type: 'number' };
 const attributeScalar = { oneOf: [text(1048576), finiteNumber, { type: 'boolean' }, taggedBigint] };

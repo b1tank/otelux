@@ -4,6 +4,7 @@ import {
 	PACKAGED_QUIT_FLAG,
 	type PreventableCloseEvent,
 	createDesktopWindowLifecycle,
+	desktopExitAction,
 	isPackagedQuitRequest,
 } from './windowLifecycle.js';
 
@@ -53,6 +54,11 @@ describe('desktop window lifecycle', () => {
 		expect(isPackagedQuitRequest(['otelux', PACKAGED_QUIT_FLAG])).toBe(true);
 		expect(isPackagedQuitRequest(['otelux', '--otelux-request-quit-now'])).toBe(false);
 		expect(isPackagedQuitRequest(['otelux'])).toBe(false);
+	});
+
+	it('maps the background preference to one deterministic close and quit action', () => {
+		expect(desktopExitAction(true)).toBe('hide');
+		expect(desktopExitAction(false)).toBe('stop');
 	});
 
 	it('hides a closed window without quitting and restores it later', () => {

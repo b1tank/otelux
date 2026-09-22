@@ -1,5 +1,5 @@
 import { OTeluxWorkbench } from '@otelux/ui';
-import { type JSX, useCallback, useMemo, useState } from 'react';
+import { type JSX, useCallback, useEffect, useMemo, useState } from 'react';
 import type { PartialSettings, UpdateSettingsResult } from '../shared/ipc.js';
 import { AboutModal } from './components/AboutModal.js';
 import { EndpointBar } from './components/EndpointBar.js';
@@ -30,6 +30,8 @@ export function App(): JSX.Element {
 	const [settingsOpen, setSettingsOpen] = useState(false);
 	const [aboutOpen, setAboutOpen] = useState(false);
 	const storageUsage = useStorageUsage(bridge, settingsOpen);
+
+	useEffect(() => bridge.onOpenSettings(() => setSettingsOpen(true)), [bridge]);
 
 	const endpointUrl = useMemo<string | undefined>(() => {
 		if (status?.kind === 'running') {
