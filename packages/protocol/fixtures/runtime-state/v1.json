@@ -11,7 +11,7 @@
   "receiver": {
     "kind": "running",
     "host": "127.0.0.1",
-    "port": 4319,
+    "port": 4318,
     "pressure": {
       "overloadedTraces": 0,
       "overloadedLogs": 0,

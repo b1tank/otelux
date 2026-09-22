@@ -113,7 +113,7 @@ Closing Desktop disconnects that client but does not stop ingest or agent access
 
 | Endpoint | Default | Stability |
 |---|---:|---|
-| OTLP/HTTP | `127.0.0.1:4319` | Stable by default because exporters persist this address. Supports `/v1/traces`, `/v1/logs`, and `/v1/metrics`. |
+| OTLP/HTTP | `127.0.0.1:4318` | Stable by default because exporters persist this address. Supports `/v1/traces`, `/v1/logs`, and `/v1/metrics`. |
 | MCP HTTP/internal | `127.0.0.1:4320` | Discoverable and token-authenticated. Plugins normally connect through stdio rather than exposing the token to the model. |
 | Workbench/API | `127.0.0.1:4321` | Preferred port; may move when occupied because `oteluxctl open` and the plugin return the effective URL. |
 

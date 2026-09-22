@@ -2,24 +2,24 @@
 
 Updated: 2026-08-04
 
-OTelux publishes Linux x64 and arm64 `.deb` and AppImage prereleases plus unsigned macOS arm64/x64 DMG and ZIP previews through GitHub Releases. Download `SHA256SUMS` plus one immutable package from the latest published release, [v0.1.16](https://github.com/b1tank/otelux/releases/tag/v0.1.16).
+OTelux publishes Linux x64 and arm64 `.deb` and AppImage prereleases plus unsigned macOS arm64/x64 DMG and ZIP previews through GitHub Releases. Download `SHA256SUMS` plus one immutable package from the latest published release, [v0.1.17](https://github.com/b1tank/otelux/releases/tag/v0.1.17).
 
 Install the x64 Debian/Ubuntu package:
 
 ```bash
 grep '  OTelux-.*-amd64.deb$' SHA256SUMS | sha256sum -c -
-sudo apt install ./OTelux-0.1.16-amd64.deb
+sudo apt install ./OTelux-0.1.17-amd64.deb
 ```
 
 Or run the rootless x64 AppImage:
 
 ```bash
 grep '  OTelux-.*-x86_64.AppImage$' SHA256SUMS | sha256sum -c -
-chmod +x OTelux-0.1.16-x86_64.AppImage
-./OTelux-0.1.16-x86_64.AppImage
+chmod +x OTelux-0.1.17-x86_64.AppImage
+./OTelux-0.1.17-x86_64.AppImage
 ```
 
-On arm64, use the corresponding `OTelux-0.1.16-arm64.deb` or `.AppImage` and matching checksum line. macOS users should verify the matching DMG or ZIP checksum; these artifacts are unsigned previews and may require Privacy & Security → Open Anyway. Do not install OTelux through an unofficial `curl | sudo sh` command or third-party package. Source setup remains available below for contributors.
+On arm64, use the corresponding `OTelux-0.1.17-arm64.deb` or `.AppImage` and matching checksum line. macOS users should verify the matching DMG or ZIP checksum; these artifacts are unsigned previews and may require Privacy & Security → Open Anyway. Do not install OTelux through an unofficial `curl | sudo sh` command or third-party package. Source setup remains available below for contributors.
 
 The [Current Baseline](spec.md#current-baseline) is the source of truth for implemented capabilities and limitations. This guide describes the current pre-release desktop behavior.
 
@@ -64,14 +64,14 @@ By default, the desktop starts three loopback listeners:
 
 | Service | Default endpoint | Current behavior |
 |---|---|---|
-| OTLP/HTTP | `http://127.0.0.1:4319` | Accepts OTLP/HTTP JSON and protobuf traces, logs, and metrics. |
+| OTLP/HTTP | `http://127.0.0.1:4318` | Accepts OTLP/HTTP JSON and protobuf traces, logs, and metrics. |
 | MCP HTTP | `http://127.0.0.1:4320/` | Enabled by default and exposes read-only telemetry tools with its own token. |
 | Runtime API | `http://127.0.0.1:4321/` | Authenticated local JSON-RPC/SSE foundation for future Desktop, CLI, and browser clients. |
 
 Check the OTLP receiver:
 
 ```bash
-curl --fail http://127.0.0.1:4319/healthz
+curl --fail http://127.0.0.1:4318/healthz
 ```
 
 Expected output:
@@ -104,7 +104,7 @@ Send synthetic Codex-shaped logs:
 curl --fail-with-body \
   -H 'Content-Type: application/json' \
   --data-binary @fixtures/sample_codex_logs.json \
-  http://127.0.0.1:4319/v1/logs
+  http://127.0.0.1:4318/v1/logs
 ```
 
 Send synthetic Codex-shaped metrics:
@@ -113,7 +113,7 @@ Send synthetic Codex-shaped metrics:
 curl --fail-with-body \
   -H 'Content-Type: application/json' \
   --data-binary @fixtures/sample_codex_metrics.json \
-  http://127.0.0.1:4319/v1/metrics
+  http://127.0.0.1:4318/v1/metrics
 ```
 
 Open the Traces, Logs, and Metrics rail tabs to inspect the records. **Source** groups related component services by the standard resource `service.namespace`; when that attribute is absent, OTelux uses exact `service.name`. Selecting a source reveals its component **Service** filter. Multi-process exporters can opt into clean grouping without losing service identity, for example `OTEL_RESOURCE_ATTRIBUTES=service.namespace=codex`. OTelux never infers a source from service-name prefixes. The rail's **About OTelux** action reports the exact packaged app version and its Electron, Chromium, Node.js, and platform versions for diagnostics. All repository fixtures are synthetic and safe to use in tests and issue reproductions.
@@ -126,7 +126,7 @@ For Codex CLI and other real exporters, see the recipes below.
 
 ## Configure Your Own Exporter
 
-OTelux is a standard OTLP/HTTP receiver. Point any OpenTelemetry SDK, the OpenTelemetry Collector, or an OTLP-emitting app at `http://127.0.0.1:4319` (or your configured port). Both encodings are accepted: **protobuf** (`application/x-protobuf`, the SDK default) and **JSON** (`application/json`).
+OTelux is a standard OTLP/HTTP receiver. Point any OpenTelemetry SDK, the OpenTelemetry Collector, or an OTLP-emitting app at `http://127.0.0.1:4318` (or your configured port). Both encodings are accepted: **protobuf** (`application/x-protobuf`, the SDK default) and **JSON** (`application/json`).
 
 > OTelux does not support OTLP/**gRPC** yet. Exporters that default to gRPC (for example the Python and .NET OTLP exporters) must be set to **`http/protobuf`** (or `http/json`) and the HTTP endpoint below.
 
@@ -135,7 +135,7 @@ OTelux is a standard OTLP/HTTP receiver. Point any OpenTelemetry SDK, the OpenTe
 Most SDKs honor the standard OTLP environment variables. Set the protocol explicitly so a gRPC default does not take over:
 
 ```bash
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4319
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
 export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf   # or http/json
 ```
 
@@ -148,7 +148,7 @@ Add an `otlphttp` exporter and route each pipeline to it:
 ```yaml
 exporters:
   otlphttp/otelux:
-    endpoint: http://127.0.0.1:4319
+    endpoint: http://127.0.0.1:4318
 
 service:
   pipelines:
@@ -171,7 +171,7 @@ import { NodeSDK } from '@opentelemetry/sdk-node';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
 
 const sdk = new NodeSDK({
-  traceExporter: new OTLPTraceExporter({ url: 'http://127.0.0.1:4319/v1/traces' }),
+  traceExporter: new OTLPTraceExporter({ url: 'http://127.0.0.1:4318/v1/traces' }),
 });
 sdk.start();
 ```
@@ -186,7 +186,7 @@ Zero-code, via `opentelemetry-instrument`:
 
 ```bash
 OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf \
-  OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4319 \
+  OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318 \
   opentelemetry-instrument python your_app.py
 ```
 
@@ -202,7 +202,7 @@ dotnet add package OpenTelemetry.Exporter.OpenTelemetryProtocol
 builder.Services.AddOpenTelemetry()
     .WithTracing(tracing => tracing.AddOtlpExporter(o =>
     {
-        o.Endpoint = new Uri("http://127.0.0.1:4319");
+        o.Endpoint = new Uri("http://127.0.0.1:4318");
         o.Protocol = OtlpExportProtocol.HttpProtobuf; // default is gRPC
     }));
 ```
@@ -217,15 +217,15 @@ environment = "dev"
 log_user_prompt = true
 
 [otel.exporter.otlp-http]
-endpoint = "http://localhost:4319/v1/logs"
+endpoint = "http://localhost:4318/v1/logs"
 protocol = "json"
 
 [otel.trace_exporter.otlp-http]
-endpoint = "http://localhost:4319/v1/traces"
+endpoint = "http://localhost:4318/v1/traces"
 protocol = "json"
 
 [otel.metrics_exporter.otlp-http]
-endpoint = "http://localhost:4319/v1/metrics"
+endpoint = "http://localhost:4318/v1/metrics"
 protocol = "json"
 ```
 
@@ -257,7 +257,7 @@ This is a development convenience, not an official system package.
 Find the process using either default port:
 
 ```bash
-ss -ltnp | grep -e ':4319 ' -e ':4320 ' -e ':4321 '
+ss -ltnp | grep -e ':4318 ' -e ':4320 ' -e ':4321 '
 ```
 
 Stop the conflicting process or choose different configurable ports in Settings. The Runtime API bind error is recorded in `runtime.json` and does not stop OTLP/MCP/SQLite. Do not expose any listener on a non-loopback address unless you understand the consequences in the [security model](security-model.md).
@@ -269,7 +269,7 @@ Verify all of the following:
 - The exporter uses OTLP/HTTP (JSON or protobuf), not gRPC.
 - The signal uses its full endpoint path.
 - The host and port match the green OTLP endpoint shown in OTelux.
-- `curl http://127.0.0.1:4319/healthz` succeeds.
+- `curl http://127.0.0.1:4318/healthz` succeeds.
 - The exporter is not sending to the standard collector port `4318` by mistake.
 
 ### Changes to shared UI code do not appear

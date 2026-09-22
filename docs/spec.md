@@ -45,7 +45,7 @@ The repository currently contains:
 - MCP tool plumbing over the same query layer.
 - A shared OTelux plugin under `plugins/otelux` installs into Claude Code, Codex, and Pi with four observability skills plus a secure stdio bridge to the desktop MCP listener. Pi's thin extension registers the same bridge tools natively; it does not fork the MCP implementation. This is the current companion implementation; see [arch.md](arch.md#current-implementation) for the target shared-runtime architecture.
 - A foreground `oteluxd` build now owns the same runtime without Electron, handles signals, rejects duplicate owners, and passes process-level RPC/cleanup tests. Node hosts share a bounded compatibility-aware discovery/ensure client that validates state, the canonical owner-only token, protocol negotiation, and live instance identity. Desktop packages contain and start the daemon on demand through Electron Node mode; it is not registered as an OS background service; Desktop provides restart and separately confirmed stop controls, while automatic upgrade/rollback remains planned.
-- The desktop app is the current release product. The latest published prerelease is `v0.1.16`, with Linux x64 and arm64 `.deb` and AppImage artifacts plus unsigned macOS arm64/x64 DMG and ZIP previews, all with checksums and SBOMs. Source and extracted-artifact tests also qualify the shared daemon and bundled CLI shape. macOS remains an unsigned preview target; Windows remains deferred. The agent plugin is currently a Desktop-launcher companion; the bundled CLI lifecycle client has landed, while direct MCP and independent CLI distribution remain planned.
+- The desktop app is the current release product. The latest published prerelease is `v0.1.17`, with Linux x64 and arm64 `.deb` and AppImage artifacts plus unsigned macOS arm64/x64 DMG and ZIP previews, all with checksums and SBOMs. Source and extracted-artifact tests also qualify the shared daemon and bundled CLI shape. macOS remains an unsigned preview target; Windows remains deferred. The agent plugin is currently a Desktop-launcher companion; the bundled CLI lifecycle client has landed, while direct MCP and independent CLI distribution remain planned.
 
 Important current limits:
 
@@ -110,7 +110,7 @@ Apps are not published packages:
 
 | App | Purpose | Current state |
 |---|---|---|
-| `apps/desktop` | Main Electron workbench. | `v0.1.16` is the latest published Linux x64/arm64 `.deb` and AppImage prerelease; unsigned macOS DMG/ZIP artifacts are preview targets and Windows remains deferred. |
+| `apps/desktop` | Main Electron workbench. | `v0.1.17` is the latest published Linux x64/arm64 `.deb` and AppImage prerelease; unsigned macOS DMG/ZIP artifacts are preview targets and Windows remains deferred. |
 | `apps/cli` | Thin runtime lifecycle/status/config/agent-inspection client (`oteluxctl`). | Source lifecycle, status, endpoints, schema-defined config preview/apply, doctor, and read-only Claude agent list/inspect/show-config commands live; a version-matched private launcher is bundled in Desktop artifacts, with no PATH installation yet. |
 
 Plugin distributions are thin hosts over the same packages:
@@ -174,7 +174,7 @@ Bounded export concurrency and visible per-signal overload counters are live.
 
 | Runtime | OTLP/HTTP | MCP HTTP | Runtime API | Notes |
 |---|---:|---:|---:|---|
-| Shared local runtime | `4319` | `4320` | `4321` | Avoids the standard collector on `4318`. OTLP/MCP are configurable and MCP can be disabled; Runtime API status is discovered through owner-only state. Runtime ownership is still embedded in Desktop. |
+| Shared local runtime | `4318` | `4320` | `4321` | Avoids the standard collector on `4318`. OTLP/MCP are configurable and MCP can be disabled; Runtime API status is discovered through owner-only state. Runtime ownership is still embedded in Desktop. |
 
 The runtime claims owner-only `runtime.lock` before opening SQLite or binding listeners and publishes effective statuses in `runtime.json`, preventing concurrent local entry points from becoming competing backend owners. OTLP and MCP listeners must use different ports. Runtime API bind failure is visible but does not stop OTLP/MCP/SQLite. Desktop exposes copyable OTLP/MCP endpoints; failed configurable listener changes leave the previous healthy listener and persisted settings intact.
 
@@ -334,15 +334,15 @@ environment = "dev"
 log_user_prompt = true
 
 [otel.exporter.otlp-http]
-endpoint = "http://localhost:4319/v1/logs"
+endpoint = "http://localhost:4318/v1/logs"
 protocol = "json"
 
 [otel.trace_exporter.otlp-http]
-endpoint = "http://localhost:4319/v1/traces"
+endpoint = "http://localhost:4318/v1/traces"
 protocol = "json"
 
 [otel.metrics_exporter.otlp-http]
-endpoint = "http://localhost:4319/v1/metrics"
+endpoint = "http://localhost:4318/v1/metrics"
 protocol = "json"
 ```
 

@@ -109,7 +109,7 @@ function baseSettings(): Settings {
 	return {
 		version: 1,
 		revision: 0,
-		otlp: { port: 4319 },
+		otlp: { port: 4318 },
 		mcp: { enabled: true, port: 4320 },
 		retention: { maxAgeHours: 72, maxSizeMb: 512 },
 		storage: { dbPath: '' },
@@ -119,7 +119,7 @@ function baseSettings(): Settings {
 
 describe('updateSettings', () => {
 	it('rejects a stale revision before mutating listeners', async () => {
-		const receiver = new FakeReceiver(4319);
+		const receiver = new FakeReceiver(4318);
 		const mcp = new FakeMcp({ kind: 'running', port: 4320, host: HOST });
 		const current = { ...baseSettings(), revision: 4 };
 		const store = new FakeStore(current);
@@ -138,7 +138,7 @@ describe('updateSettings', () => {
 	});
 
 	it('rebinds the receiver and commits when the port changes', async () => {
-		const receiver = new FakeReceiver(4319);
+		const receiver = new FakeReceiver(4318);
 		const mcp = new FakeMcp({ kind: 'running', port: 4320, host: HOST });
 		const store = new FakeStore(baseSettings());
 
@@ -153,7 +153,7 @@ describe('updateSettings', () => {
 	});
 
 	it('rolls listeners back when the settings write fails', async () => {
-		const receiver = new FakeReceiver(4319);
+		const receiver = new FakeReceiver(4318);
 		const mcp = new FakeMcp({ kind: 'running', port: 4320, host: HOST });
 		const store = new FakeStore(baseSettings(), new Error('disk full'));
 
@@ -166,12 +166,12 @@ describe('updateSettings', () => {
 		);
 
 		expect(result).toEqual({ ok: false, error: 'disk full' });
-		expect(receiver.startCalls).toEqual([4400, 4319]);
+		expect(receiver.startCalls).toEqual([4400, 4318]);
 		expect(mcp.startCalls).toEqual([4500, 4320]);
 	});
 
 	it('rolls the receiver back when MCP fails to bind, without persisting', async () => {
-		const receiver = new FakeReceiver(4319);
+		const receiver = new FakeReceiver(4318);
 		const mcp = new FakeMcp({ kind: 'running', port: 4320, host: HOST });
 		mcp.failOn(4500);
 		const store = new FakeStore(baseSettings());
@@ -185,7 +185,7 @@ describe('updateSettings', () => {
 		);
 
 		expect(result.ok).toBe(false);
-		expect(receiver.startCalls).toEqual([4400, 4319]);
+		expect(receiver.startCalls).toEqual([4400, 4318]);
 		expect(mcp.startCalls).toEqual([4500, 4320]);
 		expect(store.commitCalls).toBe(0);
 	});

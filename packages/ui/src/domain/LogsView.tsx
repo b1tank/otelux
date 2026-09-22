@@ -75,7 +75,7 @@ export interface LogsViewProps {
 }
 
 const DEFAULT_LIMIT = 100;
-const DEFAULT_ENDPOINT = 'http://localhost:4319/v1/logs';
+const DEFAULT_ENDPOINT = 'http://localhost:4318/v1/logs';
 const LOG_COLUMNS = ['Level', 'Time', 'Service', 'Message', 'Trace', 'Actions'] as const;
 
 export function LogsView(props: LogsViewProps): JSX.Element {

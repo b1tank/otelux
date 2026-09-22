@@ -69,7 +69,7 @@ describe('runtime ownership and state', () => {
 		expect(client).toMatchObject({
 			role: 'client',
 			owner: { instanceId: 'owner-a', pid: 100 },
-			state: { instanceId: 'owner-a', receiver: { kind: 'running', port: 4319 } },
+			state: { instanceId: 'owner-a', receiver: { kind: 'running', port: 4318 } },
 		});
 		await owner.release();
 	});
@@ -135,7 +135,7 @@ function state(instanceId: string, pid: number): RuntimeState {
 		dataDirectory: '/data/otelux',
 		databasePath: '/data/otelux/otelux.db',
 		mcpTokenFile: '/data/otelux/mcp-token',
-		receiver: { kind: 'running', host: '127.0.0.1', port: 4319 },
+		receiver: { kind: 'running', host: '127.0.0.1', port: 4318 },
 		mcp: { kind: 'running', host: '127.0.0.1', port: 4320 },
 	};
 }

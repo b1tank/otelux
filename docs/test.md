@@ -49,7 +49,7 @@ Qualification profiles:
 | 0.4 | `npm run test` | all configured test projects pass with no unexplained warnings |
 | 0.5 | `npm run build` | `apps/desktop/out/{main,preload,renderer}` exist; renderer `assets/index-*.js` >100 KB; preload verification reports only sandbox-supported `require()` calls |
 | 0.6 | `rm -rf /tmp/otelux-userdata /tmp/otelux-electron-userdata` *(only if you want a clean profile)* | no error |
-| 0.7 | `if ss -ltn \| grep -q -e ':4319 ' -e ':4320 ' -e ':4321 '; then exit 1; fi` | exits 0 because no default listener is active |
+| 0.7 | `if ss -ltn \| grep -q -e ':4318 ' -e ':4320 ' -e ':4321 '; then exit 1; fi` | exits 0 because no default listener is active |
 
 ---
 
@@ -60,19 +60,19 @@ Qualification profiles:
 cd apps/desktop && OTELUX_DATA_DIR=/tmp/otelux-userdata npx electron out/main/index.js --user-data-dir=/tmp/otelux-electron-userdata
 ```
 - **Expected**:
-  - main-process log line: `[otelux] OTLP/HTTP receiver listening on http://127.0.0.1:4319/v1/{traces,logs,metrics}`
+  - main-process log line: `[otelux] OTLP/HTTP receiver listening on http://127.0.0.1:4318/v1/{traces,logs,metrics}`
   - main-process log line: `[otelux] MCP server listening on http://127.0.0.1:4320/`
   - main-process log line: `[otelux] Runtime API listening on http://127.0.0.1:4321/api/v1/rpc`
   - Electron window opens within ~3 s
   - Window title: contains "OTelux" or "Electron"
-  - `ss -ltnp | grep -e ':4319 ' -e ':4320 ' -e ':4321 '` shows all three Electron-owned listeners
+  - `ss -ltnp | grep -e ':4318 ' -e ':4320 ' -e ':4321 '` shows all three Electron-owned listeners
 
 ### 1.2 Initial UI
 - **Visible chrome (top → bottom, left → right)**
   1. Left **Rail** — narrow icon strip with the **Traces** tab active, enabled **Metrics** and **Logs** tabs below it, and a footer with the **Theme** switch above **About OTelux**, **GitHub** (external link), and the **Settings** cog.
-  2. **Topbar** — `Traces` heading on the left, **EndpointBar** on the right (status dot, `OTLP/HTTP` label, URL `http://127.0.0.1:4319` as a click-to-copy pill, plus a green `MCP :4320` copy pill while MCP is enabled, and a `BETA` badge at the far right). The OTLP pill copies the receiver base URL; traces, logs, and metrics use the same host and port at `/v1/traces`, `/v1/logs`, and `/v1/metrics`. The MCP pill copies `http://127.0.0.1:4320/`. Hovering the `BETA` badge shows the current limitations (local database storage pruned by the retention setting, OTLP/HTTP JSON-or-protobuf ingest with no gRPC). The settings cog lives on the rail, not in the topbar.
+  2. **Topbar** — `Traces` heading on the left, **EndpointBar** on the right (status dot, `OTLP/HTTP` label, URL `http://127.0.0.1:4318` as a click-to-copy pill, plus a green `MCP :4320` copy pill while MCP is enabled, and a `BETA` badge at the far right). The OTLP pill copies the receiver base URL; traces, logs, and metrics use the same host and port at `/v1/traces`, `/v1/logs`, and `/v1/metrics`. The MCP pill copies `http://127.0.0.1:4320/`. Hovering the `BETA` badge shows the current limitations (local database storage pruned by the retention setting, OTLP/HTTP JSON-or-protobuf ingest with no gRPC). The settings cog lives on the rail, not in the topbar.
   3. **FilterBar** — hidden on cold start for Traces; it appears once at least one trace has been received and exposes a Source dropdown, an `Errors only` toggle chip, and a search field. Selecting a Source reveals its contextual Service dropdown. Logs and Metrics expose the same Source → Service pattern alongside their own controls.
-  4. **Workbench** body — right pane is collapsed (no waterfall yet); the left pane fills the width and shows the trace list with the `Traces` header, count `0`, and "Waiting for traces…" empty-state copy (or "No traces match. Point an OTel exporter at http://127.0.0.1:4319/v1/traces" once the first probe completes). When the store is genuinely empty (no active filters) a **Load sample data** button appears below the endpoint hint.
+  4. **Workbench** body — right pane is collapsed (no waterfall yet); the left pane fills the width and shows the trace list with the `Traces` header, count `0`, and "Waiting for traces…" empty-state copy (or "No traces match. Point an OTel exporter at http://127.0.0.1:4318/v1/traces" once the first probe completes). When the store is genuinely empty (no active filters) a **Load sample data** button appears below the endpoint hint.
   5. No drawer / value-viewer modal is visible.
 - **PASS** if the dot is green and the URL renders inside the topbar (no separate header strip above the workbench).
 
@@ -83,7 +83,7 @@ cd apps/desktop && OTELUX_DATA_DIR=/tmp/otelux-userdata npx electron out/main/in
 ### 1.2b Live/paused (live-tail) and result footer
 1. With data present, confirm the FilterBar shows a **Live** control (pulsing green dot) on the right, and each view has a footer reading `Showing N <items>` with a green `Live` state.
 2. Click the control to **Pause** (it shows a play icon + `Paused`; the footer state turns grey `Paused`).
-3. While paused, send a new trace (e.g. `curl -X POST http://127.0.0.1:4319/v1/traces …`).
+3. While paused, send a new trace (e.g. `curl -X POST http://127.0.0.1:4318/v1/traces …`).
 - **Expected**: the list does NOT change — the new trace is stored but the frozen view keeps its current rows and count.
 4. Click the control to **resume (Live)**.
 - **Expected**: the list refetches and now includes the trace that arrived while paused; the footer returns to `Live`. The paused/live state is global — pausing on any view keeps the others frozen too. Ingest is never dropped; only the view stops following the stream. Trace, log, and metric invalidations refresh only their matching queries; a burst during an in-flight query produces at most one trailing refresh rather than concurrent duplicate queries. If a trace is selected, new arrivals do not replace it; the waterfall keeps a visible **Selected trace** badge until the user explicitly chooses another row.
@@ -119,13 +119,13 @@ cat /tmp/otelux-userdata/settings.json 2>/dev/null
 
 ### 2.1 Status dot tooltip
 - Hover the dot.
-- **Expected**: tooltip reads `listening on http://127.0.0.1:4319`.
+- **Expected**: tooltip reads `listening on http://127.0.0.1:4318`.
 
 ### 2.2 URL copy
 - Click the URL pill once.
 - **Expected**:
   - The tooltip (button `title`) flips from `Click to copy` → `Copied` and the trailing icon morphs from the copy glyph to a green check for ~1.2 s, then both revert.
-  - System clipboard now contains exactly `http://127.0.0.1:4319` — verify with `xclip -selection clipboard -o` or paste into a textbox.
+  - System clipboard now contains exactly `http://127.0.0.1:4318` — verify with `xclip -selection clipboard -o` or paste into a textbox.
 
 ### 2.3 URL copy spamming
 - Click the URL 5 times rapidly.
@@ -278,14 +278,14 @@ For full runtime restart tests in this section, choose **Quit OTelux and Stop Re
 1. Quit.
 2. `echo 'this is not json' > /tmp/otelux-userdata/settings.json`
 3. Relaunch.
-- **Expected**: no crash, log shows `listening on http://127.0.0.1:4319/v1/{traces,logs,metrics}` (default), settings modal shows `4319`.
+- **Expected**: no crash, log shows `listening on http://127.0.0.1:4318/v1/{traces,logs,metrics}` (default), settings modal shows `4318`.
 4. MCP also returns to enabled on `4320`. Save `14320` from the modal — `settings.json` is rewritten as valid JSON with the current OTLP and MCP shape.
 
 ### 5.4 Invalid-shape settings tolerated
 1. Quit.
 2. `echo '{"version":99,"unknown":true}' > /tmp/otelux-userdata/settings.json`
 3. Relaunch.
-- **Expected**: same fallback to OTLP `4319` and MCP enabled on `4320`. Save → file gets rewritten in the current shape.
+- **Expected**: same fallback to OTLP `4318` and MCP enabled on `4320`. Save → file gets rewritten in the current shape.
 
 ### 5.5 Env validation
 1. Quit.
@@ -761,9 +761,9 @@ When you only have a minute (e.g. post-commit gate):
 
 1. Build: `npm run lint && npm run typecheck && npm run build`
 2. Launch: `cd apps/desktop && OTELUX_DATA_DIR=/tmp/otelux-smoke npx electron out/main/index.js --user-data-dir=/tmp/otelux-electron-smoke &`
-3. `curl --retry 20 --retry-delay 0 --retry-connrefused -sf http://127.0.0.1:4319/healthz && PORT=4319 ./scripts/send-traces.sh`
+3. `curl --retry 20 --retry-delay 0 --retry-connrefused -sf http://127.0.0.1:4318/healthz && PORT=4318 ./scripts/send-traces.sh`
 4. Click the trace, click any span — confirm waterfall + span detail drawer populate.
-5. Rail → Settings cog → change port to a different one (e.g. `4399`) → Save → confirm green dot + new URL, then change back to `4319`.
+5. Rail → Settings cog → change port to a different one (e.g. `4399`) → Save → confirm green dot + new URL, then change back to `4318`.
 6. Close window. `pkill -9 -f out/main/index.js`. Done.
 
 ---

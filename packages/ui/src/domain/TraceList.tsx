@@ -85,7 +85,7 @@ const DEFAULT_LIMIT = 200;
 const TRACE_CARD_ROW_HEIGHT = 82;
 const TRACE_FLAT_ROW_HEIGHT = 36;
 const TRACE_VIRTUALIZE_THRESHOLD = 50;
-const DEFAULT_ENDPOINT = 'http://localhost:4319/v1/traces';
+const DEFAULT_ENDPOINT = 'http://localhost:4318/v1/traces';
 
 export function TraceList(props: TraceListProps): JSX.Element {
 	const {

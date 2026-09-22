@@ -43,7 +43,7 @@ New plan/spec/proposal/test material belongs under `docs/`, never the root.
 
 ## Run the desktop app
 
-`cd apps/desktop && DISPLAY=:1 npm run dev` (X11 display `:1`). The receiver listens on OTLP/HTTP **4319** (`/v1/traces`, `/v1/logs`); the MCP server on **4320**. electron-vite HMR consumes `packages/ui/dist`, so **rebuild `@otelux/ui`** for the desktop to pick up UI changes.
+`cd apps/desktop && DISPLAY=:1 npm run dev` (X11 display `:1`). The receiver listens on OTLP/HTTP **4318** (`/v1/traces`, `/v1/logs`); the MCP server on **4320**. electron-vite HMR consumes `packages/ui/dist`, so **rebuild `@otelux/ui`** for the desktop to pick up UI changes.
 
 ## Layout
 

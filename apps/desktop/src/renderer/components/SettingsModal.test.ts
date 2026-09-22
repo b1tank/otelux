@@ -6,7 +6,7 @@ import { SettingsModal, parseRetentionLimit, validateSettingsInput } from './Set
 
 const validInput = {
 	keepRunningInBackground: true,
-	otlpPort: '4319',
+	otlpPort: '4318',
 	mcpEnabled: true,
 	mcpPort: '4320',
 	retentionAge: '72',
@@ -27,7 +27,7 @@ describe('parseRetentionLimit', () => {
 
 describe('validateSettingsInput', () => {
 	it('routes endpoint validation errors to Connections', () => {
-		expect(validateSettingsInput({ ...validInput, mcpPort: '4319' })).toEqual({
+		expect(validateSettingsInput({ ...validInput, mcpPort: '4318' })).toEqual({
 			ok: false,
 			category: 'connections',
 			field: 'mcpPort',
@@ -55,7 +55,7 @@ describe('validateSettingsInput', () => {
 			ok: true,
 			patch: {
 				desktop: { keepRunningInBackground: true },
-				otlp: { port: 4319 },
+				otlp: { port: 4318 },
 				mcp: { enabled: true, port: 4320 },
 				retention: { maxAgeHours: 72, maxSizeMb: 512 },
 				storage: { dbPath: '/tmp/otelux.db' },

@@ -35,7 +35,7 @@
         "databasePath": "/tmp/otelux/otelux.db",
         "receiver": {
           "kind": "running",
-          "port": 4319,
+          "port": 4318,
           "host": "127.0.0.1"
         },
         "mcp": {
@@ -54,7 +54,7 @@
       "result": {
         "version": 1,
         "otlp": {
-          "port": 4319
+          "port": 4318
         },
         "mcp": {
           "enabled": false,
@@ -101,7 +101,7 @@
         "settings": {
           "version": 1,
           "otlp": {
-            "port": 4319
+            "port": 4318
           },
           "mcp": {
             "enabled": false,
@@ -121,7 +121,7 @@
         },
         "status": {
           "kind": "running",
-          "port": 4319,
+          "port": 4318,
           "host": "127.0.0.1"
         },
         "mcpStatus": {
@@ -482,7 +482,7 @@
       "invokeKind": "getReceiverStatus",
       "result": {
         "kind": "running",
-        "port": 4319,
+        "port": 4318,
         "host": "127.0.0.1"
       }
     },

@@ -22,7 +22,7 @@
 			"runtimeArgs": ["--remote-debugging-port=9223", "."],
 			"env": {
 				"NODE_ENV": "development",
-				"OTELUX_OTLP_PORT": "4319"
+				"OTELUX_OTLP_PORT": "4318"
 			},
 			"outFiles": [
 				"${workspaceFolder}/apps/desktop/out/main/**/*.js",

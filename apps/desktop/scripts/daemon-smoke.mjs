@@ -21,7 +21,7 @@ writeFileSync(
 	JSON.stringify({
 		version: 1,
 		revision: 0,
-		otlp: { port: 4319 },
+		otlp: { port: 4318 },
 		mcp: { enabled: false, port: 4320 },
 		retention: { maxAgeHours: 72, maxSizeMb: 512 },
 		storage: { dbPath: '' },

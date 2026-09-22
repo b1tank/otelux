@@ -9,7 +9,7 @@ describe('EndpointBar receiver pressure', () => {
 				status={{
 					kind: 'running',
 					host: '127.0.0.1',
-					port: 4319,
+					port: 4318,
 					pressure: { overloadedTraces: 2, overloadedLogs: 3, overloadedMetrics: 1 },
 				}}
 				mcpStatus={{ kind: 'disabled' }}
@@ -22,7 +22,7 @@ describe('EndpointBar receiver pressure', () => {
 	it('hides pressure chrome when nothing was rejected', () => {
 		const html = renderToStaticMarkup(
 			<EndpointBar
-				status={{ kind: 'running', host: '127.0.0.1', port: 4319 }}
+				status={{ kind: 'running', host: '127.0.0.1', port: 4318 }}
 				mcpStatus={{ kind: 'disabled' }}
 			/>,
 		);

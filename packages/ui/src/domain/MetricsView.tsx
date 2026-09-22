@@ -70,7 +70,7 @@ export interface MetricsViewProps {
 }
 
 const DEFAULT_LIMIT = 500;
-const DEFAULT_ENDPOINT = 'http://localhost:4319/v1/metrics';
+const DEFAULT_ENDPOINT = 'http://localhost:4318/v1/metrics';
 
 export function MetricsView(props: MetricsViewProps): JSX.Element {
 	const {

@@ -13,7 +13,7 @@ const state = {
 	databasePath: '/tmp/otelux/otelux.db',
 	mcpTokenFile: '/tmp/otelux/mcp-token',
 	runtimeTokenFile: '/tmp/otelux/runtime-token',
-	receiver: { kind: 'running', host: '127.0.0.1', port: 4319 },
+	receiver: { kind: 'running', host: '127.0.0.1', port: 4318 },
 	mcp: { kind: 'disabled' },
 	api: { kind: 'running', host: '127.0.0.1', port: 4321 },
 };
@@ -24,7 +24,7 @@ function harness(found = true) {
 	const settings = {
 		version: 1,
 		revision: 3,
-		otlp: { port: 4319 },
+		otlp: { port: 4318 },
 		mcp: { enabled: false, port: 4320 },
 		retention: { maxAgeHours: 72, maxSizeMb: 512 },
 		storage: { dbPath: '' },
@@ -100,7 +100,7 @@ describe('otelux CLI', () => {
 		const test = harness();
 		assert.equal(await runCli(['endpoints', '--json'], test.output, test.dependencies), 0);
 		assert.deepEqual(JSON.parse(test.logs[0]), {
-			otlp: 'http://127.0.0.1:4319',
+			otlp: 'http://127.0.0.1:4318',
 			mcp: null,
 			api: 'http://127.0.0.1:4321',
 		});

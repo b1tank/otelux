@@ -29,7 +29,7 @@ const DB_SCOPE = { name: 'otelux.demo.db' } as const;
 
 export function createDemoTelemetry(options: DemoTelemetryOptions = {}): DemoTelemetry {
 	const now = options.now ?? BigInt(Date.now()) * MS;
-	const port = options.otlpPort ?? 4319;
+	const port = options.otlpPort ?? 4318;
 	const base = now - 2_000n * MS;
 
 	const spans: Span[] = [

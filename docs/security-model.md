@@ -20,7 +20,7 @@ OTelux is designed to protect:
 
 ### OTLP receiver
 
-The desktop currently listens on `127.0.0.1:4319` by default. It accepts OTLP/HTTP JSON at `/v1/traces`, `/v1/logs`, and `/v1/metrics` without authentication.
+The desktop currently listens on `127.0.0.1:4318` by default. It accepts OTLP/HTTP JSON at `/v1/traces`, `/v1/logs`, and `/v1/metrics` without authentication.
 
 Any local process or user that can reach the loopback interface can submit telemetry. Payloads must therefore be treated as untrusted input even when they originate from a local SDK.
 

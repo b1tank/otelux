@@ -45,7 +45,7 @@ describe('invoke validation', () => {
 		{ kind: 'getMetricPoints', query: { instrumentId: '42', limit: 1_000, cursor: '1000:42' } },
 		{ kind: 'listResourceFacets', query: { signal: 'traces', facet: 'source' } },
 		{ kind: 'getSettings' },
-		{ kind: 'updateSettings', patch: { otlp: { port: 4319 } }, expectedRevision: 0 },
+		{ kind: 'updateSettings', patch: { otlp: { port: 4318 } }, expectedRevision: 0 },
 		{ kind: 'getReceiverStatus' },
 		{ kind: 'getMcpStatus' },
 		{ kind: 'getStoragePath' },
@@ -121,7 +121,7 @@ describe('settings validation', () => {
 			parseSettings({
 				version: 1,
 				revision: 0,
-				otlp: { port: 4319 },
+				otlp: { port: 4318 },
 				mcp: { enabled: true, port: 4320 },
 				retention: { maxAgeHours: 72, maxSizeMb: 512 },
 				storage: { dbPath: '' },
@@ -181,12 +181,12 @@ describe('runtime event validation', () => {
 				kind: 'receiver-status-changed',
 				status: {
 					kind: 'running',
-					port: 4319,
+					port: 4318,
 					host: '127.0.0.1',
 					pressure: { overloadedTraces: 1, overloadedLogs: 2, overloadedMetrics: 3 },
 				},
 			}),
-		).toMatchObject({ status: { kind: 'running', port: 4319 } });
+		).toMatchObject({ status: { kind: 'running', port: 4318 } });
 	});
 
 	it('rejects malformed and unknown events', () => {

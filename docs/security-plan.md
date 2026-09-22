@@ -16,7 +16,7 @@ OTelux currently binds three IPv4 loopback listeners:
 
 | Listener | Default | Capability | Current guard |
 |---|---:|---|---|
-| OTLP/HTTP | `127.0.0.1:4319` | Write traces, logs, and metrics | Loopback, browser-Origin rejection, content-type validation, request/queue limits; no credential |
+| OTLP/HTTP | `127.0.0.1:4318` | Write traces, logs, and metrics | Loopback, browser-Origin rejection, content-type validation, request/queue limits; no credential |
 | MCP HTTP | `127.0.0.1:4320` | Read sensitive telemetry through tools | Independent per-install bearer token, browser-Origin rejection, body limits |
 | Runtime API | `127.0.0.1:4321` | Read telemetry and mutate settings/data | Independent per-install bearer token, exact Host validation, browser-Origin rejection, bounded requests/responses/batches/SSE clients |
 

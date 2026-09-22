@@ -192,7 +192,7 @@ describe('createLocalRuntime', () => {
 			join(directory, 'settings.json'),
 			`${JSON.stringify({
 				version: 1,
-				otlp: { port: 4319 },
+				otlp: { port: 4318 },
 				mcp: { enabled: false, port: 4320 },
 				retention: { maxAgeHours: 72, maxSizeMb: 512 },
 				storage: { dbPath: '' },
