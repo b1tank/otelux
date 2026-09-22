@@ -111,7 +111,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            xvfb libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 xdg-utils \
+            librsvg2-bin xvfb libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 xdg-utils \
             libatspi2.0-0 libsecret-1-0 libgbm1
           sudo apt-get install -y libasound2t64 || sudo apt-get install -y libasound2
 
