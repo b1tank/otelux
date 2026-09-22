@@ -187,9 +187,9 @@ export function TraceList(props: TraceListProps): JSX.Element {
 			</header>
 			<div ref={virtual.scrollRef} className="otelux-trace-list__body" onScroll={virtual.onScroll}>
 				{query.loading && rows.length === 0 ? (
-					<div className="otelux-trace-list__empty">Waiting for traces…</div>
+					<div className="otelux-signal-empty otelux-trace-list__empty">Waiting for traces…</div>
 				) : rows.length === 0 ? (
-					<div className="otelux-trace-list__empty">
+					<div className="otelux-signal-empty otelux-trace-list__empty">
 						No traces match. Point an OTel exporter at
 						<br />
 						<code>{endpointUrl}</code>

@@ -186,9 +186,9 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 				</header>
 				<div className="otelux-metrics__body">
 					{query.loading && rows.length === 0 ? (
-						<div className="otelux-metrics__empty">Waiting for metrics…</div>
+						<div className="otelux-signal-empty otelux-metrics__empty">Waiting for metrics…</div>
 					) : rows.length === 0 ? (
-						<div className="otelux-metrics__empty">
+						<div className="otelux-signal-empty otelux-metrics__empty">
 							No metrics match. Point an OTel metrics exporter at
 							<br />
 							<code>{endpointUrl}</code>

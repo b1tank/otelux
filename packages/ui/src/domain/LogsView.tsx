@@ -193,13 +193,13 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 						{query.loading && rows.length === 0 ? (
 							<tr className="otelux-logs__empty-row">
 								<td colSpan={LOG_COLUMNS.length}>
-									<div className="otelux-logs__empty">Waiting for logs…</div>
+									<div className="otelux-signal-empty otelux-logs__empty">Waiting for logs…</div>
 								</td>
 							</tr>
 						) : rows.length === 0 ? (
 							<tr className="otelux-logs__empty-row">
 								<td colSpan={LOG_COLUMNS.length}>
-									<div className="otelux-logs__empty">
+									<div className="otelux-signal-empty otelux-logs__empty">
 										No logs match. Point an OTel logs exporter at
 										<br />
 										<code>{endpointUrl}</code>

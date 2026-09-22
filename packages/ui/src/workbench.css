@@ -2618,6 +2618,20 @@
 	color: var(--otelux-accent-2);
 }
 
+/*
+ * Keep the first-run empty state on a shared vertical rail across Traces,
+ * Logs, and Metrics. Each view has different content plumbing (virtual list,
+ * table, or explorer), so centering against the available height made rapid
+ * tab switches visibly jump.
+ */
+.otelux-signal-empty {
+	box-sizing: border-box;
+	background: var(--otelux-bg);
+	flex: 0 0 240px;
+	height: 240px;
+	min-height: 240px;
+}
+
 .otelux-metrics__explorer {
 	display: grid;
 	grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
