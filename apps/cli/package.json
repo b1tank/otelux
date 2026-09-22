@@ -1,13 +1,16 @@
 {
 	"name": "@otelux/cli",
-	"version": "0.1.13",
+	"version": "0.1.14",
 	"private": true,
 	"description": "Thin lifecycle and diagnostics client for the local OTelux runtime.",
 	"license": "MIT",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
-	"files": ["dist", "README.md"],
+	"files": [
+		"dist",
+		"README.md"
+	],
 	"bin": {
 		"oteluxctl": "./dist/index.js"
 	},
