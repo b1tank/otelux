@@ -2,7 +2,7 @@
   <!-- Keep the template's intrinsic canvas close to the native macOS status
        item size. The transparent canvas, rather than extra CSS spacing, owns
        the alignment with neighboring menu-bar icons. -->
-  <g fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-width="20">
+  <g transform="translate(-44.8 -44.8) scale(1.35)" fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round" stroke-width="20">
     <path d="M 40 72 L 220 72 M 196 58 L 220 72 L 196 86"/>
     <path d="M 80 128 L 212 128 M 188 114 L 212 128 L 188 142"/>
     <path d="M 120 184 L 204 184 M 180 170 L 204 184 L 180 198"/>
