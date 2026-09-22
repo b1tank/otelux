@@ -604,11 +604,6 @@ function createTray(): void {
 	const icon = nativeImage.createFromPath(resolveIconPath('tray'));
 	if (process.platform === 'darwin') icon.setTemplateImage(true);
 	tray = new Tray(icon);
-	if (process.platform === 'darwin') {
-		// Keep a text fallback beside the template image. Some macOS menu-bar
-		// configurations render tiny template PNGs effectively invisible.
-		tray.setTitle('OT');
-	}
 	tray.setToolTip('OTelux — local telemetry receiver');
 	refreshTrayMenu();
 	tray.on('click', showDesktop);

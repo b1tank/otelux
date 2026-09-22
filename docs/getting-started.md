@@ -2,24 +2,24 @@
 
 Updated: 2026-08-04
 
-OTelux publishes Linux x64 and arm64 `.deb` and AppImage prereleases plus unsigned macOS arm64/x64 DMG and ZIP previews through GitHub Releases. Download `SHA256SUMS` plus one immutable package from the latest published release, [v0.1.15](https://github.com/b1tank/otelux/releases/tag/v0.1.15).
+OTelux publishes Linux x64 and arm64 `.deb` and AppImage prereleases plus unsigned macOS arm64/x64 DMG and ZIP previews through GitHub Releases. Download `SHA256SUMS` plus one immutable package from the latest published release, [v0.1.16](https://github.com/b1tank/otelux/releases/tag/v0.1.16).
 
 Install the x64 Debian/Ubuntu package:
 
 ```bash
 grep '  OTelux-.*-amd64.deb$' SHA256SUMS | sha256sum -c -
-sudo apt install ./OTelux-0.1.15-amd64.deb
+sudo apt install ./OTelux-0.1.16-amd64.deb
 ```
 
 Or run the rootless x64 AppImage:
 
 ```bash
 grep '  OTelux-.*-x86_64.AppImage$' SHA256SUMS | sha256sum -c -
-chmod +x OTelux-0.1.15-x86_64.AppImage
-./OTelux-0.1.15-x86_64.AppImage
+chmod +x OTelux-0.1.16-x86_64.AppImage
+./OTelux-0.1.16-x86_64.AppImage
 ```
 
-On arm64, use the corresponding `OTelux-0.1.15-arm64.deb` or `.AppImage` and matching checksum line. macOS users should verify the matching DMG or ZIP checksum; these artifacts are unsigned previews and may require Privacy & Security → Open Anyway. Do not install OTelux through an unofficial `curl | sudo sh` command or third-party package. Source setup remains available below for contributors.
+On arm64, use the corresponding `OTelux-0.1.16-arm64.deb` or `.AppImage` and matching checksum line. macOS users should verify the matching DMG or ZIP checksum; these artifacts are unsigned previews and may require Privacy & Security → Open Anyway. Do not install OTelux through an unofficial `curl | sudo sh` command or third-party package. Source setup remains available below for contributors.
 
 The [Current Baseline](spec.md#current-baseline) is the source of truth for implemented capabilities and limitations. This guide describes the current pre-release desktop behavior.
 
