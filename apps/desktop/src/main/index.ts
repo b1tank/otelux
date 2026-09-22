@@ -15,7 +15,7 @@ import {
 	parseInvokeResult,
 	parseRuntimeEvent,
 } from '@otelux/protocol';
-import { BrowserWindow, Menu, Tray, app, dialog, ipcMain, shell } from 'electron';
+import { BrowserWindow, Menu, Tray, app, dialog, ipcMain, nativeImage, shell } from 'electron';
 import {
 	type InvokeMessage,
 	OTELUX_EVENT_CHANNEL,
@@ -375,8 +375,23 @@ function daemonLimitEnvironment(): Record<string, string> {
 
 function resolveIconPath(kind: 'app' | 'tray'): string {
 	const path = app.isPackaged
-		? join(process.resourcesPath, kind === 'app' ? 'app-icon.png' : 'tray-icon.png')
-		: join(__dirname, '..', '..', 'build', kind === 'app' ? 'icon.png' : join('icons', '32x32.png'));
+		? kind === 'app'
+			? join(process.resourcesPath, 'app-icon.png')
+			: join(
+					process.resourcesPath,
+					process.platform === 'darwin' ? 'tray-icon-template.png' : 'tray-icon.png',
+				)
+		: join(
+				__dirname,
+				'..',
+				'..',
+				'build',
+				kind === 'app'
+					? 'icon.png'
+					: process.platform === 'darwin'
+						? 'tray-template.png'
+						: join('icons', '32x32.png'),
+			);
 	if (!existsSync(path)) {
 		throw Object.assign(new Error(`missing ${kind} icon resource`), {
 			code: 'missing-resource',
@@ -521,7 +536,9 @@ async function confirmRuntimeShutdown(): Promise<void> {
 }
 
 function createTray(): void {
-	tray = new Tray(resolveIconPath('tray'));
+	const icon = nativeImage.createFromPath(resolveIconPath('tray'));
+	if (process.platform === 'darwin') icon.setTemplateImage(true);
+	tray = new Tray(icon);
 	tray.setToolTip('OTelux Desktop — local runtime continues independently');
 	tray.setContextMenu(
 		Menu.buildFromTemplate([

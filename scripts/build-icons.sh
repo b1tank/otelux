@@ -19,6 +19,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 SRC="${REPO_ROOT}/apps/desktop/build/icon.svg"
+TRAY_SRC="${REPO_ROOT}/apps/desktop/build/tray-template.svg"
 OUT_DIR="${REPO_ROOT}/apps/desktop/build"
 ICONS_DIR="${OUT_DIR}/icons"
 
@@ -32,6 +33,11 @@ if [[ ! -f "${SRC}" ]]; then
 	exit 1
 fi
 
+if [[ ! -f "${TRAY_SRC}" ]]; then
+	echo "error: missing macOS tray SVG at ${TRAY_SRC}" >&2
+	exit 1
+fi
+
 mkdir -p "${ICONS_DIR}"
 
 # Primary icon used by electron-builder. 512x512 is the documented minimum
@@ -41,6 +47,9 @@ rsvg-convert -w 512 -h 512 "${SRC}" -o "${OUT_DIR}/icon.png"
 # High-resolution master for future .icns/.ico generation.
 rsvg-convert -w 1024 -h 1024 "${SRC}" -o "${OUT_DIR}/icon@1024.png"
 
+# macOS status-bar icons must be monochrome Template Images with transparency.
+rsvg-convert -w 32 -h 32 "${TRAY_SRC}" -o "${OUT_DIR}/tray-template.png"
+
 # Size set for Linux desktop integration (`build/icons/<size>x<size>.png`).
 for size in 16 32 48 64 128 256 512; do
 	rsvg-convert -w "${size}" -h "${size}" "${SRC}" \
@@ -49,4 +58,5 @@ done
 
 echo "wrote: ${OUT_DIR}/icon.png (512x512)"
 echo "wrote: ${OUT_DIR}/icon@1024.png (1024x1024)"
+echo "wrote: ${OUT_DIR}/tray-template.png (32x32 macOS template)"
 echo "wrote: ${ICONS_DIR}/{16,32,48,64,128,256,512}x{...}.png"

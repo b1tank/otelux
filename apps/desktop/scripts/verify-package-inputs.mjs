@@ -8,6 +8,7 @@ const required = [
 	join(desktopDir, 'build', 'icon.png'),
 	join(desktopDir, 'build', 'icon@1024.png'),
 	join(desktopDir, 'build', 'icons', '32x32.png'),
+	join(desktopDir, 'build', 'tray-template.png'),
 	join(desktopDir, 'build', 'THIRD-PARTY-NOTICES.txt'),
 	join(desktopDir, 'build', 'oteluxctl'),
 ];

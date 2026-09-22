@@ -32,6 +32,8 @@ extraResources:
     to: "app-icon.png"
   - from: "build/icons/32x32.png"
     to: "tray-icon.png"
+  - from: "build/tray-template.png"
+    to: "tray-icon-template.png"
   - from: "build/oteluxctl"
     to: "bin/oteluxctl"
 asar: true
