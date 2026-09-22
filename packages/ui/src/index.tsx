@@ -637,6 +637,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 							{...(logsSource !== 'all' ? { sources: [logsSource] } : {})}
 							{...(logsService !== 'all' ? { services: [logsService] } : {})}
 							{...(logsSearch ? { search: logsSearch } : {})}
+							{...(onLoadSampleData ? { onLoadSampleData } : {})}
 							{...(endpointUrl !== undefined
 								? { endpointUrl: endpointUrl.replace('/v1/traces', '/v1/logs') }
 								: {})}
@@ -690,6 +691,7 @@ export function OTeluxWorkbench(props: OTeluxWorkbenchProps): JSX.Element {
 							{...(metricsSource !== 'all' ? { sources: [metricsSource] } : {})}
 							{...(metricsService !== 'all' ? { services: [metricsService] } : {})}
 							{...(metricsSearch ? { search: metricsSearch } : {})}
+							{...(onLoadSampleData ? { onLoadSampleData } : {})}
 							{...(endpointUrl !== undefined
 								? { endpointUrl: endpointUrl.replace('/v1/traces', '/v1/metrics') }
 								: {})}

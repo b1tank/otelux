@@ -133,6 +133,23 @@ describe('LogsView', () => {
 		await findByText(/No logs match/i);
 	});
 
+	it('offers sample data when the unfiltered store is empty', async () => {
+		const ds = new FakeDataSource();
+		const onLoadSampleData = vi.fn();
+		const { findByRole } = render(<LogsView dataSource={ds} onLoadSampleData={onLoadSampleData} />);
+		fireEvent.click(await findByRole('button', { name: 'Load sample data' }));
+		expect(onLoadSampleData).toHaveBeenCalledTimes(1);
+	});
+
+	it('hides sample data when a filter is active', async () => {
+		const ds = new FakeDataSource();
+		const { findByText, queryByRole } = render(
+			<LogsView dataSource={ds} onLoadSampleData={() => {}} search="missing" />,
+		);
+		await findByText(/No logs match/i);
+		expect(queryByRole('button', { name: 'Load sample data' })).toBeNull();
+	});
+
 	it('renders a row per log with severity, service and message', async () => {
 		const ds = new FakeDataSource();
 		ds.rows = [makeLog(), makeLog({ severityNumber: 17, severityText: 'ERROR', body: 'boom' })];

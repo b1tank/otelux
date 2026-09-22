@@ -171,6 +171,30 @@ describe('MetricsView', () => {
 		await findByText(/No metrics match/i);
 	});
 
+	it('offers sample data when the unfiltered store is empty', async () => {
+		const ds = new FakeDataSource();
+		let calls = 0;
+		const { findByRole } = render(
+			<MetricsView
+				dataSource={ds}
+				onLoadSampleData={() => {
+					calls += 1;
+				}}
+			/>,
+		);
+		fireEvent.click(await findByRole('button', { name: 'Load sample data' }));
+		expect(calls).toBe(1);
+	});
+
+	it('hides sample data when a filter is active', async () => {
+		const ds = new FakeDataSource();
+		const { findByText, queryByRole } = render(
+			<MetricsView dataSource={ds} onLoadSampleData={() => {}} search="missing" />,
+		);
+		await findByText(/No metrics match/i);
+		expect(queryByRole('button', { name: 'Load sample data' })).toBeNull();
+	});
+
 	it('groups instruments in a meter tree with a focused instrument', async () => {
 		const ds = new FakeDataSource();
 		ds.rows = [makeSum(), makeHistogram()];

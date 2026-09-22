@@ -1320,7 +1320,7 @@
 	font-size: 11px;
 }
 
-.otelux-trace-list__sample-btn {
+.otelux-sample-data-btn {
 	margin-top: 6px;
 	padding: 6px 12px;
 	background: var(--otelux-accent);
@@ -1332,11 +1332,11 @@
 	cursor: pointer;
 }
 
-.otelux-trace-list__sample-btn:hover {
+.otelux-sample-data-btn:hover {
 	filter: brightness(1.08);
 }
 
-.otelux-trace-list__sample-btn:focus-visible {
+.otelux-sample-data-btn:focus-visible {
 	outline: 2px solid var(--otelux-accent);
 	outline-offset: 2px;
 }

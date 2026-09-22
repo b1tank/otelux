@@ -196,7 +196,7 @@ export function TraceList(props: TraceListProps): JSX.Element {
 						{showSampleButton ? (
 							<>
 								<br />
-								<button type="button" className="otelux-trace-list__sample-btn" onClick={onLoadSampleData}>
+								<button type="button" className="otelux-sample-data-btn" onClick={onLoadSampleData}>
 									Load sample data
 								</button>
 							</>

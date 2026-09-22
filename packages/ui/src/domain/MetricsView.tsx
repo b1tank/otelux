@@ -65,6 +65,8 @@ export interface MetricsViewProps {
 	endpointUrl?: string;
 	/** When true, live updates are frozen (the explorer holds its instruments). */
 	paused?: boolean;
+	/** Seeds the shared store from the empty state when no filters are active. */
+	onLoadSampleData?: () => void;
 }
 
 const DEFAULT_LIMIT = 500;
@@ -80,6 +82,7 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 		limit = DEFAULT_LIMIT,
 		endpointUrl = DEFAULT_ENDPOINT,
 		paused = false,
+		onLoadSampleData,
 	} = props;
 	const [selectedMeter, setSelectedMeter] = useState<string | null>(null);
 	const [selectedMetricKey, setSelectedMetricKey] = useState<string | null>(null);
@@ -124,6 +127,12 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 
 	const rows = query.value?.rows ?? [];
 	const groups = groupByMeter(rows);
+	const filtersActive =
+		(sources?.length ?? 0) > 0 ||
+		(services?.length ?? 0) > 0 ||
+		(meters?.length ?? 0) > 0 ||
+		Boolean(search);
+	const showSampleButton = onLoadSampleData !== undefined && !filtersActive;
 	const selection = resolveMetricSelection(groups, selectedMeter, selectedMetricKey);
 	const selectedSummary = selection.activeMetric;
 	const selectedKey = selectedSummary?.instrumentId ?? '';
@@ -183,6 +192,14 @@ export function MetricsView(props: MetricsViewProps): JSX.Element {
 							No metrics match. Point an OTel metrics exporter at
 							<br />
 							<code>{endpointUrl}</code>
+							{showSampleButton ? (
+								<>
+									<br />
+									<button type="button" className="otelux-sample-data-btn" onClick={onLoadSampleData}>
+										Load sample data
+									</button>
+								</>
+							) : null}
 						</div>
 					) : (
 						<div className="otelux-metrics__explorer">

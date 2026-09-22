@@ -66,6 +66,8 @@ export interface LogsViewProps {
 	onOpenTrace?: (traceId: TraceId, spanId?: SpanId) => void;
 	/** When true, live updates are frozen (the table holds its current rows). */
 	paused?: boolean;
+	/** Seeds the shared store from the empty state when no filters are active. */
+	onLoadSampleData?: () => void;
 	/** Sort field. Defaults to `time` (most recent first). */
 	sortBy?: LogListSort;
 	/** Sort direction. Defaults to `desc`. */
@@ -87,6 +89,7 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 		endpointUrl = DEFAULT_ENDPOINT,
 		onOpenTrace,
 		paused = false,
+		onLoadSampleData,
 		sortBy = 'time',
 		sortDirection = 'desc',
 	} = props;
@@ -154,6 +157,12 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 		queryKey,
 	);
 	const rows = pages.rows;
+	const filtersActive =
+		minSeverity !== undefined ||
+		(sources?.length ?? 0) > 0 ||
+		(services?.length ?? 0) > 0 ||
+		Boolean(search);
+	const showSampleButton = onLoadSampleData !== undefined && !filtersActive;
 
 	return (
 		<section className="otelux-logs" aria-label="Logs">
@@ -194,6 +203,14 @@ export function LogsView(props: LogsViewProps): JSX.Element {
 										No logs match. Point an OTel logs exporter at
 										<br />
 										<code>{endpointUrl}</code>
+										{showSampleButton ? (
+											<>
+												<br />
+												<button type="button" className="otelux-sample-data-btn" onClick={onLoadSampleData}>
+													Load sample data
+												</button>
+											</>
+										) : null}
 									</div>
 								</td>
 							</tr>
